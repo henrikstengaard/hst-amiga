@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Amiga", "Hst.Amiga\Hst.Amiga.csproj", "{17D300CD-9C88-42E4-8668-8D98AE68B769}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Amiga.Tests", "Hst.Amiga.Tests\Hst.Amiga.Tests.csproj", "{B61D262D-26E5-45EB-8DDF-CCD233156BBA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{17D300CD-9C88-42E4-8668-8D98AE68B769}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17D300CD-9C88-42E4-8668-8D98AE68B769}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17D300CD-9C88-42E4-8668-8D98AE68B769}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17D300CD-9C88-42E4-8668-8D98AE68B769}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B61D262D-26E5-45EB-8DDF-CCD233156BBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B61D262D-26E5-45EB-8DDF-CCD233156BBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B61D262D-26E5-45EB-8DDF-CCD233156BBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B61D262D-26E5-45EB-8DDF-CCD233156BBA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

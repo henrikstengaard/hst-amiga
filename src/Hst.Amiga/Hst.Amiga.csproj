@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Folder Include="FileSystems" />
+    <Folder Include="RigidDiskBlocks" />
+    <Folder Include="VersionStrings" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Hst.Core" Version="0.1.8" />
+  </ItemGroup>
+</Project>
