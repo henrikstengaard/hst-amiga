@@ -12,7 +12,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Info", "Info", "{B15E7257-A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Properties", "Properties", "{55F9B8ED-B753-457C-867F-E20580E7C844}"
 	ProjectSection(SolutionItems) = preProject
-		NuGet.Config = NuGet.Config
 		Directory.Build.props = Directory.Build.props
 	EndProjectSection
 EndProject

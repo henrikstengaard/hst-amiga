@@ -38,7 +38,7 @@
         [Fact]
         public async Task WhenReadParseAndBuildRootBlockThenRootBlockIsUnchanged()
         {
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
 
             // arrange - open adf path
             await using var adfStream = System.IO.File.OpenRead(adfPath);
