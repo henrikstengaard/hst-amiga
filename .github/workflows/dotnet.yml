@@ -31,16 +31,16 @@ jobs:
         "PACKAGE_VERSION={0}" -f ($packageVersion -replace '^(.*)\.\d+.*$', "`$1.$commitCount") >> $env:GITHUB_ENV
 
     - name: Restore dependencies
-      run: dotnet restore ./src/Hst.Core.sln
+      run: dotnet restore ./src/Hst.Amiga.sln
       
     - name: Build
-      run: dotnet build ./src/Hst.Core.sln --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:AssemblyVersion=${{ env.ASSEMBLY_VERSION }} -p:FileVersion=${{ env.ASSEMBLY_VERSION }}
+      run: dotnet build ./src/Hst.Amiga.sln --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:AssemblyVersion=${{ env.ASSEMBLY_VERSION }} -p:FileVersion=${{ env.ASSEMBLY_VERSION }}
       
     - name: Test
-      run: dotnet test ./src/Hst.Core.sln --configuration Release --no-build --verbosity normal --filter Category!=Integration
+      run: dotnet test ./src/Hst.Amiga.sln --configuration Release --no-build --verbosity normal --filter Category!=Integration
       
     - name: Pack
-      run: dotnet pack ./src/Hst.Core.sln --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:PackageVersion=${{ env.PACKAGE_VERSION }} -p:ProjectUrl=https://github.com/${{ github.repository }} -p:RepositoryUrl=https://github.com/${{ github.repository }}
+      run: dotnet pack ./src/Hst.Amiga.sln --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:PackageVersion=${{ env.PACKAGE_VERSION }} -p:ProjectUrl=https://github.com/${{ github.repository }} -p:RepositoryUrl=https://github.com/${{ github.repository }}
       
     - name: Push
       run: |
