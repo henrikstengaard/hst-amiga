@@ -1,0 +1,2368 @@
+
+<!-- saved from url=(0042)http://lclevy.free.fr/adflib/adf_info.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+   
+   <meta name="KEYWORDS" content="Amiga; filesystem; dump file; .adf; ADF FAQ">
+   <meta name="DESCRIPTION" content="the Amiga filesystem explained">
+
+<title>
+The .ADF (Amiga Disk File) format FAQ
+</title>
+
+<meta name="description" content="The Amiga Disk File format FAQ, a document
+which explains the format of Amiga formatted disks">
+
+<meta name="keywords" content="ADF, Amiga, disk formats, filesystem, AmigaDOS, UAE">
+
+
+</head>
+
+<body bgcolor="#f0f0f0" text="#000000" link="#4669ad" vlink="#a669ad" alink="#ff0000">
+
+<hr>
+<h1>
+The .ADF (Amiga Disk File) format FAQ<br>
+</h1>
+
+<h2>
+Laurent Clévy, <img src="./The_Amiga_Disk_File_format_FAQ_files/em.png">
+
+</h2>
+v1.14 - April 8th, 2017<br>
+<hr>
+<em>
+This document describes the .ADF file format. An Amiga Disk File is a sector per
+sector dump of an Amiga formatted disk. The intent is to explain in detail how the Amiga stores
+files and directories on floppy and hard disks.<br>
+A set of C routines (ADFlib) will be supplied to manage the ADF format.
+</em>
+<hr>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p0">0. Changes</a></h2>
+
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p1">1. Introduction</a></h2>
+	<ul>
+	<li><a href="http://lclevy.free.fr/adflib/adf_info.html#p11">1.1 Disclaimer and Copyright</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p12">1.2 Feedback, updates</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p13">1.3 Conventions</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p14">1.4 Acknowledgements</a>
+	</li></ul>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p2">2. How bytes are physically read from and written to a disk ?</a></h2>
+	<ul>
+	<li><a href="http://lclevy.free.fr/adflib/adf_info.html#p21">2.1 What is MFM encoding/decoding ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p22">2.2 What is the MFM track format ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p23">2.3 What is the MFM sector format ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p24">2.4 How to decode MFM data ?</a>
+	</li></ul>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p3">3. What is the Amiga floppy disk geometry ?</a></h2>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p4">4. What is the logical organisation of an Amiga volume ?</a></h2>
+	<ul>
+	<li><a href="http://lclevy.free.fr/adflib/adf_info.html#p41">4.1 What is a Bootblock ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p42">4.2 What is a Rootblock ?</a>
+		<ul>
+		<li><a href="http://lclevy.free.fr/adflib/adf_info.html#p421">4.2.1 How to find the first sector of an entry ?</a>
+		</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p422">4.2.2 How to list directory entries ?</a>
+		</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p423">4.2.3 How to compute the checksum ?</a>
+		</li></ul>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p43">4.3 How are the free and used block lists managed ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p44">4.4 How are files stored ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p45">4.5 How are directories stored ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p46">4.6 How are links implemented in AmigaDOS ?</a>
+		<ul>
+		<li><a href="http://lclevy.free.fr/adflib/adf_info.html#p461">4.6.1 Hard links</a>
+		</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p462">4.6.2 Soft links</a>
+		</li></ul>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p47">4.7 How are the blocks associated with the dircache mode ?</a>
+	</li></ul>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p5">5. How does a blank disk look like ?</a></h2>
+	<ul>
+	<li><a href="http://lclevy.free.fr/adflib/adf_info.html#p51">5.1 A minimal blank floppy disk</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p52">5.2 A 'Bootable' floppy disk</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p53">5.3 A directory cache mode floppy disk</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p54">5.4 International mode</a>
+	</li></ul>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p6">6. The structure of a hard disks ?</a></h2>
+	<ul>
+	<li><a href="http://lclevy.free.fr/adflib/adf_info.html#p61">6.1 What is the Rigid Disk Block ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p62">6.2 How are bad blocks managed ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p63">6.3 How are partitions stored ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p64">6.4 What are FSHD blocks ?</a>
+	</li><li><a href="http://lclevy.free.fr/adflib/adf_info.html#p65">6.5 What are LSEG blocks ?</a>
+	</li></ul>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p7">7. The Hard file : a big floppy dump file</a></h2>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p8">8. Advanced information</a></h2>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p9">9. References and links</a></h2>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p10">10. C Routines : the ADF Library</a></h2>
+<h2><a href="http://lclevy.free.fr/adflib/adf_info.html#p11">11. Other Amiga file systems</a></h2>
+
+
+<hr>
+<a name="p0"></a>
+<h2>
+0. Changes <br>
+</h2>
+
+Since 1.11 (August 14th, 2010)
+<ul>
+<li>Typo in 2.3 section. Type of MFM data at 0x40 and 0x240 are BYTE and not LONG, of course.<br>
+ Thanks to Bret McGee (http://www.bret-mcgee.me.uk).
+</li></ul>
+
+Since 1.11 (March 5th, 2005)
+<ul>
+<li>Labelling mistake was in MFM decoding description: odd and even bits was reversed. <br>
+ The algorithm was correct, but the associated comments were wrong. Sections 2.1 and 2.3 are now fixed.<br>
+ Thanks to Keith Monahan (keith@techtravels.org).
+</li></ul>
+
+Since 1.10 (November 27th, 2001)
+<ul>
+<li>Links updated
+</li><li>Amiga Floppy Reader link removed. The project seems cancelled.
+</li></ul>
+
+Since 1.09 (3. Sep 1999)
+<ul>
+<li> [add] ADFlib is used by <a href="http://www.viksoe.dk/code/adfview.htm">ADFview</a> from Bjarke Viksoe
+</li><li> [chg] URLs fixes
+</li></ul>
+
+Since 1.08 (2. August 1999)
+<ul>
+<li> [chg] fix: the hashvalue function was buggy on some rare name
+</li><li> [chg/add] suggestions (last ones) by Hans-Joachim.
+</li></ul>
+
+Since version 1.07 (27. May 1999)
+<ul>
+<li> [chg] suggestions by Jörg Strohmayer (author of aminet:disk/moni/DiskMonTools.lha)
+</li><li> [chg] suggestions by Hans-Joachim Widmaier
+</li><li> [chg] minor additions to the MFM track format, from an online version of 
+	"RKRM : Libraries and Devices, appendix C"
+</li></ul>
+
+Since version 1.06 (2. May 1999), by Heiko Rath (hr@brewhr.swb.de) :
+<ul>
+<li> [chg] Minor spelling corrections
+</li><li> [chg] Blocksizes other than 512 bytes documented
+</li><li> [chg] DosEnvVector extended
+</li><li> [add] link to the Amiga Floppy Reader project
+</li></ul>
+
+Since version 1.04 (16. January 1999) :
+<ul>
+<li> [chg] Corrections suggested by Hans-Joachim Widmaier  (Linux affs maintainer)
+</li><li> [add] The WinUAE hardfile format section is starting
+</li></ul>
+
+Since version 0.9 (28. May 1997) :
+<ul>
+<li> [add] HTML version with figures
+</li><li> [add] Hard disk section added
+</li><li> [chg] Correction about DIRC and INTL modes (section <a href="http://lclevy.free.fr/adflib/adf_info.html#p41">4.1</a>)
+</li><li> [add] The whole rewritten <b>ADF library</b> is released (0.7.8) and used within 
+the <b>ADFOpus</b> project 
+(<a href="http://adfopus.sourceforge.net/">New site</a> Gary Harris, <a href="http://www.chromerhino.demon.co.uk/adfopus/">Old site</a> Dan Sutherland)
+</li><li> [chg] The bitmap checksum algorithm is the same as the rootblock algorithm
+</li><li> [add] Allowed/forbidden characters in volume and file names, 4GB limit
+</li><li> [add] how to rename an entry
+</li></ul>
+
+
+<hr>
+
+<a name="p1"></a>
+<h2>
+1. Introduction <br>
+</h2>
+
+In this document, we will describe how the AmigaDOS is (was?) managing
+storage media, from the magnetic layer to the files and directories layer.
+<p>
+With <b>physical layer</b>, I'm talking about the way bytes are physically stored
+on a magnetic surface, with the RLL or MFM encoding.<br>
+The next layer, according to the 'most physical' to 'most conceptual' order,
+is the <b>partitions layer</b> : this is how the AmigaDOS is managing media with more then
+one partition, like Zip disks or hard disks.<br>
+The next and last layer is the <b>volume layer</b> : where the files 
+and directories are stored.
+</p><p>
+The physical layer is described in the 2nd chapter,<br>
+The volume layer is the biggest part of the document (4th and 5th chapters),
+since it's the most interesting,<br>
+The partitions layer is explained in the 6th chapter.
+</p><p>
+</p><p>
+Let's continue with more conventional things in an introduction.
+</p>
+
+<hr width="30%">
+
+
+<a name="p11"></a>
+<h3>
+1.1 Disclaimer and copyright<br>
+</h3>
+
+<p>
+This document is Copyright (C) 1997-1999 by Laurent Clévy, but may be freely
+distributed, provided the author name and addresses are included and
+no money is charged for this document.</p>
+<p>
+This document is provided "as is". No warranties are made as to its correctness.</p>
+<p>
+Amiga and AmigaDOS are registered Trademarks of Gateway 2000.<br>
+Macintosh is a registered Trademark of Apple.
+</p>
+
+<hr width="30%">
+
+<a name="p12"></a>
+<h3>
+1.2 Feedback, updates<br>
+</h3>
+
+<p>
+If you find any mistakes in this document, have any comments about its content,
+feel free to send me an e-mail. <br>
+Corrections are very welcome.
+</p><p>
+You can find new versions of this document at :
+</p><ul>
+<li>The ADFlib page : <a href="http://lclevy.free.fr/adflib/adf_info.html">
+http://lclevy.free.fr/adflib/adf_info.html</a>
+</li></ul>
+
+<hr width="30%">
+
+<a name="p13"></a>
+<h3>
+1.3 Conventions
+</h3>
+
+<p>
+In this document, hexadecimal values use the C syntax : for example 0x0c
+is the decimal value 12.
+
+</p><h4>Byte ordering</h4>
+
+<p>
+Since the Amiga is a 680x0 based computer, integers that require more than
+one byte are stored on disk in 'Motorola order' : the most significant byte
+comes first, then the less significant bytes in descending order of
+significance (MSB LSB for two-byte integers, B3 B2 B1 B0 for four-byte
+integers). This is usually called <b>big endian</b> byte ordering.<br>
+The Intel based PCs are using the <b>little endian</b> byte ordering.
+
+</p><h4>Vocabulary</h4>
+
+<p>
+A 'word' or 'short' is a 2-byte (16 bits) integer, a 'long' a 4-byte (32 bits) integer.
+Values are unsigned unless otherwise noted.
+</p><p>
+A 'block' in this document will be 512 consecutive bytes on disk,
+unless noted otherwise, the variable 'BSIZE' will denote the blocksize. <br> 
+The word 'sector' and
+'block' will be used as synonyms here, even if 'sector' is usually related to the
+physical side, and the 'block' to the logical side. This is because the AmigaDOS
+can only handle one sector per block. Some other Unix filesystems can have more
+then one sector per block.
+</p><p>
+A block pointer is the number of this block on the disk. The first one is
+the #0 block.<br>
+There are 'logical' and 'physical' block pointers. 'Logical' ones are related 
+to the start of one volume, 'physical' one are related to the start
+of a physical media. If a volume starts at the #0 physical sector, a physical
+pointer and a logical pointer is the same thing, like with floppies.
+</p><p>
+A simple definition of 'Hashing' could be : "a method to access tables : given a number or a string,
+a hash function returns an index into an array". This definition is correct for this
+document, but there is a lot of other hashing methods, that might be far more complex.
+</p><p>
+Linked lists are cell-oriented data structures. Each cell contains a
+pointer to the next or previous cell or both, the last cell pointer is null.
+
+</p><pre>C example :
+
+struct lcell {
+	char name[10];
+	/* contains next cell adress, or NULL if this cell is the last */
+	struct lcell *next_cell;
+	};
+</pre>
+
+<p>
+Block names begin with a capital (Rootblock).
+Field names are noted between quotes ('field_name').
+
+</p><p>
+All formats are described as tables, one row per field. 
+Here is an example with the beginning of the well known GIF format :
+
+</p><pre>offset  type   length  name          comments
+----------------------------------------------------------
+0       char    3      signature     'GIF'
+3       char    3      version       '87a' or '89a'
+6       short   1      screen width  (little endian)
+8       short   1      screen height (little endian)
+</pre>
+
+<p>
+The .ADF format is the format created and used by the -incredible- UNIX Amiga Emulator (UAE),
+ written by Berndt Schmitt.
+The home page is here :
+<a href="http://www.freiburg.linux.de/~uae/">http://www.freiburg.linux.de/~uae/</a>
+</p><p>
+The .ADF files can be created with the program <b>transdisk</b>.
+</p><p>
+
+</p><hr width="30%">
+
+<a name="p14"></a>
+<h3>
+1.4 Acknowledgements
+</h3>
+
+I would to thank here again the people who take time to
+send me corrections, suggestions and opinions about this document :
+
+<ul>
+<li>Hans-Joachim Widmaier for the -very detailed- review and suggestions,
+</li><li>Dan Sutherland (dan@chromerhino.demon.co.uk) for the suggestions and ideas,
+</li><li>Jorg Strohmayer (see Aminet:disk/moni/DiskMonTools.lha, his DiskMonTools utility)
+</li><li>Heiko Rath (hr@brewhr.swb.de) for some modifications.
+</li><li>Jean Yves Peterschmitt (jypeter@lmce.saclay.cea.fr) for the review,
+</li><li>Thomas Kessler (tkessler@ra.abo.fi) for the bootcode flag note.
+</li><li>Keith Monahan (keith@techtravels.org) for the odd / even bits correction.<br>
+  See his USB floppy controller project: <a href="http://www.techtravels.org/amiga/amiga.html">here</a>
+</li></ul>
+<br>
+
+<a name="p2"></a>
+<h2>
+2. How are bytes physically read from / written to a disk ?
+</h2>
+
+<p>The following part deals with the way the Amiga disk controller accesses
+the magnetic medium. If you only want to understand the .ADF format, you don't
+need to read this part.
+</p><p>
+Information is written on disk with magnetic fields. Magnetic fields can be made
+'on' or 'off'. But the read/write heads are not capable of detecting directly if a
+field is on or off. An encoding is used to store memory bits on the medium.
+The CHANGE of fields polarisation will indicate if the bit is 1 or 0.
+For Amiga floppy disks (and PC floppies), the encoding scheme is MFM (Modified frequency
+modulation).
+
+
+</p><h4>
+Notes on the Amiga floppy disk controller :
+</h4>
+
+<p>
+The Amiga floppy disk controller (FDC) which is called 'Paula' is very flexible. It is
+capable of reading/writting Amiga/PC/Macintosh/AppleII/C64 3.5 inches
+and 5.25 inches floppy disks.
+</p><p>
+Paula can read a variable number of bytes from disk, the PC FDC can't. 
+The PC FDC uses the index hole to find the beginning of a track, 
+Paula uses a synchronization word. 
+The Macintosh uses GCR encoding instead of MFM.<br>
+In fact, Paula is simpler than the PC FDC because it does not perform
+automatically the decoding just after the read operation, and the encoding just
+before the write operation : it must be done by software. The MFM decoding/encoding
+is done by hardware with the PC FDC, the Amiga can do GCR or MFM decoding/encoding
+because it's done with the CPU. In some versions of the AmigaDOS, 
+the decoding/encoding is made by the Blitter custom chip.
+</p><p>
+Classic PC FDCs <b>can't read Amiga floppy disks</b> even if they are MFM encoded
+on a 3.5 inch floppy, because they can not find the beginning of a track.
+This is why the .ADF format has been created.
+</p><p>
+However, a custom FDC available on PC machines is capable of reading/writing
+Amiga, PC, Macintosh, Atari and C64 floppies !!!
+This is CatWeasel :
+<a href="http://www.jschoenfeld.de/products/cwmk3_e.htm">link</a>
+</p><p>
+Paula parametrization for Amiga disks :
+</p><ul>
+<li>MFM encoding
+</li><li>Precompensation time : 0 nanoseconds
+</li><li>Controller clock rate : 2 microseconds per bit cell
+</li><li>Synchronization value : 0x4489
+</li></ul>
+<p>
+Paula is able to put the read/write heads on a cylinder, and is able
+to read with the lower or upper side head. A track of 0x1900 words is usually
+read.
+</p><p>
+
+</p><hr width="30%">
+
+<a name="p21"></a>
+<h3>
+2.1 What is MFM encoding/decoding ?
+</h3>
+
+<p>
+The MFM decoding is made by the Amiga CPU, not by Paula. This allows custom
+encoding, to protect floppies against copying for example.
+
+</p><p>
+Here follows the MFM encoding scheme :
+</p><pre>    user's data bit      MFM coded bits
+    ---------------      --------------
+        1                   01
+        0                   10 if following a 0 data bit
+        0                   00 if following a 1 data bit
+</pre>
+<p>
+User data long words are split in two parts, a part with odd bits part first,
+followed by a part with even bits. Once encoded, the amount of data stored
+doubles.<br>
+The MFM decoding will transform magnetic fields into computer usuable bits.
+</p><p>
+The encoding process will take one long (user's data), and produces 
+two longs (MFM coded longs): one for the odd bits of the user long,
+a second for the even bits of the user long.<br>
+Vice versa, the decoding process will take the half of two MFM longs to produce
+one user's long.
+</p><p>
+
+</p><hr width="30%">
+
+<a name="p22"></a>
+<h3>
+2.2 What is the MFM track format ?
+</h3>
+
+<p>
+Paula will search two synchronization words, and then read 0x1900 words
+of data. We will call those 0x1900 words a 'MFM track'.<br>
+There are 80 cylinders on a Amiga floppy disk. Each cylinder has 2 MFM tracks,
+1 on each side of the disk.
+</p><p>
+Double density (DD) disks have 11 sectors per MFM track, High density (HD) disks
+have 22 sectors.
+</p><p>
+So a MFM track consists of 11/22 MFM encoded sectors, plus inter-track-gap.
+Note that sectors are not written from #0 to #10/21, you must use the 'info'
+field to restore the correct order when you read the tracks. Each MFM track begins with
+the first sector, and ends with the end of the last sector.<br>
+Each sector starts with 2 synchronization words. 
+The synchronization value is 0x4489.
+</p><p>
+
+</p><hr width="30%">
+
+<a name="p23"></a>
+<h3>
+2.3 What is the MFM sector format ?
+</h3>
+
+From RKRM:
+"Per-track Organization:
+
+Nulls written as a gap, then 11 or 22 sectors of data.
+No gaps written between sectors."
+
+There are raw data and encoded data.<br>
+raw data (also called MFM data) doesn't need to be decoded,
+this is the synchronization data, the header checksum and data checksum.
+<p>
+The encoded parts are 'header' and 'data'.
+</p><p>
+</p><p>
+
+
+Here it comes :
+
+</p><pre>00/0x00	word	2	MFM value 0xAAAA AAAA (when decoded : two bytes of 00 data)
+
+	SYNCHRONIZATION
+04/0x04	word	1	MFM value 0x4489 (encoded version of the 0xA1 byte)
+06/0x06	word	1	MFM value 0x4489
+
+	HEADER
+08/0x08	long	1	info (odd bits)
+12/0x0c	long	1	info (even bits)
+			decoded long is : 0xFF TT SS SG
+				0xFF = Amiga v1.0 format
+				TT = track number ( 3 means cylinder 1, head 1)
+				SS = sector number ( 0 upto 10/21 )
+					sectors are not ordered !!!
+				SG = sectors until end of writing (including
+					current one)
+
+			Example for cylinder 0, head 1 of a DD disk :
+				0xff010009
+				0xff010108
+				0xff010207
+				0xff010306
+				0xff010405
+				0xff010504
+				0xff010603
+				0xff010702
+				0xff010801
+				0xff01090b
+				0xff010a0a
+                        the order of the track written was sector 9, sector 10,
+                         sector 0, sector 1 ...
+
+                        (see also the note below from RKRM)
+
+            Sector Label Area : OS recovery info, reserved for future use
+
+16/0x10	long	4	sector label (odd)
+32/0x20	long	4	sector label (even)
+                    decoded value is always 0
+
+            This is operating system dependent data and relates to how AmigaDOS
+            assigns sectors to files.
+
+            Only available to 'trackdisk.device', but not with any other floppy
+            or hard disk device.
+
+	END OF HEADER
+
+48/0x30	long	1	header checksum (odd)
+52/0x34	long	1	header checksum (even)
+			(computed on mfm longs,
+			longs between offsets 8 and 44 
+			== 2*(1+4) longs)
+
+56/0x38	long	1	data checksum (odd)
+60/0x3c	long	1	data checksum (even)
+			(from 64 to 1088 == 2*512 bytes)
+
+	DATA
+64/0x40	  byte	512	coded data (odd)
+576/0x240 byte	512	coded data (even)
+1088/0x440
+	END OF DATA
+</pre>
+
+<p>
+
+Note from RKRM :
+</p><pre>The track number and sector number are constant for each particular
+sector. However, the sector offset byte changes each time we rewrite
+the track.
+
+The Amiga does a full track read starting at a random position on the
+track and going for slightly more than a full track read to assure
+that all data gets into the buffer. The data buffer is examined to
+determine where the first sector of data begins as compared to the
+start of the buffer. The track data is block moved to the beginning
+of the buffer so as to align some sector with the first location in
+the buffer.
+
+Because we start reading at a random spot, the read data may be
+divided into three chunks: a series of sectors, the track gap, and
+another series of sectors. The sector offset value tells the disk
+software how many more sectors remain before the gap. From this the
+software can figure out the buffer memory location of the last byte
+of legal data in the buffer. It can then search past the gap for the
+next sync byte and, having found it, can block move the rest of the
+disk data so that all 11 sectors of data are contiguous.
+
+    Example:
+
+        The first-ever write of the track from a buffer looks
+        like this:
+
+        <gap> |sector0|sector1|sector2|......|sector10|
+
+        sector offset values:
+
+                  11      10      9     .....     1
+
+        (If I find this one at the start of my read buffer, then I
+         know there are this many more sectors with no intervening
+         gaps before I hit a gap).  Here is a sample read of this
+         track:
+
+        <junk>|sector9|sector10|<gap>|sector0|...|sector8|<junk>
+
+        value of 'sectors till end of write':
+
+                  2        1     ....    11   ...    3
+
+        result of track re-aligning:
+
+        <gap>|sector9|sector10|sector0|...|sector8|
+
+        new sectors till end of write:
+
+                 11       10      9    ...     1
+
+        so that when the track is rewritten, the sector offsets
+        are adjusted to match the way the data was written.
+</gap></junk></gap></junk></gap></pre>
+
+
+<hr width="30%">
+
+<a name="p24"></a>
+<h3>
+2.4 How to decode MFM data ?
+</h3>
+
+<pre>C algorithm :
+
+
+#define MASK 0x55555555	/* 01010101 ... 01010101 */
+unsigned long *input;	/* MFM coded data buffer (size == 2*data_size) */
+unsigned long *output;	/* decoded data buffer (size == data_size) */
+unsigned long odd_bits, even_bits;
+unsigned long chksum;
+int data_size;		/* size in long, 1 for header's info, 4 for header's sector label */
+int count;
+
+chksum=0L;
+/* the decoding is made here long by long : with data_size/4 iterations */
+for (count=0; count&lt;data_size/4; count++) {
+	odd_bits = *input;                /* longs with odd bits */
+	even_bits = *(input+data_size);    /* longs with even bits : located 'data_size' bytes farther */
+	chksum^=odd_bits;              /* eor */
+	chksum^=even_bits;
+        /*
+         * MFM decoding, explained on one byte here (o and e will produce t) :
+         * the MFM bytes 'abcdefgh' == o and 'ijklmnop' == e will become
+         * e &amp; 0x55U = '0j0l0n0p'
+         * ( o &amp; 0x55U) &lt;&lt; 1 = 'b0d0f0h0'
+         * '0j0l0n0p' | 'b0d0f0h0' = 'bjdlfnhp' == t
+         */ 
+	/* on one long here : */
+	*output = ( even_bits &amp; MASK ) | ( ( odd_bits &amp; MASK ) &lt;&lt; 1 );
+	input++;    /* next 'odd' long and 'even bits' long  */
+	output++;     /* next location of the future decoded long */
+	}
+chksum&amp;=MASK;	/* must be 0 after decoding */
+</pre>
+
+For example, to decode the DATA field of a MFM sector :<br>
+<ul>
+<li>'data_size' is equal to 512,
+</li><li>'input' points to 64 bytes after the beginning of the MFM sector,
+</li><li>'output' points to a 512 unsigned bytes array.
+</li></ul>
+
+<hr>
+
+<a name="p3"></a>
+<h2>
+3. What is the Amiga floppy disk geometry ?
+</h2>
+
+After MFM decoding, you have usuable 'sectors' or 'blocks' into memory.<br>
+<br>
+
+Here we remind the disk geometries for Double Density disks (DD)
+and High Density disks (HD) :<br>
+<pre>		bytes/sector	sector/track	track/cyl	cyl/disk
+------------------------------------------------------------------------
+DD disks	512		11		2		80
+HD disks 	512		22		2		80
+</pre>
+
+The relations between sectors, sides and cylinders are for a DD disk :<br>
+<pre>Block	sector	side	cylinder
+--------------------------------
+0	0	0	0
+1	1	0	0
+2	2	0	0
+...
+10	10	0	0
+11	0	1	0
+...
+21	10	1	0
+22	0	0	1
+..
+1759	10	1	79
+</pre>
+
+Order = increasing sectors, then increasing sides, then increasing cylinders.<br>
+<p>
+A DD disk has 11*2*80=1760 (0 to 1759) blocks,
+a HD disk has 22*2*80=3520 blocks.
+</p><p>
+The length of .ADF files for a DD disk is therefore 512*11*2*80 = 901120 bytes.<br>
+</p><p>
+Those 'raw' blocks, 512 consecutive bytes, store different 'logical' blocks
+to manage files and directories.
+</p><p>
+The classic Amiga filesystem has a internal command with one 32 bits wide 
+offset parameter (unsigned). It tells where to start the read/write operation.
+The biggest size for an Amiga disk is therefore 2^32 = 4 GB.<br>
+Anyway, there exists a 3rd party patch which changes the 32 bits limit 
+to 64 bits (on Aminet, disk/misc/ffstd64.lha).
+</p><p>
+Jorg Strohmayer added :<br>
+TD64 is an unofficial 3rd party hack. Official solution is NSD (new style device), updates for the 
+internal devices and the filesystem are available from 
+<a href="http://www.amiga.de/">http://www.amiga.de</a>.
+There is a patch for old (and TD64) devices too (NSDPatch).
+
+</p><hr>
+
+<a name="p4"></a>
+<h2>
+4. What is the logical organisation of an Amiga volume ?
+</h2>
+
+<p>
+A volume is a floppy disk or a hard disk partition.
+
+</p><p>
+The first file system for the Amiga was embedded in the version 1.2 of AmigaDOS.<br>
+With version 2.xx of AmigaDOS the Fast File System (FFS) was introduced, an improved version of
+the 1.2, also called old file system (OFS). <br>
+The version 3.0 of AmigaDOS added an international characters mode (INTL) 
+and a directory cache mode (DIRC).
+</p><p>
+Links are only supported under FFS.
+</p><p>
+The start of a floppy volume contains space for sectors which may contain boot code.<br>
+The middle of the volume contains information about
+the root (upper most) directory contents and information about free and used blocks.<br>
+Other blocks are of course used to store files and directories.
+</p><p>
+The file length, the directory tree depth, the number of entries per directory
+are only limited by disk size. (Actually the maximum filesize is
+limited to 4 Gbyte sizeof(ulong) which should normally be more than sufficient).
+</p><p>
+
+Let's introduce the logical structures used by the Amiga file system
+in a table (for floppies) :
+</p><pre>Object		Related logical blocks
+------------+----------------------------------------------------------------
+Volume		Rootblock, Bitmap block
+File		File Header block, Extension block, Data block, Link block
+Directory	Rootblock, Directory block, Directory Cache block, Link block
+</pre>
+The main data types are a trees and linked lists.<br>
+<br>
+
+<hr width="30%">
+
+<a name="p41"></a>
+<h3>
+4.1 What is a Bootblock ?
+</h3>
+
+Prior to Kickstart 2.0 the bootblock was hardcoded to consist of the
+first two sectors of the floppy disks (sector #0 and #1). As of Kick
+2.0, booting via the boot-block could be done with any device driver
+and the number of blocks could be changed independantly of the number
+of reserved blocks by using BOOTBLOCKS in the DOS environment vector
+(DosEnvVec).
+
+<pre>* BootBlock
+-------------------------------------------------------------------------------
+offset	size    number	name		meaning
+-------------------------------------------------------------------------------
+0/0x00  char    4       DiskType	'D''O''S' + flags
+                                        flags = 3 least signifiant bits
+                                               set         clr
+					  0    FFS         OFS
+                                          1    INTL ONLY   NO_INTL ONLY
+                                          2    DIRC&amp;INTL   NO_DIRC&amp;INTL
+4/0x04  ulong   1       Chksum          special block checksum
+8/0x08  ulong   1       Rootblock       Value is 880 for DD and HD 
+					 (yes, the 880 value is strange for HD)
+12/0x0c char    *       Bootblock code  (see 5.2 'Bootable disk' for more info)
+                                        The size for a floppy disk is 1012,
+                                        for a harddisk it is
+                                        (DosEnvVec-&gt;Bootblocks * BSIZE) - 12
+-------------------------------------------------------------------------------
+</pre>
+
+The DiskType flag informs of the disk format.
+<ul>
+<li>OFS = Old/Original File System, the first one. (AmigaDOS 1.2)
+</li><li>FFS = Fast File System (AmigaDOS 2.04)
+</li><li>INTL = International characters Mode (see section <a href="http://lclevy.free.fr/adflib/adf_info.html#p54">5.4</a>).
+</li><li>DIRC = stands for Directory Cache Mode. This mode speeds up 
+	directory listing, but uses more disk space 
+(see section <a href="http://lclevy.free.fr/adflib/adf_info.html#p47">4.7</a>).
+</li></ul>
+The Old filesystem may have the international and dircache mode enabled. If
+the international mode is enabled, the bit #1 is set. If the dircache is enabled,
+its flag is set (bit #2), <b>and the international mode is also enabled, but the
+related flag (bit #1) will stay cleared</b>.
+The correct values for flag are therefore :
+0 (OFS), 1 (FFS), 2 (OFS/INTL), 3 (FFS/INTL), 4 (OFS/DIRC&amp;INTL),
+5 (FFS/DIRC&amp;INTL).
+
+<p>
+There are few differences between the two file systems :
+</p><ul>
+<li> OFS Datablock stores BSIZE-24 bytes (i.e. normally 488 bytes at
+most frequently used BSIZE of 512 bytes), FFS stores BSIZE bytes.
+</li><li> FFS supports directory caching, links and international mode,
+</li><li> the FFS is faster than OFS.
+</li></ul>
+
+
+If the Bootblock starts with the three characters 'PFS', another filesystem
+is used in place of AmigaDOS : the Professional File System.
+<p>
+If the checksum and the DiskType are correct, the system will execute
+the bootblock code, at boot time, of course :-).
+</p><p>
+The Bootblock code is optional, see <a href="http://lclevy.free.fr/adflib/adf_info.html#p52">5.2</a> section.
+</p><p>
+
+The Bootblock checksum algorithm follows :
+</p><pre>* in 68000 assembler :
+
+	lea 	bootbuffer,a0
+        move.l  a0,a1
+        clr.l   4(a1)			;clear the checksum
+        move.w  #(BOOTBLOCKSIZE/4)-1,d1	;for floppy disks = 1024
+                                        ;for hd = (DosEnvVec-&gt;Bootblocks * BSIZE)
+        moveq   #0,d0
+lpchk:  add.l   (a0)+,d0		;accumulation
+        bcc.s   jump                    ;if carry set, add 1 to checksum
+        add.l   #1,d0
+jump:   dbf     d1,lpchk		;next long word
+
+        not.l   d0
+        move.l  d0,4(a1)		;new checksum
+
+
+* in C (version 1):
+
+#include&lt;limits.h&gt;
+#define Short(p) ((p)[0]&lt;&lt;8 | (p)[1])
+#define Long(p) (Short(p)&lt;&lt;16 | Short(p+2))
+
+unsigned long newsum,d;
+unsigned char buf[BOOTBLOCKSIZE];	/* contains bootblock */ 
+                                        /* for floppy disks = 1024, */
+                                        /* for hard disks = (DosEnvVec-&gt;Bootblocks * BSIZE) */
+int i;
+
+memset(buf+4,0,4);			/* clear old checksum */
+newsum=0L;
+for(i=0; i&lt;BOOTBLOCKSIZE/4; i++) {
+	d=Long(buf+i*4);
+	if ( (ULONG_MAX-newsum) &lt; d )	/* overflow */
+		newsum++; 
+	newsum+=d; 
+} 
+
+newsum=~newsum;		/* not */
+
+
+
+* version 2 (From Ralph Babel's 'Install2.c', sent by Hans-Joachim)
+
+
+unsigned long checksum, precsum;
+
+checksum = 0;
+for(i=0; i&lt;BOOTBLOCKSIZE/sizeof(unsigned long); i++) {
+    precsum = checksum;
+    if ( (checksum+=Long(buf+i*4)) &lt; precsum)   /* better 68000 to C translation of 'bcc' */
+        ++checksum;
+}
+checksum = ~checksum;
+
+</pre>
+<br>
+
+<hr width="30%">
+
+<a name="p42"></a>
+<h3>
+4.2 What is a Rootblock ?
+</h3>
+
+<p>
+The Rootblock is located at the physical middle of the media : block number 880
+for DD disks, block 1760 for HDs. The exact calculation where it is stored is as follows:
+</p><p>
+numCyls = highCyl - lowCyl + 1
+</p><p>
+highKey = numCyls * numSurfaces * numBlocksPerTrack - 1
+</p><p>
+rootKey = INT (numReserved + highKey) / 2
+</p><p>
+The Rootblock contains information about the disk : its name, its formatting date,
+etc ...
+</p><p>
+It also contains information to access the files/directories/links located at
+the uppermost (root) directory.
+</p><p>
+
+</p><pre>* Root block (BSIZE bytes) sector 880 for a DD disk, 1760 for a HD disk
+------------------------------------------------------------------------------------------------
+        0/ 0x00	ulong	1	type		block primary type = T_HEADER (value 2)
+        4/ 0x04	ulong	1	header_key	unused in rootblock (value 0)
+		ulong 	1 	high_seq	unused (value 0)
+       12/ 0x0c	ulong	1	ht_size		Hash table size in long (= BSIZE/4 - 56)
+                	                        For floppy disk value 0x48
+       16/ 0x10	ulong	1	first_data	unused (value 0)
+       20/ 0x14	ulong	1	chksum		Rootblock checksum
+       24/ 0x18	ulong	*	ht[]		hash table (entry block number)
+        	                                * = (BSIZE/4) - 56
+                	                        for floppy disk: size= 72 longwords
+BSIZE-200/-0xc8	ulong	1	bm_flag		bitmap flag, -1 means VALID
+BSIZE-196/-0xc4	ulong	25	bm_pages[]	bitmap blocks pointers (first one at bm_pages[0])
+BSIZE- 96/-0x60	ulong	1	bm_ext		first bitmap extension block
+						(Hard disks only)
+BSIZE- 92/-0x5c	ulong 	1 	r_days		last root alteration date : days since 1 jan 78
+BSIZE- 88/-0x58	ulong 	1 	r_mins 		minutes past midnight
+BSIZE- 84/-0x54	ulong 	1 	r_ticks 	ticks (1/50 sec) past last minute
+BSIZE- 80/-0x50	char	1	name_len	volume name length
+BSIZE- 79/-0x4f	char	30	diskname[]	volume name
+BSIZE- 49/-0x31	char	1	UNUSED		set to 0
+BSIZE- 48/-0x30	ulong	2	UNUSED		set to 0
+BSIZE- 40/-0x28	ulong	1	v_days		last disk alteration date : days since 1 jan 78
+BSIZE- 36/-0x24	ulong	1	v_mins		minutes past midnight
+BSIZE- 32/-0x20	ulong	1	v_ticks		ticks (1/50 sec) past last minute
+BSIZE- 28/-0x1c	ulong	1	c_days		filesystem creation date
+BSIZE- 24/-0x18	ulong	1	c_mins 		
+BSIZE- 20/-0x14	ulong	1	c_ticks
+		ulong	1	next_hash	unused (value = 0)
+		ulong	1	parent_dir	unused (value = 0)
+BSIZE-  8/-0x08	ulong	1	extension	FFS: first directory cache block,
+						0 otherwise
+BSIZE-  4/-0x04	ulong	1	sec_type	block secondary type = ST_ROOT 
+						(value 1)
+------------------------------------------------------------------------------------------------
+</pre>
+
+<p>
+The characters '/' and ':' are forbidden in file and volume names, but
+<tt>*!@#$%|^+&amp;_()=\-[]{}';",&lt;&gt;.?</tt>  and accented like
+<tt>âè</tt>
+are allowed.
+</p><p>
+The date fields in the root block (and other blocks) are structured in
+the form of DAYS, MINS and TICKS. The DAYS field contains the number
+of days since January 1. 1978. MINS is the number of minutes that have
+passed since midnight and TICKS are expressed in 1/50s of a second. A
+day value of zero is considered illegal by most programs.
+</p><p>
+The r_date / r_min / r_ticks fields are updated to the last recent change
+of the root directory of this volume.
+</p><p>
+The v_date / v_min / v_ticks fields are updated whenever any change was
+made to this volume, not just the root directory.
+</p><p>
+The c_date / c_min / c_ticks fields contain the date and time when this
+volume was initialized (i.e. formatted) and is not changed during its
+lifetime.
+</p><p>
+Some date constraints : 
+0 &lt;= Mins &lt; 60*24, 0 &lt;= Ticks &lt; 50*60
+</p><p>
+The Amiga filesystem does not have an inherent year 2000 problem. If you want
+to know more about Y2K and the Amiga, you might take a look at : 
+<a href="http://www.amiga.com/">http://www.amiga.com</a>.
+
+<a name="p421"></a>
+</p><h4>
+4.2.1 How to find the first sector of a directory entry ?
+</h4>
+
+<p>
+Given the name of a file/directory/link you first have to compute its
+hash value with this algorithm :
+</p><p>
+* The hash function :<br>
+
+</p><pre>#include&lt;ctype.h&gt;
+
+int HashName(unsigned char *name)
+{
+unsigned long hash, l;				/* sizeof(int)&gt;=2 */
+int i;
+
+l=hash=strlen(name);
+for(i=0; i&lt;l; i++) {
+        hash=hash*13;
+        hash=hash + toupper(name[i]);	/* not case sensitive */
+        hash=hash &amp; 0x7ff;
+        }
+hash=hash % ((BSIZE/4)-56);		/* 0 &lt; hash &lt; 71
+                                         * in the case of 512 byte blocks */
+
+return(hash);
+}
+
+// this code only works with non international mode disks
+// see section <a href="http://lclevy.free.fr/adflib/adf_info.html#p54">5.4</a>
+
+</pre>
+
+The <b>toupper()</b> function is the one thing that distinguishes international
+from non-international filesystems. There was a bug in old AmigaDOS versions
+for this function applied to international caracters (ASCII codes &gt; 128).
+A specific toupper() function (see section <a href="http://lclevy.free.fr/adflib/adf_info.html#p54">5.4</a>) was then 
+created available with the 'international mode'.
+<p>
+The hash value is then used to access HashTable ('ht' field in
+Rootblock/Directory block).
+</p><p>
+HashTable[ HashValue ] contains the number of the first block of your
+object (File header block, Directory block or Link block).
+</p><p>
+But different names can result in the same HashValue. If more then one name
+has the same HashValue, the other blocks (for files and directory only)
+are stored in a chained list. This linked list starts at the
+'next_hash' field of the File header or Directory block.
+</p><p>
+For example : 'file_1a', 'file_24' and 'file_5u' have the same hash value.
+</p><p>
+
+Here follows the method to find the requested block :
+
+</p><pre>HashValue = HashName( name );
+name=uppercase(name);
+nsector = Hashtable[ HashValue ];
+if (nsector != 0) {
+	sector=Load(nsector);		/* reads the 'nsector' sector */
+        sector.name = uppercase(sector.name);
+        /*
+         *  follows the 'same HashValue' chained list if needed
+         */
+	while ( sector.name != name and sector.Next_hash != 0) {
+		sector = Load(nsector);
+       	        sector.name = uppercase(sector.name);
+	}
+	if (sector.name != name)
+		puts("File/Dir not found");
+}
+else
+	puts("File/Dir not found");
+
+
+// this code only works with non international mode disks
+// see section <a href="http://lclevy.free.fr/adflib/adf_info.html#p54">5.4</a>
+</pre>
+
+<img src="./The_Amiga_Disk_File_format_FAQ_files/adf_dir.gif" alt="Figure : HashTable and Directory content">
+<p>
+
+Filenames characters can be lowercase and uppercase, but as shown in
+the Hash function, are not case sensitive.<br>
+</p><p>
+If, for a new entry, the value at hashTable[hashvalue] is different
+than 0, the new sector pointer will be stored in the last entry of the 
+same-hashvalue-linked-list. It is necessary to check if the entry name
+already exists in this directory. In one word, in the same-hashValue list,
+the addition is made at the tail, not the head.<br>
+Jorg tells the list is instead sorted by block number.
+</p><p>
+
+
+<a name="p422"></a>
+</p><h4>
+4.2.2 How to list all the directory entries ?
+</h4>
+
+<p>
+Look through the whole HashTable and follow the same 'HashValue' linked
+lists if they exist.
+</p><p>
+
+
+<a name="p423"></a>
+</p><h4>
+4.2.3 How to compute the checksum ?
+</h4>
+
+<pre>#define Short(p) ((p)[0]&lt;&lt;8 | (p)[1])
+#define Long(p) (Short(p)&lt;&lt;16 | Short(p+2))
+
+unsigned long newsum;
+unsigned char buf[BSIZE];	/* contains rootblock */
+int i;
+
+memset(buf+20,0,4);		/* clear old checksum */
+newsum=0L;
+for(i=0; i&lt;(BSIZE/4); i++)
+	newsum+=Long(buf+i*4);
+newsum=-newsum;			/* negation */
+</pre>
+
+<p>
+This checksum algorithm works for most block types except for Bootblock.
+</p><p>
+The bitmap table ('bm_pages[]') stores one or several pointers 
+to Bitmap blocks. The first pointer is at index 0.<br>
+</p><p>
+
+</p><hr width="30%">
+
+<a name="p43"></a>
+<h3>
+4.3 How are the free and used block lists managed?
+</h3>
+
+<p>
+Bitmap blocks contain information about free and allocated blocks.
+One bit is used per block. If the bit is set, the block is free, a
+cleared bit means an allocated block.
+</p><p>
+Bootblock allocation (2 for floppy, for hard disks the value can be
+found at DOSEnvVec-&gt;Bootblocks) is not stored in bitmap.
+Bitmap consists of longs, each describing the status of 32 blocks, where bit 0
+corresponds to the lowest block number.
+
+</p><pre>* Bitmap block (BSIZE bytes), often at rootblock+1
+-------------------------------------------------------------------------------
+0/0x00	long	1		checksum	normal algorithm
+4/0x04	long	(BSIZE/4)-1	map
+-------------------------------------------------------------------------------
+</pre>
+
+<p>
+Here follows for a DD disk the relationship between bitmap and block number :
+
+</p><pre>block #		long #	bit #
+-------------------------------
+2		0	0
+3		0	1
+4		0	2
+...
+33		0	31
+34		1	0
+35		1	1
+...
+880		27	14
+881		27	15
+...
+1759		54	28
+1760		54	29
+</pre>
+
+This map is 1758 bits long (1760-2) and is stored on 54 full filled long and 
+the first 30th bits of the 55th long.
+<p>
+
+* What is the 'bm_ext' field in Rootblock ?
+
+</p><p>
+If 25 bitmap blocks (which pointers are stored in the Rootblock) are 
+not sufficient (for Hard Disks &gt; ca. 50 Mbyte), the pointers to the further
+bitmap blocks are stored in so called bitmap extension blocks. The form a
+(surprise, surprise!) linked list, starting at the bm_ext field in the
+Rootblock.<br>
+
+</p><pre>* Bitmap extension block (BSIZE bytes) (Hard disk only)
+-------------------------------------------------------------------------------
+       0/0x00	ulong	(BSIZE/4)-1	bitmap block pointers
+BSIZE- 4/0x04	ulong	1		next (0 for last)
+-------------------------------------------------------------------------------
+</pre>
+The Bitmap extension linked list start at Rootblock with the 'bm_ext'.<br>
+<p>
+
+</p><hr width="30%">
+
+<a name="p44"></a>
+<h3>
+4.4 How are files stored ?
+</h3>
+
+<p>
+Files are comprised of a file header block, which contains information about
+the file (size, last access time, data block pointers, ...) and the data blocks,
+which contain the actual data. The file header block contains up to
+BSIZE/4-56 data block pointers (which amounts to 72 with the usual 512 byte 
+blocks). 
+</p><p>
+If a file is larger than that, file extension blocks will be allocated to hold 
+the data block pointers.
+</p><p>
+File extension blocks are organised in a linked list, which starts 
+in File header block ('extension' field).
+</p><p>
+<img src="./The_Amiga_Disk_File_format_FAQ_files/adf_file.gif" alt="Figure : Chained lists of the blocks which store files">
+</p><p>
+
+</p><pre>* File header block (BSIZE bytes) 
+------------------------------------------------------------------------------------------------
+        0/ 0x00 ulong	1	type		block primary type T_HEADER (==2)
+        4/ 0x04 ulong	1	header_key	self pointer (to this block)
+        8/ 0x08	ulong	1	high_seq	number of data block ptr stored here
+       12/ 0x0c ulong	1	data_size	unused (==0)
+       16/ 0x10	ulong	1	first_data	first data block ptr
+       20/ 0x14	ulong	1	chksum		same algorithm as rootblock
+       24/ 0x18 ulong	*	data_blocks[]	data blk ptr (first at BSIZE-204 )
+        	                                * = (BSIZE/4) - 56
+BSIZE-200/-0xc8	ulong	1 	UNUSED 		== 0
+BSIZE-196/-0xc4	ushort	1 	UID 		UserID
+BSIZE-194/-0xc4	ushort	1 	GID 		GroupID
+BSIZE-192/-0xc0	ulong	1	protect		protection flags (set to 0 by default)
+
+                                        Bit     If set, means
+
+                                           If MultiUser FileSystem : Owner
+					0	delete forbidden (D)
+					1	not executable (E)
+					2	not writable (W)
+					3	not readable (R)
+
+					4	is archived (A)
+					5	pure (reetrant safe), can be made resident (P)
+					6	file is a script (Arexx or Shell) (S)
+					7	Hold bit. if H+P (and R+E) are set the file
+                                                 can be made resident on first load (OS 2.x and 3.0)
+
+                                        8       Group (D) : is delete protected 
+                                        9       Group (E) : is executable 
+                                       10       Group (W) : is writable 
+                                       11       Group (R) : is readable 
+
+                                       12       Other (D) : is delete protected 
+                                       13       Other (E) : is executable 
+                                       14       Other (W) : is writable 
+                                       15       Other (R) : is readable 
+                                    30-16	reserved
+				       31	SUID, MultiUserFS Only
+
+BSIZE-188/-0xbc	ulong	1	byte_size	file size in bytes
+BSIZE-184/-0xb8	char	1	comm_len	file comment length
+BSIZE-183/-0xb7	char	79	comment[]	comment (max. 79 chars permitted)
+BSIZE-104/-0x69	char	12	UNUSED		set to 0
+BSIZE- 92/-0x5c	ulong	1	days		last change date (days since 1 jan 78)
+BSIZE- 88/-0x58	ulong	1	mins		last change time
+BSIZE- 84/-0x54	ulong	1	ticks		 in 1/50s of a seconds
+BSIZE- 80/-0x50	char	1	name_len	filename length
+BSIZE- 79/-0x4f char	30	filename[]	filename (max. 30 chars permitted)	
+BSIZE- 49/-0x31 char	1	UNUSED		set to 0
+BSIZE- 48/-0x30 ulong	1	UNUSED		set to 0
+BSIZE- 44/-0x2a	ulong	1	real_entry	FFS : unused (== 0)
+BSIZE- 40/-0x28	ulong	1	next_link	FFS : hardlinks chained list (first=newest)
+BSIZE- 36/-0x24	ulong	5	UNUSED		set to 0
+BSIZE- 16/-0x10	ulong	1	hash_chain	next entry ptr with same hash
+BSIZE- 12/-0x0c	ulong	1	parent		parent directory
+BSIZE-  8/-0x08	ulong	1	extension	pointer to 1st file extension block
+BSIZE-  4/-0x04	ulong	1	sec_type	secondary type : ST_FILE (== -3)
+------------------------------------------------------------------------------------------------
+</pre>
+
+<p>
+As with volume names ':' and '/' are forbidden in file names.
+</p><p>
+The number of blocks used to store a file depends on the filesystem used,
+OFS or FFS. If one file has 7 datablocks, the first is at datablock[71-0],
+the last at datablocks[71-6], and highseq equals to 7.
+</p><p>
+For the OFS there are two ways of reading the contents of a
+file. First by traversing the linked list of data blocks that is
+pointed to in first_data (offset 16) and then following the pointers
+in each file data block. The other way of accessing the file data is
+by using the data_blocks[] table and going backwards through the data
+blocks listed there and then the File extension blocks.
+</p><p>
+As the FFS doesn't contain extra information in the data blocks (no
+pointer list, no checksum) the only way of accessing the file contents
+is by going through the data_blocks[] table and the File extension
+blocks.
+</p><p>
+An empty file consists of just a File header block, with 'byte_size' equal to 0,
+and no Data block pointers in 'data_blocks[]'.
+
+
+</p><pre>* File extension block (BSIZE bytes) (first pointer in File header)
+------------------------------------------------------------------------------------------------
+        0/ 0x00	ulong	1	type		primary type : T_LIST (== 16)
+        4/ 0x04	ulong	1	header_key	self pointer
+        8/ 0x08	ulong	1	high_seq	number of data blk ptr stored
+       12/ 0x0c	ulong	1	UNUSED		unused (== 0)
+       16/ 0x10	ulong	1	UNUSED		unused (== 0)
+       20/ 0x14	ulong	1	chksum		rootblock algorithm
+       24/ 0x18	ulong	*	data_blocks[]	data blk ptr (first at BSIZE-204)
+        	                                * = (BSIZE/4) - 56
+BSIZE-200/-0xc8	ulong	46	info		unused (== 0)
+BSIZE- 16/-0x10	ulong	1	UNUSED		unused (== 0)
+BSIZE- 12/-0x0c	ulong	1	parent		file header block
+BSIZE-  8/-0x08	ulong	1	extension	next file header extension block, 
+	                                        0 for the last
+BSIZE-  4/-0x04	ulong	1	sec_type	secondary type : ST_FILE (== -3)
+------------------------------------------------------------------------------------------------
+</pre>
+
+
+* Data blocks (BSIZE bytes) (first pointer in File header 'first_data' and
+ 'data_blocks[((BSIZE/4)-57)]')
+
+<pre>Old File System data block (BSIZE bytes)
+-------------------------------------------------------------------------------
+0/0	ulong	1	type		primary type : T_DATA (== 8)
+4/4	ulong	1	header_key	pointer to file header block
+8/8	ulong	1	seq_num		file data block number (first is #1) 
+12/c	ulong	1	data_size	data size &lt;= (BSIZE-24)
+16/10	ulong	1	next_data	next data block ptr (0 for last)
+20/14	ulong	1	chksum		rootblock algorithm
+24/18	UCHAR	*	data[]		file data size &lt;= (BSIZE-24)
+-------------------------------------------------------------------------------
+</pre>
+
+In OFS, there is a second way to read a file : using the Data block chained
+list. The list starts in File header ('first_data') and goes on with 'next_data'
+in each Data block.
+<p>
+
+</p><pre>Fast File System (BSIZE bytes)
+-------------------------------------------------------------------------------
+0/0	UCHAR	BSIZE	data[]		file data
+-------------------------------------------------------------------------------
+</pre>
+
+In FFS, the only way to read or recover a file is to use data_blocks[]
+in the file header block and the File extension blocks. If a File header
+or File extension block is unreadable, there is no way to find the
+corresponding Data blocks.
+<p>
+The OFS is more robust than FFS, but slower and can store less data on disk.
+As you see, disk salvaging is easier with OFS.
+</p><p>
+When a file is deleted, only its File header block number is cleared
+from the Directory block (or from the same-hash-value list) and the
+bitmap is updated.  File header block, Data blocks and File extension
+blocks are not cleared, but the bitmap blocks are updated.
+Nevertheless, the undelete operation is easy, as long as these blocks 
+are not overwritten.
+</p><p>
+
+</p><hr width="30%">
+
+<a name="p45"></a>
+<h3>
+4.5 How are directories stored?
+</h3>
+
+Directory blocks are very similar to Rootblock, except they don't need
+information about the bitmap and disk, but they allow comments like files.
+
+<pre>* User directory block (BSIZE bytes)
+------------------------------------------------------------------------------------------------
+        0/ 0x00	ulong	1	type		block primary type = T_HEADER (value 2)
+        4/ 0x04	ulong	1	header_key	self pointer
+	8/ 0x08	ulong 	3 	UNUSED		unused (== 0)
+       20/ 0x14	ulong	1	chksum		normal checksum algorithm
+       24/ 0x18	ulong	*	ht[]		hash table (entry block number)
+        	                                * = (BSIZE/4) - 56
+                	                        for floppy disk: size= 72 longwords
+BSIZE-200/-0xc8	ulong	2	UNUSED		unused (== 0)
+BSIZE-196/-0xc8	ushort	1 	UID 		User ID
+BSIZE-194/-0xc8	ulong	1	GID		Group ID
+BSIZE-192/-0xc0	ulong	1	protect		protection flags (set to 0 by default)
+
+                                        Bit     If set, means
+
+                                           If MultiUser FileSystem : Owner
+					0	delete forbidden (D)
+					1	not executable (E)
+					2	not writable (W)
+					3	not readable (R)
+
+					4	is archived (A)
+					5	pure (reetrant safe), can be made resident (P)
+					6	file is a script (Arexx or Shell) (S)
+					7	Hold bit. if H+P (and R+E) are set the file
+                                                 can be made resident on first load (OS 2.x and 3.0)
+
+                                        8       Group (D) : is delete protected 
+                                        9       Group (E) : is executable 
+                                       10       Group (W) : is writable 
+                                       11       Group (R) : is readable 
+
+                                       12       Other (D) : is delete protected 
+                                       13       Other (E) : is executable 
+                                       14       Other (W) : is writable 
+                                       15       Other (R) : is readable 
+                                    30-16	reserved
+				       31	SUID, MultiUserFS Only
+
+BSIZE-188/-0xbc	ulong	1	UNUSED		unused (== 0)
+BSIZE-184/-0xb8	char	1	comm_len	directory comment length
+BSIZE-183/-0xb7	char	79	comment[]	comment (max. 79 chars permitted)
+BSIZE-104/-0x69	char	12	UNUSED		set to 0
+BSIZE- 92/-0x5c	ulong	1	days		last access date (days since 1 jan 78)
+BSIZE- 88/-0x58	ulong	1	mins		last access time
+BSIZE- 84/-0x54	ulong	1	ticks		in 1/50s of a seconds
+BSIZE- 80/-0x50	char	1	name_len	directory name length
+BSIZE- 79/-0x4f char	30	dirname[]	directory (max. 30 chars permitted)	
+BSIZE- 49/-0x31 char	1	UNUSED		set to 0
+BSIZE- 48/-0x30 ulong	2	UNUSED		set to 0
+BSIZE- 40/-0x28	ulong	1	next_link	FFS : hardlinks chained list (first=newest)
+BSIZE- 36/-0x24	ulong	5	UNUSED		set to 0
+BSIZE- 16/-0x10	ulong	1	hash_chain	next entry ptr with same hash
+BSIZE- 12/-0x0c	ulong	1	parent		parent directory
+BSIZE-  8/-0x08	ulong	1	extension	FFS : first directory cache block
+BSIZE-  4/-0x04	ulong	1	sec_type	secondary type : ST_USERDIR (== 2)
+------------------------------------------------------------------------------------------------
+</pre>
+You can obtain a directory listing exactly like with the root directory.<br>
+<p>
+
+</p><hr width="30%">
+
+<a name="p46"></a>
+<h3>
+4.6 How are links implemented in AmigaDOS ?
+</h3>
+
+With the FFS, links were introduced. Alas, Commodore blundered again:
+soft like where terribly broken, so they removed support for them in
+AmigaDOS 3.0. Hard links are seen as files, and hard links to directories
+are allowed, which opens the way to endless recursion...
+<br>
+In short, the whole implmentation is a mess.
+<br>
+However, some shells (like Csh 5.37) support them, so I'm supplying the
+structure.
+<p>
+
+<a name="p461"></a>
+</p><h4>
+4.6.1 Hard links
+</h4>
+
+<pre>* Hard link (BSIZE bytes)
+------------------------------------------------------------------------------------------------
+        0/ 0x00	ulong	1	type		block primary type = T_HEADER (value 2)
+        4/ 0x04	ulong	1	header_key	self pointer
+	8/ 0x08	ulong 	3 	UNUSED		unused (== 0)
+       20/ 0x14	ulong	1	chksum		normal checksum algorithm
+       24/ 0x18	ulong	*	UNUSED		set to 0
+        	                                * = (BSIZE/4) - 54
+                	                        for floppy disk: size= 74 longwords
+BSIZE-192/-0xc0	ulong	1	protect		protection flags (set to 0 by default)
+
+                                        Bit     If set, means
+
+                                           If MultiUser FileSystem : Owner
+					0	delete forbidden (D)
+					1	not executable (E)
+					2	not writable (W)
+					3	not readable (R)
+
+					4	is archived (A)
+					5	pure (reetrant safe), can be made resident (P)
+					6	file is a script (Arexx or Shell) (S)
+					7	Hold bit. if H+P (and R+E) are set the file
+                                                 can be made resident on first load (OS 2.x and 3.0)
+
+                                        8       Group (D) : is delete protected 
+                                        9       Group (E) : is executable 
+                                       10       Group (W) : is writable 
+                                       11       Group (R) : is readable 
+
+                                       12       Other (D) : is delete protected 
+                                       13       Other (E) : is executable 
+                                       14       Other (W) : is writable 
+                                       15       Other (R) : is readable 
+                                    30-16	reserved
+				       31	SUID, MultiUserFS Only
+
+BSIZE-188/-0xbc	ulong	1	UNUSED		unused (== 0)
+BSIZE-184/-0xb8	char	1	comm_len	comment length
+BSIZE-183/-0xb7	char	79	comment[]	comment (max. 79 chars permitted)
+BSIZE-104/-0x69	char	12	UNUSED		set to 0
+BSIZE- 92/-0x5c	ulong	1	days		last access date (days since 1 jan 78)
+BSIZE- 88/-0x58	ulong	1	mins		last access time
+BSIZE- 84/-0x54	ulong	1	ticks		in 1/50s of a seconds
+BSIZE- 80/-0x50	char	1	name_len	hard link name length
+BSIZE- 79/-0x4f char	30	hlname[]	hardlink name (max. 30 chars permitted)	
+BSIZE- 49/-0x31 char	1	UNUSED		set to 0
+BSIZE- 48/-0x30 ulong	1	UNUSED		set to 0
+BSIZE- 44/-0x2c	ulong	1	real_entry	FFS : pointer to "real" file or directory
+BSIZE- 40/-0x28	ulong	1	next_link	FFS : hardlinks chained list (first=newest)
+BSIZE- 36/-0x24	ulong	5	UNUSED		set to 0
+BSIZE- 16/-0x10	ulong	1	hash_chain	next entry ptr with same hash
+BSIZE- 12/-0x0c	ulong	1	parent		parent directory
+BSIZE-  8/-0x08	ulong	1	UNUSED		set to 0
+BSIZE-  4/-0x04	ulong	1	sec_type	secondary type : ST_LINKFILE = -4
+						ST_LINKDIR = 4
+------------------------------------------------------------------------------------------------
+</pre>
+
+A 'real' entry is a file or directory entry, opposed to link entries.
+<p>
+A hard link can only be created to the same disk as the real entry disk.
+Several links can be made on the same real entry. These are in just another
+linked list.<br>
+'real entry' always contains the real entry block pointer.<br>
+'next_link' stores the links linked list.<br>
+</p><p>
+</p><p>
+New entries are added at the head:
+
+</p><pre>&gt;ls
+  ------rw-d     1912  15-May-96 22:28:08  real
+</pre>
+
+Chained list state :
+
+<pre>block# real	next	name
+----------------------------
+484	0	0	real
+
+
+&gt;ln real link1
+&gt;ls
+  ------rw-d     1912  15-May-96 22:28:08  real
+  -H----rw-d     1912  15-May-96 22:28:10  link1 -&gt; Empty:real
+
+block# real	next	name
+----------------------------
+484	0	104	real
+104	484	0	link1
+
+
+&gt;ln link1 link2
+&gt;ls
+  ------rw-d     1912  15-May-96 22:28:08  real
+  -H----rw-d     1912  15-May-96 22:28:10  link1 -&gt; Empty:real
+  -H----rw-d     1912  15-May-96 22:28:12  link2 -&gt; Empty:real
+
+block# real	next	name
+----------------------------
+484	0	107	real
+104	484	0	link1
+107	484	104	link2
+</pre>
+
+The links are stored 'newest first', due to the adding at head.
+<p>
+real -&gt; newest link -&gt; ... -&gt; oldest link -&gt; 0
+</p><p>
+-&gt; means "points to"
+</p><p>
+
+<a name="p462"></a>
+</p><h4>
+4.6.2 Soft links
+</h4>
+
+<pre>* Soft link (BSIZE bytes)
+------------------------------------------------------------------------------------------------
+        0/ 0x00	ulong	1	type		block primary type = T_HEADER (value 2)
+        4/ 0x04	ulong	1	header_key	self pointer
+	8/ 0x08	ulong 	3 	UNUSED		unused (== 0)
+       20/ 0x14	ulong	1	chksum		normal checksum algorithm
+       24/ 0x18	ulong	*	symbolic_name	path name to referenced object, Cstring
+        	                                * = ((BSIZE - 224) - 1)
+                	                        for floppy disk: size= 288 - 1 chars
+BSIZE-200/-0xc8	ulong	2	UNUSED		unused (== 0)
+BSIZE-192/-0xc0	ulong	1	protect		protection flags (set to 0 by default)
+
+                                        Bit     If set, means
+
+                                           If MultiUser FileSystem : Owner
+					0	delete forbidden (D)
+					1	not executable (E)
+					2	not writable (W)
+					3	not readable (R)
+
+					4	is archived (A)
+					5	pure (reetrant safe), can be made resident (P)
+					6	file is a script (Arexx or Shell) (S)
+					7	Hold bit. if H+P (and R+E) are set the file
+                                                 can be made resident on first load (OS 2.x and 3.0)
+
+                                        8       Group (D) : is delete protected 
+                                        9       Group (E) : is executable 
+                                       10       Group (W) : is writable 
+                                       11       Group (R) : is readable 
+
+                                       12       Other (D) : is delete protected 
+                                       13       Other (E) : is executable 
+                                       14       Other (W) : is writable 
+                                       15       Other (R) : is readable 
+                                    30-16	reserved
+				       31	SUID, MultiUserFS Only
+
+BSIZE-188/-0xbc	ulong	1	UNUSED		unused (== 0)
+BSIZE-184/-0xb8	char	1	comm_len	comment length
+BSIZE-183/-0xb7	char	79	comment[]	comment (max. 79 chars permitted)
+BSIZE-104/-0x69	char	12	UNUSED		set to 0
+BSIZE- 92/-0x5c	ulong	1	days		last access date (days since 1 jan 78)
+BSIZE- 88/-0x58	ulong	1	mins		last access time
+BSIZE- 84/-0x54	ulong	1	ticks		in 1/50s of a seconds
+BSIZE- 80/-0x50	char	1	name_len	soft link name length
+BSIZE- 79/-0x4f char	30	slname[]	softlink name (max. 30 chars permitted)	
+BSIZE- 49/-0x31 char	1	UNUSED		set to 0
+BSIZE- 48/-0x30 ulong	8	UNUSED		set to 0
+BSIZE- 16/-0x10	ulong	1	hash_chain	next entry ptr with same hash
+BSIZE- 12/-0x0c	ulong	1	parent		parent directory
+BSIZE-  8/-0x08	ulong	1	UNUSED		set to 0
+BSIZE-  4/-0x04	ulong	1	sec_type	secondary type : ST_SOFTLINK = 3
+------------------------------------------------------------------------------------------------
+</pre>
+
+<hr width="30%">
+
+<a name="p47"></a>
+<h3>
+4.7 How are the blocks associated with the directory cache mode ?
+</h3>
+
+To speed up directory listing, Directory cache blocks have been created.<br>
+Directory cache blocks are also organised in chained lists.<br>
+The list starts at the directory block (root or normal directory)
+with the 'extension' field.
+
+<pre>* Directory cache block (BSIZE bytes)
+-------------------------------------------------------------------------------
+0/0	ulong	1	type		DIRCACHE == 33 (0x21)
+4/4	ulong	1	header_key	self pointer
+8/8	ulong	1	parent		parent directory
+12/c	ulong	1	records_nb	directory entry records in this block
+16/10	ulong	1	next_dirc	dir cache chained list
+20/14	ulong	1	chksum		normal checksum
+24/18	UCHAR	*	records[]	entries list (size = BSIZE-24)
+-------------------------------------------------------------------------------
+</pre>
+
+The directory entries are stored this way :
+
+<pre>* Directory cache block entry record (26 &lt;= size (in bytes) &lt;= 77)
+-------------------------------------------------------------------------------
+0	ulong	1	header		entry block pointer
+                                        (the link block for a link)
+4	ulong	1	size		file size (0 for a directory or a link)
+8	ulong	1	protect		protection flags (0 for a link ?)
+					 (see file header or directory blocks)
+12	ushort	1	UID             user ID
+14 	ushort 	1 	GID 		group ID
+16	short	1	days		date (always filled)
+18	short	1	mins		time (always filled)
+20	short	1	ticks
+22	char	1	type		secondary type
+23	char	1	name_len	1 &lt;= len &lt;= 30 (nl)
+24	char	?	name		name
+24+nl	char	1	comm_len	0 &lt;= len &lt;= 22 (cl)
+25+nl	char	?	comment		comment
+25+nl+cl char	1	OPTIONAL padding byte(680x0 longs must be word aligned)
+-------------------------------------------------------------------------------
+</pre>
+
+<hr>
+
+<a name="p5"></a>
+<h2>
+5. How does a blank disk look like ?
+</h2>
+
+
+A minimal blank disk has a Bootblock, a Rootblock and a Bitmap block.
+
+
+<a name="p51"></a>
+<h3>
+5.1 a Minimal blank floppy disk
+</h3>
+
+<pre>* The Bootblock (0 and 1)
+
+0	char	4	ID		'D''O''S' + flags
+4	long	1023	full of zeros
+
+
+* The Rootblock (880)
+
+0	long	1	type		2
+12/c	long	1	ht_size		0x48
+20/14	long	1	checksum	computed
+312/138	long	1	bm_flag		-1 (valid bitmap)
+316/13c	long	1	bm_pages[0]	bitmap sector #
+420/1a4	long	1	last access date
+424/1a8	long	1	last access time
+428/1ac	long	1	last access time
+432/1b0	char	1	disk_name size
+433/1b1	char	?	disk_name
+472/1d8	long	1	last access date
+476/1dc	long	1	last access time
+480/1e0	long	1	last access time
+484/1e4 long    1       creation date
+488/1e8 long    1       creation time
+492/1ec long    1       creation time
+504/1f8	long	1	FFS : first dir cache sector  or 0
+508/1fc	long	1	sub_type	1
+
+Unspecified fields are set to 0.
+
+
+* The Bitmap block (here 881) for a DD disk
+
+0	long	1	checksum
+4	long	27	free sectors	0xffffffff
+112/70	long	1	root+bitmap	0xffff3fff
+116/74	long	27	free sectors	0xffffffff
+120/78	long	72	unused		!=0
+</pre>
+
+<hr width="30%">
+
+<a name="p52"></a>
+<h3>
+5.2 A 'Bootable' floppy disk
+</h3>
+
+
+* The Bootblock becomes :
+<pre>0/0x00	long	1	ID		'D''O''S' + flags
+4/0x04	long	1	checksum	computed
+8/0x08	long	1	rootblock ?	880
+12/0x0c	byte	81	bootcode	AmigaDOS 3.0 version
+
+	values			disassembled
+	--------------+---------------------
+	43FA003E		lea	exp(pc),a1	;Lib name
+	7025			moveq	#37,d0		;Lib version
+	4EAEFDD8		jsr	-552(a6)	;OpenLibrary()
+	4A80			tst.l	d0		;error == 0
+	670C			beq.b	error1
+	2240			move.l	d0,a1		;lib pointer
+	08E90006 0022		bset	#6,34(a1)	;(*)
+	4EAEFE62		jsr	-414(a6)	;CloseLibrary()
+	43FA0018	error1:	lea	dos(PC),a1	;name
+	4EAEFFA0		jsr	-96(a6)		;FindResident()
+	4A80			tst.l	d0
+	670A			beq.b	error2		;not found
+	2040			move.l	d0,a0
+	20680016		move.l	22(a0),a0	;DosInit sub
+	7000			moveq	#0,d0
+	4E75			rts
+	70FF		error2:	moveq	#-1,d0
+	4E75			rts
+	646F732E 6C696272 617279
+			dos:	"dos.library"
+	00						;padding byte
+	65787061 6E73696F 6E2E6C69 62726172 79
+			exp:	"expansion.library"
+
+93/0x5d	byte	931	full of zeros
+</pre>
+
+(*) from Thomas Kessler (tkessler@ra.abo.fi), may 1997 :<br>
+This bit tells the shell (which opens its shell-window when booting the
+startup-sequence) not to open window unless needed, so a black screen
+stays there during boot instead of an empty shell-windows (it's a 
+os2.x feature).
+<p>
+
+</p><hr width="30%">
+
+<a name="p53"></a>
+<h3>
+5.3 A Directory cache mode floppy disk
+</h3>
+
+<pre>* A directory cache block (here 882)
+
+0	long	1	type		0x21
+4	long	1	self pointer	882
+8	long	1	cached dir	880 (root)
+12/c	long	1	entries number	0
+16/10	long	1	next dir cache	0 (last)
+20/14	long	1	checksum	computed
+24	long	122	full of zeros
+</pre>
+
+<hr width="30%">
+
+<a name="p54"></a>
+<h3>
+5.4 International Mode
+</h3>
+
+The toupper() function in the HashName() function (3.2.1 paragraph) is
+replaced by the following function with the aim of better handling
+international characters :
+
+<pre>int intl_toupper(int c)
+{
+   return (c&gt;='a' &amp;&amp; c&lt;='z') || (c&gt;=224 &amp;&amp; c&lt;=254 &amp;&amp; c!=247) ? c - ('a'-'A') : c ;
+}
+</pre>
+
+In the Amiga ASCII table, the international character codes are between
+192 and 254. Uppercase caracters are between 192 and 222, the lowercase
+versions of them are between 224 and 254. The only exception are the codes 215 and
+247, which are respectively the multiply sign and the divide sign.
+<p>
+The Amiga character set is the same as ISO 8859 Latin-1 character set, often
+assumed in HTML pages. This character set is described here : 
+<a href="http://www.w3c.org/">http://www.w3c.org/</a>
+</p><p>
+
+</p><hr>
+
+<p>
+
+<a name="p6"></a>
+</p><h2>
+6. The structure of a hard disk
+</h2>
+
+The following structures are mainly extracted from the 'devices/hardblocks.h' and
+'dos/filehandler.h' files delivered in Commodore developer kits.
+<p>
+The hard disk specific structures mainly store the drive geometry, the written
+partitions sizes and the filesystem bootcode.
+</p><p>
+The five kind of blocks are in a reserved area, at the beginning of the surface.
+The first of them, Rigid Disk block (RDSK), must be found within the
+first 16 blocks of BSIZE lenght. But it can be written inside the data
+area, which is dangerous.
+</p><p>
+
+<a name="p61"></a>
+</p><h3>
+6.1 What is the Rigid Disk Block ?
+</h3>
+
+<pre>* Rigid Disk block (256 bytes) must exist within the first 16 blocks
+-------------------------------------------------------------------------------
+0/0	char	4	id		'RDSK'
+4/4	ulong	1	size in longs 	== 64
+8/8	long	1	checksum	classic Rootblock algorithm
+12/c	ulong	1	hostID		SCSI Target ID of host
+					(== 7 for IDE and ZIP disks)
+16/10	ulong	1 	block size 	typically 512 bytes, but can
+					be other powers of 2
+20/14	ulong	1	flags 		typically 0x17
+				Bit	If set means :
+				0 	No disks exists to be configured 
+					after this one on this controller
+				1 	No LUNs exists to be configured greater
+					than this one at this SCSI Target ID
+				2 	No target IDs exists to be configured
+					greater than this one on this SCSI bus
+				3 	Don't bother trying to perform
+					reselection when talking to this drive
+				4 	Disk indentification valid
+				5 	Controller indentification valid
+				6 	Drive supports SCSI synchronous mode
+					(can be dangerous if it doesn't)
+24/18 	ulong 	1 	Bad blockList 	block pointer (-1 means last block)
+28/1c 	ulong 	1 	PartitionList	block pointer (-1 means last)
+32/20 	ulong 	1 	FileSysHdrList 	block pointer (-1 means last)
+36/24 	ulong 	1 	DriveInit code 	optional drive-specific init code
+					DriveInit(lun,rdb,ior) : 
+					"C" stack and d0/a0/a1
+40/28 	ulong 	6 	RESERVED 	== -1
+
+	Physical drive caracteristics
+64/40	ulong 	1 	cylinders 	number of drive cylinder
+68/44 	ulong 	1 	sectors 	sectors per track
+72/48	ulong 	1 	heads 		number of drive heads
+76/4c 	ulong 	1 	interleave
+80/50 	ulong 	1 	parking zone 	landing zone cylinders
+					soon after the last cylinder
+84/54 	ulong	3 	RESERVED 	== 0
+96/60 	ulong 	1 	WritePreComp 	starting cyl : write precompensation
+100/64	ulong 	1 	ReducedWrite 	starting cyl : reduced write current
+104/68 	ulong 	1 	StepRate 	drive step rate
+108/6c 	ulong 	5 	RESERVED 	== 0
+
+	Logical drive caracteristics
+128/80 	ulong 	1 	RDB_BlockLo 	low block of range reserved for hardblk
+132/84 	ulong 	1 	RDB_BlockHi 	high block of range for this hardblocks
+136/88 	ulong 	1 	LoCylinder 	low cylinder of partitionable disk area
+140/8c 	ulong 	1 	HiCylinder 	high cylinder of partitionable data area
+144/90 	ulong 	1 	CylBlocks 	number of blocks available per cylinder
+148/94 	ulong 	1 	AutoParkSeconds zero for no autopark
+152/98 	ulong 	1 	HighRSDKBlock 	highest block used by RDSK 
+					(not including replacement bad blocks)
+156/9c 	ulong 	1 	RESERVED 	== 0
+
+	Drive identification
+160/a0 	char 	8 	DiskVendor 	ie 'IOMEGA'
+168/a8	char 	16 	DiskProduct 	ie 'ZIP 100'
+184/b8	char 	4 	DiskRevision 	ie 'R.41'
+188/bc 	char 	8 	ControllerVendor
+196/c4 	char 	16 	ControllerProduct
+212/d4 	char 	4 	ControllerRevision
+216/d8 	ulong 	10 	RESERVED 	== 0
+256/100
+-------------------------------------------------------------------------------
+</pre>
+
+<h4>
+* How to find the physical geometry of the disk ?
+</h4>
+
+A hard disk is made of several physical disks. They have one head for each
+writable side. Each physical disk consists of several tracks, 
+which consist of several sectors.
+One cylinder is the set of the tracks which have the same number on each disk.
+<p>
+The total size of the hard disk is expressed in cylinders ('cylinders').<br>
+The size of a cylinder is :<br>
+the number of heads per cylinder ('heads')<br> 
+x the number of sectors per track ('sectors')<br>
+x the size of a block ('block size').
+</p><p>
+The 'CylBlocks' field equals to 'heads' x 'sectors'.
+</p><p>
+The reserved area is often the 2 first cylinders, between the 'RDB_BlockLo'
+block and the 'RDB_BlockHi' block, included. The partitionable area, starts at
+the 'LoCylinder' cylinder until the 'HiCylinder' cylinder, included.
+</p><p>
+The really last used sector in the reserved area is the sector numbered
+'HighRSDKBlock', the first is numbered 0. The SCSI 'hostID' is set to
+the id of the SCSI host controller, which is typically 7.
+Real SCSI drives ID must be between 0 and 6.
+</p><p>
+</p><p>
+The RDSK block is the "root" of the reserved area. It also contains
+the first blocks of three linked lists : one the bad blocks
+replacement, one for the partition definitions and one last for the
+filesystem information.
+</p><p>
+Some geometry examples :
+</p><ul>
+<li> a Zip disk : 2891 cylinders, 1 head, 68 sectors,
+</li><li> my 80Mb Seagate IDE harddisk : 980 cylinders, 10 heads, 17
+sectors.
+</li><li> a 500 Mbyte Fujitsu 2624SA: 1472 cylinders, 11 heads, 63 sectors
+</li><li> a 50 Mbyte Quantum LPS52: 2085 cylinders, 1 head, 49 sectors
+</li></ul>
+<p>
+
+</p><hr width="30%">
+
+
+<a name="p62"></a>
+
+<h3>
+6.2 How are bad blocks managed ?
+</h3>
+
+<pre>* Bad Block block (BSIZE bytes) first in RDSK 'BadBlockList' field
+-------------------------------------------------------------------------------
+0/0 	ulong 	1 	id 		'BADB'
+4/4 	ulong 	1 	size in longs 	== 128 for BSIZE = 512
+8/8 	long 	1 	checksum
+12/c 	ulong 	1 	HostID 		== 7 ?
+16/10 	ulong 	1 	next 		next BadBlock block
+20/14 	ulong 	1 	RESERVED
+24/18 	 	* 	BlockPairs[]	bad block entries table
+					* size = ((BSIZE/4)-6)/2
+					(for BSIZE=512 = 61*8 byte entries)
+-------------------------------------------------------------------------------
+</pre>
+
+<pre>* Bad Block entry (8 bytes) stored in BadBlock 'BlockPairs[]' field
+-------------------------------------------------------------------------------
+0/0 	ulong 	1 	BadBlock 	block number of bad block
+4/4 	ulong 	1 	GoodBlock 	block number of replacement block
+-------------------------------------------------------------------------------
+</pre>
+
+<hr width="30%">
+
+<a name="p63"></a>
+
+<h3>
+6.3 How are partitions stored?
+</h3>
+
+<pre>* Partition block (256 bytes) first in RDSK 'PartitionList' field
+-------------------------------------------------------------------------------
+0/0 	char 	4 	ID 		'PART'
+4/4 	ulong 	1 	size in long 	of checksummed structure (== 64)
+8/8 	ulong 	1 	checksum        classic algorithm
+12/c 	ulong 	1 	hostID 		SCSI Target ID of host (== 7)
+16/10 	ulong 	1 	next 		block number of the next Partitionblock
+20/14 	ulong 	1 	Flags
+				Bit 	If set means
+				0 	This partition is bootable
+				1 	No automount
+24/18 	ulong 	2 	RESERVED
+32/20 	ulong 	1 	DevFlags 	preferred flags for OpenDevice
+36/24 	char 	1 	DriveName len 	length of Drive name (e.g. 3)
+37/25	char 	31 	DriveName 	e.g. 'DH0'
+68/44 	ulong 	15 	RESERVED
+
+	DOS Environment vector (DOSEnvVec) (often defined in MountLists)
+128/80 	ulong 	1 	size of vector 	== 16 (longs), 11 is the minimal value
+132/84 	ulong 	1 	SizeBlock	size of the blocks in longs ==
+					128 for BSIZE = 512
+136/88 	ulong 	1 	SecOrg 		== 0
+140/8c 	ulong 	1 	Surfaces 	number of heads (surfaces) of drive
+144/90 	ulong 	1 	sectors/block 	sectors per block == 1
+148/94 	ulong 	1 	blocks/track 	blocks per track
+152/98 	ulong 	1 	Reserved 	DOS reserved blocks at start of partition
+                                        usually = 2 (minimum 1)
+156/9c 	ulong 	1 	PreAlloc 	DOS reserved blocks at end of partition
+					(no impact on Root block allocation)
+					normally set to == 0
+160/a0 	ulong 	1 	Interleave 	== 0
+164/a4 	ulong 	1 	LowCyl		first cylinder of a partition (inclusive)
+168/a8 	ulong 	1 	HighCyl		last cylinder of a partition (inclusive)
+172/ac 	ulong 	1 	NumBuffer 	often 30 (used for buffering)
+176/b0 	ulong 	1 	BufMemType 	type of mem to allocate for buffers ==0
+180/b4 	ulong 	1 	MaxTransfer 	max number of type to transfer at a type
+					often 0x7fff ffff
+184/b8 	ulong 	1 	Mask 		Address mask to block out certain memory
+					often 0xffff fffe
+188/bc 	ulong	1 	BootPri 	boot priority for autoboot
+192/c0 	char	4	DosType 	'DOS' and the FFS/OFS flag only
+					also 'UNI'\0 = AT&amp;T SysV filesystem
+					'UNI'\1 = UNIX boot filesystem
+					'UNI'\2 = BSD filesystem for SysV
+					'resv' = reserved (swap space)
+196/c4  ulong	1	Baud 		Define default baud rate for Commodore's
+					SER and AUX handlers, originally
+					used with the A2232 multiserial board
+200/c8  ulong	1	Control		used by Commodore's AUX handler
+204/cc  ulong	1	Bootblocks	Kickstart 2.0: number of blocks
+					containing boot code to be
+					loaded at startup
+208/d0	ulong	12 	RESERVED
+-------------------------------------------------------------------------------
+</pre>
+
+There exists one 'PART' block per partition.
+<p>
+The block pointers in the reserved area are relative to the beginning of the media.
+The block pointers in a partition are relative to the first block of the partition.
+</p><p>
+The Rootblock of a partition is normally located in the middle of an
+AmigaDOS filesystem. Please see <a href="http://lclevy.free.fr/adflib/adf_info.html#p42">4.2 What is a
+Rootblock?</a> for the exact calculation of it's location.
+</p><p>
+The first two blocks of a partition contain a Bootblock. You have to use it to
+determine the correct file system, and if the international or dircache modes are used.
+Don't rely only on the PART and FSHD 'DosType' field.<br>
+</p><p>
+
+</p><hr width="30%">
+
+<a name="p64"></a>
+
+<h3>
+6.4 What are FSHD blocks ?
+</h3>
+
+<pre>* Filesystem header block (256 bytes) first in RSDK 'FileSysHeaderList'
+-------------------------------------------------------------------------------
+0/0 	char 	4 	id 		'FSHD'
+4/4 	ulong 	1 	size in longs 	== 64
+8/8 	long 	1 	checksum        classic algorithm
+12/c 	ulong 	1 	hostID 		SCSI Target ID of host (often 7)
+16/10 	ulong 	1 	next 	 	block number of next FileSysHeaderBlock
+20/14 	ulong 	1 	flags
+24/18 	ulong 	2 	RESERVED
+32/20 	char 	4 	DosType 	'DOS' and OFS/FFS DIRCACHE INTL bits
+36/24 	ulong 	1 	Version 	filesystem version 0x0027001b == 39.27
+40/28 	ulong 	1 	PatchFlags 	bits set for those of the following
+					that need to be substituted into a
+ 					standard device node for this 
+					filesystem : e.g. 0x180 to substitute
+					SegList and GlobalVec
+	Device node
+44/2c 	ulong 	1 	Type 		device node type == 0
+48/30 	ulong 	1 	Task 		standard DOS "task" field == 0
+52/34	ulong 	1 	Lock 		not used == 0
+56/38 	ulong 	1 	Handler 	filename to loadseg == 0
+60/3c 	ulong 	1 	StackSize 	stacksize to use when starting task ==0
+64/40 	ulong 	1 	Priority 	task priority when starting task == 0
+68/44 	ulong 	1 	Startup 	startup msg == 0
+72/48 	ulong 	1 	SegListBlock 	first of linked list of LoadSegBlocks :
+					note that this entry requires some
+ 					processing before substitution
+76/4c 	ulong 	1 	GlobalVec 	BCPL global vector when starting task =-1
+80/50 	ulong 	23 	RESERVED 	by PatchFlags
+172/ac 	ulong 	21 	RESERVED
+-------------------------------------------------------------------------------
+</pre>
+
+This block contains information on how to lauch the task which will manage the 
+filesystem. You don't need it to reach partitions.
+
+
+<hr width="30%">
+
+<a name="p65"></a>
+
+<h3>
+6.5 What are LSEG blocks ?
+</h3>
+
+<pre>* LoadSeg block (BSIZE bytes) first in FileSysHeaderBlock 'SegListBlocks' field
+-------------------------------------------------------------------------------
+0/0 	char 	4 	id 		'LSEG'
+4/4 	long 	* 	size in longs 	size of this checksummed structure
+					* size = BSIZE/4
+8/8 	long 	1 	checksum 	classic checksum
+12/c 	long 	1 	hostID 		SCSI Target ID of host (often 7)
+16/10 	long 	1 	next 		block number of the next LoadSegBlock
+                                        (-1 for the last)
+20/14 	uchar 	* 	LoadData[] 	code stored like an executable, with
+					relocation hunks
+					* size = ((BSIZE/4) - 5)
+-------------------------------------------------------------------------------
+</pre>
+
+This block contains the code of the filesystem. It isn't needed to reach partitions.
+
+<hr>
+
+<a name="p7"></a>
+<h2>
+7. The Hard file : a big floppy dump file
+</h2>
+
+A hardfile is a file which contains an Amiga volume.
+<p>
+It is created with WinUAE 
+(<a href="http://www.winuae.net/">http://www.winuae.net/</a>),
+ and not the Amiga and the AmigaDOS. WinUAE is able to 
+produce an empty file with random contents of a choosen size, often 
+several megabytes long.<br>
+Under WinUAE, a AmigaDOS device appears, associated with the uaehf.device 
+(UAE hardfile). You have to format it with the Workbench, and you obtain an
+'hardfile'. This volume is then usable inside the emulator by AmigaDOS
+(it should also be mountable under Linux with the AFFS filesystem).
+</p><p>
+For example a 8Mb hardfile could be mounted on a kickstart 1.3 Amiga with
+the following mountlist (from uae docs/README) :
+</p><pre>UAE0:  Device = uaehf.device
+	   Unit   = 0
+	   Flags  = 0
+	   Surfaces  = 1
+	   BlocksPerTrack = 32
+	   Reserved = 1
+	   Interleave = 0
+	   LowCyl = 0  ;  HighCyl = 511
+	   Buffers = 5
+	   DosType = 0x444F5300
+	   BufMemType = 1
+</pre>
+An hardfile is like a floppy disk dump, but bigger : it has a bootblock, 
+a rootblock, a bitmap and perhaps dircache blocks.<br>
+The first three bytes of a hardfile is then 'D' 'O' 'S'.
+<p>
+The geometry is : heads = 1, sectors = 32, 'cylinders' depends the hardfile size.
+
+</p><p>
+
+</p><hr>
+
+<a name="p8"></a>
+<h2>
+8. Advanced information
+</h2>
+
+<h4>
+Bitmap related
+</h4>
+
+* Bitmap allocation starts at root block, upto highest block.
+  The next allocated blocks are located just after boot blocks and finally
+  the last allocated block is the sector before root block.
+<p>
+  root -&gt; max -&gt; boot+1 -&gt; root-1
+</p><p>
+  -&gt; means "followed on disk by"
+</p><p>
+If you free some blocks by deleting a file, for example, the first next used block
+will be the first free block encountered starting from the Rootblock. The just freed
+blocks will be reused. It means that when you delete a file and you want to recover
+it, don't write anything else to the disk.<br>
+This strategy must have been chosen to minimize fragmentation.
+
+</p><h4>
+Files related
+</h4>
+
+* The order in which data and file extension blocks for a given file are written
+  on disk differs with OFS and FFS.
+<p>
+</p><ul>
+<li> OFS &amp; FFS : All the data blocks of the file header block are written first.<br>
+</li><li> FFS : Then follow all the file extension blocks of the file, then all the
+  remaining data blocks are written.<br>
+  OFS : Each file extension block is followed by the related data blocks. So
+  the last extension block is followed by the remaining data blocks.<br>
+</li></ul>
+<br>
+  OFS:<br>
+  header -&gt; data blocks -&gt; ext. block -&gt; data blocks -&gt; 
+ext. block -&gt; data blocks
+<p>
+  FFS:<br>
+  header -&gt; data blocks -&gt; all ext. block -&gt; all remaining data blocks
+</p><p>
+  -&gt; means "followed on disk by"
+</p><p>
+This difference is probably the main reason why FFS is faster then OFS.
+</p><p>
+Under FFS, the hash chains are sorted by block number.
+</p><p>
+
+</p><h4>
+Comparison chart of the ADF logical blocks
+</h4>
+
+<pre>			    root  dir 	fileh 	hlink 	slink 	fext	data 	dirc
+----------------------------------------------------------------------------------------
+        0/ 0x00 1st_type    2 	  2 	2 	2 	2 	16	8 	33
+        4/ 0x04 header_key  / 	  x 	x 	x 	x 	x 	x 	x
+        8/ 0x08  	    / 	  / 	nb_blo	/ 	/ 	nb_blo 	block# 	PARENT
+       12/ 0x0c table_size  72 	  / 	/ 	/ 	/ 	/ 	nb_data nb_rec
+       16/ 0x10 list 	    / 	  / 	data#1 	/ 	/ 	/ 	next 	next
+       20/ 0x14 chksum 	    x 	  x 	x 	x 	x 	x 	x 	x
+       24/ 0x18 table 	    ht 	  ht 	blocks 	/ 	/ 	blocks  data 	records
+    ...
+BSIZE-184/-0xb8	comment_len /	  x 	x 	/ 	/ 	/ 	/ 	/
+BSIZE-183/-0xb7 comment     /	  x 	x 	/ 	/ 	/ 	/ 	/
+    ...
+BSIZE- 92/-0x5c	days 	    x	  x	x 	x 	x 	/ 	/ 	/
+BSIZE- 88/-0x58 mins 	    x	  x	x 	x 	x 	/ 	/ 	/
+BSIZE- 84/-0x54 ticks 	    x	  x	x 	x 	x 	/ 	/ 	/
+BSIZE- 80/-0x50	name_len    x 	  x 	x 	x 	x 	/ 	/ 	/
+BSIZE- 79/-0x4f name 	    x 	  x 	x 	x 	x 	/ 	/ 	/
+    ...
+BSIZE- 16/-0x10	hash_chain  / 	  x 	x 			/ 	/ 	/
+BSIZE- 12/-0x0c	parent	    / 	  x 	x 	x 	x 	fhdr 	/ 	/
+BSIZE-  8/-0x08	extension   cache cache	fext    / 	/ 	next 	/ 	/
+BSIZE-  4/-0x04	2nd_type    1 	  2 	-3	-4/4 	3 	-3 	/ 	/
+----------------------------------------------------------------------------------------
+
+type of blocks :
+ root=rootblock,  dir=directory,  fileh=file header,  fext=file extension,
+ hlink=hard link,  slink=soft link,  dirc=directory cache,  data=OFS data.
+
+special values :
+ /=unused
+ x=used
+ next=next block of same type
+</pre>
+
+<h4>
+How to rename an entry ?
+</h4>
+<ol>
+<li>Compute the new hashvalue
+</li><li>Move the first sector pointer from the old hashvalue index to the new one 
+</li><li>Change the name in the directory or file header block
+</li></ol>
+
+<hr>
+
+<p>
+
+<a name="p9"></a>
+</p><h2>
+9. References and links
+</h2>
+
+<p>
+* ASM Sources:
+</p><ul>
+<li>	Scoopex and Crionics disassembled demo hardloaders
+</li><li>	'the floppy disk book' copier source file, DATA BECKER books, 1988
+</li></ul>
+* On-Line material :<br>
+<ul>
+<li>Very good 'ded.doc' file including Hard Disk information :
+<a href="ftp://ftp.funet.fi/pub/amiga/utilities/disk/Ded-1.11.lha">
+	ftp://ftp.funet.fi/pub/amiga/utilities/disk/Ded-1.11.lha</a><br>
+</li><li>A clean track-loader which doesn't use AmigaDOS (by Patrik Lundquist, newer version) :
+<a href="http://aminet.net/package/dev/src/trackldr1_43">
+	http://aminet.net/package/dev/src/trackldr1_43</a><br>
+</li><li>A replacement for 'trackdisk.device' :
+<a href="http://aminet.net/package/disk/misc/hackdisk202">
+	http://aminet.net/package/disk/misc/hackdisk202</a><br>
+</li><li>'amigadisk_hardware.doc'  (by Dave Edwards, Mark Meany, ... of ACC) :
+<a href="http://home.sol.no/svjohan/assem/refs/diskHW.lha">
+	http://home.sol.no/svjohan/assem/refs/diskHW.lha</a><br>
+</li><li>DiskMonTools, a very good MFM/filesystem disk monitor for the Amiga :
+<a href="ftp://uk.aminet.net/pub/aminet/disk/moni/DiskMonTools.lha">
+ftp://uk.aminet.net/pub/aminet/disk/moni/DiskMonTools.lha</a>
+</li></ul>
+* Books :<br>
+<ul>
+<li>	The Amiga Guru Book, Chapter 15, Ralph Babel, 1993
+</li><li>	Rom Kernel Reference Manual : Hardware, pages 235-244, Addison Wesley
+</li><li>	Rom Kernel Reference Manual : Libraries and Devices, Appendix C, Addison Wesley
+</li><li>	La Bible de l'Amiga, Dittrich/Gelfand/Schemmel, Data Becker, 1988.
+</li></ul>
+<br>
+The AmigaDOS reference manual probably contains a lot of information about Amiga
+file systems, but i don't own it (Addison Wesley). The most detailed
+information about AmigaDOS can be found in Ralph Babel's "Amiga Guru Book".
+<br>
+<hr>
+<br>
+<a name="p10"></a>
+<h2>
+10. C routines : the ADF library
+</h2>
+
+<p>The ADFlib is a portable C library designed to manage Amiga formatted devices like harddisks and
+ZIP disks, or dump files of this kind of media via the .ADF format.</p>
+<p>The API permits you to :
+</p><ul>
+<li>mount/unmount a device (real one or a dump file),
+</li><li>mount/unmount a volume (partition),
+</li><li>create/open/close/delete/move/undelete a file,
+</li><li>read/write bytes from/to a file,
+</li><li>create/delete/undelete a directory,
+</li><li>get directory contents, change current directory, get parent directory.
+</li></ul>
+
+<p>A callback system makes it easy to write a real device driver for any platform. 
+The <b>ADFOpus</b> (<a href="http://adfopus.sourceforge.net/">
+http://adfopus.sourceforge.net/</a>) application 
+(a useful Windows Explorer like for ADF files and devices),
+written by Dan Sutherlan is able to
+access from NT4 an 2.5 inches harddisk formatted under AmigaDOS. <br>
+The <b>ADFView</b> Windows Explorer shell extension 
+(<a href="http://www.viksoe.dk/code/adfview.htm">http://www.viksoe.dk/code/adfview.htm</a>) written by Bjarke Viksoe
+is also using ADFlib.  Hard-disks under W2000 
+are also supported.
+
+</p><p>
+See the <a href="http://lclevy.free.fr/adflib/adf_info.html#p12">1.2 section</a> to see how to obtain the package.<br>
+
+
+</p><hr>
+
+<a name="p11"></a>
+<h2>
+11. Other Amiga FileSystems
+</h2>
+
+<ul>
+<li>An Amiga filesystem for Linux 0.99pl2 by Ray Burr (read only,  hard disk):
+        <a href="ftp://tsx-11.mit.edu/pub/linux/patches/amigaffs.tar.Z">
+	ftp://tsx-11.mit.edu/pub/linux/patches/amigaffs.tar.Z</a><br>
+</li><li>The AFFS filesystem inside the Linux kernel distribution by Hans-Joachim "JBHR" Widmaier (RDSK, 
+	links and international mode supported, dircache disks read-only):
+ <a href="ftp://ftp.us.kernel.org/">ftp://ftp.us.kernel.org</a> 
+ in /usr/src/linux/fs/affs/<br>
+Currently maintained by Roman Zippel (zippel@linux-m68k.org) 
+
+</li><li>An .ADF manipulation package for DOS/Windows, "ADF-suite" (GUI, Shareware, 
+        no sources included):<br>
+<a href="http://www.geocities.com/SiliconValley/Lakes/7094/index.html">
+	link broken</a><br>
+</li></ul>
+
+<hr>
+The .ADF format FAQ ends here !
+
+<!-- DEBUT / Cybermonitor / START -->
+<script language="javascript"><!--
+CM_RUBRIQUE = "PagesPersos_abonnes";
+CM_CLIENT = "clubv3";
+CM_SECTION1 = "PagesPersos";
+// --></script>
+<script language="javascript" src="http://js.cybermonitor.com/clubv3.js">
+</script></body></html>

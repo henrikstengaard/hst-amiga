@@ -6,7 +6,6 @@
     using System.Threading.Tasks;
     using FileSystems.FastFileSystem;
     using Xunit;
-    using Directory = System.IO.Directory;
     using File = System.IO.File;
     using FileMode = System.IO.FileMode;
 
@@ -16,14 +15,14 @@
         public async Task WhenMountAdfAndReadEntriesRecursivelyThenEntriesAreReturned()
         {
             // arrange - adf file
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
             await using var adfStream = File.OpenRead(adfPath);
 
             // act - mount adf
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - root block contains 2 entries
@@ -55,7 +54,7 @@
         public async Task WhenMountAdfAndReadFileFromThenDataIsReadCorrectly()
         {
             // arrange - adf file
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
             await using var adfStream = File.OpenRead(adfPath);
 
             // act - mount adf
@@ -81,8 +80,8 @@
             // arrange - adf file
             var fileName = "newtest.txt";
             var fileContent = "Hello world!";
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
-            var modifiedAdfPath = @"TestData\FastFileSystems\ffstest_modified.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var modifiedAdfPath = "ffstest_file_created.adf";
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -102,7 +101,7 @@
             entryStream.Close();
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - entry exists
@@ -118,8 +117,8 @@
         {
             // arrange - adf file
             var directoryName = "newdir";
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
-            var modifiedAdfPath = @"TestData\FastFileSystems\ffstest_modified.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var modifiedAdfPath = "ffstest_directory_created.adf";
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -130,10 +129,10 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - create directory in root block
-            await FileSystems.FastFileSystem.Directory.AdfCreateDir(volume, volume.RootBlock, directoryName);
+            await FileSystems.FastFileSystem.Directory.CreateDirectory(volume, volume.RootBlock, directoryName);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - entry exists
@@ -149,8 +148,8 @@
         {
             // arrange - adf file
             var newName = "renamed_test";
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
-            var modifiedAdfPath = @"TestData\FastFileSystems\ffstest_modified.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var modifiedAdfPath = "ffstest_file_renamed.adf";
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -160,11 +159,8 @@
             // act - mount adf
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
-            // // act - create directory in root block
-            // await Directory.AdfCreateDir(volume, volume.RootBlock, directoryName);
-
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
@@ -173,11 +169,11 @@
 
             // act - rename file entry
             var oldName = oldEntry.Name;
-            await FileSystems.FastFileSystem.Directory.AdfRenameEntry(volume, oldEntry.Parent, oldName, oldEntry.Parent,
+            await FileSystems.FastFileSystem.Directory.RenameEntry(volume, oldEntry.Parent, oldName, oldEntry.Parent,
                 newName);
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - entry with old name doesn't exist
@@ -196,19 +192,19 @@
         public async Task WhenMountAdfAndDeleteFileThenFileIsDeleted()
         {
             // arrange - adf file
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
-            var modifiedAdfPath = @"TestData\FastFileSystems\ffstest_modified.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var modifiedAdfPath = "ffstest_file_deleted.adf";
 
             // arrange - copy adf file for testing
-            System.IO.File.Copy(adfPath, modifiedAdfPath, true);
+            File.Copy(adfPath, modifiedAdfPath, true);
             await using var adfStream =
-                System.IO.File.Open(modifiedAdfPath, System.IO.FileMode.Open, FileAccess.ReadWrite);
+                File.Open(modifiedAdfPath, FileMode.Open, FileAccess.ReadWrite);
 
             // act - mount adf
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
@@ -217,10 +213,10 @@
 
             // act - remote entry from root block
             var entryName = entry.Name;
-            await FileSystems.FastFileSystem.Directory.AdfRemoveEntry(volume, volume.RootBlock, entryName);
+            await FileSystems.FastFileSystem.Directory.RemoveEntry(volume, volume.RootBlock, entryName);
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - entry doesn't exist, is removed
@@ -232,19 +228,19 @@
         public async Task WhenMountAdfAndSetAccessForFileThenEntryIsUpdated()
         {
             // arrange - adf file
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
-            var modifiedAdfPath = @"TestData\FastFileSystems\ffstest_modified.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var modifiedAdfPath = @"ffstest_access_updated.adf";
 
             // arrange - copy adf file for testing
-            System.IO.File.Copy(adfPath, modifiedAdfPath, true);
+            File.Copy(adfPath, modifiedAdfPath, true);
             await using var adfStream =
-                System.IO.File.Open(modifiedAdfPath, System.IO.FileMode.Open, FileAccess.ReadWrite);
+                File.Open(modifiedAdfPath, FileMode.Open, FileAccess.ReadWrite);
 
             // act - mount adf
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
@@ -253,11 +249,11 @@
 
             // act - set access for entry
             var entryName = entry.Name;
-            await FileSystems.FastFileSystem.Directory.AdfSetEntryAccess(volume, volume.RootBlock, entryName,
+            await FileSystems.FastFileSystem.Directory.SetEntryAccess(volume, volume.RootBlock, entryName,
                 Constants.ACCMASK_A | Constants.ACCMASK_E | Constants.ACCMASK_W);
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - get entry
@@ -266,11 +262,11 @@
             Assert.Equal(Constants.ACCMASK_A | Constants.ACCMASK_E | Constants.ACCMASK_W, entry.Access);
 
             // act - set access for entry
-            await FileSystems.FastFileSystem.Directory.AdfSetEntryAccess(volume, volume.RootBlock, entryName,
+            await FileSystems.FastFileSystem.Directory.SetEntryAccess(volume, volume.RootBlock, entryName,
                 Constants.ACCMASK_R);
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - get entry
@@ -283,19 +279,19 @@
         public async Task WhenMountAdfAndSetCommentForFileThenEntryIsUpdated()
         {
             // arrange - adf file
-            var adfPath = @"TestData\FastFileSystems\ffstest.adf";
-            var modifiedAdfPath = @"TestData\FastFileSystems\ffstest_modified.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var modifiedAdfPath = "ffstest_comment_updated.adf";
 
             // arrange - copy adf file for testing
-            System.IO.File.Copy(adfPath, modifiedAdfPath, true);
+            File.Copy(adfPath, modifiedAdfPath, true);
             await using var adfStream =
-                System.IO.File.Open(modifiedAdfPath, System.IO.FileMode.Open, FileAccess.ReadWrite);
+                File.Open(modifiedAdfPath, FileMode.Open, FileAccess.ReadWrite);
 
             // act - mount adf
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
@@ -305,11 +301,11 @@
 
             // act - set access for entry
             var entryName = entry.Name;
-            await FileSystems.FastFileSystem.Directory.AdfSetEntryComment(volume, volume.RootBlock, entryName,
+            await FileSystems.FastFileSystem.Directory.SetEntryComment(volume, volume.RootBlock, entryName,
                 "A comment");
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.AdfGetRDirEnt(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - get entry

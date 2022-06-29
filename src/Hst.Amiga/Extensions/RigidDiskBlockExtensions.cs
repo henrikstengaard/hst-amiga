@@ -12,6 +12,12 @@
         public static RigidDiskBlock CreateRigidDiskBlock(this long size) => RigidDiskBlock.Create(size);
 
         public static RigidDiskBlock AddFileSystem(this RigidDiskBlock rigidDiskBlock,
+            string dosType, byte[] fileSystemBytes)
+        {
+            return AddFileSystem(rigidDiskBlock, DosTypeHelper.FormatDosType(dosType), fileSystemBytes);
+        }
+
+        public static RigidDiskBlock AddFileSystem(this RigidDiskBlock rigidDiskBlock,
             byte[] dosType, byte[] fileSystemBytes)
         {
             var version = VersionStringReader.Read(fileSystemBytes);
@@ -22,7 +28,7 @@
                 fileSystemBytes);
 
             rigidDiskBlock.FileSystemHeaderBlocks = rigidDiskBlock.FileSystemHeaderBlocks.Concat(new[]
-                    { fileSystemHeaderBlock });
+                { fileSystemHeaderBlock });
 
             return rigidDiskBlock;
         }
@@ -40,7 +46,8 @@
             return AddPartition(rigidDiskBlock, firstFileSystemHeaderBlock.DosType, driveName, size, bootable);
         }
 
-        public static RigidDiskBlock AddPartition(this RigidDiskBlock rigidDiskBlock, byte[] dosType, string driveName, long size = 0,
+        public static RigidDiskBlock AddPartition(this RigidDiskBlock rigidDiskBlock, byte[] dosType, string driveName,
+            long size = 0,
             bool bootable = false)
         {
             var partitionBlock = PartitionBlock.Create(rigidDiskBlock, dosType, driveName, size, bootable);

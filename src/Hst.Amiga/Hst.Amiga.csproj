@@ -1,10 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>HST Amiga is a library for reading and writing Amiga partition table, file systems, data types.</Description>
+    <PackageTags>HST;Amiga;RDB;FFS</PackageTags>
+  </PropertyGroup>
   <ItemGroup>
     <Folder Include="FileSystems" />
     <Folder Include="RigidDiskBlocks" />
-    <Folder Include="VersionStrings" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Hst.Core" Version="0.1.8" />
+    <None Include="..\..\readme.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Hst.Core" Version="0.1.15" />
   </ItemGroup>
 </Project>

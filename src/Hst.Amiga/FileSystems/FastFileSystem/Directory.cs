@@ -9,7 +9,7 @@
     public static class Directory
     {
         // https://github.com/lclevy/ADFlib/blob/be8a6f6e8d0ca8fda963803eef77366c7584649a/src/adf_dir.c#L362
-        public static async Task<IEnumerable<Entry>> AdfGetRDirEnt(Volume volume, EntryBlock startEntryBlock,
+        public static async Task<IEnumerable<Entry>> ReadEntries(Volume volume, EntryBlock startEntryBlock,
             bool recursive = false)
         {
             // struct bEntryBlock entryBlk;
@@ -71,7 +71,7 @@
                 //             cell->subdir = adfGetRDirEnt(vol,entry->sector,recurs);
                 if (recursive && entry.Type == Entry.EntryType.Dir)
                 {
-                    entry.SubDir = (await AdfGetRDirEnt(volume, entryBlock, true)).ToList();
+                    entry.SubDir = (await ReadEntries(volume, entryBlock, true)).ToList();
                 }
 
                 //         /* same hashcode linked list */
@@ -97,7 +97,7 @@
                     //                 cell->subdir = adfGetRDirEnt(vol,entry->sector,recurs);
                     if (recursive && entry.Type == Entry.EntryType.Dir)
                     {
-                        entry.SubDir = (await AdfGetRDirEnt(volume, entryBlock, true)).ToList();
+                        entry.SubDir = (await ReadEntries(volume, entryBlock, true)).ToList();
                     }
 
                     nextSector = entryBlock.NextSameHash;
@@ -499,7 +499,7 @@ for(i=0; i<HT_SIZE; i++) printf("ht[%d]=%d    ",i,ht[i]);
  * adfCreateDir
  *
  */
-        public static async Task AdfCreateDir(Volume vol, EntryBlock parent, string name)
+        public static async Task CreateDirectory(Volume vol, EntryBlock parent, string name)
         {
             // SECTNUM nSect;
             // struct bDirBlock dir;
@@ -558,7 +558,7 @@ for(i=0; i<HT_SIZE; i++) printf("ht[%d]=%d    ",i,ht[i]);
  * adfRenameEntry
  *
  */
-        public static async Task AdfRenameEntry(Volume vol, int pSect, string oldName, int nPSect, string newName)
+        public static async Task RenameEntry(Volume vol, int pSect, string oldName, int nPSect, string newName)
         {
             //    struct bEntryBlock parent, previous, entry, nParent;
             //    SECTNUM nSect2, nSect, prevSect, tmpSect;
@@ -729,7 +729,7 @@ for(i=0; i<HT_SIZE; i++) printf("ht[%d]=%d    ",i,ht[i]);
  * adfRemoveEntry
  *
  */
-        public static async Task AdfRemoveEntry(Volume vol, EntryBlock parent, string name)
+        public static async Task RemoveEntry(Volume vol, EntryBlock parent, string name)
         {
             // struct bEntryBlock parent, previous, entry;
             // SECTNUM nSect2, nSect;
@@ -826,7 +826,7 @@ for(i=0; i<HT_SIZE; i++) printf("ht[%d]=%d    ",i,ht[i]);
  * adfSetEntryAccess
  *
  */
-        public static async Task AdfSetEntryAccess(Volume vol, EntryBlock parent, string name, int newAcc)
+        public static async Task SetEntryAccess(Volume vol, EntryBlock parent, string name, int newAcc)
         {
             // struct bEntryBlock parent, entry;
             // SECTNUM nSect;
@@ -866,7 +866,7 @@ for(i=0; i<HT_SIZE; i++) printf("ht[%d]=%d    ",i,ht[i]);
  * adfSetEntryComment
  *
  */
-        public static async Task AdfSetEntryComment(Volume vol, EntryBlock parent, string name, string newCmt)
+        public static async Task SetEntryComment(Volume vol, EntryBlock parent, string name, string newCmt)
         {
             // struct bEntryBlock parent, entry;
             // SECTNUM nSect;

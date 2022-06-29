@@ -55,7 +55,7 @@
         public static async Task ExtractVolume(Volume volume,
             string outputPath)
         {
-            var entries = (await Directory.AdfGetRDirEnt(volume, volume.RootBlock, true)).ToList();
+            var entries = (await Directory.ReadEntries(volume, volume.RootBlock, true)).ToList();
 
             await ExtractDirectory(volume, volume.RootBlock, entries, volume.RootBlock.DiskName);
 

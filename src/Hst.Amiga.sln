@@ -4,6 +4,23 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Amiga", "Hst.Amiga\Hst.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Amiga.Tests", "Hst.Amiga.Tests\Hst.Amiga.Tests.csproj", "{B61D262D-26E5-45EB-8DDF-CCD233156BBA}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Info", "Info", "{B15E7257-ACCE-4FD0-8753-D2CB5919FD3A}"
+	ProjectSection(SolutionItems) = preProject
+		..\readme.md = ..\readme.md
+		..\license.txt = ..\license.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Properties", "Properties", "{55F9B8ED-B753-457C-867F-E20580E7C844}"
+	ProjectSection(SolutionItems) = preProject
+		NuGet.Config = NuGet.Config
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHubWorkflows", "GitHubWorkflows", "{FBEDA538-3F1E-465C-B8BC-73260378BC56}"
+	ProjectSection(SolutionItems) = preProject
+		..\.github\workflows\dotnet.yml = ..\.github\workflows\dotnet.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
