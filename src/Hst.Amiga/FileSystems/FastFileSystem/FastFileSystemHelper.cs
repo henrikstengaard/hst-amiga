@@ -13,7 +13,7 @@
         public static async Task<IEnumerable<RootBlock>> FindRootBlocks(Stream stream)
         {
             var rootBlocks = new List<RootBlock>();
-            
+
             var buffer = new byte[512];
             int bytesRead;
             do
@@ -40,7 +40,7 @@
 
                 var rootBlock = await RootBlockReader.Parse(buffer);
                 rootBlock.Offset = (uint)offset;
-                
+
                 rootBlocks.Add(rootBlock);
             } while (bytesRead == buffer.Length);
 
@@ -58,11 +58,10 @@
             var entries = (await Directory.ReadEntries(volume, volume.RootBlock, true)).ToList();
 
             await ExtractDirectory(volume, volume.RootBlock, entries, volume.RootBlock.DiskName);
-
-            await System.IO.File.WriteAllLinesAsync(Path.Combine(outputPath, string.Concat(volume.RootBlock.DiskName, " log.txt")), volume.Logs);
         }
 
-        public static readonly Regex EntryRegex = new("[^\\w\\-_\\.\\\\/ ]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public static readonly Regex EntryRegex =
+            new Regex("[^\\w\\-_\\.\\\\/ ]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// extract directory recursively
@@ -71,7 +70,8 @@
         /// <param name="parent"></param>
         /// <param name="entries"></param>
         /// <param name="outputPath"></param>
-        private static async Task ExtractDirectory(Volume volume, EntryBlock parent, IEnumerable<Entry> entries, string outputPath)
+        private static async Task ExtractDirectory(Volume volume, EntryBlock parent, IEnumerable<Entry> entries,
+            string outputPath)
         {
             if (!System.IO.Directory.Exists(outputPath))
             {
@@ -98,20 +98,18 @@
                     continue;
                 }
 
-                await using var fileStream = System.IO.File.OpenWrite(entryPath);
-
-                var buffer = new byte[512];
-
-                int bytesRead;
-                do
+                using (var fileStream = System.IO.File.OpenWrite(entryPath))
                 {
-                    bytesRead = await entryStream.ReadAsync(buffer, 0, buffer.Length);
-                    await fileStream.WriteAsync(buffer, 0, bytesRead);
-                } while (bytesRead == buffer.Length);
+                    var buffer = new byte[512];
 
-                fileStream.Close();
-                await fileStream.DisposeAsync();
-
+                    int bytesRead;
+                    do
+                    {
+                        bytesRead = await entryStream.ReadAsync(buffer, 0, buffer.Length);
+                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                    } while (bytesRead == buffer.Length);
+                }
+                
                 var fileInfo = new FileInfo(entryPath)
                 {
                     CreationTimeUtc = entry.Date,
@@ -136,7 +134,7 @@
                     FloppyDiskConstants.DoubleDensity.HighCyl, FloppyDiskConstants.DoubleDensity.Heads,
                     FloppyDiskConstants.DoubleDensity.Sectors);
             }
-            
+
             if (adfSize == FloppyDiskConstants.HighDensity.Size)
             {
                 return await Mount(stream, FloppyDiskConstants.HighDensity.LowCyl,
@@ -146,7 +144,7 @@
 
             throw new IOException($"Invalid adf size '{adfSize}'");
         }
-        
+
         /// <summary>
         /// mount fast file system volume from single hdf partition.
         /// </summary>
@@ -216,7 +214,7 @@
             var rootBlock = await RootBlockReader.Parse(rootBlockBytes);
             rootBlock.Offset = rootBlockOffset;
             rootBlock.HeaderKey = (int)rootBlockOffset;
-            
+
             var volume = new Volume
             {
                 PartitionStartOffset = lowCyl * blocksPerCylinder * blockSize,
@@ -233,7 +231,7 @@
             };
 
             await Bitmap.AdfReadBitmap(volume, (int)blocks, rootBlock);
-            
+
             return volume;
         }
     }

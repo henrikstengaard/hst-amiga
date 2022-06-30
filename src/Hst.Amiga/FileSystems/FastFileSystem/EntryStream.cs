@@ -39,12 +39,6 @@
             };
         }
 
-        public override async ValueTask DisposeAsync()
-        {
-            await AdfCloseFile();
-            await base.DisposeAsync();
-        }
-
         protected override void Dispose(bool disposing)
         {
             AdfCloseFile().GetAwaiter().GetResult();

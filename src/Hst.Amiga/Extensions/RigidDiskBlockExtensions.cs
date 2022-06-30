@@ -59,14 +59,15 @@
         public static async Task<RigidDiskBlock> WriteToFile(this RigidDiskBlock rigidDiskBlock, string path)
         {
             // create file
-            await using var stream = File.Open(path, FileMode.Create);
+            using (var stream = File.Open(path, FileMode.Create))
+            {
+                // set length to preallocate
+                stream.SetLength(rigidDiskBlock.DiskSize);
 
-            // set length to preallocate
-            stream.SetLength(rigidDiskBlock.DiskSize);
+                await WriteToStream(rigidDiskBlock, stream);
 
-            await WriteToStream(rigidDiskBlock, stream);
-
-            return rigidDiskBlock;
+                return rigidDiskBlock;
+            }
         }
 
         public static async Task<RigidDiskBlock> WriteToStream(this RigidDiskBlock rigidDiskBlock, Stream stream)

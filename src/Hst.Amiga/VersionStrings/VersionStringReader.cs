@@ -11,11 +11,11 @@
     {
         // "$VER: <name> <version>.<revision> (dd.mm.yy)"
         private static readonly Regex
-            VersionRegex = new("\\$VER:\\s+([^\\s]+)\\s+(\\d+)\\.(\\d+)",
+            VersionRegex = new Regex("\\$VER:\\s+([^\\s]+)\\s+(\\d+)\\.(\\d+)",
                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static readonly Regex
-            DateRegex = new("\\((\\d+)\\.(\\d+)\\.(\\d+)\\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            DateRegex = new Regex("\\((\\d+)\\.(\\d+)\\.(\\d+)\\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public static string Read(byte[] data)
         {
@@ -40,7 +40,7 @@
 
             return await stream.ReadNullTerminatedString();
         }
-        
+
         public static AmigaVersion Parse(string version)
         {
             var versionMatch = VersionRegex.Match(version);
@@ -59,14 +59,14 @@
                 Version = versionValue,
                 Revision = revisionValue
             };
-            
+
             var dateMatch = DateRegex.Match(version);
 
             if (!dateMatch.Success)
             {
                 return fileVersion;
             }
-            
+
             int.TryParse(dateMatch.Groups[1].Value, out var dateDayValue);
             int.TryParse(dateMatch.Groups[2].Value, out var dateMonthValue);
             int.TryParse(dateMatch.Groups[3].Value, out var dateYearValue);

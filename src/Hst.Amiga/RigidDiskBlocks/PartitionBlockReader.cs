@@ -62,7 +62,7 @@
         {
             var blockStream = new MemoryStream(blockBytes);
 
-            var identifier = BitConverter.ToUInt32(await blockStream.ReadBytes(4));
+            var identifier = BitConverter.ToUInt32(await blockStream.ReadBytes(4), 0);
             if (!identifier.Equals(BlockIdentifiers.PartitionBlock))
             {
                 return null;

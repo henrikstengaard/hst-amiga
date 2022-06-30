@@ -280,7 +280,7 @@ for(i=0; i<HT_SIZE; i++) printf("ht[%d]=%d    ",i,ht[i]);
             {
                 NSect = nSect,
                 EntryBlock = entry,
-                NUpdSect = nUpdSect ? updSect : null
+                NUpdSect = nUpdSect ? new int?(updSect) : null
             };
         }
 

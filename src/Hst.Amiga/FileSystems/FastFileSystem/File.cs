@@ -9,7 +9,7 @@
         {
             // https://github.com/lclevy/ADFlib/blob/be8a6f6e8d0ca8fda963803eef77366c7584649a/src/adf_file.c#L265
 
-            var write = mode is FileMode.Write or FileMode.Append;
+            var write = mode == FileMode.Write || mode == FileMode.Append;
 
             if (!volume.Stream.CanWrite && write)
             {
