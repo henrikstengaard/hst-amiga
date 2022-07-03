@@ -16,7 +16,7 @@
         public int SeqNum { get; set; }
         public int DataSize { get; set; }
         public int NextData { get; set; }
-        public uint CheckSum { get; set; }
+        public int CheckSum { get; set; }
         public byte[] BlockBytes { get; set; }
         public byte[] Data { get; set; }
 

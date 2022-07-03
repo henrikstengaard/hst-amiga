@@ -25,7 +25,7 @@
                 
             // calculate and update checksum
             var bitmapBytes = blockStream.ToArray();
-            bitmapBlock.Checksum = await ChecksumHelper.UpdateChecksum(bitmapBytes, 0);
+            bitmapBlock.Checksum = ChecksumHelper.UpdateChecksum(bitmapBytes, 0);
             bitmapBlock.BlockBytes = bitmapBytes;
 
             return bitmapBytes;            

@@ -25,7 +25,7 @@
         public int highSeq;
         public int dataSize;	/* == 0 */
         public int firstData;	/* == 0 */
-        public uint checkSum;
+        public int checkSum;
         public int[] dataBlocks;
         public int[] r;
         public int info;		/* == 0 */

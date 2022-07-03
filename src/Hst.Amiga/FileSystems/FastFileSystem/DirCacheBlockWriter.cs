@@ -1,9 +1,7 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    using System;
     using System.IO;
     using System.Threading.Tasks;
-    using Core.Converters;
     using Core.Extensions;
 
     public static class DirCacheBlockWriter
@@ -26,11 +24,8 @@
             await blockStream.WriteBytes(dirCacheBlock.Records);
             
             var blockBytes = blockStream.ToArray();
-            var newSum = Raw.AdfNormalSum(blockBytes, 20, blockBytes.Length);
-            // swLong(buf+20, newSum);
-            var checksumBytes = BigEndianConverter.ConvertUInt32ToBytes(newSum);
-            Array.Copy(checksumBytes, 0, blockBytes, 20, checksumBytes.Length);
 
+            dirCacheBlock.CheckSum = ChecksumHelper.UpdateChecksum(blockBytes, 20);
             dirCacheBlock.BlockBytes = blockBytes;
 
             return blockBytes;

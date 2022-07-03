@@ -75,7 +75,7 @@
             //     (*adfEnv.wFct)("adfFileOpen : malloc"); 
             //     free(file->fileHdr); free(file); return NULL; 
             // }
-            var fileHdr = mode == FileMode.Write ? new FileHeaderBlock() : await FileHeaderBlockReader.Parse(entry.BlockBytes);
+            var fileHdr = mode == FileMode.Write ? new EntryBlock() : EntryBlockReader.Parse(entry.BlockBytes);
 
             var eof = mode == FileMode.Write || mode == FileMode.Append;
             // switch (mode)
@@ -139,9 +139,6 @@
 /*printf("adfReadDataBlock %ld\n",nSect);*/
 
                 var dBlock = await OfsDataBlockReader.Parse(buf);
-
-                if (dBlock.CheckSum != Raw.AdfNormalSum(buf, 20, buf.Length))
-                    throw new IOException("adfReadDataBlock : invalid checksum");
                 if (dBlock.Type != Constants.T_DATA)
                     throw new IOException("adfReadDataBlock : id T_DATA not found");
                 if (dBlock.DataSize < 0 || dBlock.DataSize > 488)
@@ -212,34 +209,34 @@
 //             swapEndian((uint8_t*)fext, SWBL_FEXT);
 // #endif
             var fext = await FileExtBlockReader.Parse(buf);
+            //
+            // if (fext.checkSum != Raw.AdfNormalSum(buf, 20, buf.Length))
+            // {
+            //     if (!vol.IgnoreErrors)
+            //     {
+            //         throw new IOException("adfReadFileExtBlock : invalid checksum");
+            //     }
+            //
+            //     vol.Logs.Add($"ERROR: Sector '{nSect}', invalid checksum");
+            // }
 
-            if (fext.checkSum != Raw.AdfNormalSum(buf, 20, buf.Length))
-            {
-                if (!vol.IgnoreErrors)
-                {
-                    throw new IOException("adfReadFileExtBlock : invalid checksum");
-                }
-
-                vol.Logs.Add($"ERROR: Sector '{nSect}', invalid checksum");
-            }
-
-            if (fext.type != Constants.T_LIST)
-            {
-                if (!vol.IgnoreErrors)
-                {
-                    throw new IOException("adfReadFileExtBlock : type T_LIST not found");
-                }
-                vol.Logs.Add($"ERROR: Sector '{nSect}', type T_LIST not found");
-            }
-
-            if (fext.secType != Constants.ST_FILE)
-            {
-                if (!vol.IgnoreErrors)
-                {
-                    throw new IOException("adfReadFileExtBlock : stype  ST_FILE not found");
-                }
-                vol.Logs.Add($"ERROR: Sector '{nSect}', stype  ST_FILE not found");
-            }
+            // if (fext.type != Constants.T_LIST)
+            // {
+            //     if (!vol.IgnoreErrors)
+            //     {
+            //         throw new IOException("adfReadFileExtBlock : type T_LIST not found");
+            //     }
+            //     vol.Logs.Add($"ERROR: Sector '{nSect}', type T_LIST not found");
+            // }
+            //
+            // if (fext.secType != Constants.ST_FILE)
+            // {
+            //     if (!vol.IgnoreErrors)
+            //     {
+            //         throw new IOException("adfReadFileExtBlock : stype  ST_FILE not found");
+            //     }
+            //     vol.Logs.Add($"ERROR: Sector '{nSect}', stype  ST_FILE not found");
+            // }
             
             if (fext.headerKey != nSect)
                 throw new IOException("adfReadFileExtBlock : headerKey!=nSect");
@@ -253,34 +250,34 @@
             return fext;
         }
 
-/*
- * adfWriteFileHdrBlock
- *
- */
-        public static async Task AdfWriteFileHdrBlock(Volume vol, int nSect, FileHeaderBlock fhdr)
-        {
-            // uint8_t buf[512];
-            // uint32_t newSum;
-            // RETCODE rc = RC_OK;
-
-/*printf("adfWriteFileHdrBlock %ld\n",nSect);*/
-            fhdr.Type = Constants.T_HEADER;
-            fhdr.DataSize = 0;
-            fhdr.SecType = Constants.ST_FILE;
-
-//             memcpy(buf, fhdr, sizeof(struct bFileHeaderBlock));
-// #ifdef LITT_ENDIAN
-//             swapEndian(buf, SWBL_FILE);
-// #endif
-            var buf = await FileHeaderBlockWriter.BuildBlock(fhdr, vol.BlockSize);
-            // var newSum = Raw.AdfNormalSum(buf, 20, buf.Length);
-            //swLong(buf+20, newSum);
-            // newSum applied part of build block
-
-/*    *(uint32_t*)(buf+20) = swapLong((uint8_t*)&newSum);*/
-
-            await Disk.AdfWriteBlock(vol, nSect, buf);
-        }
+// /*
+//  * adfWriteFileHdrBlock
+//  *
+//  */
+//         public static async Task AdfWriteFileHdrBlock(Volume vol, int nSect, EntryBlock fhdr)
+//         {
+//             // uint8_t buf[512];
+//             // uint32_t newSum;
+//             // RETCODE rc = RC_OK;
+//
+// /*printf("adfWriteFileHdrBlock %ld\n",nSect);*/
+//             fhdr.Type = Constants.T_HEADER;
+//             fhdr.DataSize = 0;
+//             fhdr.SecType = Constants.ST_FILE;
+//
+// //             memcpy(buf, fhdr, sizeof(struct bFileHeaderBlock));
+// // #ifdef LITT_ENDIAN
+// //             swapEndian(buf, SWBL_FILE);
+// // #endif
+//             var buf = await FileHeaderBlockWriter.BuildBlock(fhdr, vol.BlockSize);
+//             // var newSum = Raw.AdfNormalSum(buf, 20, buf.Length);
+//             //swLong(buf+20, newSum);
+//             // newSum applied part of build block
+//
+// /*    *(uint32_t*)(buf+20) = swapLong((uint8_t*)&newSum);*/
+//
+//             await Disk.AdfWriteBlock(vol, nSect, buf);
+//         }
         
 /*
  * adfWriteFileHdrBlock
@@ -301,7 +298,7 @@
 // #ifdef LITT_ENDIAN
 //             swapEndian(buf, SWBL_FILE);
 // #endif
-            var buf = await EntryBlockWriter.BuildBlock(fhdr, vol.BlockSize);
+            var buf = EntryBlockWriter.BuildBlock(fhdr, vol.BlockSize);
             // var newSum = Raw.AdfNormalSum(buf, 20, buf.Length);
             //swLong(buf+20, newSum);
             // newSum applied part of build block
@@ -342,13 +339,13 @@
  * adfFreeFileBlocks
  *
  */
-        public static async Task AdfFreeFileBlocks(Volume vol, FileHeaderBlock entry)
+        public static async Task AdfFreeFileBlocks(Volume vol, EntryBlock entry)
         {
             // int i;
             // struct FileBlocks fileBlocks;
             // RETCODE rc = RC_OK;
 
-            var fileBlocks = await AdfGetFileBlocks(vol,entry);
+            var fileBlocks = await AdfGetFileBlocks(vol, entry);
 
             for(var i=0; i < fileBlocks.nbData; i++)
             {
@@ -369,7 +366,7 @@
  * adfGetFileBlocks
  *
  */
-        public static async Task<FileBlocks> AdfGetFileBlocks(Volume vol, FileHeaderBlock entry)
+        public static async Task<FileBlocks> AdfGetFileBlocks(Volume vol, EntryBlock entry)
         {
             // int32_t n, m;
             // SECTNUM nSect;

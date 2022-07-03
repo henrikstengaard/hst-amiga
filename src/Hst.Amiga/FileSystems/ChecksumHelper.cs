@@ -1,20 +1,15 @@
 ﻿namespace Hst.Amiga.FileSystems
 {
-    using System;
-    using System.IO;
-    using System.Threading.Tasks;
     using Core.Converters;
-    using Core.Extensions;
 
     public static class ChecksumHelper
     {
-        public static async Task<int> CalculateChecksum(byte[] blockBytes, int checksumOffset)
+        public static int CalculateChecksum(byte[] blockBytes, int checksumOffset)
         {
-            int checksum = 0;
-            var memoryStream = new MemoryStream(blockBytes);
+            var checksum = 0;
             for (var offset = 0; offset < blockBytes.Length; offset += 4)
             {
-                var value = await memoryStream.ReadBigEndianInt32();
+                var value = BigEndianConverter.ConvertBytesToInt32(blockBytes, offset);
 
                 // skip checksum offset
                 if (offset == checksumOffset)
@@ -34,11 +29,10 @@
         /// </summary>
         /// <param name="blockBytes"></param>
         /// <param name="checksumOffset"></param>
-        public static async Task<int> UpdateChecksum(byte[] blockBytes, int checksumOffset)
+        public static int UpdateChecksum(byte[] blockBytes, int checksumOffset)
         {
-            var checksum = await CalculateChecksum(blockBytes, checksumOffset);
-            var checksumBytes = BigEndianConverter.ConvertInt32ToBytes(checksum);
-            Array.Copy(checksumBytes, 0, blockBytes, checksumOffset, checksumBytes.Length);
+            var checksum = CalculateChecksum(blockBytes, checksumOffset);
+            BigEndianConverter.ConvertInt32ToBytes(checksum, blockBytes, checksumOffset);
             return checksum;
         }
     }

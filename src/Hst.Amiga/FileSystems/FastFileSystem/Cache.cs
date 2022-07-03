@@ -291,12 +291,6 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
 //             swapEndian((uint8_t*)dirc,SWBL_CACHE);
 // #endif
             var dirc = await DirCacheBlockReader.Parse(buf);
-
-            if (dirc.CheckSum != Raw.AdfNormalSum(buf, 20, buf.Length))
-            {
-                throw new IOException("adfReadDirCBlock : invalid checksum");
-            }
-
             if (dirc.Type != Constants.T_DIRC)
                 throw new IOException("adfReadDirCBlock : T_DIRC not found");
             if (dirc.HeaderKey != nSect)

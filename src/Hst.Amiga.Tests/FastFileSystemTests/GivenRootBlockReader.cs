@@ -25,14 +25,14 @@
             // act - read root block bytes
             var rootBlockBytes = new byte[FloppyDiskConstants.BlockSize];
             var bytesRead = await adfStream.ReadAsync(rootBlockBytes, 0, FloppyDiskConstants.BlockSize);
-            var rootBlock = await RootBlockReader.Parse(rootBlockBytes);
+            var rootBlock = RootBlockReader.Parse(rootBlockBytes);
             
             // assert - bytes read and root block matches type and disk name
             Assert.Equal(FloppyDiskConstants.BlockSize, bytesRead);
             Assert.Equal(2, rootBlock.Type);
             Assert.Equal(0, rootBlock.HeaderKey);
             Assert.Equal(0, rootBlock.HighSeq);
-            Assert.Equal(Constants.HT_SIZE, (int)rootBlock.HashTableSize);
+            Assert.Equal(Constants.HT_SIZE, rootBlock.HashTableSize);
             Assert.Equal("FFSTEST", rootBlock.DiskName);
         }
     }

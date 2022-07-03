@@ -92,7 +92,7 @@
             blockStream.Seek(172, SeekOrigin.Begin);
             var fileSystemName = await blockStream.ReadNullTerminatedString();
 
-            var calculatedChecksum = await ChecksumHelper.CalculateChecksum(blockBytes, 8);
+            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8);
 
             if (checksum != calculatedChecksum)
             {

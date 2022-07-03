@@ -32,7 +32,7 @@
             await stream.WriteBytes(partitionBlock.DosType);
             
             // build root block bytes
-            var rootBlockBytes = await RootBlockWriter.BuildBlock(rootBlock, partitionBlock.FileSystemBlockSize);
+            var rootBlockBytes = RootBlockWriter.BuildBlock(rootBlock, partitionBlock.FileSystemBlockSize);
 
             // write root block
             var rootBlockByteOffset = partitionStartByteOffset + rootBlock.Offset * partitionBlock.FileSystemBlockSize;

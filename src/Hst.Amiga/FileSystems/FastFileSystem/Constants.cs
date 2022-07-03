@@ -30,13 +30,13 @@
         public const int BM_VALID = -1;
         public const int BM_INVALID = 0;
 
-        public const int HT_SIZE = 72;
+        public const int INDEX_SIZE = 72;
+        public const int HT_SIZE = INDEX_SIZE;
         public const int BM_SIZE = 25;
-        public const int MAX_DATABLK = 72;
+        public const int MAX_DATABLK = INDEX_SIZE;
 
         public const int MAXNAMELEN = 30;
         public const int MAXCMMTLEN = 79;
-
 
         /* block primary and secondary types */
 

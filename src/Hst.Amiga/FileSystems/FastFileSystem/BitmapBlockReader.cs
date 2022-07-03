@@ -12,17 +12,17 @@
         {
             var blockStream = new MemoryStream(blockBytes);
 
-            var calculatedChecksum = await ChecksumHelper.CalculateChecksum(blockBytes, 0);
-            var checksum = await blockStream.ReadBigEndianInt32(); // checksum
+            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 0);
+            var checksum = await blockStream.ReadBigEndianInt32();
 
             if (calculatedChecksum != checksum)
             {
-                throw new IOException("Invalid checksum for bitmap block");
+                throw new IOException("Invalid bitmap block checksum");
             }
 
             var map = new List<uint>();
             var blocksFreeMap = new List<bool>();
-            var entries = (blockBytes.Length - SizeOf.ULONG) / SizeOf.ULONG;
+            var entries = (blockBytes.Length - SizeOf.ULong) / SizeOf.ULong;
             for (var i = 0; i < entries; i++)
             {
                 var mapBytes = await blockStream.ReadBytes(4);

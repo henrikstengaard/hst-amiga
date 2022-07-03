@@ -1,77 +1,66 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
     using System;
-    using System.IO;
-    using System.Threading.Tasks;
-    using Core.Extensions;
+    using Core.Converters;
     using Extensions;
 
     public static class RootBlockWriter
     {
-        public static async Task<byte[]> BuildBlock(RootBlock rootBlock, uint blockSize)
+        public static byte[] BuildBlock(RootBlock rootBlock, uint blockSize)
         {
-            var blockStream =
-                new MemoryStream(
-                    rootBlock.BlockBytes == null || rootBlock.BlockBytes.Length == 0
-                        ? new byte[blockSize]
-                        : rootBlock.BlockBytes);
+            if (rootBlock.SecType != Constants.ST_ROOT)
+            {
+                throw new ArgumentException($"Invalid root block secondary type '{rootBlock.SecType}'", nameof(rootBlock));
+            }
             
-            await blockStream.WriteBigEndianInt32(rootBlock.Type); // type
-            // await blockStream.WriteLittleEndianInt32(0); // headerKey
-            // await blockStream.WriteLittleEndianInt32(0); // highSeq
-            blockStream.Seek(4 * 2, SeekOrigin.Current);
-            await blockStream.WriteBigEndianInt32(rootBlock.HashTableSize); // ht_size
-            // await blockStream.WriteLittleEndianInt32(0); // firstData
-            // await blockStream.WriteLittleEndianInt32(0); // checksum
-            blockStream.Seek(4 * 2, SeekOrigin.Current);
+            if (rootBlock.BlockBytes != null && rootBlock.BlockBytes.Length != blockSize)
+            {
+                throw new ArgumentException($"Root block bytes is not equal to block size '{blockSize}'", nameof(rootBlock));
+            }
+
+            var blockBytes = new byte[blockSize];
+            if (rootBlock.BlockBytes != null)
+            {
+                Array.Copy(rootBlock.BlockBytes, 0, blockBytes, 0, blockSize);
+            }
+
+            BigEndianConverter.ConvertInt32ToBytes(rootBlock.Type, blockBytes, 0x0);
+            BigEndianConverter.ConvertInt32ToBytes(0, blockBytes, 0x4); // header key
+            BigEndianConverter.ConvertInt32ToBytes(0, blockBytes, 0x8); // high seq
+            BigEndianConverter.ConvertInt32ToBytes(rootBlock.IndexSize, blockBytes, 0xc); // ht_size
+            BigEndianConverter.ConvertInt32ToBytes(0, blockBytes, 0x10); // reserved
+            BigEndianConverter.ConvertInt32ToBytes(0, blockBytes, 0x14); // checksum
 
             for (var i = 0; i < Constants.HT_SIZE; i++)
             {
-                await blockStream.WriteBigEndianInt32(rootBlock.HashTable[i]);
+                BigEndianConverter.ConvertInt32ToBytes(rootBlock.Index[i], blockBytes, 0x18 + (i * Amiga.SizeOf.Long));
             }
-            
-            await blockStream.WriteBigEndianInt32(rootBlock.BitmapFlags); // bm_flag
 
-            for (var i = 0U; i < Constants.BM_SIZE; i++)
+            BigEndianConverter.ConvertInt32ToBytes(rootBlock.BitmapFlags, blockBytes, 0x138); // bm_flag
+
+            for (var i = 0; i < Constants.BM_SIZE; i++)
             {
-                await blockStream.WriteBigEndianInt32(i < rootBlock.bmPages.Length ? rootBlock.bmPages[i] : 0);
+                BigEndianConverter.ConvertInt32ToBytes(i < rootBlock.bmPages.Length ? rootBlock.bmPages[i] : 0,
+                    blockBytes, 0x13c + (i * Amiga.SizeOf.Long));
             }
 
             // write first bitmap extension block pointer
-            if (rootBlock.BitmapExtensionBlocksOffset != 0)
-            {
-                await blockStream.WriteBigEndianUInt32(rootBlock.BitmapExtensionBlocksOffset);
-            }
-            
-            blockStream.Seek(blockSize - 92, SeekOrigin.Begin);
-            
-            // last root alteration date
-            await DateHelper.WriteDate(blockStream, rootBlock.RootAlterationDate);
+            BigEndianConverter.ConvertUInt32ToBytes(
+                rootBlock.BitmapExtensionBlocksOffset == 0 ? 0 : rootBlock.BitmapExtensionBlocksOffset, blockBytes,
+                0x1a0); // bm_flag
 
-            var diskName = rootBlock.DiskName.Length > Constants.MAXNAMELEN + 1
-                ? rootBlock.DiskName.Substring(0, Constants.MAXNAMELEN + 1)
-                : rootBlock.DiskName;
-
-            await blockStream.WriteBytes(new[] { Convert.ToByte(diskName.Length) });
-            await blockStream.WriteString(diskName, Constants.MAXNAMELEN + 1);
-
-            // await blockStream.WriteBytes(new byte[8]); // r2
-            blockStream.Seek(4 * 2, SeekOrigin.Current);
+            DateHelper.WriteDate(blockBytes, 0x1a4, rootBlock.RootAlterationDate);
+            blockBytes.WriteStringWithLength(0x1b0, rootBlock.DiskName, Constants.MAXNAMELEN);
+            DateHelper.WriteDate(blockBytes, 0x1d8, rootBlock.DiskAlterationDate);
+            DateHelper.WriteDate(blockBytes, 0x1e4, rootBlock.FileSystemCreationDate);
             
-            // last disk alteration date
-            await DateHelper.WriteDate(blockStream, rootBlock.DiskAlterationDate);
-
-            // filesystem creation date
-            await DateHelper.WriteDate(blockStream, rootBlock.FileSystemCreationDate);
+            BigEndianConverter.ConvertInt32ToBytes(rootBlock.NextSameHash, blockBytes, 0x1f0);
+            BigEndianConverter.ConvertInt32ToBytes(rootBlock.Parent, blockBytes, 0x1f4);
+            BigEndianConverter.ConvertInt32ToBytes(rootBlock.Extension, blockBytes, 0x1f8); // FFS: first directory cache block, 0 otherwise
+            BigEndianConverter.ConvertInt32ToBytes(rootBlock.SecType, blockBytes, 0x1fc); // block secondary type = ST_ROOT (value 1)
             
-            await blockStream.WriteBigEndianInt32(rootBlock.NextSameHash); // FFS: first directory cache block, 0 otherwise
-            await blockStream.WriteBigEndianInt32(rootBlock.Parent); // FFS: first directory cache block, 0 otherwise
-            await blockStream.WriteBigEndianInt32(rootBlock.Extension); // FFS: first directory cache block, 0 otherwise
-            await blockStream.WriteBigEndianInt32(rootBlock.SecType); // block secondary type = ST_ROOT (value 1)
-            
-            // calculate and update checksum
-            var blockBytes = blockStream.ToArray();
-            rootBlock.Checksum = await ChecksumHelper.UpdateChecksum(blockBytes, 20);
+            // update checksum
+            rootBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 20);
             rootBlock.BlockBytes = blockBytes;
 
             return blockBytes;

@@ -13,7 +13,7 @@
 
             // read bitmap block offsets
             var bitmapBlockOffsets = new List<uint>();
-            var bitmapBlocks = blockBytes.Length - SizeOf.ULONG / SizeOf.ULONG;
+            var bitmapBlocks = blockBytes.Length - SizeOf.ULong / SizeOf.ULong;
             for (var i = 0; i < bitmapBlocks; i++)
             {
                 var bitmapBlockOffset = await blockStream.ReadBigEndianUInt32();

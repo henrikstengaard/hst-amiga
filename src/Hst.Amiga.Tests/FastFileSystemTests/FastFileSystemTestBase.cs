@@ -9,7 +9,7 @@
 
     public abstract class FastFileSystemTestBase
     {
-        protected readonly DateTime Date = new DateTime(2022, 2, 3, 14, 45, 33, DateTimeKind.Utc);
+        protected readonly DateTime Date = new(2022, 2, 3, 14, 45, 33, DateTimeKind.Utc);
         
         protected async Task<byte[]> CreateExpectedRootBlockBytes()
         {
@@ -30,7 +30,10 @@
             var diffDate = Date - amigaDate;
             var days = diffDate.Days;
             var minutes = diffDate.Hours * 60 + diffDate.Minutes;
-            var ticks = Convert.ToInt32(diffDate.Milliseconds);
+            const int ticksPerSecond = 50;
+            var ticksSeconds = diffDate.Seconds * ticksPerSecond;
+            var ticksMilliseconds = diffDate.Milliseconds == 0 ? 0 : Convert.ToInt32(((double)1000 / diffDate.Milliseconds) * ticksPerSecond);
+            var ticks = ticksSeconds + ticksMilliseconds;
             
             // last root alteration date
             await blockStream.WriteBigEndianInt32(days); // days since 1 jan 78
@@ -58,7 +61,7 @@
             
             // calculate and update checksum
             var rootBlockBytes = blockStream.ToArray();
-            await ChecksumHelper.UpdateChecksum(rootBlockBytes, 20);
+            ChecksumHelper.UpdateChecksum(rootBlockBytes, 20);
 
             return rootBlockBytes;
         }
@@ -97,7 +100,7 @@
 
             // calculate and update checksum
             var bitmapBytes = blockStream.ToArray();
-            await ChecksumHelper.UpdateChecksum(bitmapBytes, 0);
+            ChecksumHelper.UpdateChecksum(bitmapBytes, 0);
 
             return bitmapBytes;            
         }

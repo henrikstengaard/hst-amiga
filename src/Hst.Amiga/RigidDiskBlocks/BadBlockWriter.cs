@@ -45,7 +45,7 @@
 
             // calculate and update checksum
             var blockBytes = blockStream.ToArray();
-            badBlock.Checksum = await ChecksumHelper.UpdateChecksum(blockBytes, 8);
+            badBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 8);
             badBlock.BlockBytes = blockBytes;
 
             return blockBytes;

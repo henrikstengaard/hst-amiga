@@ -25,11 +25,8 @@
             await blockStream.WriteBytes(ofsDataBlock.Data); // 0x018 : data
             
             var blockBytes = blockStream.ToArray();
-            var newSum = Raw.AdfNormalSum(blockBytes, 20, blockBytes.Length);
-            // swLong(buf+20, newSum);
-            var checksumBytes = BigEndianConverter.ConvertUInt32ToBytes(newSum);
-            Array.Copy(checksumBytes, 0, blockBytes, 20, checksumBytes.Length);
 
+            ofsDataBlock.CheckSum = ChecksumHelper.UpdateChecksum(blockBytes, 20);
             ofsDataBlock.BlockBytes = blockBytes;
 
             return blockBytes;

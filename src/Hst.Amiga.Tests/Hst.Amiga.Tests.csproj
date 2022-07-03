@@ -19,7 +19,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="FastFileSystemTests" />
       <Folder Include="RigidDiskBlockTests" />
       <Folder Include="TestData\RigidDiskBlocks" />
       <Folder Include="VersionStringTests" />

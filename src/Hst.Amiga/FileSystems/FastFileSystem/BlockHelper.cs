@@ -195,5 +195,27 @@
 
             return bitmapExtensionBlocks;
         }
+        
+        public static async Task<RootBlock> ReadRootBlock(Volume vol, int nSect)
+        {
+            var buf = await Disk.AdfReadBlock(vol, nSect);
+
+            var root = RootBlockReader.Parse(buf);
+            root.BlockBytes = buf;
+            root.HeaderKey = nSect;
+            root.Offset = (uint)nSect;
+
+            return root;
+        }
+
+        public static async Task WriteRootBlock(Volume vol, int nSect, RootBlock root)
+        {
+            root.Type = Constants.T_HEADER;
+            root.HashTableSize = Constants.HT_SIZE;
+            root.SecType = Constants.ST_ROOT;
+
+            var blockBytes = RootBlockWriter.BuildBlock(root, vol.BlockSize);
+            await Disk.AdfWriteBlock(vol, nSect, blockBytes);
+        }
     }
 }

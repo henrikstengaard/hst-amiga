@@ -32,7 +32,7 @@
         public static async Task<RootBlock> ReadRootBlock(Volume volume, uint sector)
         {
             var blockBytes = await ReadBlockBytes(volume, sector);
-            return await RootBlockReader.Parse(blockBytes);
+            return RootBlockReader.Parse(blockBytes);
         }
         
         public static async Task<BitmapBlock> ReadBitmapBlock(Volume volume, uint sector)
@@ -55,7 +55,7 @@
             var entryBlockOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
             volume.Stream.Seek(entryBlockOffset, SeekOrigin.Begin);
             var entryBlockBytes = await volume.Stream.ReadBytes((int)volume.BlockSize);
-            return await EntryBlockReader.Parse(entryBlockBytes);
+            return EntryBlockReader.Parse(entryBlockBytes);
         }
         
         /*

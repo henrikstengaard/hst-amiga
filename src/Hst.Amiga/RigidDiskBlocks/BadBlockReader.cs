@@ -62,7 +62,7 @@
             var hostId = await blockStream.ReadBigEndianUInt32(); // SCSI Target ID of host, not really used
             var nextBadBlock = await blockStream.ReadBigEndianUInt32(); // next BadBlock block
 
-            var calculatedChecksum = await ChecksumHelper.CalculateChecksum(blockBytes, 8);
+            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8);
 
             if (checksum != calculatedChecksum)
             {

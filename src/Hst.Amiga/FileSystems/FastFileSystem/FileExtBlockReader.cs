@@ -16,8 +16,14 @@
             var highSeq = await blockStream.ReadBigEndianInt32();
             var dataSize = await blockStream.ReadBigEndianInt32();
             var firstData = await blockStream.ReadBigEndianInt32();
-            var checkSum = await blockStream.ReadBigEndianUInt32();
+            var checksum = await blockStream.ReadBigEndianInt32();
 
+            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 0x14);
+            if (checksum != calculatedChecksum)
+            {
+                throw new IOException("Invalid file system header block checksum");
+            }
+            
             var dataBlocks = new List<int>();
             for (var i = 0; i < Constants.MAX_DATABLK; i++)
             {
@@ -37,12 +43,13 @@
             
             return new FileExtBlock
             {
+                BlockBytes = blockBytes,
                 type = type,
                 headerKey = headerKey,
                 highSeq = highSeq,
                 dataSize = dataSize,
                 firstData = firstData,
-                checkSum = checkSum,
+                checkSum = checksum,
                 dataBlocks = dataBlocks.ToArray(),
                 info = info,
                 nextSameHash = nextSameHash,

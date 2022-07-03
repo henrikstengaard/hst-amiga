@@ -12,7 +12,7 @@
         private readonly int length;
 
         private bool eof;
-        private readonly FileHeaderBlock fileHdr;
+        private readonly EntryBlock fileHdr;
 
         private uint pos;
         private uint posInExtBlk;
@@ -23,7 +23,7 @@
         private IDataBlock currentData;
         private bool writeMode;
 
-        public EntryStream(Volume volume, bool writeMode, bool eof, FileHeaderBlock fhdr)
+        public EntryStream(Volume volume, bool writeMode, bool eof, EntryBlock fhdr)
         {
             this.length = 0;
             this.volume = volume;

@@ -38,7 +38,7 @@
                     continue;
                 }
 
-                var rootBlock = await RootBlockReader.Parse(buffer);
+                var rootBlock = RootBlockReader.Parse(buffer);
                 rootBlock.Offset = (uint)offset;
 
                 rootBlocks.Add(rootBlock);
@@ -211,7 +211,7 @@
             var rootBlockBytes = await stream.ReadBytes((int)blockSize);
 
             // parse root block bytes
-            var rootBlock = await RootBlockReader.Parse(rootBlockBytes);
+            var rootBlock = RootBlockReader.Parse(rootBlockBytes);
             rootBlock.Offset = rootBlockOffset;
             rootBlock.HeaderKey = (int)rootBlockOffset;
 

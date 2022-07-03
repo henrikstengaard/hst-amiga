@@ -40,11 +40,8 @@
             await blockStream.WriteBigEndianInt32(fileExtBlock.secType);
             
             var blockBytes = blockStream.ToArray();
-            var newSum = Raw.AdfNormalSum(blockBytes, 20, blockBytes.Length);
-            // swLong(buf+20, newSum);
-            var checksumBytes = BigEndianConverter.ConvertUInt32ToBytes(newSum);
-            Array.Copy(checksumBytes, 0, blockBytes, 20, checksumBytes.Length);
 
+            fileExtBlock.checkSum = ChecksumHelper.UpdateChecksum(blockBytes, 20);
             fileExtBlock.BlockBytes = blockBytes;
 
             return blockBytes;

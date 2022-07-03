@@ -38,25 +38,25 @@
         public int HeaderKey { get; set; } // 0x004
         public int HighSeq { get; set; } // 0x008
 
-        public int DataSize { get => SharedSize; set => SharedSize = value; } // 0x00c: file header block
-        public int HashTableSize { get => SharedSize; set => SharedSize = value; } // 00c: root block, dir block
+        public int DataSize { get => IndexSize; set => IndexSize = value; } // 0x00c: file header block
+        public int HashTableSize { get => IndexSize; set => IndexSize = value; } // 00c: root block, dir block
         
         public int FirstData { get; set; } // 0x010: file header block
         
         public int Checksum { get; set; } // 0x014
 
-        public int SharedSize { get; set; }
-        public int[] SharedHashTableDataBlocks { get; set; }
+        public int IndexSize { get; set; }
+        public int[] Index { get; set; }
         
         /// <summary>
         /// hash table used root block and dir block. offset 0x018
         /// </summary>
-        public int[] HashTable { get => SharedHashTableDataBlocks; set => SharedHashTableDataBlocks = value; }
+        public int[] HashTable { get => Index; set => Index = value; }
         
         /// <summary>
         /// data blocks used by file header blocks, offset 0x018
         /// </summary>
-        public int[] DataBlocks { get => SharedHashTableDataBlocks; set => SharedHashTableDataBlocks = value; }
+        public int[] DataBlocks { get => Index; set => Index = value; }
         
         public int Access { get; set; } // 0x140: file header block
         public int ByteSize { get; set; } // 0x144: file header block
@@ -72,11 +72,29 @@
 
         public EntryBlock()
         {
-            // HT_SIZE, MAX_DATABLK
-            SharedHashTableDataBlocks = new int[72];
+            IndexSize = Constants.INDEX_SIZE; // HT_SIZE, MAX_DATABLK
+            Index = new int[Constants.INDEX_SIZE];
 
             Comment = string.Empty;
             Name = string.Empty;
+        }
+
+        public static EntryBlock CreateDirBlock()
+        {
+            return new EntryBlock
+            {
+                Type = Constants.T_HEADER,
+                SecType = Constants.ST_DIR
+            };
+        }
+
+        public static EntryBlock CreateFileHeaderBlock()
+        {
+            return new EntryBlock
+            {
+                Type = Constants.T_HEADER,
+                SecType = Constants.ST_FILE
+            };
         }
     }
 }
