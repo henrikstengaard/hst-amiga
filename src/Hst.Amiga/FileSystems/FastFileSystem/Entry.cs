@@ -5,17 +5,7 @@
 
     public class Entry
     {
-        public enum EntryType
-        {
-            Root,
-            Dir,
-            File,
-            LDir,
-            LFile,
-            LSoft
-        }
-
-        public EntryType Type { get; set; }
+        public int Type { get; set; }
         public int Parent { get; set; }
         public string Name { get; set; }
         public string Comment { get; set; }

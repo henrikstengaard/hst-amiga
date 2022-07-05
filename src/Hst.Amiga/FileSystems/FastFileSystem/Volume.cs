@@ -20,6 +20,8 @@
         public bool Mounted { get; set; }
         public bool ReadOnly { get; set; }
         
+        public bool UsesDirCache { get; set; }
+        
         public int BitmapSize { get; set; }
         public BitmapBlock[] BitmapTable { get; set; }
         public int[] BitmapBlocks { get; set; }

@@ -2,7 +2,7 @@
 {
     using System;
     using Core.Converters;
-    using Extensions;
+    using Amiga.Extensions;
 
     public static class RootBlockWriter
     {
@@ -33,7 +33,7 @@
 
             for (var i = 0; i < Constants.HT_SIZE; i++)
             {
-                BigEndianConverter.ConvertInt32ToBytes(rootBlock.Index[i], blockBytes, 0x18 + (i * Amiga.SizeOf.Long));
+                BigEndianConverter.ConvertInt32ToBytes(rootBlock.Index[i], blockBytes, 0x18 + (i * SizeOf.Long));
             }
 
             BigEndianConverter.ConvertInt32ToBytes(rootBlock.BitmapFlags, blockBytes, 0x138); // bm_flag
@@ -41,7 +41,7 @@
             for (var i = 0; i < Constants.BM_SIZE; i++)
             {
                 BigEndianConverter.ConvertInt32ToBytes(i < rootBlock.bmPages.Length ? rootBlock.bmPages[i] : 0,
-                    blockBytes, 0x13c + (i * Amiga.SizeOf.Long));
+                    blockBytes, 0x13c + (i * SizeOf.Long));
             }
 
             // write first bitmap extension block pointer

@@ -1,14 +1,91 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
-    using System.Text;
+    using System.Linq;
     using System.Threading.Tasks;
     using Core.Converters;
+    using Extensions;
 
     public static class Cache
     {
-        // private static readonly Encoding iso88591Encoding = Encoding.GetEncoding("ISO-8859-1");
+        public static int ConvertByteToSignedByte(byte[] bytes, int offset)
+        {
+            var value = bytes[offset];
+            return value >= 128 ? value - 256 : value;
+        }
+
+        public static void ConvertSignedByteToByte(byte[] bytes, int offset, int value)
+        {
+            bytes[offset] = (byte)(value < 0 ? value + 256 : value);
+        }
+        
+        public static async Task<IEnumerable<Entry>> AdfGetDirEntCache(Volume vol, EntryBlock parent, bool recursive = false)
+        {
+            // struct bEntryBlock parent;
+            // struct bDirCacheBlock dirc;
+            int offset, n;
+            //    struct List *cell, *head;
+            //    struct CacheEntry caEntry;
+            //    struct Entry *entry;
+            //    SECTNUM nSect;
+
+            //var parent = await Disk.AdfReadEntryBlock(vol, dir);
+            //     return NULL;
+            var list = new List<Entry>();
+
+            var nSect = parent.Extension;
+
+            //cell = head = NULL;
+            do
+            {
+                /* one loop per cache block */
+                n = offset = 0;
+                var dirC = await AdfReadDirCBlock(vol, nSect);
+                while (n < dirC.RecordsNb)
+                {
+                    var caEntry = AdfGetCacheEntry(dirC, ref offset);
+
+                    /* converts a cache entry into a dir entry */
+                    var entry = new Entry
+                    {
+                        Type = caEntry.Type,
+                        Name = caEntry.Name
+                    };
+                    entry.Parent = dirC.Parent;
+                    if (entry.Name == null)
+                    {
+                        return null;
+                    }
+
+                    entry.Sector = caEntry.Header;
+                    entry.Comment = caEntry.Comment;
+                    if (entry.Comment == null)
+                    {
+                        return null;
+                    }
+
+                    entry.Size = caEntry.Size;
+                    entry.Access = caEntry.Protect;
+                    entry.Date = caEntry.Date;
+
+                    list.Add(entry);
+
+                    if (recursive && entry.IsDirectory())
+                    {
+                        var subDirParent = await Disk.AdfReadEntryBlock(vol, entry.Sector);
+                        entry.SubDir = (await AdfGetDirEntCache(vol, subDirParent, true)).ToList();
+                    }
+
+                    n++;
+                }
+
+                nSect = dirC.NextDirC;
+            } while (nSect != 0);
+
+            return list;
+        }
 
         public static async Task AdfAddInCache(Volume vol, EntryBlock parent, EntryBlock entry)
         {
@@ -334,20 +411,6 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
  */
         public static CacheEntry AdfGetCacheEntry(DirCacheBlock dirc, ref int ptr)
         {
-            // int ptr;
-            //
-            // ptr = *p;
-
-/*printf("p=%d\n",ptr);*/
-
-// #ifdef LITT_ENDIAN
-//             cEntry->header = swapLong(dirc->records+ptr);
-//             cEntry->size = swapLong(dirc->records+ptr+4);
-//             cEntry->protect = swapLong(dirc->records+ptr+8);
-//             cEntry->days = swapShort(dirc->records+ptr+16);
-//             cEntry->mins = swapShort(dirc->records+ptr+18);
-//             cEntry->ticks = swapShort(dirc->records+ptr+20);
-// #else
             var cEntry = new CacheEntry
             {
                 Header = BigEndianConverter.ConvertBytesToInt32(dirc.Records, ptr),
@@ -358,12 +421,12 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
             var minutes = BigEndianConverter.ConvertBytesToInt16(dirc.Records, ptr + 18);
             var ticks = BigEndianConverter.ConvertBytesToInt16(dirc.Records, ptr + 20);
             cEntry.Date = DateHelper.ConvertToDate(days, minutes, ticks);
-            cEntry.Type = dirc.Records[ptr + 22];
+            cEntry.Type = ConvertByteToSignedByte(dirc.Records, ptr + 22);
 
             var nLen = dirc.Records[ptr + 23];
             cEntry.Name = AmigaTextHelper.GetString(dirc.Records, ptr + 24, nLen);
             var cLen = dirc.Records[ptr + 24 + nLen];
-            cEntry.Comment = AmigaTextHelper.GetString(dirc.Records, dirc.Records[ptr + 24 + nLen + 1], nLen);
+            cEntry.Comment = AmigaTextHelper.GetString(dirc.Records, ptr + 24 + nLen + 1, cLen);
 
             var p = ptr + 24 + nLen + 1 + cLen;
 
@@ -426,14 +489,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
             BigEndianConverter.ConvertInt16ToBytes((short)amigaDate.Minutes, dirc.Records, ptr + 18);
             BigEndianConverter.ConvertInt16ToBytes((short)amigaDate.Ticks, dirc.Records, ptr + 20);
 
-            // memcpy(dirc->records+ptr,&(cEntry->header),4);
-            // memcpy(dirc->records+ptr+4,&(cEntry->size),4);
-            // memcpy(dirc->records+ptr+8,&(cEntry->protect),4);
-            // memcpy(dirc->records+ptr+16,&(cEntry->days),2);
-            // memcpy(dirc->records+ptr+18,&(cEntry->mins),2);
-            // memcpy(dirc->records+ptr+20,&(cEntry->ticks),2);
-// #endif
-            dirc.Records[ptr + 22] = (byte)cEntry.Type;
+            ConvertSignedByteToByte(dirc.Records, ptr + 22, (sbyte)cEntry.Type);
 
             var nameBytes = AmigaTextHelper.GetBytes(cEntry.Name);
             dirc.Records[ptr + 23] = (byte)nameBytes.Length;
@@ -441,9 +497,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
 
             var commentBytes = AmigaTextHelper.GetBytes(cEntry.Comment);
             dirc.Records[ptr + 24 + nameBytes.Length] = (byte)commentBytes.Length;
-            Array.Copy(commentBytes, 0, dirc.Records, ptr + 24, commentBytes.Length + 1);
-
-/*puts("adfPutCacheEntry");*/
+            Array.Copy(commentBytes, 0, dirc.Records, ptr + 25 + nameBytes.Length, commentBytes.Length);
 
             var l = 25 + nameBytes.Length + commentBytes.Length;
             if (l % 2 == 0)

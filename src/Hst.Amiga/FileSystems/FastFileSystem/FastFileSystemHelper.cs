@@ -7,6 +7,7 @@
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using Core.Extensions;
+    using Extensions;
 
     public static class FastFileSystemHelper
     {
@@ -85,7 +86,7 @@
 
                 entryPath = EntryRegex.Replace(entryPath, "_");
 
-                if (entry.Type == Entry.EntryType.Dir)
+                if (entry.IsDirectory())
                 {
                     await ExtractDirectory(volume, entry.EntryBlock, entry.SubDir, entryPath);
                     continue;
@@ -197,6 +198,7 @@
 
             // vol->dosType = boot.dosType[3];
             var dosType = (int)bootBlockBytes[3];
+            var usesDirCache = (dosType & Constants.FSMASK_DIRCACHE) != 0;
             var dataBlockSize = Macro.isFFS(dosType) ? 512 : 488;
 
             // calculate root block offset, if not set
@@ -220,6 +222,7 @@
                 PartitionStartOffset = lowCyl * blocksPerCylinder * blockSize,
                 DosType = dosType,
                 DataBlockSize = dataBlockSize,
+                UsesDirCache = usesDirCache,
                 RootBlock = rootBlock,
                 Blocks = blocks,
                 Stream = stream,

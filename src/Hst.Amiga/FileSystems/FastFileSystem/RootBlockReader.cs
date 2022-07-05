@@ -3,7 +3,7 @@
     using System.Collections.Generic;
     using System.IO;
     using Core.Converters;
-    using Extensions;
+    using Amiga.Extensions;
 
     public static class RootBlockReader
     {
@@ -28,7 +28,7 @@
             var index = new List<int>();
             for (var i = 0; i < Constants.HT_SIZE; i++)
             {
-                index.Add(BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x18 + (i * Amiga.SizeOf.Long)));
+                index.Add(BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
             }
 
             var bitmapFlags = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x138); // bm_flag
@@ -38,7 +38,7 @@
             for (var i = 0; i < 25; i++)
             {
                 var bitmapBlockOffset =
-                    BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x13c + (i * Amiga.SizeOf.Long));
+                    BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x13c + (i * SizeOf.Long));
                 bitmapBlockOffsets.Add(bitmapBlockOffset);
             }
 

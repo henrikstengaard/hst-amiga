@@ -4,9 +4,9 @@
     using System.Threading.Tasks;
     using Core.Extensions;
 
-    public static class OfsDataBlockReader
+    public static class DataBlockReader
     {
-        public static async Task<OfsDataBlock> Parse(byte[] blockBytes)
+        public static async Task<DataBlock> Parse(byte[] blockBytes)
         {
             var blockStream = new MemoryStream(blockBytes);
 
@@ -26,7 +26,7 @@
             
             var data = await blockStream.ReadBytes(488);
             
-            return new OfsDataBlock
+            return new DataBlock
             {
                 BlockBytes = blockBytes,
                 Type = type,

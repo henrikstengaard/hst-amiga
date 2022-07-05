@@ -35,7 +35,19 @@
       <None Update="TestData\RigidDiskBlocks\rigid-disk-block.img">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="TestData\FastFileSystems\ffstest.adf">
+      <None Update="TestData\FastFileSystems\dos1.adf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos5.adf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos2.adf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos3.adf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos4.adf">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>

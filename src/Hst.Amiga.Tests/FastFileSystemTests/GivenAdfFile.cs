@@ -11,11 +11,16 @@
 
     public class GivenAdfFile
     {
-        [Fact]
-        public async Task WhenMountAdfAndReadEntriesRecursivelyThenEntriesAreReturned()
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndReadEntriesRecursivelyThenEntriesAreReturned(string adfFilename)
         {
             // arrange - adf file
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
             await using var adfStream = File.OpenRead(adfPath);
 
             // act - mount adf
@@ -32,29 +37,34 @@
             // assert - entry "test.txt" in root block
             var entry1 = entries.FirstOrDefault(x => x.Name == "test.txt");
             Assert.NotNull(entry1);
-            Assert.Equal(Entry.EntryType.File, entry1.Type);
+            Assert.Equal(Constants.ST_FILE, entry1.Type);
             Assert.Equal(21, entry1.Size);
             Assert.Null(entry1.SubDir);
 
             // assert - entry "testdir" in root block
             var entry2 = entries.FirstOrDefault(x => x.Name == "testdir");
             Assert.NotNull(entry2);
-            Assert.Equal(Entry.EntryType.Dir, entry2.Type);
+            Assert.Equal(Constants.ST_DIR, entry2.Type);
             Assert.Equal(0, entry2.Size);
             Assert.NotEmpty(entry2.SubDir);
 
             // assert - entry "test2.txt" in entry 2 sub directory
             var entry3 = entry2.SubDir.FirstOrDefault(x => x.Name == "test2.txt");
             Assert.NotNull(entry3);
-            Assert.Equal(Entry.EntryType.File, entry3.Type);
+            Assert.Equal(Constants.ST_FILE, entry3.Type);
             Assert.Equal(29, entry3.Size);
         }
 
-        [Fact]
-        public async Task WhenMountAdfAndReadFileFromThenDataIsReadCorrectly()
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndReadFileFromThenDataIsReadCorrectly(string adfFilename)
         {
             // arrange - adf file
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
             await using var adfStream = File.OpenRead(adfPath);
 
             // act - mount adf
@@ -74,14 +84,19 @@
             Assert.Equal("This is a test file!\n", text);
         }
 
-        [Fact]
-        public async Task WhenMountAdfAndWriteFileThenFileIsCreated()
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndWriteFileThenFileIsCreated(string adfFilename)
         {
             // arrange - adf file
             var fileName = "newtest.txt";
             var fileContent = "Hello world!";
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
-            var modifiedAdfPath = "ffstest_file_created.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
+            var modifiedAdfPath = string.Concat(Path.GetFileNameWithoutExtension(adfFilename), ".adf");
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -109,16 +124,21 @@
             Assert.NotNull(entry);
             Assert.Equal(fileName, entry.Name);
             Assert.Equal(fileContent.Length, entry.Size);
-            Assert.Equal(Entry.EntryType.File, entry.Type);
+            Assert.Equal(Constants.ST_FILE, entry.Type);
         }
 
-        [Fact]
-        public async Task WhenMountAdfAndCreateDirectoryThenDirectoryIsCreated()
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndCreateDirectoryThenDirectoryIsCreated(string adfFilename)
         {
             // arrange - adf file
             var directoryName = "newdir";
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
-            var modifiedAdfPath = "ffstest_directory_created.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
+            var modifiedAdfPath = string.Concat(Path.GetFileNameWithoutExtension(adfFilename), ".adf");
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -140,16 +160,21 @@
             Assert.NotNull(entry);
             Assert.Equal(directoryName, entry.Name);
             Assert.Equal(0, entry.Size);
-            Assert.Equal(Entry.EntryType.Dir, entry.Type);
+            Assert.Equal(Constants.ST_DIR, entry.Type);
         }
 
-        [Fact]
-        public async Task WhenMountAdfAndRenameFileThenFileIsRenamed()
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndRenameFileThenFileIsRenamed(string adfFilename)
         {
             // arrange - adf file
             var newName = "renamed_test";
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
-            var modifiedAdfPath = "ffstest_file_renamed.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
+            var modifiedAdfPath = string.Concat(Path.GetFileNameWithoutExtension(adfFilename), ".adf");
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -164,7 +189,7 @@
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
-            var oldEntry = entries.FirstOrDefault(x => x.Type == Entry.EntryType.File);
+            var oldEntry = entries.FirstOrDefault(x => x.Type == Constants.ST_FILE);
             Assert.NotNull(oldEntry);
 
             // act - rename file entry
@@ -188,12 +213,17 @@
             Assert.Equal(oldEntry.Type, entry.Type);
         }
 
-        [Fact]
-        public async Task WhenMountAdfAndDeleteFileThenFileIsDeleted()
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndDeleteFileThenFileIsDeleted(string adfFilename)
         {
             // arrange - adf file
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
-            var modifiedAdfPath = "ffstest_file_deleted.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
+            var modifiedAdfPath = string.Concat(Path.GetFileNameWithoutExtension(adfFilename), ".adf");
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -208,7 +238,7 @@
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
-            var entry = entries.FirstOrDefault(x => x.Type == Entry.EntryType.File);
+            var entry = entries.FirstOrDefault(x => x.Type == Constants.ST_FILE);
             Assert.NotNull(entry);
 
             // act - remote entry from root block
@@ -224,12 +254,17 @@
             Assert.Null(entry);
         }
 
-        [Fact]
-        public async Task WhenMountAdfAndSetAccessForFileThenEntryIsUpdated()
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndSetAccessForFileThenEntryIsUpdated(string adfFilename)
         {
             // arrange - adf file
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
-            var modifiedAdfPath = @"ffstest_access_updated.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
+            var modifiedAdfPath = string.Concat(Path.GetFileNameWithoutExtension(adfFilename), ".adf");
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -244,7 +279,7 @@
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
-            var entry = entries.FirstOrDefault(x => x.Type == Entry.EntryType.File);
+            var entry = entries.FirstOrDefault(x => x.Type == Constants.ST_FILE);
             Assert.NotNull(entry);
 
             // act - set access for entry
@@ -275,12 +310,17 @@
             Assert.Equal(Constants.ACCMASK_R, entry.Access);
         }
 
-        [Fact]
-        public async Task WhenMountAdfAndSetCommentForFileThenEntryIsUpdated()
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndSetCommentForFileThenEntryIsUpdated(string adfFilename)
         {
             // arrange - adf file
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
-            var modifiedAdfPath = "ffstest_comment_updated.adf";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
+            var modifiedAdfPath = string.Concat(Path.GetFileNameWithoutExtension(adfFilename), ".adf");
 
             // arrange - copy adf file for testing
             File.Copy(adfPath, modifiedAdfPath, true);
@@ -295,7 +335,7 @@
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
-            var entry = entries.FirstOrDefault(x => x.Type == Entry.EntryType.File);
+            var entry = entries.FirstOrDefault(x => x.Type == Constants.ST_FILE);
             Assert.NotNull(entry);
             Assert.Equal(string.Empty, entry.Comment);
 

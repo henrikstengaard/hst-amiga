@@ -11,7 +11,7 @@
         public async Task WhenReadRootBlockFromAdfThenRootBlockIsValid()
         {
             // arrange - adf file
-            var adfPath = Path.Combine("TestData", "FastFileSystems", "ffstest.adf");
+            var adfPath = Path.Combine("TestData", "FastFileSystems", "dos3.adf");
 
             // arrange - calculate root block offset
             var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(FloppyDiskConstants.DoubleDensity.LowCyl,
@@ -33,7 +33,7 @@
             Assert.Equal(0, rootBlock.HeaderKey);
             Assert.Equal(0, rootBlock.HighSeq);
             Assert.Equal(Constants.HT_SIZE, rootBlock.HashTableSize);
-            Assert.Equal("FFSTEST", rootBlock.DiskName);
+            Assert.Equal("DOS3", rootBlock.DiskName);
         }
     }
 }

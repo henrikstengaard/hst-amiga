@@ -20,7 +20,7 @@
         private uint curDataPtr;
         private FileExtBlock currentExt;
         private uint nDataBlock = 0;
-        private IDataBlock currentData;
+        private DataBlock currentData;
         private bool writeMode;
 
         public EntryStream(Volume volume, bool writeMode, bool eof, EntryBlock fhdr)
@@ -251,7 +251,7 @@
             // RETCODE rc = RC_OK;
 
             // data =(struct bOFSDataBlock *) currentData;
-            var data = currentData as OfsDataBlock;
+            var data = currentData;
             //
             // if (data == null)
             // {
@@ -274,8 +274,6 @@
                 {
                     if (nDataBlock == Constants.MAX_DATABLK)
                     {
-                        // file->currentExt=(struct bFileExtBlock*)malloc(sizeof(struct bFileExtBlock));
-                        // if (!file->currentExt) (*adfEnv.eFct)("adfReadNextFileBlock : malloc");
                         currentExt = await File.AdfReadFileExtBlock(volume, fileHdr.Extension);
                         posInExtBlk = 0;
                     }
@@ -290,11 +288,13 @@
                 }
             }
 
-            // AdfReadDataBlock(volume,nSect,file->currentData);
             currentData = await File.AdfReadDataBlock(volume, nSect);
+            data = currentData;
 
             if (Macro.isOFS(volume.DosType) && data.SeqNum != nDataBlock + 1)
+            {
                 throw new IOException("adfReadNextFileBlock : seqnum incorrect");
+            }
 
             nDataBlock++;
         }
@@ -445,7 +445,7 @@
             /* builds OFS header */
             if (Macro.isOFS(volume.DosType))
             {
-                var data = currentData as OfsDataBlock;
+                var data = currentData;
                 /* writes previous data block and link it  */
                 if (pos >= blockSize)
                 {
@@ -521,8 +521,8 @@
                     fileHdr.ByteSize = (int)pos;
                     if (Macro.isOFS(volume.DosType))
                     {
-                        var data = currentData as OfsDataBlock;
-                        data.DataSize = (int)posInDataBlk;
+                        //var data = currentData as OfsDataBlock;
+                        currentData.DataSize = (int)posInDataBlk;
                     }
                     if (fileHdr.ByteSize > 0)
                         await File.AdfWriteDataBlock(volume, (int)curDataPtr, currentData);
@@ -537,7 +537,7 @@
                 fileHdr.Date = DateTime.Now;
                 await File.AdfWriteFileHdrBlock(volume, fileHdr.HeaderKey, fileHdr);
 
-                if (Macro.isDIRCACHE(volume.DosType)) 
+                if (volume.UsesDirCache) 
                 {
 /*printf("parent=%ld\n",file->fileHdr->parent);*/
                     var parent = await Disk.AdfReadEntryBlock(volume, fileHdr.Parent);

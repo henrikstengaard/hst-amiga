@@ -2,7 +2,7 @@
 {
     using System;
     using Core.Converters;
-    using Extensions;
+    using Amiga.Extensions;
 
     public static class EntryBlockWriter
     {
@@ -34,7 +34,7 @@
             
             for (var i = 0; i < Constants.INDEX_SIZE; i++)
             {
-                BigEndianConverter.ConvertInt32ToBytes(entryBlock.Index[i], blockBytes, 0x18 + (i * Amiga.SizeOf.Long));
+                BigEndianConverter.ConvertInt32ToBytes(entryBlock.Index[i], blockBytes, 0x18 + (i * SizeOf.Long));
             }
             
             if (entryBlock.SecType != Constants.ST_ROOT)

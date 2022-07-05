@@ -94,7 +94,7 @@
 
             if (mode == FileMode.Write)
             {
-                    fileHdr = await Directory.AdfCreateFile(volume, parent, name);
+                    fileHdr = await Directory.CreateFile(volume, parent, name);
                     eof = true;
             }
 
@@ -118,7 +118,7 @@
  * adfReadDataBlock
  *
  */
-        public static async Task<IDataBlock> AdfReadDataBlock(Volume vol, int nSect)
+        public static async Task<DataBlock> AdfReadDataBlock(Volume vol, int nSect)
         {
             // https://github.com/lclevy/ADFlib/blob/be8a6f6e8d0ca8fda963803eef77366c7584649a/src/adf_file.c#L654
 
@@ -138,7 +138,7 @@
 //                 dBlock = (struct bOFSDataBlock*)data;
 /*printf("adfReadDataBlock %ld\n",nSect);*/
 
-                var dBlock = await OfsDataBlockReader.Parse(buf);
+                var dBlock = await DataBlockReader.Parse(buf);
                 if (dBlock.Type != Constants.T_DATA)
                     throw new IOException("adfReadDataBlock : id T_DATA not found");
                 if (dBlock.DataSize < 0 || dBlock.DataSize > 488)
@@ -162,35 +162,12 @@
  * adfWriteDataBlock
  *
  */
-        public static async Task AdfWriteDataBlock(Volume vol, int nSect, IDataBlock data)
+        public static async Task AdfWriteDataBlock(Volume vol, int nSect, DataBlock dataBlock)
         {
-            // uint8_t buf[512];
-            // uint32_t newSum;
-            // struct bOFSDataBlock *dataB;
-            // RETCODE rc = RC_OK;
-
-            // newSum = 0L;
-            if (Macro.isOFS(vol.DosType)) {
-//                 dataB = (struct bOFSDataBlock *)data;
-//                 dataB->type = T_DATA;
-//                 memcpy(buf,dataB,512);
-// #ifdef LITT_ENDIAN
-//                 swapEndian(buf, SWBL_DATA);
-// #endif
-//                 newSum = adfNormalSum(buf,20,512);
-//                 swLong(buf+20,newSum);
-// /*        *(int32_t*)(buf+20) = swapLong((uint8_t*)&newSum);*/
-                var ofsDataBlock = data as OfsDataBlock;
-                var buf = await OfsDataBlockWriter.BuildBlock(ofsDataBlock, vol.BlockSize);
-                await Disk.AdfWriteBlock(vol,nSect,buf);
-            }
-            else {
-                // adfWriteBlock(vol,nSect,data);
-                await Disk.AdfWriteBlock(vol,nSect,data.Data);
-            }
-/*printf("adfWriteDataBlock %ld\n",nSect);*/
-
-            // return rc;
+            var blockBytes = Macro.isOFS(vol.DosType)
+                ? await DataBlockWriter.BuildBlock(dataBlock, vol.BlockSize)
+                : dataBlock.Data;
+            await Disk.AdfWriteBlock(vol,nSect,blockBytes);
         }        
 
 /*

@@ -4,7 +4,7 @@
     using System.Collections.Generic;
     using System.IO;
     using Core.Converters;
-    using Extensions;
+    using Amiga.Extensions;
 
     public static class EntryBlockReader
     {
@@ -28,7 +28,7 @@
             var index = new List<int>();
             for (var i = 0; i < Constants.INDEX_SIZE; i++)
             {
-                index.Add(BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x18 + (i * Amiga.SizeOf.Long)));
+                index.Add(BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
             }
 
             var access = 0;
@@ -39,7 +39,7 @@
             var realEntry = 0;
             var nextLink = 0;
 
-            var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + (Amiga.SizeOf.Long * 3));
+            var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + (SizeOf.Long * 3));
 
             if (type != Constants.ST_ROOT)
             {
@@ -52,12 +52,12 @@
 
                 blockStream.Seek(0x1d4, SeekOrigin.Begin);
                 realEntry = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d4);
-                nextLink = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d4 + Amiga.SizeOf.Long);
+                nextLink = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d8);
             }
 
             var nextSameHash = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0);
-            var parent = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + Amiga.SizeOf.Long);
-            var extension = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + (Amiga.SizeOf.Long * 2));
+            var parent = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f4);
+            var extension = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f8);
 
             return new EntryBlock
             {

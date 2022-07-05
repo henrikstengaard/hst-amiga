@@ -5,7 +5,6 @@
         public static bool isFFS(int c) => (c& Constants.FSMASK_FFS) != 0;
         public static bool isOFS(int c) => (c & Constants.FSMASK_FFS) == 0;
         public static bool isINTL(int c) => (c & Constants.FSMASK_INTL) != 0;
-        public static bool isDIRCACHE(int c) => (c & Constants.FSMASK_DIRCACHE) != 0;
 
         public static bool hasD(int c) => (c & Constants.ACCMASK_D) != 0;
         public static bool hasE(int c) => (c & Constants.ACCMASK_E) != 0;
