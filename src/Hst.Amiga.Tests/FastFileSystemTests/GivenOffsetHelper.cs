@@ -3,6 +3,7 @@
     using System.Linq;
     using FileSystems.FastFileSystem;
     using Xunit;
+    using BlockHelper = FileSystems.FastFileSystem.BlockHelper;
 
     public class GivenOffsetHelper
     {
@@ -19,6 +20,33 @@
             Assert.Equal(880U, rootBlockOffset);
         }
 
+        [Fact]
+        public void WhenCalculateRootBlockOffsetForPartitionOffsetMatch()
+        {
+            // arrange - partition geometry
+            var lowCyl = 2;
+            var highCyl = 17;
+            var reserved = 2;
+            var surfaces = 16;
+            var blocksPerTrack = 63;
+            
+            // arrange - calculate expected root block offset
+            var cylinders = highCyl - lowCyl + 1;
+            var highKey = cylinders * surfaces * blocksPerTrack - reserved;
+            var expectedRootBlockOffset = (uint)((reserved + highKey) / 2);
+            
+            // act - calculate root block offset for partition
+            var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(
+                (uint)lowCyl,
+                (uint)highCyl,
+                (uint)reserved,
+                (uint)surfaces,
+                (uint)blocksPerTrack);
+
+            // assert - root block offset matches expected root block offset
+            Assert.Equal(expectedRootBlockOffset, rootBlockOffset);
+        }
+        
         [Fact]
         public void WhenSetOffsetsForOneBitmapExtensionBlockThenOffsetsAreSetSequential()
         {

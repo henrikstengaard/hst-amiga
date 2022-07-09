@@ -6,7 +6,7 @@
 
     public static class DataBlockWriter
     {
-        public static async Task<byte[]> BuildBlock(DataBlock dataBlock, uint blockSize)
+        public static async Task<byte[]> BuildBlock(DataBlock dataBlock, int blockSize)
         {
             var blockStream =
                 new MemoryStream(

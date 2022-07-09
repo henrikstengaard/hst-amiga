@@ -10,8 +10,6 @@
     {
         public static EntryBlock Parse(byte[] blockBytes)
         {
-            var blockStream = new MemoryStream(blockBytes);
-
             var type = BigEndianConverter.ConvertBytesToInt32(blockBytes);
             var headerKey = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x4);
             var highSeq = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x8);
@@ -50,7 +48,6 @@
                 date = DateHelper.ReadDate(blockBytes, 0x1a4);
                 name = blockBytes.ReadStringWithLength(0x1b0);
 
-                blockStream.Seek(0x1d4, SeekOrigin.Begin);
                 realEntry = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d4);
                 nextLink = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d8);
             }

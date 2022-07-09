@@ -126,7 +126,7 @@
             // struct bOFSDataBlock *dBlock;
             // RETCODE rc = RC_OK;
 
-            var buf = await Disk.AdfReadBlock(vol, nSect);
+            var buf = await Disk.ReadBlock(vol, nSect);
 
             // memcpy(data,buf,512);
 
@@ -143,9 +143,9 @@
                     throw new IOException("adfReadDataBlock : id T_DATA not found");
                 if (dBlock.DataSize < 0 || dBlock.DataSize > 488)
                     throw new IOException("adfReadDataBlock : dataSize incorrect");
-                if (!Disk.IsSectNumValid(vol, dBlock.HeaderKey))
+                if (!Disk.IsSectorNumberValid(vol, dBlock.HeaderKey))
                     throw new IOException("adfReadDataBlock : headerKey out of range");
-                if (!Disk.IsSectNumValid(vol, dBlock.NextData))
+                if (!Disk.IsSectorNumberValid(vol, dBlock.NextData))
                     throw new IOException("adfReadDataBlock : nextData out of range");
 
                 return dBlock;
@@ -167,7 +167,7 @@
             var blockBytes = Macro.isOFS(vol.DosType)
                 ? await DataBlockWriter.BuildBlock(dataBlock, vol.BlockSize)
                 : dataBlock.Data;
-            await Disk.AdfWriteBlock(vol,nSect,blockBytes);
+            await Disk.WriteBlock(vol,nSect,blockBytes);
         }        
 
 /*
@@ -179,7 +179,7 @@
             // uint8_t buf[sizeof(struct bFileExtBlock)];
             // RETCODE rc = RC_OK;
 
-            var buf = await Disk.AdfReadBlock(vol, nSect);
+            var buf = await Disk.ReadBlock(vol, nSect);
 /*printf("read fext=%d\n",nSect);*/
 //             memcpy(fext,buf,sizeof(struct bFileExtBlock));
 // #ifdef LITT_ENDIAN
@@ -215,13 +215,13 @@
             //     vol.Logs.Add($"ERROR: Sector '{nSect}', stype  ST_FILE not found");
             // }
             
-            if (fext.headerKey != nSect)
+            if (fext.HeaderKey != nSect)
                 throw new IOException("adfReadFileExtBlock : headerKey!=nSect");
-            if (fext.highSeq < 0 || fext.highSeq > Constants.MAX_DATABLK)
+            if (fext.HighSeq < 0 || fext.HighSeq > Constants.MAX_DATABLK)
                 throw new IOException("adfReadFileExtBlock : highSeq out of range");
-            if (!Disk.IsSectNumValid(vol, fext.parent))
+            if (!Disk.IsSectorNumberValid(vol, fext.Parent))
                 throw new IOException("adfReadFileExtBlock : parent out of range");
-            if (fext.extension != 0 && !Disk.IsSectNumValid(vol, fext.extension))
+            if (fext.Extension != 0 && !Disk.IsSectorNumberValid(vol, fext.Extension))
                 throw new IOException("adfReadFileExtBlock : extension out of range");
 
             return fext;
@@ -282,34 +282,17 @@
 
 /*    *(uint32_t*)(buf+20) = swapLong((uint8_t*)&newSum);*/
 
-            await Disk.AdfWriteBlock(vol, nSect, buf);
+            await Disk.WriteBlock(vol, nSect, buf);
         }
         
 /*
  * adfWriteFileExtBlock
  *
  */
-        public static async Task AdfWriteFileExtBlock(Volume vol, int nSect, FileExtBlock fext)
+        public static async Task AdfWriteFileExtBlock(Volume vol, int nSect, FileExtBlock fileExtBlock)
         {
-            // uint8_t buf[512];
-            // uint32_t newSum;
-            // RETCODE rc = RC_OK;
-
-            fext.type = Constants.T_LIST;
-            fext.secType = Constants.ST_FILE;
-            fext.dataSize = 0;
-            fext.firstData = 0;
-//
-//             memcpy(buf,fext,512);
-// #ifdef LITT_ENDIAN
-//             swapEndian(buf, SWBL_FEXT);
-// #endif
-//             newSum = adfNormalSum(buf,20,512);
-//             swLong(buf+20,newSum);
-/*    *(int32_t*)(buf+20) = swapLong((uint8_t*)&newSum);*/
-            var buf = await FileExtBlockWriter.BuildBlock(fext, vol.BlockSize);
-
-            await Disk.AdfWriteBlock(vol, nSect, buf);
+            var blockBytes = await FileExtBlockWriter.BuildBlock(fileExtBlock, vol.BlockSize);
+            await Disk.WriteBlock(vol, nSect, blockBytes);
         }
         
 /*
@@ -382,9 +365,9 @@
             {
                 fileBlocks.extens[m++] = nSect;
                 var extBlock = await File.AdfReadFileExtBlock(vol, nSect);
-                for(var i=0; i<extBlock.highSeq; i++)
-                    fileBlocks.data[n++] = extBlock.dataBlocks[Constants.MAX_DATABLK - 1 - i];
-                nSect = extBlock.extension;
+                for(var i=0; i<extBlock.HighSeq; i++)
+                    fileBlocks.data[n++] = extBlock.Index[Constants.MAX_DATABLK - 1 - i];
+                nSect = extBlock.Extension;
             }
             if (fileBlocks.nbExtens + fileBlocks.nbData != n + m)
                 throw new IOException("adfGetFileBlocks : less blocks than expected");

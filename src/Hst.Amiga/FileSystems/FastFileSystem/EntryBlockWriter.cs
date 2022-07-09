@@ -6,7 +6,7 @@
 
     public static class EntryBlockWriter
     {
-        public static byte[] BuildBlock(EntryBlock entryBlock, uint blockSize)
+        public static byte[] BuildBlock(EntryBlock entryBlock, int blockSize)
         {
             if (!(entryBlock.SecType == Constants.ST_ROOT || entryBlock.SecType == Constants.ST_DIR ||
                   entryBlock.SecType == Constants.ST_FILE))

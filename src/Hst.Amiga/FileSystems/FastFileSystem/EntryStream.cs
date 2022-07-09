@@ -138,7 +138,7 @@
                 while (i < extBlock && nSect != 0)
                 {
                     currentExt = await File.AdfReadFileExtBlock(volume, nSect);
-                    nSect = currentExt.extension;
+                    nSect = currentExt.Extension;
                 }
 
                 if (i != extBlock)
@@ -146,7 +146,7 @@
                     throw new IOException("error");
                 }
 
-                currentData = await File.AdfReadDataBlock(volume, currentExt.dataBlocks[posInExtBlk]);
+                currentData = await File.AdfReadDataBlock(volume, currentExt.Index[posInExtBlk]);
             }
         }
 
@@ -279,11 +279,11 @@
                     }
                     else if (posInExtBlk == Constants.MAX_DATABLK)
                     {
-                        currentExt = await File.AdfReadFileExtBlock(volume, currentExt.extension);
+                        currentExt = await File.AdfReadFileExtBlock(volume, currentExt.Extension);
                         posInExtBlk = 0;
                     }
 
-                    nSect = currentExt.dataBlocks[Constants.MAX_DATABLK - 1 - posInExtBlk];
+                    nSect = currentExt.Index[Constants.MAX_DATABLK - 1 - posInExtBlk];
                     posInExtBlk++;
                 }
             }
@@ -413,18 +413,18 @@
                     /* not the first : save the current one, and link it with the future */
                     if (nDataBlock >= 2 * Constants.MAX_DATABLK)
                     {
-                        currentExt.extension = extSect;
+                        currentExt.Extension = extSect;
 /*printf ("write ext=%d\n",file->currentExt->headerKey);*/
-                        await File.AdfWriteFileExtBlock(volume, currentExt.headerKey, currentExt);
+                        await File.AdfWriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
                     }
 
                     /* initializes a file extension block */
                     for (var i = 0; i < Constants.MAX_DATABLK; i++)
-                        currentExt.dataBlocks[i] = 0;
-                    currentExt.headerKey = extSect;
-                    currentExt.parent = fileHdr.HeaderKey;
-                    currentExt.highSeq = 0;
-                    currentExt.extension = 0;
+                        currentExt.Index[i] = 0;
+                    currentExt.HeaderKey = extSect;
+                    currentExt.Parent = fileHdr.HeaderKey;
+                    currentExt.HighSeq = 0;
+                    currentExt.Extension = 0;
                     posInExtBlk = 0;
 /*printf("extSect=%ld\n",extSect);*/
                 }
@@ -435,8 +435,8 @@
 
 /*printf("adfCreateNextFileBlock ext %ld\n",nSect);*/
 
-                currentExt.dataBlocks[Constants.MAX_DATABLK - 1 - posInExtBlk] = nSect;
-                currentExt.highSeq++;
+                currentExt.Index[Constants.MAX_DATABLK - 1 - posInExtBlk] = nSect;
+                currentExt.HighSeq++;
                 posInExtBlk++;
             }
 
@@ -512,7 +512,7 @@
             if (currentExt != null) 
             {
                 if (writeMode)
-                    await File.AdfWriteFileExtBlock(volume, currentExt.headerKey, currentExt);
+                    await File.AdfWriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
             }
             if (currentData != null)
             {
@@ -540,7 +540,7 @@
                 if (volume.UsesDirCache) 
                 {
 /*printf("parent=%ld\n",file->fileHdr->parent);*/
-                    var parent = await Disk.AdfReadEntryBlock(volume, fileHdr.Parent);
+                    var parent = await Disk.ReadEntryBlock(volume, fileHdr.Parent);
                     await Cache.AdfUpdateCache(volume, parent, fileHdr, true);
                 }
                 await Bitmap.AdfUpdateBitmap(volume);

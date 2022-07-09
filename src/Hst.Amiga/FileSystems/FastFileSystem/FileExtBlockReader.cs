@@ -12,6 +12,11 @@
             var blockStream = new MemoryStream(blockBytes);
 
             var type = await blockStream.ReadBigEndianInt32();
+            if (type != Constants.T_LIST)
+            {
+                throw new IOException("Invalid file ext block type");
+            }
+            
             var headerKey = await blockStream.ReadBigEndianInt32();
             var highSeq = await blockStream.ReadBigEndianInt32();
             var dataSize = await blockStream.ReadBigEndianInt32();
@@ -21,7 +26,7 @@
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 0x14);
             if (checksum != calculatedChecksum)
             {
-                throw new IOException("Invalid file system header block checksum");
+                throw new IOException("Invalid file ext block checksum");
             }
             
             var dataBlocks = new List<int>();
@@ -41,21 +46,24 @@
             var extension = await blockStream.ReadBigEndianInt32();
             var secType = await blockStream.ReadBigEndianInt32();
             
+            if (secType != Constants.ST_FILE)
+            {
+                throw new IOException($"Invalid secondary type '{secType}'");
+            }
+
             return new FileExtBlock
             {
                 BlockBytes = blockBytes,
-                type = type,
-                headerKey = headerKey,
-                highSeq = highSeq,
-                dataSize = dataSize,
-                firstData = firstData,
-                checkSum = checksum,
-                dataBlocks = dataBlocks.ToArray(),
-                info = info,
-                nextSameHash = nextSameHash,
-                parent = parent,
-                extension = extension,
-                secType = secType
+                HeaderKey = headerKey,
+                HighSeq = highSeq,
+                IndexSize = dataSize,
+                FirstData = firstData,
+                Checksum = checksum,
+                Index = dataBlocks.ToArray(),
+                Info = info,
+                NextSameHash = nextSameHash,
+                Parent = parent,
+                Extension = extension,
             };
         }
     }

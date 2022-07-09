@@ -44,7 +44,7 @@
 
             var bitmapExtensionBlocksOffset = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1a0);
 
-            var rootAlterationDate = DateHelper.ReadDate(blockBytes, 0x1a4);
+            var date = DateHelper.ReadDate(blockBytes, 0x1a4);
 
             var diskName = blockBytes.ReadStringWithLength(0x1b0, Constants.MAXNAMELEN);
 
@@ -72,8 +72,8 @@
                 BitmapBlocksOffset = (uint)bitmapBlockOffsets[0],
                 BitmapBlockOffsets = bitmapBlockOffsets.ToArray(),
                 BitmapExtensionBlocksOffset = bitmapExtensionBlocksOffset,
-                RootAlterationDate = rootAlterationDate,
-                DiskName = diskName,
+                Date = date,
+                Name = diskName,
                 DiskAlterationDate = diskAlterationDate,
                 FileSystemCreationDate = fileSystemCreationDate,
                 NextSameHash = 0,

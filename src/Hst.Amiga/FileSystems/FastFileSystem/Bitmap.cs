@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
 
@@ -28,14 +27,11 @@
 
             var j = 0;
             i = 0;
-            var nSect = 0;
-            while (i < Constants.BM_SIZE && root.bmPages[i] != 0)
+            int nSect;
+            while (i < Constants.BM_SIZE && root.BitmapBlockOffsets[i] != 0)
             {
-                vol.BitmapBlocks[j] = nSect = root.bmPages[i];
-                if (!Disk.IsSectNumValid(vol, nSect))
-                {
-                    throw new IOException("adfReadBitmap : sector out of range");
-                }
+                vol.BitmapBlocks[j] = nSect = root.BitmapBlockOffsets[i];
+                Disk.ThrowExceptionIfSectorNumberInvalid(vol, nSect);
 
                 vol.BitmapTable[j] = await AdfReadBitmapBlock(vol, nSect);
                 j++;
@@ -49,11 +45,8 @@
                 i = 0;
                 while (i < 127 && j < mapSize)
                 {
-                    nSect = bmExt.bmPages[i];
-                    if (!Disk.IsSectNumValid(vol, nSect))
-                    {
-                        throw new IOException("adfReadBitmap : sector out of range");
-                    }
+                    nSect = (int)bmExt.BitmapBlockOffsets[i];
+                    Disk.ThrowExceptionIfSectorNumberInvalid(vol, nSect);
 
                     vol.BitmapBlocks[j] = nSect;
 
@@ -69,15 +62,15 @@
         public static async Task AdfWriteBitmapBlock(Volume vol, int nSect, BitmapBlock bitm)
         {
             var blockBytes = await BitmapBlockWriter.BuildBlock(bitm);
-            await Disk.AdfWriteBlock(vol, nSect, blockBytes);
+            await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
         public static async Task AdfUpdateBitmap(Volume vol)
         {
-            var root = await BlockHelper.ReadRootBlock(vol, (int)vol.RootBlock.Offset);
+            var root = await Disk.ReadRootBlock(vol, vol.RootBlockOffset);
 
             root.BitmapFlags = Constants.BM_INVALID;
-            await BlockHelper.WriteRootBlock(vol, (int)vol.RootBlock.Offset, root);
+            await Disk.WriteRootBlock(vol, (int)vol.RootBlockOffset, root);
 
             for (var i = 0; i < vol.BitmapSize; i++)
                 if (vol.BitmapBlocksChg[i])
@@ -87,9 +80,9 @@
                 }
 
             root.BitmapFlags = Constants.BM_VALID;
-            root.RootAlterationDate = DateTime.Now;
+            root.Date = DateTime.Now;
 
-            await BlockHelper.WriteRootBlock(vol, (int)vol.RootBlock.Offset, root);
+            await Disk.WriteRootBlock(vol, (int)vol.RootBlockOffset, root);
         }
 
         public static int AdfGet1FreeBlock(Volume vol)
@@ -101,7 +94,7 @@
         public static int[] AdfGetFreeBlocks(Volume vol, int nbSect)
         {
             var sectList = new List<int>();
-            var block = (int)vol.RootBlock.Offset;
+            var block = (int)vol.RootBlockOffset;
 
             var i = 0;
             var diskFull = false;
@@ -115,7 +108,7 @@
 
                 if ((block + vol.FirstBlock) == vol.LastBlock)
                     block = 2;
-                else if (block == vol.RootBlock.Offset - 1)
+                else if (block == vol.RootBlockOffset - 1)
                     diskFull = true;
                 else
                     block++;
@@ -164,13 +157,13 @@
 
         public static async Task<BitmapBlock> AdfReadBitmapBlock(Volume vol, int nSect)
         {
-            var blockBytes = await Disk.AdfReadBlock(vol, nSect);
+            var blockBytes = await Disk.ReadBlock(vol, nSect);
             return await BitmapBlockReader.Parse(blockBytes);
         }
 
         public static async Task<BitmapExtensionBlock> AdfReadBitmapExtBlock(Volume vol, int nSect)
         {
-            var buf = await Disk.AdfReadBlock(vol, nSect);
+            var buf = await Disk.ReadBlock(vol, nSect);
             return await BitmapExtensionBlockReader.Parse(buf);
         }
         

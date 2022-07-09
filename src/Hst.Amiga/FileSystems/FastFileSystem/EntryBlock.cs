@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class EntryBlock
+    public class EntryBlock : IHeaderBlock, IEntryBlock
     {
         /*
         struct bEntryBlock {

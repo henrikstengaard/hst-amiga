@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    public class FileExtBlock
+    public class FileExtBlock : IHeaderBlock
     {
         // struct bFileExtBlock {
         // 000	int32_t	type;		/* == 0x10 */
@@ -20,24 +20,30 @@
 
         public byte[] BlockBytes { get; set; }
 
-        public int type;		/* == 0x10 */
-        public int headerKey;
-        public int highSeq;
-        public int dataSize;	/* == 0 */
-        public int firstData;	/* == 0 */
-        public int checkSum;
-        public int[] dataBlocks;
-        public int[] r;
-        public int info;		/* == 0 */
-        public int nextSameHash;	/* == 0 */
-        public int parent;		/* header block */
-        public int extension;	/* next header extension block */
-        public int secType;	/* -3 */
+        public int Type { get; }
+        public int HeaderKey { get; set; }
+        public int HighSeq { get; set; }
+        public int IndexSize { get; set; }
+        public int FirstData { get; set; }
+        public int Checksum { get; set; }
+        public int[] Index { get; set; }
+        public int RealEntry { get; set; }
+        public int NextLink { get; set; }
+        public int Info { get; set; }
+        public int NextSameHash { get; set; }
+        public int Parent { get; set; }
+        public int Extension { get; set; }
+        public int SecType { get; }
 
         public FileExtBlock()
         {
-            dataBlocks = new int[Constants.MAX_DATABLK];
-            r = new int[45];
+            Type = Constants.T_LIST;
+            IndexSize = 0;
+            FirstData = 0;
+            Index = new int[Constants.MAX_DATABLK];
+            Info = 0;
+            NextSameHash = 0;
+            SecType = Constants.ST_FILE;
         }
     }
 }

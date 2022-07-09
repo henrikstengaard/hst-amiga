@@ -2,165 +2,119 @@
 {
     using System.IO;
     using System.Threading.Tasks;
-    using Core.Extensions;
 
     public static class Disk
     {
-        public static async Task<byte[]> ReadBlockBytes(Volume volume, uint sector)
+        private static async Task<byte[]> ReadBlockBytes(Volume volume, int sector)
         {
-            var byteOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
-            volume.Stream.Seek(byteOffset, SeekOrigin.Begin);
-
-            var buffer = new byte[volume.BlockSize];
-            var bytesRead = await volume.Stream.ReadAsync(buffer, 0, buffer.Length);
-
-            if (bytesRead != buffer.Length)
-            {
-                throw new IOException($"Read block bytes only returned {bytesRead} bytes, but expected {volume.BlockSize} bytes");
-            }
-            
-            return buffer;
+            var blockOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
+            volume.Stream.Seek(blockOffset, SeekOrigin.Begin);
+            return await Amiga.Disk.ReadBlock(volume.Stream, volume.BlockSize);
         }
 
-        public static async Task WriteBlockBytes(Volume volume, uint sector, byte[] buffer)
+        private static async Task WriteBlockBytes(Volume volume, int sector, byte[] blockBytes)
         {
-            var byteOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
-            volume.Stream.Seek(byteOffset, SeekOrigin.Begin);
-            await volume.Stream.WriteBytes(buffer);
+            var blockOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
+            volume.Stream.Seek(blockOffset, SeekOrigin.Begin);
+            await Amiga.Disk.WriteBlock(volume.Stream, blockBytes);
         }
         
         public static async Task<RootBlock> ReadRootBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlockBytes(volume, sector);
+            var blockBytes = await ReadBlockBytes(volume, (int)sector);
             return RootBlockReader.Parse(blockBytes);
+        }
+        
+        public static async Task WriteRootBlock(Volume volume, int nSect, RootBlock root)
+        {
+            var blockBytes = RootBlockWriter.BuildBlock(root, volume.BlockSize);
+            await WriteBlock(volume, nSect, blockBytes);
         }
         
         public static async Task<BitmapBlock> ReadBitmapBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlockBytes(volume, sector);
+            var blockBytes = await ReadBlockBytes(volume, (int)sector);
             return await BitmapBlockReader.Parse(blockBytes);
         }
         
         public static async Task<BitmapExtensionBlock> ReadBitmapExtensionBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlockBytes(volume, sector);
+            var blockBytes = await ReadBlockBytes(volume, (int)sector);
             return await BitmapExtensionBlockReader.Parse(blockBytes);
         }
 
-        public static async Task<EntryBlock> AdfReadEntryBlock(Volume volume, int sector)
+        public static async Task<EntryBlock> ReadEntryBlock(Volume volume, int sector)
         {
-            // AdfReadEntryBlock
-            // https://github.com/lclevy/ADFlib/blob/be8a6f6e8d0ca8fda963803eef77366c7584649a/src/adf_dir.c#L957
-            
-            var entryBlockOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
-            volume.Stream.Seek(entryBlockOffset, SeekOrigin.Begin);
-            var entryBlockBytes = await volume.Stream.ReadBytes((int)volume.BlockSize);
-            return EntryBlockReader.Parse(entryBlockBytes);
+            var blockBytes = await ReadBlockBytes(volume, sector);
+            return EntryBlockReader.Parse(blockBytes);
         }
         
-        /*
- * adfReadBlock
- *
- * read logical block
- */
-        public static async Task<byte[]> AdfReadBlock(Volume vol, int nSect)
+        /// <summary>
+        /// Is sector number valid
+        /// </summary>
+        /// <param name="volume"></param>
+        /// <param name="logicalSector"></param>
+        /// <returns>True, if logical sector number is within volume first and last block. Otherwise false.</returns>
+        public static bool IsSectorNumberValid(Volume volume, int logicalSector)
         {
-            
-            /*    char strBuf[80];*/
-            // int32_t pSect;
-            // struct nativeFunctions *nFct;
-            // RETCODE rc;
+            return 0 <= logicalSector && logicalSector <= volume.LastBlock - volume.FirstBlock;
+        }
 
-            if (!vol.Mounted)
+        public static void ThrowExceptionIfSectorNumberInvalid(Volume volume, int logicalSector)
+        {
+            if (IsSectorNumberValid(volume, logicalSector))
             {
-                throw new IOException("the volume isn't mounted, adfReadBlock not possible");
+                return;
             }
             
-            /* translate logical sect to physical sect */
-            var pSect = nSect + vol.FirstBlock;
-
-            // if (adfEnv.useRWAccess)
-            //     (*adfEnv.rwhAccess)(pSect,nSect,FALSE);
-            //
-/*printf("psect=%ld nsect=%ld\n",pSect,nSect);*/
-/*    sprintf(strBuf,"ReadBlock : accessing logical block #%ld", nSect);	
-    (*adfEnv.vFct)(strBuf);
-*/
-            if (pSect < vol.FirstBlock || pSect > vol.LastBlock)
+            throw new IOException($"Logical sector '{logicalSector}' is out of range");
+        }
+        
+        /// <summary>
+        /// Read block
+        /// </summary>
+        /// <param name="volume"></param>
+        /// <param name="logicalSector">Logical block number</param>
+        /// <returns></returns>
+        /// <exception cref="IOException"></exception>
+        public static async Task<byte[]> ReadBlock(Volume volume, int logicalSector)
+        {
+            if (!volume.Mounted)
             {
-                throw new IOException("adfReadBlock : nSect out of range");
+                throw new IOException("Volume is not mounted");
+            }
+            
+            // translate logical sector to physical sector
+            var physicalSector = logicalSector + volume.FirstBlock;
+            if (physicalSector < volume.FirstBlock || physicalSector > volume.LastBlock)
+            {
+                throw new IOException($"Logical sector '{logicalSector}' is out of range");
             }
 
-            return await ReadBlockBytes(vol, (uint)pSect);
-
-            // vol.Stream.Seek(pSect * vol.BlockSize, SeekOrigin.Begin);
-            //
-            // var buf = new byte[512];
-            // var bytesRead = await vol.Stream.ReadAsync(buf, 0, 512);
-            //
-            // var b = await ReadBlockBytes(vol, (uint)pSect);
-            //
-            // return bytesRead != 512 ? null : buf;
-
-            /*printf("pSect R =%ld\n",pSect);*/
-            // nFct = adfEnv.nativeFct;
-            // if (vol->dev->isNativeDev)
-            //     rc = (*nFct->adfNativeReadSector)(vol->dev, pSect, 512, buf);
-            // else
-            //     rc = adfReadDumpSector(vol->dev, pSect, 512, buf);
-/*printf("rc=%ld\n",rc);*/
-            // if (rc!=RC_OK)
-            //     return RC_ERROR;
-            // else
-            //     return RC_OK;
+            return await ReadBlockBytes(volume, (int)physicalSector);
         }
         
-/*
- * isSectNumValid
- *
- */
-        public static bool IsSectNumValid(Volume vol, int nSect)
+        public static async Task WriteBlock(Volume volume, int logicalSector, byte[] blockBytes)
         {
-            return 0 <= nSect && nSect <= vol.LastBlock - vol.FirstBlock;
-        }
-        
-/*
- * adfWriteBlock
- *
- */
-        public static async Task AdfWriteBlock(Volume vol, int nSect, byte[] buf)
-        {
-            if (!vol.Mounted) {
-                throw new IOException("the volume isn't mounted, adfWriteBlock not possible");
+            if (!volume.Mounted)
+            {
+                throw new IOException("Volume is not mounted");
             }
 
-            if (vol.ReadOnly) {
-                throw new IOException("adfWriteBlock : can't write block, read only volume");
+            if (volume.ReadOnly)
+            {
+                throw new IOException("Volume is mounted read only");
             }
 
-            var pSect = (int)(nSect + vol.FirstBlock);
-/*printf("write nsect=%ld psect=%ld\n",nSect,pSect);*/
-
-            // if (adfEnv.useRWAccess)
-            //     (*adfEnv.rwhAccess)(pSect,nSect,TRUE);
- 
-            if (pSect < vol.FirstBlock || pSect > vol.LastBlock) {
-                throw new IOException("adfWriteBlock : nSect out of range");
+            // translate logical sector to physical sector
+            var physicalSector = logicalSector + volume.FirstBlock;
+            
+            if (physicalSector < volume.FirstBlock || physicalSector > volume.LastBlock)
+            {
+                throw new IOException($"Logical sector '{logicalSector}' is out of range");
             }
-
-//             nFct = adfEnv.nativeFct;
-// /*printf("nativ=%d\n",vol->dev->isNativeDev);*/
-//             if (vol->dev->isNativeDev)
-//                 rc = (*nFct->adfNativeWriteSector)(vol->dev, pSect, 512, buf);
-//             else
-//                 rc = adfWriteDumpSector(vol->dev, pSect, 512, buf);
-//
-//             if (rc!=RC_OK)
-//                 return RC_ERROR;
-//             else
-//                 return RC_OK;
-
-            await WriteBlockBytes(vol, (uint)pSect, buf);
+            
+            await WriteBlockBytes(volume, (int)physicalSector, blockBytes);
         }        
     }
 }

@@ -32,7 +32,7 @@
             return new BitmapExtensionBlock
             {
                 BlockBytes = blockBytes,
-                BitmapBlockOffsets = bitmapBlockOffsets,
+                BitmapBlockOffsets = bitmapBlockOffsets.ToArray(),
                 NextBitmapExtensionBlockPointer = nextBitmapExtensionBlockPointer
             };
         }

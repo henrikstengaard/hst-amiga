@@ -1,7 +1,6 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests
 {
     using System.IO;
-    using System.Linq;
     using System.Threading.Tasks;
     using FileSystems.FastFileSystem;
     using Xunit;

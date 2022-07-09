@@ -11,14 +11,14 @@
         public async Task WhenBuildingRootBlockForDoubleDensityFloppyDiskThenBytesMatch()
         {
             // arrange - create root block for double density floppy disk
-            var blockSize = 512U;
+            var blockSize = 512;
             var diskName = "HstWB";
             var rootBlock = new RootBlock
             {
-                DiskName = diskName,
+                Name = diskName,
                 BitmapBlocksOffset = 881,
                 BitmapBlockOffsets = new[] { 881 },
-                RootAlterationDate = Date,
+                Date = Date,
                 DiskAlterationDate = DateTime.MinValue,
                 FileSystemCreationDate = Date,
                 BitmapBlocks = new[] { new BitmapBlock() } // dummy used for writing bitmap block

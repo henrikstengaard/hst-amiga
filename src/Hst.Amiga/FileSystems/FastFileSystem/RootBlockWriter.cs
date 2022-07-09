@@ -6,7 +6,7 @@
 
     public static class RootBlockWriter
     {
-        public static byte[] BuildBlock(RootBlock rootBlock, uint blockSize)
+        public static byte[] BuildBlock(RootBlock rootBlock, int blockSize)
         {
             if (rootBlock.SecType != Constants.ST_ROOT)
             {
@@ -40,7 +40,7 @@
 
             for (var i = 0; i < Constants.BM_SIZE; i++)
             {
-                BigEndianConverter.ConvertInt32ToBytes(i < rootBlock.bmPages.Length ? rootBlock.bmPages[i] : 0,
+                BigEndianConverter.ConvertInt32ToBytes(i < rootBlock.BitmapBlockOffsets.Length ? rootBlock.BitmapBlockOffsets[i] : 0,
                     blockBytes, 0x13c + (i * SizeOf.Long));
             }
 
@@ -59,7 +59,6 @@
             BigEndianConverter.ConvertInt32ToBytes(rootBlock.Extension, blockBytes, 0x1f8); // FFS: first directory cache block, 0 otherwise
             BigEndianConverter.ConvertInt32ToBytes(rootBlock.SecType, blockBytes, 0x1fc); // block secondary type = ST_ROOT (value 1)
             
-            // update checksum
             rootBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 20);
             rootBlock.BlockBytes = blockBytes;
 

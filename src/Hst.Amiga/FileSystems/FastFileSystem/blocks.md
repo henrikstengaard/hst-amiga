@@ -81,13 +81,50 @@
 | 0x1AC  | LONG          | Ticks             |                                        |
 | 0x1B0  | CHAR          | Name length       | Length of file name                    |
 | 0x1B1  | CHAR * length | Name              | File name                              |
-| 0x1D4  | LONG          | real              | unused == 0                            |
-| 0x1D8  | LONG          | nextLink          | link chain                             |
+| 0x1D4  | LONG          | Real              | unused == 0                            |
+| 0x1D8  | LONG          | NextLink          | link chain                             |
 | 0x1DC  | LONG * 5      | Reserved          | = 0                                    |
-| 0x1F0  | LONG          | nextSameHash      | next entry with same hash              |
-| 0x1F4  | LONG          | parent            | parent directory                       |
-| 0x1F8  | LONG          | extension         | pointer to extension block             |
-| 0x1FC  | LONG          | secType           | = -3                                   |
+| 0x1F0  | LONG          | NextSameHash      | next entry with same hash              |
+| 0x1F4  | LONG          | Parent            | parent directory                       |
+| 0x1F8  | LONG          | Extension         | pointer to extension block             |
+| 0x1FC  | LONG          | SecType           | = -3                                   |
+
+## Dir Cache Block
+
+| Offset | Data type   | Name       | Comment              |
+|--------|-------------|------------|----------------------|
+| 0x000  | LONG        | Type       | = 33                 |
+| 0x004  | LONG        | Header key | current block number |
+| 0x008  | LONG        | parent     |                      |
+| 0x00C  | LONG        | recordsNb  |                      |
+| 0x010  | LONG        | nextDirC   |                      |
+| 0x014  | ULONG       | Checksum   |                      |
+| 0x018  | UBYTE * 488 | records    |                      |
+
+## File Ext Block
+
+| Offset | Data type | Name         | Comment                                |
+|--------|-----------|--------------|----------------------------------------|
+| 0x000  | LONG      | Type         | = 0x10                                 |
+| 0x004  | LONG      | Header key   | current block number                   |
+| 0x008  | LONG      | High Seq     | number of data block in this hdr block |
+| 0x00C  | LONG      | Data size    | = 0                                    |
+| 0x010  | LONG      | First data   | = 0                                    |
+| 0x014  | ULONG     | Checksum     |                                        |
+| 0x018  | LONG * 72 | Hashtable    | Hashtable with 72 items                |
+| 0x138  | LONG * 45 | Reserved     | = 0                                    |
+| 0x1EC  | LONG      | Info         | = 0                                    |
+| 0x1F0  | LONG      | NextSameHash | = 0                                    |
+| 0x1F4  | LONG      | Parent       | pointer to file header block           |
+| 0x1F8  | LONG      | Extension    | pointer to next file extension block   |
+| 0x1FC  | LONG      | SecType      | = -3                                   |
+
+## Bitmap Ext Block
+
+| Offset | Data type   | Name        | Comment                                 |
+|--------|-------------|-------------|-----------------------------------------|
+| 0x000  | ULONG * 127 | BitmapPages | Bitmap page representing 32 blocks each |
+| 0x1FC  | ULONG       | Next        | Next bitmap ext block                   |
 
 ## OFS data block
 
@@ -100,3 +137,4 @@
 | 0x010  | LONG        | Next Data  | next data block           |
 | 0x014  | ULONG       | Checksum   |                           |
 | 0x018  | UCHAR * 488 | Data       |                           |
+

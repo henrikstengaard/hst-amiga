@@ -42,7 +42,7 @@
             {
                 /* one loop per cache block */
                 n = offset = 0;
-                var dirC = await AdfReadDirCBlock(vol, nSect);
+                var dirC = await ReadDirCacheBlock(vol, nSect);
                 while (n < dirC.RecordsNb)
                 {
                     var caEntry = AdfGetCacheEntry(dirC, ref offset);
@@ -74,7 +74,7 @@
 
                     if (recursive && entry.IsDirectory())
                     {
-                        var subDirParent = await Disk.AdfReadEntryBlock(vol, entry.Sector);
+                        var subDirParent = await Disk.ReadEntryBlock(vol, entry.Sector);
                         entry.SubDir = (await AdfGetDirEntCache(vol, subDirParent, true)).ToList();
                     }
 
@@ -113,7 +113,7 @@
             var nSect = parent.Extension;
             do
             {
-                dirc = await AdfReadDirCBlock(vol, nSect);
+                dirc = await ReadDirCacheBlock(vol, nSect);
                 offset = 0;
                 n = 0;
 /*printf("parent=%4ld\n",dirc.parent);*/
@@ -168,12 +168,12 @@
 
                 AdfPutCacheEntry(dirc, ref offset, newEntry);
                 newDirc.RecordsNb++;
-                await AdfWriteDirCBlock(vol, nCache, newDirc);
+                await WriteDirCacheBlock(vol, nCache, newDirc);
                 dirc.NextDirC = nCache;
             }
 
 /*printf("dirc.headerKey=%ld\n",dirc.headerKey);*/
-            await AdfWriteDirCBlock(vol, dirc.HeaderKey, dirc);
+            await WriteDirCacheBlock(vol, dirc.HeaderKey, dirc);
 /*if (strcmp(entry->name,"file_5u")==0)
 dumpBlock(&dirc);
 */
@@ -251,7 +251,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
             do
             {
 /*printf("dirc=%ld\n",nSect);*/
-                dirc = await AdfReadDirCBlock(vol, nSect);
+                dirc = await ReadDirCacheBlock(vol, nSect);
                 offset = 0;
                 n = 0;
                 /* search entry to update with its header_key */
@@ -271,7 +271,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
                             /* same length : remplace the old values */
                             AdfPutCacheEntry(dirc, ref oldOffset, newEntry);
 /*if (entryLenChg) puts("oLen==nLen");*/
-                            await AdfWriteDirCBlock(vol, dirc.HeaderKey, dirc);
+                            await WriteDirCacheBlock(vol, dirc.HeaderKey, dirc);
                         }
                         else if (oLen > nLen)
                         {
@@ -286,7 +286,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
                             for (var i = 488 - sLen; i < 488; i++)
                                 dirc.Records[i] = 0;
 
-                            await AdfWriteDirCBlock(vol, dirc.HeaderKey, dirc);
+                            await WriteDirCacheBlock(vol, dirc.HeaderKey, dirc);
                         }
                         else
                         {
@@ -351,56 +351,29 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
             dirc.RecordsNb = 0;
             dirc.NextDirC = 0;
 
-            await AdfWriteDirCBlock(vol, nCache, dirc);
+            await WriteDirCacheBlock(vol, nCache, dirc);
         }
 
 
-/*
- * adfReadDirCBlock
- *
- */
-        public static async Task<DirCacheBlock> AdfReadDirCBlock(Volume vol, int nSect)
+        public static async Task<DirCacheBlock> ReadDirCacheBlock(Volume vol, int nSect)
         {
-            var buf = await Disk.AdfReadBlock(vol, nSect);
+            var blockBytes = await Disk.ReadBlock(vol, nSect);
 
-//             memcpy(dirc,buf,512);
-// #ifdef LITT_ENDIAN
-//             swapEndian((uint8_t*)dirc,SWBL_CACHE);
-// #endif
-            var dirc = await DirCacheBlockReader.Parse(buf);
-            if (dirc.Type != Constants.T_DIRC)
-                throw new IOException("adfReadDirCBlock : T_DIRC not found");
-            if (dirc.HeaderKey != nSect)
-                throw new IOException("adfReadDirCBlock : headerKey!=nSect");
+            var dirCacheBlock = DirCacheBlockReader.Read(blockBytes);
+            if (dirCacheBlock.HeaderKey != nSect)
+            {
+                throw new IOException($"Invalid dir cache block header key '{dirCacheBlock.HeaderKey}' is not equal to sector {nSect}");
+            }
 
-            return dirc;
+            return dirCacheBlock;
         }
 
-/*
- * adfWriteDirCblock
- *
- */
-        public static async Task AdfWriteDirCBlock(Volume vol, int nSect, DirCacheBlock dirc)
+        public static async Task WriteDirCacheBlock(Volume vol, int nSect, DirCacheBlock dirCacheBlock)
         {
-            // uint8_t buf[LOGICAL_BLOCK_SIZE];
-            // uint32_t newSum;
+            dirCacheBlock.HeaderKey = nSect;
 
-            dirc.Type = Constants.T_DIRC;
-            dirc.HeaderKey = nSect;
-
-//             memcpy(buf, dirc, LOGICAL_BLOCK_SIZE);
-// #ifdef LITT_ENDIAN
-//             swapEndian(buf, SWBL_CACHE);
-// #endif
-//
-//             newSum = adfNormalSum(buf, 20, LOGICAL_BLOCK_SIZE);
-//             swLong(buf+20,newSum);
-/*    *(int32_t*)(buf+20) = swapLong((uint8_t*)&newSum);*/
-
-            var buf = await DirCacheBlockWriter.BuildBlock(dirc, vol.BlockSize);
-
-            await Disk.AdfWriteBlock(vol, nSect, buf);
-/*puts("adfWriteDirCBlock");*/
+            var blockBytes = DirCacheBlockWriter.BuildBlock(dirCacheBlock, vol.BlockSize);
+            await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
 /*
@@ -532,7 +505,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
             var found = false;
             do
             {
-                var dirc = await AdfReadDirCBlock(vol, nSect);
+                var dirc = await ReadDirCacheBlock(vol, nSect);
                 offset = 0;
                 n = 0;
                 while (n < dirc.RecordsNb && !found)
@@ -562,7 +535,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
                             }
 
                             dirc.RecordsNb--;
-                            await AdfWriteDirCBlock(vol, dirc.HeaderKey, dirc);
+                            await WriteDirCacheBlock(vol, dirc.HeaderKey, dirc);
                         }
                         else
                         {
@@ -570,9 +543,9 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
                             * the only record in this dirc block and a previous dirc block exists 
                             */
                             Bitmap.AdfSetBlockFree(vol, dirc.HeaderKey);
-                            dirc = await AdfReadDirCBlock(vol, prevSect);
+                            dirc = await ReadDirCacheBlock(vol, prevSect);
                             dirc.NextDirC = 0;
-                            await AdfWriteDirCBlock(vol, prevSect, dirc);
+                            await WriteDirCacheBlock(vol, prevSect, dirc);
 
                             await Bitmap.AdfUpdateBitmap(vol);
                         }

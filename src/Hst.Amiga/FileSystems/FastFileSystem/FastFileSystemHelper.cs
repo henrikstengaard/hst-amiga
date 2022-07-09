@@ -40,8 +40,6 @@
                 }
 
                 var rootBlock = RootBlockReader.Parse(buffer);
-                rootBlock.Offset = (uint)offset;
-
                 rootBlocks.Add(rootBlock);
             } while (bytesRead == buffer.Length);
 
@@ -214,8 +212,6 @@
 
             // parse root block bytes
             var rootBlock = RootBlockReader.Parse(rootBlockBytes);
-            rootBlock.Offset = rootBlockOffset;
-            rootBlock.HeaderKey = (int)rootBlockOffset;
 
             var volume = new Volume
             {
@@ -223,11 +219,12 @@
                 DosType = dosType,
                 DataBlockSize = dataBlockSize,
                 UsesDirCache = usesDirCache,
+                RootBlockOffset = rootBlockOffset,
                 RootBlock = rootBlock,
                 Blocks = blocks,
                 Stream = stream,
                 Reserved = reserved,
-                BlockSize = blockSize,
+                BlockSize = (int)blockSize,
                 FirstBlock = reserved,
                 LastBlock = blocks - 1,
                 Mounted = true

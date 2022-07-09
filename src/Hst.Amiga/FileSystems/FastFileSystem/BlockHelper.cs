@@ -11,7 +11,7 @@
         public static int CalculateOffsetsPerBitmapBlockCount(uint blockSize)
         {
             // calculate bitmaps per bitmap blocks count
-            return Convert.ToInt32((blockSize - Amiga.SizeOf.Long) / Amiga.SizeOf.Long);
+            return Convert.ToInt32((blockSize - SizeOf.Long) / SizeOf.Long);
         }
 
         public static int CalculateBitmapsPerBitmapBlockCount(uint blockSize)
@@ -85,68 +85,7 @@
                 currentBitmapExtensionBlockOffset = nextBitmapExtensionBlockOffset;
             }
         }
-
-        /// <summary>
-        /// create root block for fast file system
-        /// </summary>
-        /// <param name="lowCyl"></param>
-        /// <param name="highCyl"></param>
-        /// <param name="heads"></param>
-        /// <param name="blocksPerTrack"></param>
-        /// <param name="reserved"></param>
-        /// <param name="preAlloc"></param>
-        /// <param name="blockSize"></param>
-        /// <param name="diskName"></param>
-        /// <returns></returns>
-        public static RootBlock CreateRootBlock(uint lowCyl, uint highCyl, uint heads, uint blocksPerTrack,
-            uint reserved, uint blockSize, string diskName)
-        {
-            var rootBlockOffset =
-                OffsetHelper.CalculateRootBlockOffset(lowCyl, highCyl, reserved, heads, blocksPerTrack);
-
-            var bitmapBlocks = CreateBitmapBlocks(lowCyl, highCyl, heads, blocksPerTrack, blockSize).ToList();
-            var bitmapExtensionBlocks =
-                CreateBitmapExtensionBlocks(bitmapBlocks.Skip(Constants.MaxBitmapBlockPointersInRootBlock), blockSize)
-                    .ToList();
-            
-            var rootBlock = new RootBlock
-            {
-                HeaderKey = (int)rootBlockOffset,
-                Offset = rootBlockOffset,
-                BitmapBlocksOffset = rootBlockOffset + 1,
-                DiskName = diskName,
-                BitmapBlocks = bitmapBlocks.Take(Constants.MaxBitmapBlockPointersInRootBlock).ToList(),
-                BitmapExtensionBlocks = bitmapExtensionBlocks.ToList(),
-                Extension = (int)rootBlockOffset
-            };
-
-            OffsetHelper.SetRootBlockOffsets(rootBlock);
-
-            rootBlock.BitmapExtensionBlocksOffset = bitmapExtensionBlocks.Count > 0
-                ? bitmapExtensionBlocks[0].Offset
-                : 0;
-
-            // create bitmap of blocks allocated by root block, bitmap blocks and bitmap extension blocks
-            var bitmaps = new Dictionary<uint, bool>
-            {
-                { rootBlockOffset, false }
-            };
-
-            foreach (var bitmapBlock in bitmapBlocks)
-            {
-                bitmaps[bitmapBlock.Offset] = false;
-            }
-
-            foreach (var bitmapExtensionBlock in bitmapExtensionBlocks)
-            {
-                bitmaps[bitmapExtensionBlock.Offset] = false;
-            }
-            
-            UpdateBitmaps(bitmapBlocks, bitmaps, reserved, blockSize);
-            
-            return rootBlock;
-        }
-
+        
         public static void UpdateBitmaps(IEnumerable<BitmapBlock> bitmapBlocks,
             IDictionary<uint, bool> blocksFreeMap, uint reserved, uint blockSize)
         {
@@ -194,28 +133,6 @@
             }
 
             return bitmapExtensionBlocks;
-        }
-        
-        public static async Task<RootBlock> ReadRootBlock(Volume vol, int nSect)
-        {
-            var buf = await Disk.AdfReadBlock(vol, nSect);
-
-            var root = RootBlockReader.Parse(buf);
-            root.BlockBytes = buf;
-            root.HeaderKey = nSect;
-            root.Offset = (uint)nSect;
-
-            return root;
-        }
-
-        public static async Task WriteRootBlock(Volume vol, int nSect, RootBlock root)
-        {
-            root.Type = Constants.T_HEADER;
-            root.HashTableSize = Constants.HT_SIZE;
-            root.SecType = Constants.ST_ROOT;
-
-            var blockBytes = RootBlockWriter.BuildBlock(root, vol.BlockSize);
-            await Disk.AdfWriteBlock(vol, nSect, blockBytes);
         }
     }
 }

@@ -32,7 +32,7 @@
                     continue;
                 }
 
-                var entryBlock = await Disk.AdfReadEntryBlock(volume, hashTable[i]);
+                var entryBlock = await Disk.ReadEntryBlock(volume, hashTable[i]);
 
                 var entry = AdfEntBlock2Entry(entryBlock);
                 entry.Sector = hashTable[i];
@@ -50,7 +50,7 @@
                 var nextSector = entryBlock.NextSameHash;
                 while (nextSector != 0)
                 {
-                    entryBlock = await Disk.AdfReadEntryBlock(volume, nextSector);
+                    entryBlock = await Disk.ReadEntryBlock(volume, nextSector);
 
                     entry = AdfEntBlock2Entry(entryBlock);
                     entry.Sector = nextSector;
@@ -184,7 +184,7 @@
             var found = false;
             do
             {
-                entry = await Disk.AdfReadEntryBlock(vol, nSect);
+                entry = await Disk.ReadEntryBlock(vol, nSect);
                 if (entry == null)
                 {
                     return new NameToEntryBlockResult
@@ -235,7 +235,7 @@
             {
                 HeaderKey = nSect,
                 Name = name,
-                Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlock.Offset : parent.HeaderKey,
+                Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : parent.HeaderKey,
                 Date = DateTime.Now,
                 SecType = Constants.ST_FILE
             };
@@ -291,7 +291,7 @@
                 if (dir.SecType == Constants.ST_ROOT && dir is RootBlock rootBlock)
                 {
                     rootBlock.FileSystemCreationDate = DateTime.Now;
-                    await BlockHelper.WriteRootBlock(vol, (int)vol.RootBlock.Offset, rootBlock);
+                    await Disk.WriteRootBlock(vol, (int)vol.RootBlockOffset, rootBlock);
                 }
                 else
                 {
@@ -305,7 +305,7 @@
             EntryBlock updEntry;
             do
             {
-                updEntry = await Disk.AdfReadEntryBlock(vol, nSect);
+                updEntry = await Disk.ReadEntryBlock(vol, nSect);
                 if (updEntry == null)
                     return -1;
                 if (updEntry.Name.Length == len)
@@ -403,7 +403,7 @@
             var name3 = MyToUpper(oldName, intl);
             /* newName == oldName ? */
 
-            var parent = await Disk.AdfReadEntryBlock(vol, pSect);
+            var parent = await Disk.ReadEntryBlock(vol, pSect);
 
             var hashValueO = AdfGetHashValue(oldName, intl);
 
@@ -435,13 +435,13 @@
             else
             {
                 /* in linked list */
-                var previous = await Disk.AdfReadEntryBlock(vol, prevSect);
+                var previous = await Disk.ReadEntryBlock(vol, prevSect);
                 /* entry.nextSameHash (tmpSect) could be == 0 */
                 previous.NextSameHash = tmpSect;
                 await WriteEntryBlock(vol, prevSect, previous);
             }
 
-            var nParent = await Disk.AdfReadEntryBlock(vol, nPSect);
+            var nParent = await Disk.ReadEntryBlock(vol, nPSect);
 
             var hashValueN = AdfGetHashValue(newName, intl);
             var nSect2 = nParent.HashTable[hashValueN];
@@ -457,7 +457,7 @@
                 EntryBlock previous;
                 do
                 {
-                    previous = await Disk.AdfReadEntryBlock(vol, nSect2);
+                    previous = await Disk.ReadEntryBlock(vol, nSect2);
 
                     if (previous.Name.Length == len)
                     {
@@ -497,7 +497,7 @@
         public static async Task WriteEntryBlock(Volume vol, int nSect, EntryBlock ent)
         {
             var blockBytes = EntryBlockWriter.BuildBlock(ent, vol.BlockSize);
-            await Disk.AdfWriteBlock(vol, nSect, blockBytes);
+            await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
         public static async Task RemoveEntry(Volume vol, EntryBlock parent, string name)
@@ -529,7 +529,7 @@
             /* in linked list */
             else
             {
-                var previous = await Disk.AdfReadEntryBlock(vol, nSect2);
+                var previous = await Disk.ReadEntryBlock(vol, nSect2);
                 previous.NextSameHash = entryBlock.NextSameHash;
                 await WriteEntryBlock(vol, nSect2, previous);
             }

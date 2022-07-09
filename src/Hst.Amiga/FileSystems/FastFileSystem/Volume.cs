@@ -6,7 +6,7 @@
 
     public class Volume
     {
-        public uint BlockSize { get; set; }
+        public int BlockSize { get; set; }
         public Stream Stream { get; set; }
         public uint FirstBlock { get; set; }
         public uint LastBlock { get; set; }
@@ -15,6 +15,7 @@
         public uint Reserved { get; set; }
         public int DosType { get; set; }
         public int DataBlockSize { get; set; }
+        public uint RootBlockOffset { get; set; }
         public RootBlock RootBlock { get; set; }
         public EntryBlock CurrentDirectory { get; set; }
         public bool Mounted { get; set; }

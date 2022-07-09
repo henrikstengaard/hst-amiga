@@ -5,8 +5,6 @@
 
     public class RootBlock : EntryBlock
     {
-        public uint Offset { get; set; }
-        
         public int BitmapFlags { get; set; }
         public int[] BitmapBlockOffsets { get; set; } // bmPages
         public uint BitmapBlocksOffset { get; set; }
@@ -15,16 +13,14 @@
         /// first bitmap extension block (when there's more than 25 bitmap blocks)
         /// </summary>
         public uint BitmapExtensionBlocksOffset { get; set; }
-        
-        public string DiskName { get; set; }
-        public DateTime RootAlterationDate { get; set; }
+
+        public string DiskName => Name;
+        public DateTime RootAlterationDate => Date;
         public DateTime DiskAlterationDate { get; set; }
         public DateTime FileSystemCreationDate { get; set; }
         
         public IEnumerable<BitmapBlock> BitmapBlocks { get; set; }
         public IEnumerable<BitmapExtensionBlock> BitmapExtensionBlocks { get; set; }
-
-        public int[] bmPages => BitmapBlockOffsets;
 
         public RootBlock()
         {
@@ -39,17 +35,16 @@
             BitmapFlags = -1;
 
             var now = DateTime.UtcNow;
-            RootAlterationDate = now;
+            Date = now;
             DiskAlterationDate = now;
             FileSystemCreationDate = now;
 
             Extension = 0;
             SecType = Constants.ST_ROOT;
-            
+
+            BitmapBlockOffsets = Array.Empty<int>();
             BitmapBlocks = new List<BitmapBlock>();
             BitmapExtensionBlocks = new List<BitmapExtensionBlock>();
-
-            //bmPages = new int[Constants.BM_SIZE];
         }
     }
 }
