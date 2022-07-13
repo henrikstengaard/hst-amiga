@@ -2,7 +2,7 @@
 {
     public static class Constants
     {
-        public const int BitmapsPerLong = 8 * Amiga.SizeOf.Long;
+        public const int BitmapsPerULong = 8 * SizeOf.ULong;
         public const int MaxBitmapBlockPointersInRootBlock = 25;
         
 /* ----- FILE SYSTEM ----- */

@@ -18,7 +18,7 @@
         {
             // calculate bitmaps per bitmap blocks count
             return Convert.ToInt32(CalculateOffsetsPerBitmapBlockCount(blockSize) *
-                                   Constants.BitmapsPerLong);
+                                   Constants.BitmapsPerULong);
         }
 
         public static IEnumerable<BitmapBlock> CreateBitmapBlocks(uint lowCyl, uint highCyl, uint heads,
@@ -39,7 +39,8 @@
 
             return blocksFreeMap.ChunkBy(bitmapsPerBitmapBlockCount).Select(x => new BitmapBlock
             {
-                BlocksFreeMap = x.ToArray()
+                Map = x.ChunkBy(Constants.BitmapsPerULong).Select(bitmapBlockMaps =>
+                    MapBlockHelper.ConvertBlockFreeMapToUInt32(bitmapBlockMaps.ToArray())).ToArray()
             }).ToList();
         }
 
@@ -48,7 +49,7 @@
         {
             // calculate pointers per bitmap extension block based on block size - next pointer
             var pointersPerBitmapExtensionBlock =
-                Convert.ToInt32((blockSize - Amiga.SizeOf.Long) / Amiga.SizeOf.Long);
+                Convert.ToInt32((blockSize - SizeOf.Long) / SizeOf.Long);
 
             // chunk bitmap blocks
             var bitmapBlockChunks = bitmapBlocks.ChunkBy(pointersPerBitmapExtensionBlock).ToList();
@@ -85,7 +86,7 @@
                 currentBitmapExtensionBlockOffset = nextBitmapExtensionBlockOffset;
             }
         }
-        
+
         public static void UpdateBitmaps(IEnumerable<BitmapBlock> bitmapBlocks,
             IDictionary<uint, bool> blocksFreeMap, uint reserved, uint blockSize)
         {
@@ -95,12 +96,14 @@
             foreach (var entry in blocksFreeMap)
             {
                 var bitmapBlockIndex = Convert.ToInt32((entry.Key - reserved) / bitmapsPerBitmapBlockCount);
-                var blockIndex = (entry.Key - reserved) % bitmapsPerBitmapBlockCount;
+                var blockIndex = (int)((entry.Key - reserved) % bitmapsPerBitmapBlockCount);
 
-                bitmapBlocksList[bitmapBlockIndex].BlocksFreeMap[blockIndex] = entry.Value;
+                MapBlockHelper.SetBlock(bitmapBlocksList[bitmapBlockIndex], blockIndex,
+                    entry.Value ? BitmapBlock.BlockState.Free : BitmapBlock.BlockState.Used);
+                //bitmapBlocksList[bitmapBlockIndex].BlocksFreeMap[blockIndex] = entry.Value;
             }
         }
-        
+
         public static async Task<IEnumerable<BitmapBlock>> ReadBitmapBlocks(Volume volume,
             IEnumerable<uint> bitmapBlockOffsets)
         {

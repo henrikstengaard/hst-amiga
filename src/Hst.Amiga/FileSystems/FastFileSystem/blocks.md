@@ -31,6 +31,16 @@
 | 0x1F8  | LONG          | extension      | FFS : first directory cache                       |
 | 0x1FC  | LONG          | secType        | = 1                                               |
 
+## Bitmap Block
+
+A bitmap block contain information about free and allocated blocks.
+One bit is used per block. If the bit is set, the block is free, a cleared bit means an allocated block.
+
+| Offset | Data type   | Name     | Comment              |
+|--------|-------------|----------|----------------------|
+| 0x000  | ULONG       | Checksum |                      |
+| 0x004  | ULONG * 127 | Map      |                      |
+
 ## Dir block
 
 | Offset | Data type     | Name              | Comment                     |

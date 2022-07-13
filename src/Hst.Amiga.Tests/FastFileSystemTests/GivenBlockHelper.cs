@@ -1,19 +1,26 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests
 {
+    using System;
     using System.Collections.Generic;
     using System.Linq;
+    using Core.Extensions;
     using FileSystems.FastFileSystem;
     using Xunit;
 
     public class GivenBlockHelper
     {
         [Fact]
-        public void WhenCreateBitmapBlockThenBitmapsMatchBlocksAndAreSetToBeFree()
+        public void WhenCreateBitmapBlocksForDoubleDensityFloppyDiskThenMapEntriesHaveBlocksSetFree()
         {
-            // calculate blocks
+            // arrange - calculate blocks for double density disk
             var cylinders = FloppyDiskConstants.DoubleDensity.HighCyl - FloppyDiskConstants.DoubleDensity.LowCyl + 1;
             var blocks = cylinders * FloppyDiskConstants.DoubleDensity.Heads *
                          FloppyDiskConstants.DoubleDensity.Sectors;
+
+            // arrange - create expected free map entries with bit set to 1 (true/free) for double density floppy disk blocks
+            var expectedFreeMapEntries = Enumerable.Range(0, blocks).Select(_ => true)
+                .ChunkBy(Constants.BitmapsPerULong)
+                .Select(x => MapBlockHelper.ConvertBlockFreeMapToUInt32(x.ToArray())).ToList();
 
             // act - create bitmap blocks
             var bitmapBlocks = BlockHelper.CreateBitmapBlocks(
@@ -23,13 +30,11 @@
                 FloppyDiskConstants.DoubleDensity.Sectors,
                 FloppyDiskConstants.BlockSize).ToList();
 
-            // assert - 1 bitmap block is created and have bitmaps matching blocks
+            // assert - 1 bitmap block is created for a double density floppy disk
             Assert.Single(bitmapBlocks);
-            Assert.NotEmpty(bitmapBlocks[0].BlocksFreeMap);
-            Assert.Equal(blocks, bitmapBlocks[0].BlocksFreeMap.Length);
 
-            // assert - bitmaps are set to be free (true)
-            Assert.Equal(blocks, bitmapBlocks[0].BlocksFreeMap.Count(x => x));
+            // assert - bitmap block has map entries for double density floppy disk set to 1 (true/free)
+            Assert.Equal(expectedFreeMapEntries, bitmapBlocks[0].Map);
         }
 
         [Fact]
@@ -41,7 +46,7 @@
             var offsetsPerBitmapExtensionBlock = (blockSize - nextPointerSize) / pointerSize;
             var bitmapBlocksCount = offsetsPerBitmapExtensionBlock - 10;
             var bitmapBlocks = Enumerable.Range(1, bitmapBlocksCount)
-                .Select(x => new BitmapBlock()).ToList();
+                .Select(_ => new BitmapBlock()).ToList();
 
             var bitmapExtensionBlocks = BlockHelper
                 .CreateBitmapExtensionBlocks(bitmapBlocks, blockSize)
@@ -62,7 +67,7 @@
             var offsetsPerBitmapExtensionBlock = (blockSize - nextPointerSize) / pointerSize;
             var bitmapBlocksCount = offsetsPerBitmapExtensionBlock + 10;
             var bitmapBlocks = Enumerable.Range(1, bitmapBlocksCount)
-                .Select(x => new BitmapBlock()).ToList();
+                .Select(_ => new BitmapBlock()).ToList();
 
             var bitmapExtensionBlocks = BlockHelper
                 .CreateBitmapExtensionBlocks(bitmapBlocks, blockSize)
@@ -81,15 +86,8 @@
         [Fact]
         public void WhenUpdateBitmapsForBitmapBlocksThenBitmapsAreChanged()
         {
-            var bitmapBlocks = BlockHelper.CreateBitmapBlocks(
-                FloppyDiskConstants.DoubleDensity.LowCyl,
-                FloppyDiskConstants.DoubleDensity.HighCyl,
-                FloppyDiskConstants.DoubleDensity.Heads,
-                FloppyDiskConstants.DoubleDensity.Sectors,
-                FloppyDiskConstants.BlockSize).ToList();
-
-            var rootBlockOffset = 880U;
-            var bitmapBlockOffset = 881U;
+            const uint rootBlockOffset = 880U;
+            const uint bitmapBlockOffset = 881U;
 
             var bitmaps = new Dictionary<uint, bool>
             {
@@ -97,14 +95,30 @@
                 { bitmapBlockOffset, false }
             };
 
+            var bitmapBlocks = BlockHelper.CreateBitmapBlocks(
+                FloppyDiskConstants.DoubleDensity.LowCyl,
+                FloppyDiskConstants.DoubleDensity.HighCyl,
+                FloppyDiskConstants.DoubleDensity.Heads,
+                FloppyDiskConstants.DoubleDensity.Sectors,
+                FloppyDiskConstants.BlockSize).ToList();
+
+
             // act - update bitmaps
             BlockHelper.UpdateBitmaps(bitmapBlocks, bitmaps, FloppyDiskConstants.DoubleDensity.ReservedBlocks,
                 FloppyDiskConstants.BlockSize);
 
-            // assert - bitmaps for root block and bitmap block offsets are changed to false
+            // assert - 1 bitmap block is created for a double density floppy disk
             Assert.Single(bitmapBlocks);
-            Assert.False(bitmapBlocks[0].BlocksFreeMap[rootBlockOffset]);
-            Assert.False(bitmapBlocks[0].BlocksFreeMap[bitmapBlockOffset]);
+
+            // assert - root block offset 880 is set 0 (used)
+            var mapEntry = Convert.ToInt32(Math.Floor((double)rootBlockOffset / Constants.BitmapsPerULong));
+            var blockOffset = (int)(rootBlockOffset % Constants.BitmapsPerULong);
+            Assert.Equal(0U, bitmapBlocks[0].Map[mapEntry] & (1 << blockOffset));
+
+            // assert - bitmap block offset 881 is set 0 (used)
+            mapEntry = Convert.ToInt32(Math.Floor((double)bitmapBlockOffset / Constants.BitmapsPerULong));
+            blockOffset = (int)(bitmapBlockOffset % Constants.BitmapsPerULong);
+            Assert.Equal(0U, bitmapBlocks[0].Map[mapEntry] & (1 << blockOffset));
         }
     }
 }

@@ -6,40 +6,67 @@
     public static class MapBlockHelper
     {
         /// <summary>
-        /// Convert block free map to byte array. One bit is used per block. If the bit is set, the block is free, a cleared bit means an allocated block.
+        /// Convert map entry to block free map. One bit is used per block. If the bit is set 1, the block is free. Blocks set 0 are used.
+        /// UInt:   4294918143
+        /// Bytes:  |- FF -||- FF -||- 3F -||- FF -|
+        /// Converts to
         ///           3         2         1 
         /// Blocks: 21098765432109876543210987654321
         /// Bits:   11111111111111110011111111111111
         /// </summary>
-        /// <param name="blockFreeMap"></param>
+        /// <param name="mapEntry"></param>
         /// <returns></returns>
-        public static byte[] ConvertBlockFreeMapToByteArray(bool[] blockFreeMap)
-        {
-            var length = blockFreeMap.Length % 8 != 0 ? Convert.ToInt32(Math.Ceiling((double)blockFreeMap.Length / 8)) : blockFreeMap.Length / 8;
-            
-            var bytes = new byte[length];
-            for (int byteOffset = 0, bitOffset = 0; byteOffset < length; byteOffset++, bitOffset += 8)
-            {
-                for (int offset = 0; offset < 8 && bitOffset + offset < blockFreeMap.Length ; offset++)
-                    bytes[byteOffset] |= (byte)((blockFreeMap[bitOffset + offset] ? 1 : 0) << offset);
-            }
-            
-            Array.Reverse(bytes);
-
-            return bytes;
-        }
-        
-        public static bool[] ConvertByteArrayToBlockFreeMap(byte[] byteArray)
+        public static bool[] ConvertUInt32ToBlockFreeMap(uint mapEntry)
         {
             var blockFreeMap = new List<bool>();
-            for (int byteOffset = byteArray.Length - 1; byteOffset >= 0; byteOffset--)
+            for (var bitOffset = 0; bitOffset < 32; bitOffset++)
             {
-                for (int bitOffset = 0; bitOffset < 8; bitOffset++)
-                {
-                    blockFreeMap.Add((byteArray[byteOffset] & 1 << bitOffset) != 0);
-                }
+                blockFreeMap.Add((mapEntry & (1 << bitOffset)) != 0);
             }
             return blockFreeMap.ToArray();
+        }
+
+        /// <summary>
+        /// Convert block free map to map entry. One bit is used per block. If the bit is set 1, the block is free. Blocks set 0 are used.
+        ///           3         2         1 
+        /// Blocks: 21098765432109876543210987654321
+        /// Bits:   11111111111111110011111111111111
+        /// Converts to
+        /// UInt:   4294918143
+        /// Bytes:  |- FF -||- FF -||- 3F -||- FF -|
+        /// </summary>
+        /// <param name="blockFreeMap"></param>
+        /// <returns></returns>
+        public static uint ConvertBlockFreeMapToUInt32(bool[] blockFreeMap)
+        {
+            uint mapEntry = 0;
+            for (int block = 0; block < 32 && block < blockFreeMap.Length; block++)
+            {
+                mapEntry |= (uint)((blockFreeMap[block] ? 1 : 0) << block);
+            }
+            return mapEntry;
+        }
+
+        /// <summary>
+        /// set block state in bitmap block
+        /// </summary>
+        /// <param name="bitmapBlock"></param>
+        /// <param name="block"></param>
+        /// <param name="state"></param>
+        public static void SetBlock(BitmapBlock bitmapBlock, int block, BitmapBlock.BlockState state)
+        {
+            var mapEntryOffset = Convert.ToInt32(Math.Floor((double)block / 32));
+
+            if (mapEntryOffset >= bitmapBlock.Map.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(block), $"Block {block} is out of range");
+            }
+            
+            var mapEntryBlockOffset = block % 32;
+            
+            bitmapBlock.Map[mapEntryOffset] = state == BitmapBlock.BlockState.Free
+                ? bitmapBlock.Map[mapEntryOffset] | (uint)(1 << mapEntryBlockOffset)
+                : bitmapBlock.Map[mapEntryOffset] ^ (uint)(1 << mapEntryBlockOffset);
         }
     }
 }

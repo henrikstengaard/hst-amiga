@@ -34,7 +34,7 @@
         public static async Task<BitmapBlock> ReadBitmapBlock(Volume volume, uint sector)
         {
             var blockBytes = await ReadBlockBytes(volume, (int)sector);
-            return await BitmapBlockReader.Parse(blockBytes);
+            return BitmapBlockReader.Parse(blockBytes);
         }
         
         public static async Task<BitmapExtensionBlock> ReadBitmapExtensionBlock(Volume volume, uint sector)

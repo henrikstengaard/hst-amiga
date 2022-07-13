@@ -80,7 +80,7 @@
                 
                 // read bitmap block from hdf stream
                 var bitmapBlockBytes = await Amiga.Disk.ReadBlock(adfStream, (int)fileSystemBlockSize);
-                var bitmapBlock = await BitmapBlockReader.Parse(bitmapBlockBytes);
+                var bitmapBlock = BitmapBlockReader.Parse(bitmapBlockBytes);
 
                 // create expected blocks free map, used blocks are set false and free blocks are set true:
                 // - root block
@@ -93,8 +93,11 @@
                     expectedBlocksFreeMap[b] = !((blockOffset >= rootBlockOffset &&
                                                   blockOffset <= rootBlockOffset + bitmapBlocksCount) || blockOffset >= blocks + reservedBlocks);
                 }
-                
-                Assert.Equal(expectedBlocksFreeMap, bitmapBlock.BlocksFreeMap);
+
+                var expectedMapEntries = expectedBlocksFreeMap.ChunkBy(Constants.BitmapsPerULong)
+                    .Select(x => MapBlockHelper.ConvertBlockFreeMapToUInt32(x.ToArray())).ToArray();
+
+                Assert.Equal(expectedMapEntries, bitmapBlock.Map);
             }
         }
         
@@ -165,7 +168,7 @@
                 
                 // read bitmap block from hdf stream
                 var bitmapBlockBytes = await Amiga.Disk.ReadBlock(hdfStream, (int)partition.FileSystemBlockSize);
-                var bitmapBlock = await BitmapBlockReader.Parse(bitmapBlockBytes);
+                var bitmapBlock = BitmapBlockReader.Parse(bitmapBlockBytes);
 
                 // create expected blocks free map, used blocks are set false and free blocks are set true:
                 // - root block
@@ -179,9 +182,11 @@
                                                   blockOffset <= rootBlockOffset + bitmapBlocksCount) || blockOffset >= blocks + partition.Reserved);
                 }
                 
-                Assert.Equal(expectedBlocksFreeMap, bitmapBlock.BlocksFreeMap);
+                var expectedMapEntries = expectedBlocksFreeMap.ChunkBy(Constants.BitmapsPerULong)
+                    .Select(x => MapBlockHelper.ConvertBlockFreeMapToUInt32(x.ToArray())).ToArray();
+                
+                Assert.Equal(expectedMapEntries, bitmapBlock.Map);
             }
         }
-        
     }
 }

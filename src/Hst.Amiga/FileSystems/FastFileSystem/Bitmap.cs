@@ -61,7 +61,7 @@
 
         public static async Task AdfWriteBitmapBlock(Volume vol, int nSect, BitmapBlock bitm)
         {
-            var blockBytes = await BitmapBlockWriter.BuildBlock(bitm);
+            var blockBytes = BitmapBlockWriter.BuildBlock(bitm, vol.BlockSize);
             await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
@@ -158,7 +158,7 @@
         public static async Task<BitmapBlock> AdfReadBitmapBlock(Volume vol, int nSect)
         {
             var blockBytes = await Disk.ReadBlock(vol, nSect);
-            return await BitmapBlockReader.Parse(blockBytes);
+            return BitmapBlockReader.Parse(blockBytes);
         }
 
         public static async Task<BitmapExtensionBlock> AdfReadBitmapExtBlock(Volume vol, int nSect)

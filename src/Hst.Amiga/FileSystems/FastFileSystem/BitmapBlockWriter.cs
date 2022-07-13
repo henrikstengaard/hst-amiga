@@ -1,34 +1,32 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    using System.IO;
-    using System.Linq;
-    using System.Threading.Tasks;
-    using Core.Extensions;
+    using System;
+    using Core.Converters;
 
     public static class BitmapBlockWriter
     {
-        public static async Task<byte[]> BuildBlock(BitmapBlock bitmapBlock)
+        public static byte[] BuildBlock(BitmapBlock bitmapBlock, int blockSize)
         {
-            var blockStream =
-                new MemoryStream(
-                    bitmapBlock.BlockBytes == null || bitmapBlock.BlockBytes.Length == 0
-                        ? new byte[512]
-                        : bitmapBlock.BlockBytes);
-            
-            await blockStream.WriteBigEndianInt32(0); // checksum
+            var mapEntries = (blockSize - SizeOf.ULong) / SizeOf.Long;
 
-            foreach (var map in bitmapBlock.BlocksFreeMap.ChunkBy(32))
+            var blockBytes = new byte[blockSize];
+            if (bitmapBlock.BlockBytes != null)
             {
-                var mapBytes = MapBlockHelper.ConvertBlockFreeMapToByteArray(map.ToArray());
-                await blockStream.WriteBytes(mapBytes);
+                Array.Copy(bitmapBlock.BlockBytes, 0, blockBytes, 0, blockSize);
             }
-                
-            // calculate and update checksum
-            var bitmapBytes = blockStream.ToArray();
-            bitmapBlock.Checksum = ChecksumHelper.UpdateChecksum(bitmapBytes, 0);
-            bitmapBlock.BlockBytes = bitmapBytes;
 
-            return bitmapBytes;            
+            BigEndianConverter.ConvertInt32ToBytes(bitmapBlock.Checksum, blockBytes, 0x0);
+
+            for (var i = 0; i < mapEntries; i++)
+            {
+                BigEndianConverter.ConvertUInt32ToBytes(i < bitmapBlock.Map.Length ? bitmapBlock.Map[i] : 0,
+                    blockBytes, 0x4 + i * SizeOf.ULong);
+            }
+
+            bitmapBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 0x0);
+            bitmapBlock.BlockBytes = blockBytes;
+
+            return blockBytes;
         }
     }
 }

@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="FileSystems" />
+    <Folder Include="FileSystems\FastFileSystem\Blocks" />
     <Folder Include="RigidDiskBlocks" />
   </ItemGroup>
   <ItemGroup>

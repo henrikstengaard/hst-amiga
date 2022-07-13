@@ -1,6 +1,8 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests
 {
+    using System.Linq;
     using System.Threading.Tasks;
+    using Core.Extensions;
     using FileSystems.FastFileSystem;
     using Xunit;
 
@@ -11,7 +13,7 @@
         {
             // 2 blocks reserved for boot block
             var bootBlocks = 2;
-            
+
             // arrange - create bitmap block for blank formatted adf
             var blocks = FloppyDiskConstants.DoubleDensity.Size / FloppyDiskConstants.BlockSize;
             var blockFree = new bool[blocks];
@@ -32,13 +34,16 @@
             var bitmapBlockOffset = rootBlockOffset + 1;
             blockFree[rootBlockOffset - bootBlocks] = false;
             blockFree[bitmapBlockOffset - bootBlocks] = false;
-            var bitmapBlock = new BitmapBlock
+
+            var bitmapBlock = new BitmapBlock(FloppyDiskConstants.BlockSize)
             {
-                BlocksFreeMap = blockFree
+                Map = blockFree.ChunkBy(Constants.BitmapsPerULong)
+                    .Select(x => MapBlockHelper.ConvertBlockFreeMapToUInt32(x.ToArray()))
+                    .ToArray()
             };
 
             // act - build bitmap block bytes
-            var bitmapBlockBytes = await BitmapBlockWriter.BuildBlock(bitmapBlock);
+            var bitmapBlockBytes = BitmapBlockWriter.BuildBlock(bitmapBlock, FloppyDiskConstants.BlockSize);
 
             // assert - bitmap block bytes are equal to expected
             var expectedBitmapBlockBytes = await CreateExpectedBitmapBlockBytes();

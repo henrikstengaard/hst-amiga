@@ -98,7 +98,7 @@
                 stream.Seek(bitmapBlockByteOffset, SeekOrigin.Begin);
 
                 // build and write bitmap block
-                var bitmapBlockBytes = await BitmapBlockWriter.BuildBlock(bitmapBlock);
+                var bitmapBlockBytes = BitmapBlockWriter.BuildBlock(bitmapBlock, (int)fileSystemBlockSize);
                 await stream.WriteBytes(bitmapBlockBytes);
             }
 
@@ -132,7 +132,7 @@
                     stream.Seek(bitmapBlockByteOffset, SeekOrigin.Begin);
 
                     // build and write bitmap block
-                    var bitmapBlockBytes = await BitmapBlockWriter.BuildBlock(bitmapBlock);
+                    var bitmapBlockBytes = BitmapBlockWriter.BuildBlock(bitmapBlock, (int)fileSystemBlockSize);
                     await stream.WriteBytes(bitmapBlockBytes);
                 }
             }
