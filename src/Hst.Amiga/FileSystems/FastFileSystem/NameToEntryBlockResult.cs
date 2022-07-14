@@ -1,5 +1,7 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
+    using Blocks;
+
     public class NameToEntryBlockResult
     {
         public int NSect { get; set; }

@@ -8,6 +8,7 @@
     using Core.Extensions;
     using Extensions;
     using FileSystems.FastFileSystem;
+    using FileSystems.FastFileSystem.Blocks;
     using RigidDiskBlocks;
     using Xunit;
     using File = System.IO.File;

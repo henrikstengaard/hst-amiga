@@ -2,6 +2,7 @@
 {
     using System.Linq;
     using FileSystems.FastFileSystem;
+    using FileSystems.FastFileSystem.Blocks;
     using Xunit;
     using BlockHelper = FileSystems.FastFileSystem.BlockHelper;
 

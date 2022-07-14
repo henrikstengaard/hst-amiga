@@ -70,7 +70,25 @@ One bit is used per block. If the bit is set, the block is free, a cleared bit m
 | 0x1F8  | LONG          | extension         | FFS : first directory cache |
 | 0x1FC  | LONG          | secType           | = 2                         |
 
-## File header block
+## File Ext Block
+
+| Offset | Data type | Name           | Comment                     |
+|--------|-----------|----------------|-----------------------------|
+| 0x000  | LONG      | Type           | = 0x10                      |
+| 0x004  | LONG      | Header key     | current block number        |
+| 0x008  | LONG      | High seq       |                             |
+| 0x00C  | LONG      | Data size      | = 0                         |
+| 0x010  | LONG      | First data     | = 0                         |
+| 0x014  | ULONG     | Checksum       |                             |
+| 0x018  | LONG * 72 | Datatable      | Datatable with 72 items     |
+| 0x138  | LONG * 45 | Reserved       | = 0                         |
+| 0x1EC  | LONG      | Info           | = 0                         |
+| 0x1F0  | LONG      | Next same hash |                             |
+| 0x1F4  | LONG      | Parent         | Header block                |
+| 0x1F8  | LONG      | Extension      | Next header extension block |
+| 0x1FC  | LONG      | SecType        | = -3                        |
+
+## File Header Block
 
 | Offset | Data type     | Name              | Comment                                |
 |--------|---------------|-------------------|----------------------------------------|

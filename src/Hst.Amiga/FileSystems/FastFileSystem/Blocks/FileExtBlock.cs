@@ -1,23 +1,8 @@
-﻿namespace Hst.Amiga.FileSystems.FastFileSystem
+﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
-    public class FileExtBlock : IHeaderBlock
+    public class FileExtBlock : IBlock, IHeaderBlock
     {
-        // struct bFileExtBlock {
-        // 000	int32_t	type;		/* == 0x10 */
-        // 004	int32_t	headerKey;
-        // 008	int32_t	highSeq;
-        // 00c	int32_t	dataSize;	/* == 0 */
-        // 010	int32_t	firstData;	/* == 0 */
-        // 014	ULONG	checkSum;
-        // 018	int32_t	dataBlocks[MAX_DATABLK];
-        //             int32_t	r[45];
-        //             int32_t	info;		/* == 0 */
-        //             int32_t	nextSameHash;	/* == 0 */
-        // 1f4	int32_t	parent;		/* header block */
-        // 1f8	int32_t	extension;	/* next header extension block */
-        // 1fc	int32_t	secType;	/* -3 */	
-        // };
-
+        public uint Offset { get; set; }
         public byte[] BlockBytes { get; set; }
 
         public int Type { get; }

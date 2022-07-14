@@ -2,7 +2,7 @@
 {
     using System;
     using System.Threading.Tasks;
-    using FileSystems.FastFileSystem;
+    using FileSystems.FastFileSystem.Blocks;
     using Xunit;
 
     public class GivenRootBlockWriter : FastFileSystemTestBase

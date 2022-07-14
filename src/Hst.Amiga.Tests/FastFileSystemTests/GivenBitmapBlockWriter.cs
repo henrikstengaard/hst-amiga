@@ -4,6 +4,7 @@
     using System.Threading.Tasks;
     using Core.Extensions;
     using FileSystems.FastFileSystem;
+    using FileSystems.FastFileSystem.Blocks;
     using Xunit;
 
     public class GivenBitmapBlockWriter : FastFileSystemTestBase

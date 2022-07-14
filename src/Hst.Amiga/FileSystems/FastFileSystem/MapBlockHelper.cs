@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using Blocks;
 
     public static class MapBlockHelper
     {

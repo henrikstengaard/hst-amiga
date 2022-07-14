@@ -1,4 +1,4 @@
-﻿namespace Hst.Amiga.FileSystems.FastFileSystem
+﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
     using System;
 

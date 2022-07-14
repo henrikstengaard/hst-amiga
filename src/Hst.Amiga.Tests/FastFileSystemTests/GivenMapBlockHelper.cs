@@ -2,6 +2,7 @@
 {
     using System;
     using FileSystems.FastFileSystem;
+    using FileSystems.FastFileSystem.Blocks;
     using Xunit;
 
     public class GivenMapBlockHelper

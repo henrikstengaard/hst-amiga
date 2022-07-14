@@ -1,8 +1,8 @@
-﻿namespace Hst.Amiga.FileSystems.FastFileSystem
+﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
     using System.Collections.Generic;
     using System.IO;
-    using Core.Converters;
+    using Hst.Core.Converters;
 
     public static class BitmapBlockReader
     {

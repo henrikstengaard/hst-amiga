@@ -5,6 +5,7 @@
     using System.Linq;
     using Core.Extensions;
     using FileSystems.FastFileSystem;
+    using FileSystems.FastFileSystem.Blocks;
     using Xunit;
 
     public class GivenBlockHelper

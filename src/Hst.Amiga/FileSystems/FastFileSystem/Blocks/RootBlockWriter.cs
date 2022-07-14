@@ -1,8 +1,8 @@
-﻿namespace Hst.Amiga.FileSystems.FastFileSystem
+﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
     using System;
-    using Core.Converters;
-    using Amiga.Extensions;
+    using Hst.Amiga.Extensions;
+    using Hst.Core.Converters;
 
     public static class RootBlockWriter
     {

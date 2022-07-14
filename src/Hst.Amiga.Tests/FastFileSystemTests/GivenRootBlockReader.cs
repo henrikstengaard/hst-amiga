@@ -3,6 +3,7 @@
     using System.IO;
     using System.Threading.Tasks;
     using FileSystems.FastFileSystem;
+    using FileSystems.FastFileSystem.Blocks;
     using Xunit;
 
     public class GivenRootBlockReader

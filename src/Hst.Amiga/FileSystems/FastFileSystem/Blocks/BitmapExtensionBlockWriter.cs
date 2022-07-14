@@ -1,8 +1,8 @@
-﻿namespace Hst.Amiga.FileSystems.FastFileSystem
+﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
     using System.IO;
     using System.Threading.Tasks;
-    using Core.Extensions;
+    using Hst.Core.Extensions;
 
     public static class BitmapExtensionBlockWriter
     {

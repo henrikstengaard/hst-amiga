@@ -6,6 +6,7 @@
     using System.Linq;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using Blocks;
     using Core.Extensions;
     using Extensions;
 

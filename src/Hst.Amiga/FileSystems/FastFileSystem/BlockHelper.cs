@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
+    using Blocks;
     using Core.Extensions;
 
     public static class BlockHelper

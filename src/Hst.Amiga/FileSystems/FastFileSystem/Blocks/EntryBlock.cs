@@ -1,8 +1,8 @@
-﻿namespace Hst.Amiga.FileSystems.FastFileSystem
+﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
     using System;
 
-    public class EntryBlock : IHeaderBlock, IEntryBlock
+    public class EntryBlock : IBlock, IHeaderBlock, IEntryBlock
     {
         /*
         struct bEntryBlock {
@@ -32,6 +32,7 @@
         // 1fc	int32_t	secType;
         };
          */
+        public uint Offset { get; set; }
         public byte[] BlockBytes { get; set; }
         
         public int Type { get; set; } // 0x000
