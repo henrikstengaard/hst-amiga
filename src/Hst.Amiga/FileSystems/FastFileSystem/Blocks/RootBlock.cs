@@ -5,6 +5,9 @@
 
     public class RootBlock : EntryBlock
     {
+        public override int Type => Constants.T_HEADER;
+        public override int SecType => Constants.ST_ROOT;
+        
         public int BitmapFlags { get; set; }
         public int[] BitmapBlockOffsets { get; set; } // bmPages
         public uint BitmapBlocksOffset { get; set; }
@@ -24,7 +27,6 @@
 
         public RootBlock()
         {
-            Type = Constants.T_HEADER;
             HeaderKey = 0;
             HighSeq = 0;
             HashTableSize = Constants.HT_SIZE;
@@ -40,7 +42,6 @@
             FileSystemCreationDate = now;
 
             Extension = 0;
-            SecType = Constants.ST_ROOT;
 
             BitmapBlockOffsets = Array.Empty<int>();
             BitmapBlocks = new List<BitmapBlock>();

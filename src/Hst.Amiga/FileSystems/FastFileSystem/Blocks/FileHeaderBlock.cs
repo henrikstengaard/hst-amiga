@@ -2,10 +2,7 @@
 {
     public class FileHeaderBlock : EntryBlock
     {
-        public FileHeaderBlock()
-        {
-            Type = Constants.T_HEADER;
-            SecType = Constants.ST_FILE;
-        }
+        public override int Type => Constants.T_HEADER;
+        public override int SecType => Constants.ST_FILE;
     }
 }

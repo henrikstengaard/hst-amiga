@@ -2,7 +2,6 @@
 {
     using System.IO;
     using System.Threading.Tasks;
-    using FileSystems.FastFileSystem;
     using FileSystems.FastFileSystem.Blocks;
     using Xunit;
 
@@ -25,8 +24,8 @@
             Assert.Equal(512, bytesRead);
 
             // act - parse and build root block
-            var expectedRootBlock = RootBlockReader.Parse(rootBlockBytes);
-            var newRootBlockBytes = RootBlockWriter.BuildBlock(expectedRootBlock, 512);
+            var expectedRootBlock = RootBlockParser.Parse(rootBlockBytes);
+            var newRootBlockBytes = RootBlockBuilder.Build(expectedRootBlock, 512);
 
             // assert - root block and new root block bytes are equal
             Assert.Equal(rootBlockBytes, newRootBlockBytes);

@@ -2,11 +2,11 @@
 {
     using System;
     using Hst.Amiga.Extensions;
-    using Hst.Core.Converters;
+    using Core.Converters;
 
-    public static class RootBlockWriter
+    public static class RootBlockBuilder
     {
-        public static byte[] BuildBlock(RootBlock rootBlock, int blockSize)
+        public static byte[] Build(RootBlock rootBlock, int blockSize)
         {
             if (rootBlock.SecType != Constants.ST_ROOT)
             {

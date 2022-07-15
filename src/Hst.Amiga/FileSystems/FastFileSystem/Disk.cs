@@ -23,31 +23,107 @@
         public static async Task<RootBlock> ReadRootBlock(Volume volume, uint sector)
         {
             var blockBytes = await ReadBlockBytes(volume, (int)sector);
-            return RootBlockReader.Parse(blockBytes);
+            return RootBlockParser.Parse(blockBytes);
         }
         
         public static async Task WriteRootBlock(Volume volume, int nSect, RootBlock root)
         {
-            var blockBytes = RootBlockWriter.BuildBlock(root, volume.BlockSize);
+            var blockBytes = RootBlockBuilder.Build(root, volume.BlockSize);
             await WriteBlock(volume, nSect, blockBytes);
         }
         
         public static async Task<BitmapBlock> ReadBitmapBlock(Volume volume, uint sector)
         {
             var blockBytes = await ReadBlockBytes(volume, (int)sector);
-            return BitmapBlockReader.Parse(blockBytes);
+            return BitmapBlockParser.Parse(blockBytes);
         }
         
+        public static async Task WriteBitmapBlock(Volume vol, int nSect, BitmapBlock bitmapBlock)
+        {
+            var blockBytes = BitmapBlockBuilder.Build(bitmapBlock, vol.BlockSize);
+            await WriteBlock(vol, nSect, blockBytes);
+        }
+
         public static async Task<BitmapExtensionBlock> ReadBitmapExtensionBlock(Volume volume, uint sector)
         {
             var blockBytes = await ReadBlockBytes(volume, (int)sector);
-            return await BitmapExtensionBlockReader.Parse(blockBytes);
+            return BitmapExtensionBlockParser.Parse(blockBytes);
         }
 
         public static async Task<EntryBlock> ReadEntryBlock(Volume volume, int sector)
         {
             var blockBytes = await ReadBlockBytes(volume, sector);
-            return EntryBlockReader.Parse(blockBytes);
+            return EntryBlockParser.Parse(blockBytes);
+        }
+        
+        public static async Task<DataBlock> ReadDataBlock(Volume vol, int nSect)
+        {
+            var blockBytes = await ReadBlock(vol, nSect);
+
+            if (Macro.isOFS(vol.DosType))
+            {
+                var dBlock = DataBlockParser.Parse(blockBytes);
+                if (!IsSectorNumberValid(vol, dBlock.HeaderKey))
+                    throw new IOException("headerKey out of range");
+                if (!IsSectorNumberValid(vol, dBlock.NextData))
+                    throw new IOException("nextData out of range");
+
+                return dBlock;
+            }
+
+            return new DataBlock
+            {
+                BlockBytes = blockBytes,
+                Data = blockBytes
+            };
+        }
+        
+        public static async Task WriteDataBlock(Volume volume, int nSect, DataBlock dataBlock)
+        {
+            var blockBytes = Macro.isOFS(volume.DosType)
+                ? DataBlockBuilder.Build(dataBlock, volume.BlockSize)
+                : dataBlock.Data;
+            await WriteBlock(volume,nSect,blockBytes);
+        }        
+
+        public static async Task<FileExtBlock> ReadFileExtBlock(Volume volume, int nSect)
+        {
+            var blockBytes = await ReadBlockBytes(volume, nSect);
+            var fileExtBlock = FileExtBlockParser.Parse(blockBytes);
+
+            if (fileExtBlock.HeaderKey != nSect)
+            {
+                throw new IOException("Header key not equal to sector");
+            }
+
+            if (fileExtBlock.HighSeq < 0 || fileExtBlock.HighSeq > Constants.MAX_DATABLK)
+            {
+                throw new IOException("High seq out of range");
+            }
+            
+            if (!IsSectorNumberValid(volume, fileExtBlock.Parent))
+            {
+                throw new IOException("Parent out of range");
+            }
+
+            if (fileExtBlock.Extension != 0 && !IsSectorNumberValid(volume, fileExtBlock.Extension))
+            {
+                throw new IOException("Extension out of range");
+            }
+            
+            return fileExtBlock;
+        }
+
+        public static async Task WriteFileHdrBlock(Volume vol, int nSect, FileHeaderBlock fileHeaderBlock)
+        {
+            var blockBytes = EntryBlockBuilder.Build(fileHeaderBlock, vol.BlockSize);
+            await WriteBlock(vol, nSect, blockBytes);
+        }
+        
+        public static async Task WriteFileExtBlock(Volume vol, int nSect, FileExtBlock fileExtBlock)
+        {
+            var blockBytes = FileExtBlockBuilder.Build(fileExtBlock, vol.BlockSize);
+            await WriteBlock(vol, nSect, blockBytes);
         }
         
         /// <summary>

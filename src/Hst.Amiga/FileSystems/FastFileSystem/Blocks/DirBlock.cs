@@ -2,10 +2,12 @@
 {
     public class DirBlock : EntryBlock
     {
+        public override int Type => Constants.T_HEADER;
+        public override int SecType => Constants.ST_DIR;
+
         public DirBlock()
         {
-            Type = Constants.T_HEADER;
-            SecType = Constants.ST_DIR;
+            ByteSize = 0;
         }
     }
 }

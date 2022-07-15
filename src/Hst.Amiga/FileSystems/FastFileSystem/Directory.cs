@@ -232,16 +232,15 @@
                 throw new IOException($"Invalid secondary type '{parent.SecType}'");
             }
 
-            var entryBlock = new EntryBlock
+            var entryBlock = new FileHeaderBlock
             {
                 HeaderKey = nSect,
                 Name = name,
                 Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : parent.HeaderKey,
-                Date = DateTime.Now,
-                SecType = Constants.ST_FILE
+                Date = DateTime.Now
             };
 
-            await File.AdfWriteFileHdrBlock(vol, nSect, entryBlock);
+            await Disk.WriteFileHdrBlock(vol, nSect, entryBlock);
 
             if (vol.UsesDirCache)
             {
@@ -360,30 +359,20 @@
                 throw new IOException("adfCreateDir : no sector available");
             }
 
-            var dirBlock = EntryBlock.CreateDirBlock();
-            dirBlock.HeaderKey = nSect;
-            dirBlock.Name = name;
-
-            if (parent.SecType == Constants.ST_ROOT)
+            var dirBlock = new DirBlock
             {
-                dirBlock.Parent = vol.RootBlock.HeaderKey;
-            }
-            else
-            {
-                dirBlock.Parent = parent.HeaderKey;
-            }
-
-            dirBlock.Date = DateTime.Now;
+                HeaderKey = nSect,
+                Name = name,
+                Date = DateTime.Now,
+                Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : parent.HeaderKey
+            };
 
             if (vol.UsesDirCache)
             {
-                /* for adfCreateEmptyCache, will be added by adfWriteDirBlock */
-                dirBlock.SecType = Constants.ST_DIR;
                 await Cache.AdfAddInCache(vol, parent, dirBlock);
                 await Cache.AdfCreateEmptyCache(vol, dirBlock, -1);
             }
 
-            /* writes the dirblock, with the possible dircache assiocated */
             await WriteEntryBlock(vol, nSect, dirBlock);
 
             await Bitmap.AdfUpdateBitmap(vol);
@@ -497,7 +486,7 @@
 
         public static async Task WriteEntryBlock(Volume vol, int nSect, EntryBlock ent)
         {
-            var blockBytes = EntryBlockWriter.BuildBlock(ent, vol.BlockSize);
+            var blockBytes = EntryBlockBuilder.Build(ent, vol.BlockSize);
             await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
@@ -537,7 +526,7 @@
 
             if (entryBlock.SecType == Constants.ST_FILE)
             {
-                var fileHeaderBlock = EntryBlockReader.Parse(entryBlock.BlockBytes);
+                var fileHeaderBlock = EntryBlockParser.Parse(entryBlock.BlockBytes);
                 await File.AdfFreeFileBlocks(vol, fileHeaderBlock);
                 Bitmap.AdfSetBlockFree(vol, nSect); //marks the FileHeaderBlock as free in BitmapBlock
             }

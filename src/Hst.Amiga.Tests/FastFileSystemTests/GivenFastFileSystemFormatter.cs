@@ -56,7 +56,7 @@
             // assert - root block is present at root block offset and matches disk name
             adfStream.Seek(rootBlockOffset * fileSystemBlockSize, SeekOrigin.Begin);
             var rootBlockBytes = await Amiga.Disk.ReadBlock(adfStream, (int)fileSystemBlockSize);
-            var rootBlock = RootBlockReader.Parse(rootBlockBytes);
+            var rootBlock = RootBlockParser.Parse(rootBlockBytes);
             Assert.Equal("Workbench", rootBlock.DiskName);
 
             // calculate number of blocks partition contains
@@ -81,7 +81,7 @@
                 
                 // read bitmap block from hdf stream
                 var bitmapBlockBytes = await Amiga.Disk.ReadBlock(adfStream, (int)fileSystemBlockSize);
-                var bitmapBlock = BitmapBlockReader.Parse(bitmapBlockBytes);
+                var bitmapBlock = BitmapBlockParser.Parse(bitmapBlockBytes);
 
                 // create expected blocks free map, used blocks are set false and free blocks are set true:
                 // - root block
@@ -142,7 +142,7 @@
             // assert - root block is present at root block offset and matches disk name
             hdfStream.Seek(partitionStartOffset + rootBlockOffset * partition.FileSystemBlockSize, SeekOrigin.Begin);
             var rootBlockBytes = await Amiga.Disk.ReadBlock(hdfStream, (int)partition.FileSystemBlockSize);
-            var rootBlock = RootBlockReader.Parse(rootBlockBytes);
+            var rootBlock = RootBlockParser.Parse(rootBlockBytes);
             Assert.Equal("Workbench", rootBlock.DiskName);
 
             // calculate number of blocks partition contains
@@ -169,7 +169,7 @@
                 
                 // read bitmap block from hdf stream
                 var bitmapBlockBytes = await Amiga.Disk.ReadBlock(hdfStream, (int)partition.FileSystemBlockSize);
-                var bitmapBlock = BitmapBlockReader.Parse(bitmapBlockBytes);
+                var bitmapBlock = BitmapBlockParser.Parse(bitmapBlockBytes);
 
                 // create expected blocks free map, used blocks are set false and free blocks are set true:
                 // - root block

@@ -117,8 +117,6 @@
 
         private async Task AdfFileSeek(uint pos)
         {
-            //SECTNUM extBlock, nSect;
-            //uint32_t nPos;
             int i;
 
             var nPos = (int)Math.Min(pos, length);
@@ -127,10 +125,7 @@
             if (extBlock == -1)
             {
                 currentData =
-                    await File.AdfReadDataBlock(volume, fileHdr.DataBlocks[Constants.MAX_DATABLK - 1 - curDataPtr]);
-                // adfReadDataBlock(file->volume,
-                //     file->fileHdr->dataBlocks[MAX_DATABLK-1-file->curDataPtr],
-                //     file->currentData);
+                    await Disk.ReadDataBlock(volume, fileHdr.DataBlocks[Constants.MAX_DATABLK - 1 - curDataPtr]);
             }
             else
             {
@@ -138,7 +133,7 @@
                 i = 0;
                 while (i < extBlock && nSect != 0)
                 {
-                    currentExt = await File.AdfReadFileExtBlock(volume, nSect);
+                    currentExt = await Disk.ReadFileExtBlock(volume, nSect);
                     nSect = currentExt.Extension;
                 }
 
@@ -147,7 +142,7 @@
                     throw new IOException("error");
                 }
 
-                currentData = await File.AdfReadDataBlock(volume, currentExt.Index[posInExtBlk]);
+                currentData = await Disk.ReadDataBlock(volume, currentExt.Index[posInExtBlk]);
             }
         }
 
@@ -218,13 +213,11 @@
             // }
 
             var bytesRead = 0;
-            // bufPtr = buffer;
             var bufPtr = 0;
             while (bytesRead < n)
             {
                 var size = (int)Math.Min(n - bytesRead, blockSize - posInDataBlk);
 
-                // memcpy(bufPtr, dataPtr+file->posInDataBlk, size);
                 Array.Copy(dataPtr, posInDataBlk, buffer, bufPtr, size);
                 bufPtr += size;
                 pos += (uint)size;
@@ -275,12 +268,12 @@
                 {
                     if (nDataBlock == Constants.MAX_DATABLK)
                     {
-                        currentExt = await File.AdfReadFileExtBlock(volume, fileHdr.Extension);
+                        currentExt = await Disk.ReadFileExtBlock(volume, fileHdr.Extension);
                         posInExtBlk = 0;
                     }
                     else if (posInExtBlk == Constants.MAX_DATABLK)
                     {
-                        currentExt = await File.AdfReadFileExtBlock(volume, currentExt.Extension);
+                        currentExt = await Disk.ReadFileExtBlock(volume, currentExt.Extension);
                         posInExtBlk = 0;
                     }
 
@@ -289,7 +282,7 @@
                 }
             }
 
-            currentData = await File.AdfReadDataBlock(volume, nSect);
+            currentData = await Disk.ReadDataBlock(volume, nSect);
             data = currentData;
 
             if (Macro.isOFS(volume.DosType) && data.SeqNum != nDataBlock + 1)
@@ -306,24 +299,12 @@
  */
         public async Task<int> AdfWriteFile(int n, byte[] buffer)
         {
-            // int32_t bytesWritten;
-            // uint8_t *dataPtr, *bufPtr;
-            // int size, blockSize;
-            // struct bOFSDataBlock *dataB;
-
-            var bytesWritten = 0;
-            if (n == 0) return n;
-/*puts("adfWriteFile");*/
+            if (n == 0)
+            {
+                return n;
+            }
             var blockSize = volume.DataBlockSize;
             var dataPtr = currentData.Data;
-            //
-            // if (Macro.isOFS(volume.DosType))
-            // {
-            //     dataB =(struct bOFSDataBlock *)file->currentData;
-            //     dataPtr = dataB->data;
-            // }
-            // else
-            //     dataPtr = currentData;
 
             if (pos == 0 || posInDataBlk == blockSize)
             {
@@ -336,13 +317,12 @@
                 posInDataBlk = 0;
             }
 
-            bytesWritten = 0;
+            var bytesWritten = 0;
             var bufPtr = 0;
             while (bytesWritten < n)
             {
                 var size = (int)Math.Min(n - bytesWritten, blockSize - posInDataBlk);
 
-                // memcpy(dataPtr+file->posInDataBlk, bufPtr, size);
                 Array.Copy(buffer, bufPtr, dataPtr, posInDataBlk, size);
 
                 bufPtr += size;
@@ -364,17 +344,8 @@
             return bytesWritten;
         }
 
-        /*
- * adfCreateNextFileBlock
- *
- */
         public async Task<int> AdfCreateNextFileBlock()
         {
-            //    SECTNUM nSect, extSect;
-            //    struct bOFSDataBlock *data;
-            // unsigned int blockSize;
-            //    int i;
-/*puts("adfCreateNextFileBlock");*/
             var nSect = 0;
             var blockSize = volume.DataBlockSize;
 
@@ -382,10 +353,15 @@
             if (nDataBlock < Constants.MAX_DATABLK)
             {
                 nSect = Bitmap.AdfGet1FreeBlock(volume);
-                if (nSect == -1) return -1;
-/*printf("adfCreateNextFileBlock fhdr %ld\n",nSect);*/
+                if (nSect == -1)
+                {
+                    return -1;
+                }
+
                 if (nDataBlock == 0)
+                {
                     fileHdr.FirstData = nSect;
+                }
                 fileHdr.DataBlocks[Constants.MAX_DATABLK - 1 - nDataBlock] = nSect;
                 fileHdr.HighSeq++;
             }
@@ -395,19 +371,15 @@
                 if (nDataBlock % Constants.MAX_DATABLK == 0)
                 {
                     var extSect = Bitmap.AdfGet1FreeBlock(volume);
-/*printf("extSect=%ld\n",extSect);*/
-                    if (extSect == -1) return -1;
+                    if (extSect == -1)
+                    {
+                        return -1;
+                    }
 
                     /* the future block is the first file extension block */
                     if (nDataBlock == Constants.MAX_DATABLK)
                     {
                         currentExt = new FileExtBlock();
-                        // file->currentExt=(struct bFileExtBlock*)malloc(sizeof(struct bFileExtBlock));
-                        // if (!file->currentExt) {
-                        //     adfSetBlockFree(file->volume, extSect);
-                        //     (*adfEnv.eFct)("adfCreateNextFileBlock : malloc");
-                        //     return -1;
-                        // }
                         fileHdr.Extension = extSect;
                     }
 
@@ -415,8 +387,7 @@
                     if (nDataBlock >= 2 * Constants.MAX_DATABLK)
                     {
                         currentExt.Extension = extSect;
-/*printf ("write ext=%d\n",file->currentExt->headerKey);*/
-                        await File.AdfWriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
+                        await Disk.WriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
                     }
 
                     /* initializes a file extension block */
@@ -427,21 +398,18 @@
                     currentExt.HighSeq = 0;
                     currentExt.Extension = 0;
                     posInExtBlk = 0;
-/*printf("extSect=%ld\n",extSect);*/
                 }
 
                 nSect = Bitmap.AdfGet1FreeBlock(volume);
                 if (nSect == -1)
+                {
                     return -1;
-
-/*printf("adfCreateNextFileBlock ext %ld\n",nSect);*/
+                }
 
                 currentExt.Index[Constants.MAX_DATABLK - 1 - posInExtBlk] = nSect;
                 currentExt.HighSeq++;
                 posInExtBlk++;
             }
-
-            //var data = currentData;
 
             /* builds OFS header */
             if (Macro.isOFS(volume.DosType))
@@ -451,8 +419,7 @@
                 if (pos >= blockSize)
                 {
                     data.NextData = nSect;
-                    await File.AdfWriteDataBlock(volume, (int)curDataPtr, currentData);
-/*printf ("writedata=%d\n",file->curDataPtr);*/
+                    await Disk.WriteDataBlock(volume, (int)curDataPtr, currentData);
                 }
 
                 /* initialize a new data block */
@@ -465,55 +432,28 @@
             }
             else if (pos >= blockSize)
             {
-                await File.AdfWriteDataBlock(volume, (int)curDataPtr, currentData);
-/*printf ("writedata=%d\n",file->curDataPtr);*/
-                //memset(file->currentData, 0, 512);
+                await Disk.WriteDataBlock(volume, (int)curDataPtr, currentData);
             }
 
-/*printf("datablk=%d\n",nSect);*/
             curDataPtr = (uint)nSect;
             nDataBlock++;
 
             return nSect;
         }
         
-        /*
- * adfCloseFile
- *
- */
         public async Task AdfCloseFile()
         {
-            // if (file==0)
-            //     return;
-/*puts("adfCloseFile in");*/
-
             await AdfFlushFile();
-            //
-            // if (file->currentExt)
-            //     free(file->currentExt);
-            //
-            // if (file->currentData)
-            //     free(file->currentData);
-            //
-            // free(file->fileHdr);
-            // free(file);
-
-/*puts("adfCloseFile out");*/
         }
         
-/*
- * adfFileFlush
- *
- */
         public async Task AdfFlushFile()
         {
-            // struct bEntryBlock parent;
-            // struct bOFSDataBlock *data;
-
             if (currentExt != null) 
             {
                 if (writeMode)
-                    await File.AdfWriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
+                {
+                    await Disk.WriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
+                }
             }
             if (currentData != null)
             {
@@ -525,22 +465,21 @@
                         //var data = currentData as OfsDataBlock;
                         currentData.DataSize = (int)posInDataBlk;
                     }
+
                     if (fileHdr.ByteSize > 0)
-                        await File.AdfWriteDataBlock(volume, (int)curDataPtr, currentData);
+                    {
+                        await Disk.WriteDataBlock(volume, (int)curDataPtr, currentData);
+                    }
                 }
             }
             if (writeMode)
             {
                 fileHdr.ByteSize = (int)pos;
-/*printf("pos=%ld\n",file->pos);*/
-                // adfTime2AmigaTime(adfGiveCurrentTime(),
-                //     &(file->fileHdr->days),&(file->fileHdr->mins),&(file->fileHdr->ticks) );
                 fileHdr.Date = DateTime.Now;
-                await File.AdfWriteFileHdrBlock(volume, fileHdr.HeaderKey, fileHdr);
+                await Disk.WriteFileHdrBlock(volume, fileHdr.HeaderKey, fileHdr as FileHeaderBlock);
 
                 if (volume.UsesDirCache) 
                 {
-/*printf("parent=%ld\n",file->fileHdr->parent);*/
                     var parent = await Disk.ReadEntryBlock(volume, fileHdr.Parent);
                     await Cache.AdfUpdateCache(volume, parent, fileHdr, true);
                 }

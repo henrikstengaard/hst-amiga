@@ -3,9 +3,9 @@
     using System;
     using Core.Converters;
 
-    public static class DirCacheBlockWriter
+    public static class DirCacheBlockBuilder
     {
-        public static byte[] BuildBlock(DirCacheBlock dirCacheBlock, int blockSize)
+        public static byte[] Build(DirCacheBlock dirCacheBlock, int blockSize)
         {
             var blockBytes = new byte[blockSize];
             if (dirCacheBlock.BlockBytes != null)

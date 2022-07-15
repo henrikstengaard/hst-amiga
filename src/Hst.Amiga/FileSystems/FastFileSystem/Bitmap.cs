@@ -34,7 +34,7 @@
                 vol.BitmapBlocks[j] = nSect = root.BitmapBlockOffsets[i];
                 Disk.ThrowExceptionIfSectorNumberInvalid(vol, nSect);
 
-                vol.BitmapTable[j] = await AdfReadBitmapBlock(vol, nSect);
+                vol.BitmapTable[j] = await Disk.ReadBitmapBlock(vol, (uint)nSect);
                 j++;
                 i++;
             }
@@ -42,7 +42,7 @@
             nSect = (int)root.BitmapExtensionBlocksOffset;
             while (nSect != 0)
             {
-                var bmExt = await AdfReadBitmapExtBlock(vol, nSect);
+                var bmExt = await Disk.ReadBitmapExtensionBlock(vol, (uint)nSect);
                 i = 0;
                 while (i < 127 && j < mapSize)
                 {
@@ -51,19 +51,13 @@
 
                     vol.BitmapBlocks[j] = nSect;
 
-                    vol.BitmapTable[j] = await AdfReadBitmapBlock(vol, nSect);
+                    vol.BitmapTable[j] = await Disk.ReadBitmapBlock(vol, (uint)nSect);
                     i++;
                     j++;
                 }
 
                 nSect = (int)bmExt.NextBitmapExtensionBlockPointer;
             }
-        }
-
-        public static async Task AdfWriteBitmapBlock(Volume vol, int nSect, BitmapBlock bitm)
-        {
-            var blockBytes = BitmapBlockWriter.BuildBlock(bitm, vol.BlockSize);
-            await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
         public static async Task AdfUpdateBitmap(Volume vol)
@@ -76,7 +70,7 @@
             for (var i = 0; i < vol.BitmapSize; i++)
                 if (vol.BitmapBlocksChg[i])
                 {
-                    await AdfWriteBitmapBlock(vol, vol.BitmapBlocks[i], vol.BitmapTable[i]);
+                    await Disk.WriteBitmapBlock(vol, vol.BitmapBlocks[i], vol.BitmapTable[i]);
                     vol.BitmapBlocksChg[i] = false;
                 }
 
@@ -156,18 +150,6 @@
             return (vol.BitmapTable[block].Map[indexInMap] & bitMask[sectOfMap % 32]) != 0;
         }
 
-        public static async Task<BitmapBlock> AdfReadBitmapBlock(Volume vol, int nSect)
-        {
-            var blockBytes = await Disk.ReadBlock(vol, nSect);
-            return BitmapBlockReader.Parse(blockBytes);
-        }
-
-        public static async Task<BitmapExtensionBlock> AdfReadBitmapExtBlock(Volume vol, int nSect)
-        {
-            var buf = await Disk.ReadBlock(vol, nSect);
-            return await BitmapExtensionBlockReader.Parse(buf);
-        }
-        
         public static void AdfSetBlockFree(Volume vol, int nSect)
         {
             var sectOfMap = nSect - 2;

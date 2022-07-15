@@ -1,7 +1,6 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests
 {
     using System.Linq;
-    using FileSystems.FastFileSystem;
     using FileSystems.FastFileSystem.Blocks;
     using Xunit;
 
@@ -10,9 +9,8 @@
         [Fact]
         public void WhenReadAsEntryBlockThenBlocksAreEqual()
         {
-            var dirBlock = new EntryBlock
+            var dirBlock = new DirBlock
             {
-                Type = Constants.T_HEADER,
                 HeaderKey = 887,
                 HighSeq = 0,
                 HashTableSize = 72,
@@ -20,14 +18,13 @@
                 Comment = "Comment",
                 Name = "DirEntry",
                 Parent = 880,
-                SecType = Constants.ST_DIR
             };
 
-            var dirBlockBytes = EntryBlockWriter.BuildBlock(dirBlock, 512);
+            var dirBlockBytes = EntryBlockBuilder.Build(dirBlock, 512);
 
             System.IO.File.WriteAllBytes("dir-block.bin", dirBlockBytes);
             
-            var entryBlock = EntryBlockReader.Parse(dirBlockBytes);
+            var entryBlock = EntryBlockParser.Parse(dirBlockBytes);
             
             Assert.Equal(dirBlock.Type, entryBlock.Type);
             Assert.Equal(dirBlock.HeaderKey, entryBlock.HeaderKey);

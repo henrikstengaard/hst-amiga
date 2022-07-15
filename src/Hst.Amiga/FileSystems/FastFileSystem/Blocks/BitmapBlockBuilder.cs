@@ -1,11 +1,11 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
     using System;
-    using Hst.Core.Converters;
+    using Core.Converters;
 
-    public static class BitmapBlockWriter
+    public static class BitmapBlockBuilder
     {
-        public static byte[] BuildBlock(BitmapBlock bitmapBlock, int blockSize)
+        public static byte[] Build(BitmapBlock bitmapBlock, int blockSize)
         {
             var mapEntries = (blockSize - SizeOf.ULong) / SizeOf.Long;
 

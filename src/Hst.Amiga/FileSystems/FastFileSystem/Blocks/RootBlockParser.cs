@@ -3,9 +3,9 @@
     using System.Collections.Generic;
     using System.IO;
     using Hst.Amiga.Extensions;
-    using Hst.Core.Converters;
+    using Core.Converters;
 
-    public static class RootBlockReader
+    public static class RootBlockParser
     {
         public static RootBlock Parse(byte[] blockBytes)
         {
@@ -62,7 +62,6 @@
             return new RootBlock
             {
                 BlockBytes = blockBytes,
-                Type = type,
                 HighSeq = 0,
                 HashTableSize = Constants.INDEX_SIZE,
                 HashTable = index.ToArray(),
@@ -78,8 +77,7 @@
                 FileSystemCreationDate = fileSystemCreationDate,
                 NextSameHash = 0,
                 Parent = 0,
-                Extension = extension,
-                SecType = secType
+                Extension = extension
             };
         }
     }

@@ -2,7 +2,6 @@
 {
     using System.IO;
     using System.Threading.Tasks;
-    using FileSystems.FastFileSystem;
     using FileSystems.FastFileSystem.Blocks;
     using Xunit;
 
@@ -26,8 +25,8 @@
 
             
             // act - read and build root block
-            var expectedEntryBlock = EntryBlockReader.Parse(blockBytes);
-            var entryBlockBytes = EntryBlockWriter.BuildBlock(expectedEntryBlock, 512);
+            var expectedEntryBlock = EntryBlockParser.Parse(blockBytes);
+            var entryBlockBytes = EntryBlockBuilder.Build(expectedEntryBlock, 512);
 
             for (var i = 0; i < 512; i++)
             {

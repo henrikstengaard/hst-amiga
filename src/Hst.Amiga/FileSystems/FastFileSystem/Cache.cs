@@ -360,7 +360,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
         {
             var blockBytes = await Disk.ReadBlock(vol, nSect);
 
-            var dirCacheBlock = DirCacheBlockReader.Read(blockBytes);
+            var dirCacheBlock = DirCacheBlockParser.Parse(blockBytes);
             if (dirCacheBlock.HeaderKey != nSect)
             {
                 throw new IOException($"Invalid dir cache block header key '{dirCacheBlock.HeaderKey}' is not equal to sector {nSect}");
@@ -373,7 +373,7 @@ printf("newEntry->nLen %d newEntry->cLen %d\n",newEntry->nLen,newEntry->cLen);
         {
             dirCacheBlock.HeaderKey = nSect;
 
-            var blockBytes = DirCacheBlockWriter.BuildBlock(dirCacheBlock, vol.BlockSize);
+            var blockBytes = DirCacheBlockBuilder.Build(dirCacheBlock, vol.BlockSize);
             await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 

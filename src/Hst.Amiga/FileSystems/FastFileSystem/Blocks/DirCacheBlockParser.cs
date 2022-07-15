@@ -4,9 +4,9 @@
     using System.IO;
     using Core.Converters;
 
-    public static class DirCacheBlockReader
+    public static class DirCacheBlockParser
     {
-        public static DirCacheBlock Read(byte[] blockBytes)
+        public static DirCacheBlock Parse(byte[] blockBytes)
         {
             var type = BigEndianConverter.ConvertBytesToInt32(blockBytes);
             if (type != Constants.T_DIRC)

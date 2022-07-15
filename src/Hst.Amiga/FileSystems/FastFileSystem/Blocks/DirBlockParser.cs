@@ -1,16 +1,21 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
-    using System;
     using System.Collections.Generic;
     using System.IO;
-    using Hst.Amiga.Extensions;
-    using Hst.Core.Converters;
+    using Amiga.Extensions;
+    using Core.Converters;
 
-    public static class EntryBlockReader
+    public static class DirBlockParser
     {
-        public static EntryBlock Parse(byte[] blockBytes)
+        public static DirBlock Parse(byte[] blockBytes)
         {
             var type = BigEndianConverter.ConvertBytesToInt32(blockBytes);
+            
+            if (type != Constants.T_HEADER)
+            {
+                throw new IOException("Invalid dir block type");
+            }
+            
             var headerKey = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x4);
             var highSeq = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x8);
             var indexSize = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0xc); // hashtable & data blocks
@@ -20,7 +25,7 @@
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 0x14);
             if (checksum != calculatedChecksum)
             {
-                throw new IOException("Invalid entry block checksum");
+                throw new IOException("Invalid dir block checksum");
             }
             
             var index = new List<int>();
@@ -29,37 +34,28 @@
                 index.Add(BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
             }
 
-            var access = 0;
-            var byteSize = 0;
-            var comment = string.Empty;
-            var date = DateTime.MinValue;
-            var name = string.Empty;
-            var realEntry = 0;
-            var nextLink = 0;
+            var access = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x140);
+            var comment = blockBytes.ReadStringWithLength(0x148);
 
-            var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + (SizeOf.Long * 3));
+            var date = DateHelper.ReadDate(blockBytes, 0x1a4);
+            var name = blockBytes.ReadStringWithLength(0x1b0);
 
-            if (type != Constants.ST_ROOT)
-            {
-                access = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x140);
-                byteSize = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x144);
-                comment = blockBytes.ReadStringWithLength(0x148);
-
-                date = DateHelper.ReadDate(blockBytes, 0x1a4);
-                name = blockBytes.ReadStringWithLength(0x1b0);
-
-                realEntry = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d4);
-                nextLink = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d8);
-            }
+            var realEntry = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d4);
+            var nextLink = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d8);
 
             var nextSameHash = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0);
             var parent = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f4);
             var extension = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f8);
+            var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + (SizeOf.Long * 3));
 
-            return new EntryBlock
+            if (secType != Constants.ST_DIR)
+            {
+                throw new IOException($"Invalid dir block sec type '{type}'");
+            }
+            
+            return new DirBlock
             {
                 BlockBytes = blockBytes,
-                Type = type,
                 HeaderKey = headerKey,
                 HighSeq = highSeq,
                 FirstData = firstData,
@@ -67,7 +63,6 @@
                 IndexSize = indexSize,
                 Index = index.ToArray(),
                 Access = access,
-                ByteSize = byteSize,
                 Comment = comment,
                 Date = date,
                 Name = name,
@@ -75,8 +70,7 @@
                 NextLink = nextLink,
                 NextSameHash = nextSameHash,
                 Parent = parent,
-                Extension = extension,
-                SecType = secType
+                Extension = extension
             };
         }
     }

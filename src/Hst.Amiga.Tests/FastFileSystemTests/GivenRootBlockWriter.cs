@@ -25,7 +25,7 @@
             };
 
             // act - build root block bytes
-            var rootBlockBytes = RootBlockWriter.BuildBlock(rootBlock, blockSize);
+            var rootBlockBytes = RootBlockBuilder.Build(rootBlock, blockSize);
 
             // assert - root block bytes are equal to expected for double density floppy disk
             var expectedRootBlockBytes = await CreateExpectedRootBlockBytes();

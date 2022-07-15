@@ -40,7 +40,7 @@
                     continue;
                 }
 
-                var rootBlock = RootBlockReader.Parse(buffer);
+                var rootBlock = RootBlockParser.Parse(buffer);
                 rootBlocks.Add(rootBlock);
             } while (bytesRead == buffer.Length);
 
@@ -212,7 +212,7 @@
             var rootBlockBytes = await stream.ReadBytes((int)blockSize);
 
             // parse root block bytes
-            var rootBlock = RootBlockReader.Parse(rootBlockBytes);
+            var rootBlock = RootBlockParser.Parse(rootBlockBytes);
 
             var volume = new Volume
             {

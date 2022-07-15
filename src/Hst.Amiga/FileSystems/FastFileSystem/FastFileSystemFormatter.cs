@@ -83,7 +83,7 @@
             await stream.WriteBytes(dosType);
             
             // build root block bytes
-            var rootBlockBytes = RootBlockWriter.BuildBlock(rootBlock, (int)fileSystemBlockSize);
+            var rootBlockBytes = RootBlockBuilder.Build(rootBlock, (int)fileSystemBlockSize);
 
             // write root block
             var rootBlockByteOffset = partitionStartByteOffset + rootBlockOffset * fileSystemBlockSize;
@@ -99,7 +99,7 @@
                 stream.Seek(bitmapBlockByteOffset, SeekOrigin.Begin);
 
                 // build and write bitmap block
-                var bitmapBlockBytes = BitmapBlockWriter.BuildBlock(bitmapBlock, (int)fileSystemBlockSize);
+                var bitmapBlockBytes = BitmapBlockBuilder.Build(bitmapBlock, (int)fileSystemBlockSize);
                 await stream.WriteBytes(bitmapBlockBytes);
             }
 
@@ -119,7 +119,7 @@
 
                 // build and write bitmap extension block
                 var bitmapExtensionBlockBytes =
-                    await BitmapExtensionBlockWriter.BuildBlock(bitmapExtensionBlock,
+                    BitmapExtensionBlockBuilder.Build(bitmapExtensionBlock,
                         fileSystemBlockSize);
                 await stream.WriteBytes(bitmapExtensionBlockBytes);
 
@@ -133,7 +133,7 @@
                     stream.Seek(bitmapBlockByteOffset, SeekOrigin.Begin);
 
                     // build and write bitmap block
-                    var bitmapBlockBytes = BitmapBlockWriter.BuildBlock(bitmapBlock, (int)fileSystemBlockSize);
+                    var bitmapBlockBytes = BitmapBlockBuilder.Build(bitmapBlock, (int)fileSystemBlockSize);
                     await stream.WriteBytes(bitmapBlockBytes);
                 }
             }

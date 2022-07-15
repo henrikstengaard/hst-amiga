@@ -44,7 +44,7 @@
             };
 
             // act - build bitmap block bytes
-            var bitmapBlockBytes = BitmapBlockWriter.BuildBlock(bitmapBlock, FloppyDiskConstants.BlockSize);
+            var bitmapBlockBytes = BitmapBlockBuilder.Build(bitmapBlock, FloppyDiskConstants.BlockSize);
 
             // assert - bitmap block bytes are equal to expected
             var expectedBitmapBlockBytes = await CreateExpectedBitmapBlockBytes();

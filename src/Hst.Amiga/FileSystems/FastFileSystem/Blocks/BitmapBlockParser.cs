@@ -2,9 +2,9 @@
 {
     using System.Collections.Generic;
     using System.IO;
-    using Hst.Core.Converters;
+    using Core.Converters;
 
-    public static class BitmapBlockReader
+    public static class BitmapBlockParser
     {
         public static BitmapBlock Parse(byte[] blockBytes)
         {

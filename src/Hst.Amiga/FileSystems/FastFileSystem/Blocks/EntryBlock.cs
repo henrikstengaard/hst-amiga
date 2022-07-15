@@ -2,40 +2,12 @@
 {
     using System;
 
-    public class EntryBlock : IBlock, IHeaderBlock, IEntryBlock
+    public abstract class EntryBlock : IBlock, IHeaderBlock, IEntryBlock
     {
-        /*
-        struct bEntryBlock {
-        // 000	int32_t	type;		// T_HEADER == 2
-        // 004	int32_t	headerKey;	// current block number 
-                    int32_t	r1[3];
-        // 014	uint32_t	checkSum;
-        // 018	int32_t	hashTable[HT_SIZE];
-                    int32_t	r2[2];
-        // 140	int32_t	access;	// bit0=del, 1=modif, 2=write, 3=read
-        // 144	int32_t	byteSize;
-        // 148	char	commLen;
-        // 149	char	comment[MAXCMMTLEN+1];
-                    char	r3[91-(MAXCMMTLEN+1)];
-        // 1a4	int32_t	days;
-        // 1a8	int32_t	mins;
-        // 1ac	int32_t	ticks;
-        // 1b0	char	nameLen;
-        // 1b1	char	name[MAXNAMELEN+1];
-                    int32_t	r4;
-        // 1d4	int32_t	realEntry;
-        // 1d8	int32_t	nextLink;
-                    int32_t	r5[5];
-        // 1f0	int32_t	nextSameHash;
-        // 1f4	int32_t	parent;
-        // 1f8	int32_t	extension;
-        // 1fc	int32_t	secType;
-        };
-         */
         public uint Offset { get; set; }
         public byte[] BlockBytes { get; set; }
         
-        public int Type { get; set; } // 0x000
+        public abstract int Type { get; } // 0x000
         public int HeaderKey { get; set; } // 0x004
         public int HighSeq { get; set; } // 0x008
 
@@ -69,33 +41,15 @@
         public int NextSameHash { get; set; } // 0x1f0
         public int Parent { get; set; } // 0x1f4
         public int Extension { get; set; } // 0x1f8
-        public int SecType { get; set; } // 0x1fc
+        public abstract int SecType { get;} // 0x1fc
 
-        public EntryBlock()
+        protected EntryBlock()
         {
             IndexSize = Constants.INDEX_SIZE; // HT_SIZE, MAX_DATABLK
             Index = new int[Constants.INDEX_SIZE];
 
             Comment = string.Empty;
             Name = string.Empty;
-        }
-
-        public static EntryBlock CreateDirBlock()
-        {
-            return new EntryBlock
-            {
-                Type = Constants.T_HEADER,
-                SecType = Constants.ST_DIR
-            };
-        }
-
-        public static EntryBlock CreateFileHeaderBlock()
-        {
-            return new EntryBlock
-            {
-                Type = Constants.T_HEADER,
-                SecType = Constants.ST_FILE
-            };
         }
     }
 }
