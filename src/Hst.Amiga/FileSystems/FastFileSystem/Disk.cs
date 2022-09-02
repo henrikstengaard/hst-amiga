@@ -126,6 +126,27 @@
             await WriteBlock(vol, nSect, blockBytes);
         }
         
+        public static async Task<DirCacheBlock> ReadDirCacheBlock(Volume vol, int nSect)
+        {
+            var blockBytes = await Disk.ReadBlock(vol, nSect);
+
+            var dirCacheBlock = DirCacheBlockParser.Parse(blockBytes);
+            if (dirCacheBlock.HeaderKey != nSect)
+            {
+                throw new IOException($"Invalid dir cache block header key '{dirCacheBlock.HeaderKey}' is not equal to sector {nSect}");
+            }
+
+            return dirCacheBlock;
+        }
+
+        public static async Task WriteDirCacheBlock(Volume vol, int nSect, DirCacheBlock dirCacheBlock)
+        {
+            dirCacheBlock.HeaderKey = nSect;
+
+            var blockBytes = DirCacheBlockBuilder.Build(dirCacheBlock, vol.BlockSize);
+            await Disk.WriteBlock(vol, nSect, blockBytes);
+        }
+        
         /// <summary>
         /// Is sector number valid
         /// </summary>

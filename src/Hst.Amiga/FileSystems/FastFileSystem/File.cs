@@ -15,7 +15,7 @@
                 throw new IOException("device is mounted 'read only'");
             }
 
-            var result = await Directory.AdfNameToEntryBlk(volume, parent.HashTable, name, false);
+            var result = await Directory.GetEntryBlock(volume, parent.HashTable, name, false);
             var nSect = result.NSect;
             if (!write && nSect == -1)
             {

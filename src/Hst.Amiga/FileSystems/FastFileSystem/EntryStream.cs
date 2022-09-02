@@ -481,7 +481,7 @@
                 if (volume.UsesDirCache) 
                 {
                     var parent = await Disk.ReadEntryBlock(volume, fileHdr.Parent);
-                    await Cache.AdfUpdateCache(volume, parent, fileHdr, true);
+                    await Cache.UpdateCache(volume, parent, fileHdr, true);
                 }
                 await Bitmap.AdfUpdateBitmap(volume);
             }
