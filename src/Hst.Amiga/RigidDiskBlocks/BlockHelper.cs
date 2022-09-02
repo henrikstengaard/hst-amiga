@@ -6,6 +6,7 @@
     using System.Threading.Tasks;
     using Core.Converters;
     using Core.Extensions;
+    using VersionStrings;
 
     public static class BlockHelper
     {
@@ -28,21 +29,25 @@
         }
 
         public static FileSystemHeaderBlock CreateFileSystemHeaderBlock(byte[] dosType, int version, int revision,
-            byte[] fileSystemBytes)
+            string fileSystemName, byte[] fileSystemBytes)
         {
             if (dosType.Length != 4)
             {
                 throw new ArgumentException("Dos type must be 4 bytes in length", nameof(dosType));
             }
-            
+
             var maxSize = 512 - (5 * 4);
-            var loadSegBlocks = fileSystemBytes.ChunkBy(maxSize).Select(x => CreateLoadSegBlock(x.ToArray()));
+            var loadSegBlocks = fileSystemBytes.ChunkBy(maxSize)
+                .Select(x => CreateLoadSegBlock(x.ToArray())).ToList();
 
             return new FileSystemHeaderBlock
             {
                 DosType = dosType,
-                Version = (uint)((version << 16) | revision),
-                LoadSegBlocks = loadSegBlocks.ToList()
+                Version = version,
+                Revision = revision,
+                LoadSegBlocks = loadSegBlocks,
+                FileSystemName = fileSystemName ?? string.Empty,
+                FileSystemSize = loadSegBlocks.Sum(x => x.Data.Length)
             };
         }
 
@@ -63,14 +68,14 @@
             var highRsdkBlock = rigidDiskBlock.RdbBlockLo;
 
             var partitionBlocks = rigidDiskBlock.PartitionBlocks.ToList();
-            
+
             var rigidDiskBlockIndex = rigidDiskBlock.RdbBlockLo;
             var partitionBlockIndex = partitionBlocks.Count > 0 ? rigidDiskBlockIndex + 1 : BlockIdentifiers.EndOfBlock;
 
             var partitionsChanged = rigidDiskBlock.PartitionList != partitionBlockIndex;
 
             rigidDiskBlock.PartitionList = partitionBlockIndex;
-            
+
             for (var p = 0; p < partitionBlocks.Count; p++)
             {
                 var partitionBlock = partitionBlocks[p];
@@ -99,15 +104,16 @@
             }
 
             var fileSystemHeaderBlocks = rigidDiskBlock.FileSystemHeaderBlocks.ToList();
-            var fileSystemHeaderBlockIndex = fileSystemHeaderBlocks.Count > 0 ? highRsdkBlock + 1 : BlockIdentifiers.EndOfBlock;
-            
+            var fileSystemHeaderBlockIndex =
+                fileSystemHeaderBlocks.Count > 0 ? highRsdkBlock + 1 : BlockIdentifiers.EndOfBlock;
+
             var fileSystemHeaderChanged = rigidDiskBlock.FileSysHdrList != fileSystemHeaderBlockIndex;
 
             if (fileSystemHeaderChanged)
             {
                 ResetBadBlockPointers(rigidDiskBlock);
             }
-            
+
             rigidDiskBlock.FileSysHdrList = fileSystemHeaderBlockIndex;
 
             for (var f = 0; f < fileSystemHeaderBlocks.Count; f++)
@@ -142,11 +148,11 @@
             for (var b = 0; b < badBlocks.Count; b++)
             {
                 var badBlock = badBlocks[b];
-                
+
                 badBlock.NextBadBlock = b < badBlocks.Count - 1
                     ? (uint)(badBlockIndex + b + 1)
                     : BlockIdentifiers.EndOfBlock;
-                
+
                 // update highest used rdb block
                 if (badBlockIndex + b > highRsdkBlock)
                 {
@@ -215,7 +221,7 @@
                 ResetBadBlockPointers(badBlock);
             }
         }
-        
+
         public static void ResetBadBlockPointers(BadBlock badBlock)
         {
             badBlock.NextBadBlock = 0;

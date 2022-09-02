@@ -12,22 +12,37 @@
         public static RigidDiskBlock CreateRigidDiskBlock(this long size) => RigidDiskBlock.Create(size);
 
         public static RigidDiskBlock AddFileSystem(this RigidDiskBlock rigidDiskBlock,
-            string dosType, byte[] fileSystemBytes)
+            string dosType, byte[] fileSystemBytes, bool overwrite = false)
         {
-            return AddFileSystem(rigidDiskBlock, DosTypeHelper.FormatDosType(dosType), fileSystemBytes);
+            return AddFileSystem(rigidDiskBlock, DosTypeHelper.FormatDosType(dosType), string.Empty, fileSystemBytes, overwrite);
         }
 
         public static RigidDiskBlock AddFileSystem(this RigidDiskBlock rigidDiskBlock,
-            byte[] dosType, byte[] fileSystemBytes)
+            byte[] dosType, byte[] fileSystemBytes, bool overwrite = false)
         {
+            return AddFileSystem(rigidDiskBlock, dosType, string.Empty, fileSystemBytes, overwrite);
+        }
+        
+        public static RigidDiskBlock AddFileSystem(this RigidDiskBlock rigidDiskBlock,
+            byte[] dosType, string fileSystemName, byte[] fileSystemBytes, bool overwrite = false)
+        {
+            if (dosType.Length != 4)
+            {
+                throw new ArgumentException($"DOS Type must consist of 4 bytes", nameof(dosType));
+            }
+            
+            if (!overwrite && rigidDiskBlock.FileSystemHeaderBlocks.Any(x => x.DosType.SequenceEqual(dosType)))
+            {
+                throw new ArgumentException($"DOS Type '{dosType.FormatDosType()}' already exists", nameof(dosType));
+            }
+            
             var version = VersionStringReader.Read(fileSystemBytes);
             var fileVersion = VersionStringReader.Parse(version);
 
             var fileSystemHeaderBlock = BlockHelper.CreateFileSystemHeaderBlock(dosType, fileVersion.Version,
-                fileVersion.Revision,
-                fileSystemBytes);
+                fileVersion.Revision, fileSystemName, fileSystemBytes);
 
-            rigidDiskBlock.FileSystemHeaderBlocks = rigidDiskBlock.FileSystemHeaderBlocks.Concat(new[]
+            rigidDiskBlock.FileSystemHeaderBlocks = rigidDiskBlock.FileSystemHeaderBlocks.Where(x => !x.DosType.SequenceEqual(dosType)).Concat(new[]
                 { fileSystemHeaderBlock });
 
             return rigidDiskBlock;

@@ -8,6 +8,7 @@
     using Core.Extensions;
     using Extensions;
     using FileSystems;
+    using VersionStrings;
 
     public static class FileSystemHeaderBlockReader
     {
@@ -47,6 +48,8 @@
             {
                 fileSystemHeaderBlock.LoadSegBlocks =
                     await LoadSegBlockReader.Read(rigidDiskBlock, fileSystemHeaderBlock, stream);
+
+                fileSystemHeaderBlock.FileSystemSize = fileSystemHeaderBlock.LoadSegBlocks.Sum(x => x.Data.Length);
             }
 
             return fileSystemHeaderBlocks;
@@ -107,7 +110,8 @@
                 NextFileSysHeaderBlock = nextFileSysHeaderBlock,
                 Flags = flags,
                 DosType = dosType,
-                Version = version,
+                Version = (int)(version >> 16),
+                Revision = (int)(version & 0xFFFF),
                 PatchFlags = patchFlags,
                 Type = type,
                 Task = task,

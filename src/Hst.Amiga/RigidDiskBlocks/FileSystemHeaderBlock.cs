@@ -4,6 +4,7 @@
     using System.Linq;
     using Core.Extensions;
     using Extensions;
+    using VersionStrings;
 
     public class FileSystemHeaderBlock : BlockBase
     {
@@ -15,8 +16,9 @@
         public string DosTypeFormatted => DosType.FormatDosType();
         public string DosTypeHex => $"0x{DosType.FormatHex()}";
 
-        public uint Version { get; set; }
-        public string VersionFormatted => $"{Version >> 16}.{Version & 0xFFFF}";
+        public int Version { get; set; }
+        public int Revision { get; set; }
+        public string VersionFormatted => $"{Version}.{Revision}";
         
         /// <summary>
         /// bits set for those of the following that need to be
@@ -36,6 +38,7 @@
         public string FileSystemName { get; set; }
         
         public IEnumerable<LoadSegBlock> LoadSegBlocks { get; set; }
+        public int FileSystemSize { get; set; }
 
         public FileSystemHeaderBlock()
         {

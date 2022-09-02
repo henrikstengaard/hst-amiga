@@ -42,6 +42,7 @@
                 return null;
             }
 
+            rigidDiskBlock.FileSystemHeaderBlocks = await FileSystemHeaderBlockReader.Read(rigidDiskBlock, stream);
             rigidDiskBlock.PartitionBlocks = await PartitionBlockReader.Read(rigidDiskBlock, stream);
             rigidDiskBlock.BadBlocks = await BadBlockReader.Read(rigidDiskBlock, stream);
 

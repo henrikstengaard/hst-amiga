@@ -34,8 +34,10 @@
             await blockStream
                 .WriteBytes(fileSystemHeaderBlock
                     .DosType); // # Dostype of the file system, file system description: match this with partition environment's DE_DOSTYPE entry
-            await blockStream.WriteBigEndianUInt32(fileSystemHeaderBlock
-                .Version); // filesystem version 0x0027001b == 39.27
+            
+            var version = (uint)((fileSystemHeaderBlock.Version << 16) | fileSystemHeaderBlock.Revision);
+            
+            await blockStream.WriteBigEndianUInt32(version); // filesystem version 0x0027001b == 39.27
             await blockStream.WriteBigEndianUInt32(fileSystemHeaderBlock.PatchFlags);
             await blockStream.WriteBigEndianUInt32(fileSystemHeaderBlock.Type);
             await blockStream.WriteBigEndianUInt32(fileSystemHeaderBlock.Task);

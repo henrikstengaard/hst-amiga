@@ -110,7 +110,7 @@
             // arrange - create 10mb hdf file with 1 partition using DOS3 dos type 
             var rigidDiskBlock = await RigidDiskBlock
                 .Create(10.MB().ToUniversalSize())
-                .AddFileSystem(dos3DosType,
+                .AddFileSystem(dos3DosType, "FastFileSystem",
                     Encoding.ASCII.GetBytes(
                         "$VER: FastFileSystem 1.0 (12/12/22) ")) // dummy fast file system used for testing
                 .AddPartition("DH0", bootable: true)

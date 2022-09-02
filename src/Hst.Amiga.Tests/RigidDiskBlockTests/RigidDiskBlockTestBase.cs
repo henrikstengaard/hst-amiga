@@ -45,7 +45,7 @@
         protected async Task<FileSystemHeaderBlock> CreateFileSystemHeaderBlock()
         {
             return BlockHelper.CreateFileSystemHeaderBlock(Pds3DosType, 19, 2,
-                    await File.ReadAllBytesAsync(@"TestData\pfs3aio"));
+                "pfs3aio", await File.ReadAllBytesAsync(@"TestData\pfs3aio"));
         }
     }
 }
