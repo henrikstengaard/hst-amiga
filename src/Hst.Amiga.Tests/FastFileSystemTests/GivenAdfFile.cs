@@ -90,6 +90,41 @@
         [InlineData("dos3.adf")]
         [InlineData("dos4.adf")]
         [InlineData("dos5.adf")]
+        public async Task WhenMountAdfAndReadFileFromEntryThenDataIsReadCorrectly(string adfFilename)
+        {
+            // arrange - adf file
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
+            await using var adfStream = File.OpenRead(adfPath);
+
+            // act - mount adf
+            var volume = await FastFileSystemHelper.MountAdf(adfStream);
+
+            // act - read entries recursively from root block
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+                .OrderBy(x => x.Name).ToList();
+
+            var entry = entries.FirstOrDefault(x => x.Name == "test.txt");
+            Assert.NotNull(entry);
+            
+            // act - open entry stream
+            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, entry);
+
+            // act - read entry stream
+            var buffer = new byte[512];
+            var bytesRead = await entryStream.ReadAsync(buffer, 0, buffer.Length);
+
+            // assert - read entry matches text
+            Assert.Equal(21, bytesRead);
+            var text = Encoding.GetEncoding("ISO-8859-1").GetString(buffer, 0, bytesRead);
+            Assert.Equal("This is a test file!\n", text);
+        }
+
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
         public async Task WhenMountAdfAndWriteFileThenFileIsCreated(string adfFilename)
         {
             // arrange - adf file

@@ -6,6 +6,12 @@
 
     public static class File
     {
+        public static async Task<Stream> Open(Volume volume, Entry entry, FileMode mode = FileMode.Read)
+        {
+            var parentBlock = await Disk.ReadEntryBlock(volume, entry.Parent);
+            return await Open(volume, parentBlock, entry.Name, mode);
+        }
+
         public static async Task<Stream> Open(Volume volume, EntryBlock parent, string name, FileMode mode)
         {
             var write = mode == FileMode.Write || mode == FileMode.Append;

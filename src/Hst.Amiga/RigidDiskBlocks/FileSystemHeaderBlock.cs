@@ -4,7 +4,6 @@
     using System.Linq;
     using Core.Extensions;
     using Extensions;
-    using VersionStrings;
 
     public class FileSystemHeaderBlock : BlockBase
     {

@@ -1,12 +1,13 @@
 ﻿namespace Hst.Amiga.RigidDiskBlocks
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Core.Converters;
     using Core.Extensions;
-    using VersionStrings;
+    using FileSystems.FastFileSystem;
 
     public static class BlockHelper
     {
@@ -27,7 +28,7 @@
 
             return blockBytes;
         }
-
+        
         public static FileSystemHeaderBlock CreateFileSystemHeaderBlock(byte[] dosType, int version, int revision,
             string fileSystemName, byte[] fileSystemBytes)
         {
