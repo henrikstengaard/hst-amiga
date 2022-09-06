@@ -7,6 +7,8 @@
 
     public abstract class RigidDiskBlockTestBase
     {
+        protected const int FileSystemVersion = 19;
+        protected const int FileSystemRevision = 2;
         protected readonly byte[] Pds3DosType = new byte[] { 0x50, 0x44, 0x53, 0x3 };
         
         protected RigidDiskBlock CreateRigidDiskBlock(long size)
@@ -44,8 +46,8 @@
 
         protected async Task<FileSystemHeaderBlock> CreateFileSystemHeaderBlock()
         {
-            return BlockHelper.CreateFileSystemHeaderBlock(Pds3DosType, 19, 2,
-                "pfs3aio", await File.ReadAllBytesAsync(@"TestData\pfs3aio"));
+            return BlockHelper.CreateFileSystemHeaderBlock(Pds3DosType, FileSystemVersion, FileSystemRevision,
+                "pfs3aio", await File.ReadAllBytesAsync(Path.Combine("TestData", "RigidDiskBlocks", "pfs3aio")));
         }
     }
 }

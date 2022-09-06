@@ -4,6 +4,7 @@
     using System.IO;
     using System.Threading.Tasks;
     using Core.Extensions;
+    using Extensions;
     using FileSystems;
 
     public static class FileSystemHeaderBlockWriter
@@ -50,8 +51,9 @@
                 .SegListBlocks); // first of linked list of LoadSegBlocks
             await blockStream.WriteBigEndianInt32(fileSystemHeaderBlock.GlobalVec);
 
-            // skip reserved
-            blockStream.Seek((23 + 21) * 4, SeekOrigin.Current);
+            blockStream.Seek(0xac, SeekOrigin.Begin);
+            await blockStream.WriteString(fileSystemHeaderBlock.FileSystemName, 50);
+            blockStream.WriteByte(0);
 
             // calculate and update checksum
             var blockBytes = blockStream.ToArray();

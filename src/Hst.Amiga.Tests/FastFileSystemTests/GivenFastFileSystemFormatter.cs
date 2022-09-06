@@ -19,7 +19,7 @@
         private readonly byte[] dos3DosType = { 0x44, 0x4f, 0x53, 0x3 };
 
         [Fact]
-        public async Task WhenFloppyDiskFileThenRootBlockAndBitmapBlocksAreCreated()
+        public async Task WhenFormattingFloppyDiskFileThenRootBlockAndBitmapBlocksAreCreated()
         {
             var adfPath = "dos.adf";
             const uint lowCyl = FloppyDiskConstants.DoubleDensity.LowCyl;

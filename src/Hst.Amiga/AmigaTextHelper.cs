@@ -31,6 +31,30 @@
                 : Iso88591.GetString(bytes, index, index + count >= bytes.Length ? bytes.Length - index : count);
         }
 
+        public static string GetNullTerminatedString(byte[] bytes, int index, int maxLength)
+        {
+            if (index >= bytes.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+
+            if (bytes.Length == 0 || maxLength == 0)
+            {
+                return string.Empty;
+            }
+            
+            int stringLength;
+            for (stringLength = 0; stringLength < Math.Min(bytes.Length, index + maxLength); stringLength++)
+            {
+                if (bytes[index + stringLength] == 0)
+                {
+                    break;
+                }
+            }
+
+            return Iso88591.GetString(bytes, index, stringLength);
+        }
+        
         public static byte[] GetBytes(string value)
         {
             return Iso88591.GetBytes(value);
