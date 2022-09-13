@@ -63,6 +63,8 @@
 
                 offset = SetBitmapBlockOffsets(bitmapExtensionBlock.BitmapBlocks, offset);
 
+                bitmapExtensionBlock.BitmapBlockOffsets =
+                    bitmapExtensionBlock.BitmapBlocks.Select(x => x.Offset).ToArray(); 
                 bitmapExtensionBlock.NextBitmapExtensionBlockPointer =
                     i < bitmapExtensionBlocksList.Count - 1 ? offset : 0;
             }

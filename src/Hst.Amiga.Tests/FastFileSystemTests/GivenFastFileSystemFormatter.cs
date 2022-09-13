@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Text;
@@ -19,7 +20,7 @@
         private readonly byte[] dos3DosType = { 0x44, 0x4f, 0x53, 0x3 };
 
         [Fact]
-        public async Task WhenFormattingFloppyDiskFileThenRootBlockAndBitmapBlocksAreCreated()
+        public async Task WhenFormattingDoubleDensityFloppyDiskFileThenRootBlockAndBitmapBlocksAreCreated()
         {
             var adfPath = "dos.adf";
             const uint lowCyl = FloppyDiskConstants.DoubleDensity.LowCyl;
@@ -102,14 +103,14 @@
             }
         }
         
-        [Fact]
-        public async Task WhenFormattingHardDiskFileThenRootBlockAndBitmapBlocksAreCreated()
+        [Theory]
+        [InlineData("10mb.hdf", 1024 * 1024 * 10)]
+        [InlineData("100mb.hdf", 1024 * 1024 * 100)]
+        public async Task WhenFormattingHardDiskFileThenRootBlockAndBitmapBlocksAreCreated(string path, long diskSize)
         {
-            var path = "dos3.hdf";
-
-            // arrange - create 10mb hdf file with 1 partition using DOS3 dos type 
+            // arrange - create hdf file with 1 partition using DOS3 dos type 
             var rigidDiskBlock = await RigidDiskBlock
-                .Create(10.MB().ToUniversalSize())
+                .Create(diskSize.ToUniversalSize())
                 .AddFileSystem(dos3DosType, Encoding.ASCII.GetBytes(
                         "$VER: FastFileSystem 1.0 (12/12/22) ")) // dummy fast file system used for testing
                 .AddPartition("DH0", bootable: true)
@@ -155,38 +156,130 @@
 
             // calculate number of bitmap blocks are required for all blocks
             var bitmapBlocksCount = Math.Ceiling((double)blocks / bitmapsPerBitmapBlockCount);
+
+            // arrange - calculate bitmap block offsets per bitmap extension block
+            var bitmapBlockOffsetsPerBitmapExtensionBlock = FileSystems.FastFileSystem.BlockHelper.CalculateBitmapBlockOffsetsPerBitmapExtensionBlock(partition
+                .FileSystemBlockSize);
             
-            // assert bitmap blocks
+            // arrange - calculate bitmap extension blocks count            
+            var bitmapExtensionBlocksCount = bitmapBlocksCount > 25
+                ? Convert.ToInt32(Math.Ceiling((bitmapBlocksCount - 25) / bitmapBlockOffsetsPerBitmapExtensionBlock)) : 0;
+
+            // arrange - read root bitmap blocks from stream
+            var rootBitmapBlocks = (await ReadBitmapBlocks(hdfStream, partitionStartOffset, rootBlock.BitmapBlockOffsets.Select(x => (uint)x),
+                (int)partition.FileSystemBlockSize)).ToList();
+
+            // assert - first 25 bitmap block offsets in root block is after root block offset
+            for (var i = 0; i < bitmapBlocksCount && i < 25; i++)
+            {
+                Assert.Equal(rootBlock.BitmapBlockOffsets[i], rootBlockOffset + i + 1);
+            }
+
+            // arrange - read bitmap extension blocks from stream
+            var bitmapExtensionBlocks = (await ReadBitmapExtensionBlocks(hdfStream, partitionStartOffset,
+                rootBlock.BitmapExtensionBlocksOffset, (int)partition.FileSystemBlockSize)).ToList();
+
+            // assert - calculated bitmap extension blocks coint is equal to bitmap extension blocks read
+            Assert.Equal(bitmapExtensionBlocksCount, bitmapExtensionBlocks.Count);
+            
+            // assert - first 25 bitmap block offsets in root block is after root block offset
+            for (var i = 0; i < bitmapBlocksCount && i < 25; i++)
+            {
+                Assert.Equal(rootBlock.BitmapBlockOffsets[i], rootBlockOffset + i + 1);
+            }
+            
+            // arrange - concatenate root bitmap blocks and bitmap blocks from bitmap extension blocks
+            var bitmapBlocks = rootBitmapBlocks.Concat(bitmapExtensionBlocks.SelectMany(x => x.BitmapBlocks)).ToList();
+
+            // assert - calculated bitmap blocks count is equal to bitmap blocks read
+            Assert.Equal(bitmapBlocksCount, bitmapBlocks.Count);
+
+            // arrange - calculate used blocks start and end offset
+            var usedBlocksStartOffset = rootBlockOffset;
+            var usedBlocksEndOffset = usedBlocksStartOffset + bitmapBlocksCount + bitmapExtensionBlocksCount;
+            
+            // arrange - calculate max block offset
+            var maxBlockOffset = blocks + partition.Reserved;
+            
+            // assert - bitmap block maps
             for (var i = 0; i < bitmapBlocksCount; i++)
             {
-                // assert - root block has bitmap block offset
-                Assert.Equal(rootBlock.BitmapBlockOffsets[i], rootBlockOffset + i + 1);
-                
-                // seek bitmap block offset in hdf stream
-                hdfStream.Seek(partitionStartOffset + (rootBlockOffset + 1 + i) * partition.FileSystemBlockSize,
-                    SeekOrigin.Begin);
-                
-                // read bitmap block from hdf stream
-                var bitmapBlockBytes = await Amiga.Disk.ReadBlock(hdfStream, (int)partition.FileSystemBlockSize);
-                var bitmapBlock = BitmapBlockParser.Parse(bitmapBlockBytes);
+                var bitmapBlock = bitmapBlocks[i];
 
-                // create expected blocks free map, used blocks are set false and free blocks are set true:
+                // arrange - create expected blocks free map, used blocks are set false and free blocks are set true:
                 // - root block
                 // - bitmap blocks
+                // - bitmap extension blocks
                 // note reserved blocks in beginning of partition are not part of bitmap blocks
                 var expectedBlocksFreeMap = new bool[bitmapsPerBitmapBlockCount];
                 for (var b = 0; b < bitmapsPerBitmapBlockCount; b++)
                 {
                     var blockOffset = partition.Reserved + (bitmapsPerBitmapBlockCount * i) + b;
-                    expectedBlocksFreeMap[b] = !((blockOffset >= rootBlockOffset &&
-                                                  blockOffset <= rootBlockOffset + bitmapBlocksCount) || blockOffset >= blocks + partition.Reserved);
+                    var isBlockFree = (blockOffset < usedBlocksStartOffset || blockOffset > usedBlocksEndOffset) && blockOffset < maxBlockOffset;
+                    expectedBlocksFreeMap[b] = isBlockFree;
                 }
                 
+                // arrange - create map
                 var expectedMapEntries = expectedBlocksFreeMap.ChunkBy(Constants.BitmapsPerULong)
                     .Select(x => MapBlockHelper.ConvertBlockFreeMapToUInt32(x.ToArray())).ToArray();
                 
+                // assert - bitmap block map is equal to expected bitmap block map
                 Assert.Equal(expectedMapEntries, bitmapBlock.Map);
             }
+            
+            // clean up
+            hdfStream.Close();
+            File.Delete(path);
+        }
+
+        private static async Task<IEnumerable<BitmapBlock>> ReadBitmapBlocks(Stream stream, long partitionStartOffset, IEnumerable<uint> bitmapBlockOffsets, int blockSize)
+        {
+            var bitmapBlocks = new List<BitmapBlock>();
+            
+            foreach (var blockBitmapBlockOffset in bitmapBlockOffsets)
+            {
+                if (blockBitmapBlockOffset == 0)
+                {
+                    continue;
+                }
+                
+                // seek bitmap block offset in hdf stream
+                stream.Seek(partitionStartOffset + blockBitmapBlockOffset * blockSize,
+                    SeekOrigin.Begin);
+                
+                // read bitmap block from hdf stream
+                var bitmapBlockBytes = await Amiga.Disk.ReadBlock(stream, blockSize);
+                var bitmapBlock = BitmapBlockParser.Parse(bitmapBlockBytes);
+
+                bitmapBlocks.Add(bitmapBlock);
+            }
+
+            return bitmapBlocks;
+        }
+
+        private static async Task<IEnumerable<BitmapExtensionBlock>> ReadBitmapExtensionBlocks(Stream stream, long partitionStartOffset, long bitmapExtensionBlocksOffset, int blockSize)
+        {
+            var bitmapExtensionBlocks = new List<BitmapExtensionBlock>();
+            
+            while (bitmapExtensionBlocksOffset != 0)
+            {
+                // seek bitmap extension block offset in stream
+                stream.Seek(partitionStartOffset + bitmapExtensionBlocksOffset * blockSize,
+                    SeekOrigin.Begin);
+
+                // read bitmap extension block from stream
+                var bitmapExtensionBlockBytes = await Amiga.Disk.ReadBlock(stream, blockSize);
+                var bitmapExtensionBlock = BitmapExtensionBlockParser.Parse(bitmapExtensionBlockBytes);
+
+                bitmapExtensionBlock.BitmapBlocks = await ReadBitmapBlocks(stream, partitionStartOffset,
+                    bitmapExtensionBlock.BitmapBlockOffsets, blockSize);
+                
+                bitmapExtensionBlocksOffset = bitmapExtensionBlock.NextBitmapExtensionBlockPointer;
+                
+                bitmapExtensionBlocks.Add(bitmapExtensionBlock);
+            }
+
+            return bitmapExtensionBlocks;
         }
     }
 }

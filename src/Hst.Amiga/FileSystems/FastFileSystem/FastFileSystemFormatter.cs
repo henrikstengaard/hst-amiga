@@ -47,10 +47,6 @@
                         fileSystemBlockSize)
                     .ToList();
 
-            rootBlock.BitmapExtensionBlocksOffset = bitmapExtensionBlocks.Count > 0
-                ? bitmapExtensionBlocks[0].Offset
-                : 0;
-            
             rootBlock.BitmapBlocks = bitmapBlocks.Take(Constants.MaxBitmapBlockPointersInRootBlock).ToList();
             rootBlock.BitmapExtensionBlocks = bitmapExtensionBlocks.ToList();
 

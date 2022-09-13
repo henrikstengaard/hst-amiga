@@ -22,6 +22,11 @@
                                    Constants.BitmapsPerULong);
         }
 
+        public static int CalculateBitmapBlockOffsetsPerBitmapExtensionBlock(uint blockSize)
+        {
+            return Convert.ToInt32((blockSize - SizeOf.Long) / SizeOf.Long);            
+        }
+
         public static IEnumerable<BitmapBlock> CreateBitmapBlocks(uint lowCyl, uint highCyl, uint heads,
             uint blocksPerTrack, uint blockSize)
         {
