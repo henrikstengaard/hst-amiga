@@ -76,9 +76,6 @@
             // create file
             using (var stream = File.Open(path, FileMode.Create))
             {
-                // set length to preallocate
-                stream.SetLength(rigidDiskBlock.DiskSize);
-
                 await WriteToStream(rigidDiskBlock, stream);
 
                 return rigidDiskBlock;
@@ -87,6 +84,9 @@
 
         public static async Task<RigidDiskBlock> WriteToStream(this RigidDiskBlock rigidDiskBlock, Stream stream)
         {
+            // set length to preallocate
+            stream.SetLength(rigidDiskBlock.DiskSize);
+
             await RigidDiskBlockWriter.WriteBlock(rigidDiskBlock, stream);
 
             return rigidDiskBlock;

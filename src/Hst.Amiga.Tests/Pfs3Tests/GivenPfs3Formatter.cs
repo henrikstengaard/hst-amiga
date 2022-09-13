@@ -13,30 +13,55 @@ public class GivenPfs3Formatter
 {
     private readonly byte[] pfs3DosType = { 0x50, 0x44, 0x53, 0x3 };
     
-    [Theory]
-    //[InlineData("10mb.hdf", 1024 * 1024 * 10)]
-    [InlineData("pfs3_100mb.hdf", 1024 * 1024 * 100)]
-    public async Task WhenFormattingHardDiskFileThenPfs3BlocksAreCreated(string hdfPath, long diskSize)
+    [Fact]
+    public async Task WhenFormatting100MbHardDiskFileThenPfs3BlocksAreCreated()
     {
+        var path = "pfs3_100mb_blocks";
+        var size = 100.MB().ToUniversalSize();
         var pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio"); 
+
+        // arrange - create memory block stream
+        await using var stream = new BlockMemoryStream();
         
-        // arrange - create hdf file with 1 partition using DOS3 dos type 
+        // arrange - create rigid disk block with 1 partition using pfs3 file system 
         var rigidDiskBlock = await RigidDiskBlock
-            .Create(diskSize.ToUniversalSize())
+            .Create(size)
             .AddFileSystem(pfs3DosType, await File.ReadAllBytesAsync(pfs3AioPath))
             .AddPartition("DH0", bootable: true)
-            .WriteToFile(hdfPath);
+            .WriteToStream(stream);
 
         var partition = rigidDiskBlock.PartitionBlocks.First();
         
         // act - format first partition using pfs3 formatter
-        await using var stream = File.Open(hdfPath, FileMode.Open, FileAccess.ReadWrite);
         await Pfs3Formatter.FormatPartition(stream, partition, "Workbench");
         
         // TODO - assert pfs3 blocks are created as expected
+        Assert.NotEmpty(stream.Blocks);
+    }    
+    
+    [Fact]
+    public async Task WhenFormatting10GbHardDiskFileThenPfs3BlocksAreCreated()
+    {
+        var path = "pfs3_10gb_blocks";
+        var size = 10.GB().ToUniversalSize();
+        var pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio"); 
+
+        // arrange - create memory block stream
+        await using var stream = new BlockMemoryStream();
         
-        // clean up
-        stream.Close();
-        File.Delete(hdfPath);
-    }
+        // arrange - create rigid disk block with 1 partition using pfs3 file system 
+        var rigidDiskBlock = await RigidDiskBlock
+            .Create(size)
+            .AddFileSystem(pfs3DosType, await File.ReadAllBytesAsync(pfs3AioPath))
+            .AddPartition("DH0", bootable: true)
+            .WriteToStream(stream);
+
+        var partition = rigidDiskBlock.PartitionBlocks.First();
+        
+        // act - format first partition using pfs3 formatter
+        await Pfs3Formatter.FormatPartition(stream, partition, "Workbench");
+        
+        // TODO - assert pfs3 blocks are created as expected
+        Assert.NotEmpty(stream.Blocks);
+    }    
 }

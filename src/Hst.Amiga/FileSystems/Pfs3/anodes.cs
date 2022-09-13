@@ -205,7 +205,7 @@
                 return null;
             }
 
-            if (volume.rblkextension.rblkextension.superindex[seqnr] != Allocation.AllocReservedBlock(g))
+            if ((volume.rblkextension.rblkextension.superindex[seqnr] = Allocation.AllocReservedBlock(g)) == 0)
             {
                 // DBERR(ErrorTrace(1, "NewSuperBlock", "ERR: AllocReservedBlock. %lu %p\n", seqnr, blok));
                 Lru.FreeLRU(blok, g);
@@ -219,6 +219,12 @@
             blok.volume     = volume;
             blok.blocknr    = volume.rblkextension.rblkextension.superindex[seqnr];
             blok.used       = 0;
+
+            if (blok.IndexBlock == null)
+            {
+                blok.blk = new indexblock(g);
+            }
+            
             var blok_cblk = blok.IndexBlock;
             blok_cblk.id     = Constants.SBLKID;
             blok_cblk.seqnr  = seqnr;

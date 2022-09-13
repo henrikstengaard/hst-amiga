@@ -17,7 +17,7 @@
         
         public static class DirBlock
         {
-            public static int Entries(globaldata g) => g.RootBlock.ReservedBlksize - UWORD * 2 - ULONG * 3;
+            public static int Entries(globaldata g) => g.RootBlock.ReservedBlksize - UWORD * 4 - ULONG * 3;
         }
         
         public static class DelDirBlock
