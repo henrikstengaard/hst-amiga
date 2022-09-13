@@ -104,8 +104,8 @@
         }
         
         [Theory]
-        [InlineData("10mb.hdf", 1024 * 1024 * 10)]
-        [InlineData("100mb.hdf", 1024 * 1024 * 100)]
+        [InlineData("dos3_10mb.hdf", 1024 * 1024 * 10)]
+        [InlineData("dos3_100mb.hdf", 1024 * 1024 * 100)]
         public async Task WhenFormattingHardDiskFileThenRootBlockAndBitmapBlocksAreCreated(string path, long diskSize)
         {
             // arrange - create hdf file with 1 partition using DOS3 dos type 
@@ -118,8 +118,8 @@
 
             var partition = rigidDiskBlock.PartitionBlocks.First();
 
-            // act - format first partition
-            await using var hdfStream = File.Open(path, FileMode.Create, FileAccess.ReadWrite);
+            // act - format first partition using fats file system formatter
+            await using var hdfStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
             await FastFileSystemFormatter.FormatPartition(hdfStream, partition, "Workbench");
 
             // arrange - calculate root block offset

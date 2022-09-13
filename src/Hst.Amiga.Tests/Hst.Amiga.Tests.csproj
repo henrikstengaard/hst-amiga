@@ -18,6 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="TestData\Pfs3" />
       <Folder Include="TestData\RigidDiskBlocks" />
       <Folder Include="VersionStringTests" />
     </ItemGroup>
@@ -46,6 +47,9 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
       <None Update="TestData\FastFileSystems\dos4.adf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Pfs3\pfs3aio">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
