@@ -28,7 +28,7 @@
                 stream.Seek(sectorOffset, SeekOrigin.Begin);
 
                 // read block bytes
-                var blockBytes = await stream.ReadBytes(blockSize);
+                var blockBytes = await stream.ReadBytes(BlockSize.RigidDiskBlock * SizeOf.ULong);
 
                 // skip, if identifier doesn't match rigid disk block
                 var identifier = BitConverter.ToUInt32(blockBytes, 0);
