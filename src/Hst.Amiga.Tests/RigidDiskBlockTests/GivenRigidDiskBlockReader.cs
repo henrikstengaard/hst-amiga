@@ -3,10 +3,11 @@
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
+    using Core.Extensions;
     using RigidDiskBlocks;
     using Xunit;
 
-    public class GivenRigidDiskBlockReader
+    public class GivenRigidDiskBlockReader : RigidDiskBlockTestBase
     {
         [Fact]
         public async Task WhenAmigaHardFileThenRigidDiskBlockIsValid()
@@ -37,6 +38,25 @@
             // assert partition 2
             var partition2 = partitionBlocks[1];
             Assert.Equal("DH1", partition2.DriveName);
+        }
+
+        [Fact]
+        public async Task WhenReadRigidDiskBlockFromSector1ThenReadRigidDiskBlockIsValid()
+        {
+            // arrange - create rigid disk block
+            var rigidDiskBlock = CreateRigidDiskBlock(1024);
+            var blockBytes = await RigidDiskBlockWriter.BuildBlock(rigidDiskBlock);
+
+            // arrange - write rigid disk block at sector 1 (0x512)
+            var memoryStream = new MemoryStream();
+            memoryStream.Seek(512, SeekOrigin.Begin);
+            await memoryStream.WriteBytes(blockBytes);
+
+            // act - read rigid disk block
+            var actualRigidDiskBlock = await RigidDiskBlockReader.Read(memoryStream);
+            
+            // assert - rigid disk block is not null
+            Assert.NotNull(actualRigidDiskBlock);
         }
     }
 }

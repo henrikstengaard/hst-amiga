@@ -13,28 +13,34 @@
     {
         public static async Task<RigidDiskBlock> Read(Stream stream)
         {
-            var rdbIndex = 0;
+            var sector = 0;
             var blockSize = 512;
             var rdbLocationLimit = 16;
-            RigidDiskBlock rigidDiskBlock;
+            RigidDiskBlock rigidDiskBlock = null;
 
-            // read rigid disk block from one of the first 15 blocks
+            // read rigid disk block from one of the first 15 sectors
             do
             {
-                // calculate block offset
-                var blockOffset = blockSize * rdbIndex;
+                // calculate sector offset
+                var sectorOffset = blockSize * sector;
 
-                // seek block offset
-                stream.Seek(blockOffset, SeekOrigin.Begin);
+                // seek sector offset
+                stream.Seek(sectorOffset, SeekOrigin.Begin);
 
-                // read block
-                var block = await BlockHelper.ReadBlock(stream);
+                // read block bytes
+                var blockBytes = await stream.ReadBytes(blockSize);
+
+                // skip, if identifier doesn't match rigid disk block
+                var identifier = BitConverter.ToUInt32(blockBytes, 0);
+                if (!identifier.Equals(BlockIdentifiers.RigidDiskBlock))
+                {
+                    sector++;
+                    continue;
+                }
 
                 // read rigid disk block
-                rigidDiskBlock = await Parse(block);
-
-                rdbIndex++;
-            } while (rdbIndex < rdbLocationLimit && rigidDiskBlock == null);
+                rigidDiskBlock = await Parse(blockBytes);
+            } while (sector < rdbLocationLimit && rigidDiskBlock == null);
 
             // fail, if rigid disk block is null
             if (rigidDiskBlock == null)

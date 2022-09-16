@@ -11,7 +11,7 @@
     {
         // "$VER: <name> <version>.<revision> (dd.mm.yy)"
         private static readonly Regex
-            VersionRegex = new Regex("\\$VER:\\s+([^\\s]+)\\s+(\\d+)\\.(\\d+)",
+            VersionRegex = new Regex("\\$VER:\\s+(.+)\\s+(\\d+)\\.(\\d+)",
                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static readonly Regex
