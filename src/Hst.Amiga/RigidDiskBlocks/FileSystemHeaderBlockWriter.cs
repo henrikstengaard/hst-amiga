@@ -14,7 +14,7 @@
             var blockStream =
                 new MemoryStream(
                     fileSystemHeaderBlock.BlockBytes == null || fileSystemHeaderBlock.BlockBytes.Length == 0
-                        ? new byte[BlockSize.FileSystemHeaderBlock * 4]
+                        ? new byte[Constants.BlockSize]
                         : fileSystemHeaderBlock.BlockBytes);
 
             await blockStream.WriteBytes(BitConverter.GetBytes(BlockIdentifiers.FileSystemHeaderBlock));

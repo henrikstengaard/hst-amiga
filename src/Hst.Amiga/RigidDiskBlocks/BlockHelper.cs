@@ -1,34 +1,11 @@
 ﻿namespace Hst.Amiga.RigidDiskBlocks
 {
     using System;
-    using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
-    using System.Threading.Tasks;
-    using Core.Converters;
     using Core.Extensions;
-    using FileSystems.FastFileSystem;
 
     public static class BlockHelper
     {
-        public static async Task<byte[]> ReadBlock(Stream stream)
-        {
-            var blockStartLength = 8;
-            var blockStartBytes = await stream.ReadBytes(blockStartLength);
-            var size = BigEndianConverter.ConvertBytesToUInt32(blockStartBytes.CopyBytes(4, 4));
-
-            var blockBytes = new byte[size * 4];
-            Array.Copy(blockStartBytes, 0, blockBytes, 0, blockStartLength);
-
-            var bytesRead = await stream.ReadAsync(blockBytes, blockStartLength, blockBytes.Length - blockStartLength);
-            if (bytesRead != blockBytes.Length - blockStartLength)
-            {
-                throw new IOException("Failed to read block");
-            }
-
-            return blockBytes;
-        }
-        
         public static FileSystemHeaderBlock CreateFileSystemHeaderBlock(byte[] dosType, int version, int revision,
             string fileSystemName, byte[] fileSystemBytes)
         {

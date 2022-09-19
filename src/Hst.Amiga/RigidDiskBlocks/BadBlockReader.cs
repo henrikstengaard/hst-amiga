@@ -33,10 +33,10 @@
                 stream.Seek(blockOffset, SeekOrigin.Begin);
 
                 // read block
-                var block = await BlockHelper.ReadBlock(stream);
+                var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // read rigid disk block
-                var badBlock = await Parse(block);
+                var badBlock = await Parse(blockBytes);
                 
                 badBlocks.Add(badBlock);
                 

@@ -33,10 +33,10 @@
                 stream.Seek(fileSystemHeaderBlockOffset, SeekOrigin.Begin);
 
                 // read block
-                var block = await BlockHelper.ReadBlock(stream);
+                var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // parse file system header block
-                var fileSystemHeaderBlock = await Parse(block);
+                var fileSystemHeaderBlock = await Parse(blockBytes);
 
                 fileSystemHeaderBlocks.Add(fileSystemHeaderBlock);
 

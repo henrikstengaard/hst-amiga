@@ -25,10 +25,10 @@
                 stream.Seek(segListBlockOffset, SeekOrigin.Begin);
                 
                 // read block
-                var block = await BlockHelper.ReadBlock(stream);
+                var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // parse file system header block
-                var loadSegBlock = await Parse(block);
+                var loadSegBlock = await Parse(blockBytes);
 
                 loadSegBlocks.Add(loadSegBlock);
                 

@@ -16,7 +16,6 @@ public class GivenPfs3Formatter
     [Fact]
     public async Task WhenFormatting100MbHardDiskFileThenPfs3BlocksAreCreated()
     {
-        var path = "pfs3_100mb_blocks";
         var size = 100.MB().ToUniversalSize();
         var pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio"); 
 
@@ -42,7 +41,6 @@ public class GivenPfs3Formatter
     [Fact]
     public async Task WhenFormatting10GbHardDiskFileThenPfs3BlocksAreCreated()
     {
-        var path = "pfs3_10gb_blocks";
         var size = 10.GB().ToUniversalSize();
         var pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio"); 
 

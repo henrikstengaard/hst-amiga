@@ -16,7 +16,7 @@
             }
 
             var structureSize = 5 * 4;
-            var maxDataSize = 512 - structureSize;
+            var maxDataSize = Constants.BlockSize - structureSize;
             if (loadSegBlock.Data.Length > maxDataSize)
             {
                 throw new ArgumentException($"Load seg block data is larger than max data size {maxDataSize}",
@@ -24,7 +24,7 @@
             }
 
             var blockStream = new MemoryStream(loadSegBlock.BlockBytes == null || loadSegBlock.BlockBytes.Length == 0
-                ? new byte[structureSize + loadSegBlock.Data.Length]
+                ? new byte[Constants.BlockSize]
                 : loadSegBlock.BlockBytes);
             var size = (structureSize + loadSegBlock.Data.Length) / 4;
 

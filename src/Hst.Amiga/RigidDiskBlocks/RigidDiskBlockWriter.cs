@@ -13,7 +13,7 @@
         {
             var blockStream =
                 new MemoryStream(rigidDiskBlock.BlockBytes == null || rigidDiskBlock.BlockBytes.Length == 0
-                    ? new byte[BlockSize.RigidDiskBlock * 4]
+                    ? new byte[Constants.BlockSize]
                     : rigidDiskBlock.BlockBytes);
 
             await blockStream.WriteBytes(BitConverter.GetBytes(BlockIdentifiers.RigidDiskBlock));

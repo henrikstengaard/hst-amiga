@@ -16,7 +16,7 @@
             }
 
             var structureSize = 6 * 4;
-            var maxDataSize = 512 - structureSize;
+            var maxDataSize = Constants.BlockSize - structureSize;
             if (badBlock.Data.Length > maxDataSize)
             {
                 throw new ArgumentException($"Bad block data is larger than max data size {maxDataSize}",
@@ -24,7 +24,7 @@
             }
 
             var blockStream = new MemoryStream(badBlock.BlockBytes == null || badBlock.BlockBytes.Length == 0
-                ? new byte[structureSize + badBlock.Data.Length]
+                ? new byte[Constants.BlockSize]
                 : badBlock.BlockBytes);
             var size = (structureSize + badBlock.Data.Length) / 4;
 

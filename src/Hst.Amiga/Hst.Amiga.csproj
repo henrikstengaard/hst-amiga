@@ -5,7 +5,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="FileSystems" />
-    <Folder Include="RigidDiskBlocks" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\readme.md" Pack="true" PackagePath="\" />

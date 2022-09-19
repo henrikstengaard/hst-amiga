@@ -13,7 +13,7 @@
         {
             var blockStream =
                 new MemoryStream(partitionBlock.BlockBytes == null || partitionBlock.BlockBytes.Length == 0
-                    ? new byte[BlockSize.PartitionBlock * 4]
+                    ? new byte[Constants.BlockSize]
                     : partitionBlock.BlockBytes);
 
             await blockStream.WriteBytes(BitConverter.GetBytes(BlockIdentifiers.PartitionBlock));

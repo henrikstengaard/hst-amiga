@@ -33,7 +33,7 @@
                 stream.Seek(partitionBlockOffset, SeekOrigin.Begin);
 
                 // read block
-                var blockBytes = await BlockHelper.ReadBlock(stream);
+                var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // read partition block
                 var partitionBlock = await Parse(rigidDiskBlock, blockBytes);

@@ -12,6 +12,7 @@
     using FileSystems.FastFileSystem.Blocks;
     using RigidDiskBlocks;
     using Xunit;
+    using Constants = FileSystems.FastFileSystem.Constants;
     using File = System.IO.File;
     using FileMode = System.IO.FileMode;
 
