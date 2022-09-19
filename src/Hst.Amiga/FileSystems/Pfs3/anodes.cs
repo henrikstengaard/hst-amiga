@@ -459,7 +459,7 @@
                     // 	ErrorTrace(5, "AllocAnode","ERR: anblkbitmap out of bounds %lu >= %lu\n", i, andata.anblkbitmapsize / 4));
 
                     field = andata.anblkbitmap[i];
-                    if (field != null)
+                    if (field != 0)
                     {
                         for (j = 31; j >= 0; j--)
                         {
@@ -832,7 +832,7 @@
 
             var node = ac.head;
             await GetAnode(node.an, anodenr, g);
-            while (node.an != null && node.an.next != null)
+            while (node.an != null && node.an.next != 0)
             {
                 // if (!(newnode = AllocMemP(sizeof(struct anodechainnode), g)))
                 // goto failure;
