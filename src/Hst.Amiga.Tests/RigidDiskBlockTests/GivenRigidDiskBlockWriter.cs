@@ -9,7 +9,7 @@
 
     public class GivenRigidDiskBlockWriter : RigidDiskBlockTestBase
     {
-        [Fact()]
+        [Fact]
         public async Task WhenCreateAndWriteRigidDiskBlockThenRigidDiskBlockIsEqual()
         {
             var path = "amiga.hdf";

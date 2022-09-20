@@ -65,7 +65,7 @@
                 return null;
             }
 
-            await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
+            var size = await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
             var checksum = await blockStream.ReadBigEndianInt32(); // Checksum of the structure
             var hostId = await blockStream.ReadBigEndianUInt32(); // SCSI Target ID of host, not really used
             var blockSize = await blockStream.ReadBigEndianUInt32(); // Size of disk blocks
@@ -123,7 +123,7 @@
             // calculate size of disk in bytes
             var diskSize = (long)cylinders * heads * sectors * blockSize;
 
-            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8);
+            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8, (int)size * SizeOf.Long);
 
             if (checksum != calculatedChecksum)
             {

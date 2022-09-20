@@ -36,7 +36,7 @@
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // read partition block
-                var partitionBlock = await Parse(rigidDiskBlock, blockBytes);
+                var partitionBlock = await Parse(blockBytes, (int)rigidDiskBlock.BlockSize);
 
                 // fail, if partition block is null
                 if (partitionBlock == null)
@@ -58,7 +58,7 @@
             return partitionBlocks;
         }
 
-        public static async Task<PartitionBlock> Parse(RigidDiskBlock rigidDiskBlock, byte[] blockBytes)
+        public static async Task<PartitionBlock> Parse(byte[] blockBytes, int blockSize)
         {
             var blockStream = new MemoryStream(blockBytes);
 
@@ -68,7 +68,7 @@
                 return null;
             }
 
-            await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
+            var size = await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
             var checksum = await blockStream.ReadBigEndianInt32(); // Checksum of the structure
             var hostId = await blockStream.ReadBigEndianUInt32(); // SCSI Target ID of host, not really used 
             var nextPartitionBlock = await blockStream.ReadBigEndianUInt32(); // Block number of the next PartitionBlock
@@ -115,9 +115,9 @@
             blockStream.Seek(4 * 12, SeekOrigin.Current);
             
             // calculate size of partition in bytes
-            var partitionSize = (long)(highCyl - lowCyl + 1) * surfaces * blocksPerTrack * rigidDiskBlock.BlockSize;
+            var partitionSize = (long)(highCyl - lowCyl + 1) * surfaces * blocksPerTrack * blockSize;
 
-            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8);
+            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8, (int)size * SizeOf.Long);
 
             if (checksum != calculatedChecksum)
             {

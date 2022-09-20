@@ -29,7 +29,7 @@
             var size = (structureSize + loadSegBlock.Data.Length) / 4;
 
             await blockStream.WriteBytes(BitConverter.GetBytes(BlockIdentifiers.LoadSegBlock));
-            await blockStream.WriteBigEndianUInt32((uint)size); // size
+            await blockStream.WriteBigEndianUInt32((uint)size); // size of structure to calculate checksum
 
             // skip checksum, calculated when block is built
             blockStream.Seek(4, SeekOrigin.Current);
@@ -42,7 +42,7 @@
 
             // calculate and update checksum
             var blockBytes = blockStream.ToArray();
-            loadSegBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 8);
+            loadSegBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 8, size * SizeOf.Long);
             loadSegBlock.BlockBytes = blockBytes;
 
             return blockBytes;

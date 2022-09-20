@@ -76,7 +76,7 @@
 
             // calculate and update checksum
             var blockBytes = blockStream.ToArray();
-            partitionBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 8);
+            partitionBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 8, BlockSize.PartitionBlock * SizeOf.Long);
             partitionBlock.BlockBytes = blockBytes;
 
             return blockBytes;

@@ -57,7 +57,7 @@
 
             // calculate and update checksum
             var blockBytes = blockStream.ToArray();
-            fileSystemHeaderBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 8);
+            fileSystemHeaderBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 8, BlockSize.FileSystemHeaderBlock * SizeOf.Long);
             fileSystemHeaderBlock.BlockBytes = blockBytes;
 
             return blockBytes;

@@ -65,7 +65,7 @@
                 throw new IOException("Invalid file system header block identifier");
             }
 
-            await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
+            var size = await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
             var checksum = await blockStream.ReadBigEndianInt32(); // Checksum of the structure
             var hostId = await blockStream.ReadBigEndianUInt32(); // SCSI Target ID of host, not really used
             var nextFileSysHeaderBlock = await blockStream.ReadBigEndianUInt32(); // Block number of the next FileSysHeaderBlock
@@ -95,7 +95,7 @@
             blockStream.Seek(172, SeekOrigin.Begin);
             var fileSystemName = await blockStream.ReadNullTerminatedString();
 
-            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8);
+            var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8, (int)size * SizeOf.Long);
 
             if (checksum != calculatedChecksum)
             {
