@@ -35,27 +35,30 @@
             await stream.WriteAsync(blockBytes, 0, blockBytes.Length);
         }
 
-        public static async Task FindUsedSectors(Stream stream, int blockSize, Func<long, byte[], Task> handler)
+        public static async Task FindUsedSectors(Stream stream, int sectorSize, Func<long, byte[], Task> handler)
         {
-            if (blockSize % 512 != 0)
+            if (sectorSize % 512 != 0)
             {
-                throw new ArgumentException("Block size must be dividable by 512", nameof(blockSize));
+                throw new ArgumentException("Sector size must be dividable by 512", nameof(sectorSize));
             }
             
-            var blockBytes = new byte[blockSize];
+            var sectorBytes = new byte[sectorSize];
             int bytesRead;
             do
             {
-                bytesRead = await stream.ReadAsync(blockBytes, 0, blockBytes.Length);
+                var offset = stream.Position;
+                bytesRead = await stream.ReadAsync(sectorBytes, 0, sectorBytes.Length);
 
-                // skip unused sector where all bytes are zero
-                if (blockBytes.All(x => x == 0))
+                // skip unused sector if all bytes are zero
+                if (sectorBytes.All(x => x == 0))
                 {
                     continue;
                 }
-                
-                await handler(stream.Position, blockBytes);
-            } while (bytesRead == blockSize);
+
+                var bytes = new byte[sectorSize];
+                Array.Copy(sectorBytes, 0, bytes, 0, bytesRead);
+                await handler(offset, bytes);
+            } while (bytesRead == sectorSize);
         }
     }
 }
