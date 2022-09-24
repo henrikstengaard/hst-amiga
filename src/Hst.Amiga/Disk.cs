@@ -3,6 +3,7 @@
     using System;
     using System.IO;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
 
     public static class Disk
@@ -35,7 +36,7 @@
             await stream.WriteAsync(blockBytes, 0, blockBytes.Length);
         }
 
-        public static async Task FindUsedSectors(Stream stream, int sectorSize, Func<long, byte[], Task> handler)
+        public static async Task FindUsedSectors(Stream stream, int sectorSize, Func<long, byte[], Task> handler, CancellationToken token)
         {
             if (sectorSize % 512 != 0)
             {
@@ -46,8 +47,13 @@
             int bytesRead;
             do
             {
+                if (token.IsCancellationRequested)
+                {
+                    break;
+                }
+                
                 var offset = stream.Position;
-                bytesRead = await stream.ReadAsync(sectorBytes, 0, sectorBytes.Length);
+                bytesRead = await stream.ReadAsync(sectorBytes, 0, sectorBytes.Length, token);
 
                 // skip unused sector if all bytes are zero
                 if (sectorBytes.All(x => x == 0))
