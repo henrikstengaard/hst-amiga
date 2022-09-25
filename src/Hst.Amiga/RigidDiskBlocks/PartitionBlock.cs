@@ -152,7 +152,9 @@
                 DriveName = driveName,
                 Flags = bootable ? (uint)PartitionFlagsEnum.Bootable : 0,
                 LowCyl = lowCyl,
-                HighCyl = highCyl
+                HighCyl = highCyl,
+                BlocksPerTrack = rigidDiskBlock.Sectors,
+                Surfaces = rigidDiskBlock.Heads
             };
 
             return partitionBlock;

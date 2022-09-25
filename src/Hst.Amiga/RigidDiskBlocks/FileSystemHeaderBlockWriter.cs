@@ -52,7 +52,7 @@
             await blockStream.WriteBigEndianInt32(fileSystemHeaderBlock.GlobalVec);
 
             blockStream.Seek(0xac, SeekOrigin.Begin);
-            await blockStream.WriteString(fileSystemHeaderBlock.FileSystemName, 50);
+            await blockStream.WriteString(fileSystemHeaderBlock.FileSystemName, 84);
             blockStream.WriteByte(0);
 
             // calculate and update checksum

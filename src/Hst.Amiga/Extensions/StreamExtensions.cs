@@ -12,7 +12,6 @@
         /// Read string first by reading length of string and then read string 
         /// </summary>
         /// <param name="stream"></param>
-        /// <param name="length"></param>
         /// <returns></returns>
         public static async Task<string> ReadString(this Stream stream)
         {
@@ -25,20 +24,22 @@
             return AmigaTextHelper.GetString(await stream.ReadBytes(length));
         }
 
-        public static async Task<string> ReadNullTerminatedString(this Stream stream)
+        public static async Task<string> ReadNullTerminatedString(this Stream stream, int maxLength = 0)
         {
             var stringBytes = new List<byte>();
 
-            byte[] buffer = new byte[1];
-            int bytesRead;
+            var buffer = new byte[1];
+            bool readMore;
             do
             {
-                bytesRead = await stream.ReadAsync(buffer, 0, 1);
-                if (bytesRead == 1 && buffer[0] != 0)
+                var bytesRead = await stream.ReadAsync(buffer, 0, 1);
+                readMore = bytesRead == 1 && buffer[0] != 0 && (maxLength == 0 || stringBytes.Count < maxLength); 
+                
+                if (readMore)
                 {
                     stringBytes.Add(buffer[0]);
                 }
-            } while (bytesRead == 1 && buffer[0] != 0);
+            } while (readMore);
             
             return AmigaTextHelper.GetString(stringBytes.ToArray());
         }

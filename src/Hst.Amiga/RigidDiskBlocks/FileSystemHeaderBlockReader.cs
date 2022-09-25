@@ -93,7 +93,7 @@
             var globalVec = await blockStream.ReadBigEndianInt32();
 
             blockStream.Seek(172, SeekOrigin.Begin);
-            var fileSystemName = await blockStream.ReadNullTerminatedString();
+            var fileSystemName = await blockStream.ReadNullTerminatedString(84);
 
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8, (int)size * SizeOf.Long);
 
