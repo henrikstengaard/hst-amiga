@@ -11,6 +11,26 @@
     public class GivenRigidDiskBlock : RigidDiskBlockTestBase
     {
         [Fact]
+        public void WhenCreatingFromChsThenDiskSizeMatches()
+        {
+            // arrange - cylinders, heads and sectors
+            var cylinders = 800;
+            var heads = 16;
+            var sectors = 255;
+            
+            // act - create rigid disk block from cylinders, heads and sectors
+            var rigidDiskBlock = RigidDiskBlock
+                .Create(cylinders, heads, sectors);
+
+            // assert - disk size is equal
+            Assert.Equal(rigidDiskBlock.DiskSize, cylinders * heads * sectors * 512);
+
+            // assert - cylinders, heads and sectors are equal
+            Assert.Equal(rigidDiskBlock.Cylinders, (uint)cylinders);
+            Assert.Equal(rigidDiskBlock.Heads, (uint)heads);
+            Assert.Equal(rigidDiskBlock.Sectors, (uint)sectors);
+        }
+        [Fact]
         public async Task WhenAddFileSystemThenFileSystemIsAdded()
         {
             var pfs3FileSystemBytes =

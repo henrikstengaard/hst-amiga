@@ -193,6 +193,7 @@
             var cylinders = (uint)Math.Floor((double)size / cylinderSize);
 
             rigidDiskBlock.DiskSize = (long)cylinders * cylinderSize;
+            rigidDiskBlock.CylBlocks = blocksPerCylinder;
             rigidDiskBlock.Cylinders = cylinders;
             rigidDiskBlock.ParkingZone = cylinders - 1;
             rigidDiskBlock.ReducedWrite = cylinders;
@@ -202,6 +203,31 @@
 
             rigidDiskBlock.LoCylinder = (uint)Math.Ceiling((double)rdbEndOffset / cylinderSize);
             rigidDiskBlock.HiCylinder = rigidDiskBlock.Cylinders - 1;
+
+            return rigidDiskBlock;
+        }
+
+        public static RigidDiskBlock Create(int cylinders, int heads, int sectors)
+        {
+            var blockSize = 512;
+            var blocksPerCylinder = heads * sectors;
+            var cylinderSize = blocksPerCylinder * blockSize;
+            
+            var rigidDiskBlock = new RigidDiskBlock
+            {
+                DiskSize = cylinders * heads * sectors * blockSize,
+                CylBlocks = (uint)(heads * sectors),
+                Cylinders = (uint)cylinders,
+                Heads = (uint)heads,
+                Sectors = (uint)sectors,
+                HiCylinder = (uint)(cylinders - 1),
+                ParkingZone = (uint)(cylinders - 1),
+                ReducedWrite = (uint)cylinders,
+                WritePreComp = (uint)cylinders
+            };
+            
+            var rdbEndOffset = rigidDiskBlock.RdbBlockHi * blockSize;
+            rigidDiskBlock.LoCylinder = (uint)Math.Ceiling((double)rdbEndOffset / cylinderSize);
 
             return rigidDiskBlock;
         }
