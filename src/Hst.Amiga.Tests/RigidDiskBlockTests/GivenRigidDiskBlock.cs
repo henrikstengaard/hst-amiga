@@ -30,6 +30,27 @@
             Assert.Equal(rigidDiskBlock.Heads, (uint)heads);
             Assert.Equal(rigidDiskBlock.Sectors, (uint)sectors);
         }
+
+        [Fact]
+        public void WhenAddPartitionLargerThanRigidDiskBlockThenPartitionSizeIsAdjustedToFit()
+        {
+            // arrange - create rigid disk block of 10mb
+            var rigidDiskBlock = RigidDiskBlock.Create(10.MB());
+
+            // act - add partition of 100mb
+            var partitionBlock =
+                PartitionBlock.Create(rigidDiskBlock, DosTypeHelper.FormatDosType("PFS3"), "DH0", 100.MB());
+
+            // assert - partition low and high cylinder matches rigid disk block partitionable disk area
+            Assert.Equal(rigidDiskBlock.LoCylinder, partitionBlock.LowCyl);
+            Assert.Equal(rigidDiskBlock.HiCylinder, partitionBlock.HighCyl);
+            
+            // assert - calculated partition size matches
+            var cylinders = rigidDiskBlock.HiCylinder - rigidDiskBlock.LoCylinder + 1;
+            var partitionSize = cylinders * partitionBlock.Surfaces * partitionBlock.BlocksPerTrack * 512;
+            Assert.Equal(partitionSize, partitionBlock.PartitionSize);
+        }
+        
         [Fact]
         public async Task WhenAddFileSystemThenFileSystemIsAdded()
         {

@@ -11,7 +11,7 @@
     // http://amigadev.elowar.com/read/ADCD_2.1/Devices_Manual_guide/node0079.html
     public static class RigidDiskBlockReader
     {
-        public static async Task<RigidDiskBlock> Read(Stream stream)
+        public static async Task<RigidDiskBlock> Read(Stream stream, bool ignoreChecksum = false)
         {
             var sector = 0;
             var blockSize = 512;
@@ -39,7 +39,7 @@
                 }
 
                 // read rigid disk block
-                rigidDiskBlock = await Parse(blockBytes);
+                rigidDiskBlock = await Parse(blockBytes, ignoreChecksum);
             } while (sector < rdbLocationLimit && rigidDiskBlock == null);
 
             // fail, if rigid disk block is null
@@ -48,14 +48,14 @@
                 return null;
             }
 
-            rigidDiskBlock.FileSystemHeaderBlocks = await FileSystemHeaderBlockReader.Read(rigidDiskBlock, stream);
-            rigidDiskBlock.PartitionBlocks = await PartitionBlockReader.Read(rigidDiskBlock, stream);
-            rigidDiskBlock.BadBlocks = await BadBlockReader.Read(rigidDiskBlock, stream);
+            rigidDiskBlock.FileSystemHeaderBlocks = await FileSystemHeaderBlockReader.Read(rigidDiskBlock, stream, ignoreChecksum);
+            rigidDiskBlock.PartitionBlocks = await PartitionBlockReader.Read(rigidDiskBlock, stream, ignoreChecksum);
+            rigidDiskBlock.BadBlocks = await BadBlockReader.Read(rigidDiskBlock, stream, ignoreChecksum);
 
             return rigidDiskBlock;
         }
 
-        public static async Task<RigidDiskBlock> Parse(byte[] blockBytes)
+        public static async Task<RigidDiskBlock> Parse(byte[] blockBytes, bool ignoreChecksum = false)
         {
             var blockStream = new MemoryStream(blockBytes);
 
@@ -125,7 +125,7 @@
 
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8, (int)size * SizeOf.Long);
 
-            if (checksum != calculatedChecksum)
+            if (!ignoreChecksum && checksum != calculatedChecksum)
             {
                 throw new Exception("Invalid rigid disk block checksum");
             }

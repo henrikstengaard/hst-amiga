@@ -145,9 +145,12 @@
                 ? rigidDiskBlock.HiCylinder
                 : lowCyl + cylinders - 1;
 
+            var partitionSize = (highCyl - lowCyl + 1) * rigidDiskBlock.Heads * rigidDiskBlock.Sectors *
+                                rigidDiskBlock.BlockSize;
+
             var partitionBlock = new PartitionBlock
             {
-                PartitionSize = cylinders * rigidDiskBlock.Heads * rigidDiskBlock.Sectors * rigidDiskBlock.BlockSize,
+                PartitionSize = partitionSize,
                 DosType = dosType,
                 DriveName = driveName,
                 Flags = bootable ? (uint)PartitionFlagsEnum.Bootable : 0,

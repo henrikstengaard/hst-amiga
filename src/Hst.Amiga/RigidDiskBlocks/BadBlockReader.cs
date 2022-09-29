@@ -10,7 +10,7 @@
 
     public static class BadBlockReader
     {
-        public static async Task<IEnumerable<BadBlock>> Read(RigidDiskBlock rigidDiskBlock, Stream stream)
+        public static async Task<IEnumerable<BadBlock>> Read(RigidDiskBlock rigidDiskBlock, Stream stream, bool ignoreChecksum = false)
         {
             if (rigidDiskBlock == null) throw new ArgumentNullException(nameof(rigidDiskBlock));
             if (stream == null) throw new ArgumentNullException(nameof(stream));
@@ -36,7 +36,7 @@
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // read rigid disk block
-                var badBlock = await Parse(blockBytes);
+                var badBlock = await Parse(blockBytes, ignoreChecksum);
                 
                 badBlocks.Add(badBlock);
                 
@@ -47,7 +47,7 @@
             return badBlocks;
         }
 
-        public static async Task<BadBlock> Parse(byte[] blockBytes)
+        public static async Task<BadBlock> Parse(byte[] blockBytes, bool ignoreChecksum = false)
         {
             var blockStream = new MemoryStream(blockBytes);
 
@@ -64,7 +64,7 @@
 
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8);
 
-            if (checksum != calculatedChecksum)
+            if (!ignoreChecksum && checksum != calculatedChecksum)
             {
                 throw new IOException("Invalid bad block checksum");
             }

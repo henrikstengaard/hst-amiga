@@ -10,7 +10,7 @@
     public static class LoadSegBlockReader
     {
         public static async Task<IEnumerable<LoadSegBlock>> Read(
-            RigidDiskBlock rigidDiskBlock, FileSystemHeaderBlock fileSystemHeaderBlock, Stream stream)
+            RigidDiskBlock rigidDiskBlock, FileSystemHeaderBlock fileSystemHeaderBlock, Stream stream, bool ignoreChecksum = false)
         {
             var loadSegBlocks = new List<LoadSegBlock>();
             
@@ -28,7 +28,7 @@
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // parse file system header block
-                var loadSegBlock = await Parse(blockBytes);
+                var loadSegBlock = await Parse(blockBytes, ignoreChecksum);
 
                 loadSegBlocks.Add(loadSegBlock);
                 
@@ -39,7 +39,7 @@
             return loadSegBlocks;
         }
 
-        public static async Task<LoadSegBlock> Parse(byte[] blockBytes)
+        public static async Task<LoadSegBlock> Parse(byte[] blockBytes, bool ignoreChecksum = false)
         {
             var blockStream = new MemoryStream(blockBytes);
             
@@ -56,7 +56,7 @@
 
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8, (int)size * SizeOf.Long);
 
-            if (checksum != calculatedChecksum)
+            if (!ignoreChecksum && checksum != calculatedChecksum)
             {
                 throw new IOException("Invalid load seg block checksum");
             }

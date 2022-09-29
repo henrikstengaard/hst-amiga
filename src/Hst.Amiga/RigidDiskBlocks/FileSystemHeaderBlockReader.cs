@@ -8,12 +8,11 @@
     using Core.Extensions;
     using Extensions;
     using FileSystems;
-    using VersionStrings;
 
     public static class FileSystemHeaderBlockReader
     {
         public static async Task<IEnumerable<FileSystemHeaderBlock>> Read(
-            RigidDiskBlock rigidDiskBlock, Stream stream)
+            RigidDiskBlock rigidDiskBlock, Stream stream, bool ignoreChecksum = false)
         {
             if (rigidDiskBlock.FileSysHdrList == BlockIdentifiers.EndOfBlock)
             {
@@ -36,7 +35,7 @@
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // parse file system header block
-                var fileSystemHeaderBlock = await Parse(blockBytes);
+                var fileSystemHeaderBlock = await Parse(blockBytes, ignoreChecksum);
 
                 fileSystemHeaderBlocks.Add(fileSystemHeaderBlock);
 
@@ -47,7 +46,7 @@
             foreach (var fileSystemHeaderBlock in fileSystemHeaderBlocks)
             {
                 fileSystemHeaderBlock.LoadSegBlocks =
-                    await LoadSegBlockReader.Read(rigidDiskBlock, fileSystemHeaderBlock, stream);
+                    await LoadSegBlockReader.Read(rigidDiskBlock, fileSystemHeaderBlock, stream, ignoreChecksum);
 
                 fileSystemHeaderBlock.FileSystemSize = fileSystemHeaderBlock.LoadSegBlocks.Sum(x => x.Data.Length);
             }
@@ -55,7 +54,7 @@
             return fileSystemHeaderBlocks;
         }
 
-        public static async Task<FileSystemHeaderBlock> Parse(byte[] blockBytes)
+        public static async Task<FileSystemHeaderBlock> Parse(byte[] blockBytes, bool ignoreChecksum = false)
         {
             var blockStream = new MemoryStream(blockBytes);
 
@@ -97,7 +96,7 @@
 
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8, (int)size * SizeOf.Long);
 
-            if (checksum != calculatedChecksum)
+            if (!ignoreChecksum && checksum != calculatedChecksum)
             {
                 throw new IOException("Invalid file system header block checksum");
             }

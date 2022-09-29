@@ -207,15 +207,14 @@
             return rigidDiskBlock;
         }
 
-        public static RigidDiskBlock Create(int cylinders, int heads, int sectors)
+        public static RigidDiskBlock Create(int cylinders, int heads, int sectors, int sectorSize = 512)
         {
-            var blockSize = 512;
             var blocksPerCylinder = heads * sectors;
-            var cylinderSize = blocksPerCylinder * blockSize;
+            var cylinderSize = blocksPerCylinder * sectorSize;
             
             var rigidDiskBlock = new RigidDiskBlock
             {
-                DiskSize = cylinders * heads * sectors * blockSize,
+                DiskSize = cylinders * cylinderSize,
                 CylBlocks = (uint)(heads * sectors),
                 Cylinders = (uint)cylinders,
                 Heads = (uint)heads,
@@ -226,7 +225,7 @@
                 WritePreComp = (uint)cylinders
             };
             
-            var rdbEndOffset = rigidDiskBlock.RdbBlockHi * blockSize;
+            var rdbEndOffset = rigidDiskBlock.RdbBlockHi * sectorSize;
             rigidDiskBlock.LoCylinder = (uint)Math.Ceiling((double)rdbEndOffset / cylinderSize);
 
             return rigidDiskBlock;

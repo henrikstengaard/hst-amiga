@@ -11,7 +11,7 @@
 
     public static class PartitionBlockReader
     {
-        public static async Task<IEnumerable<PartitionBlock>> Read(RigidDiskBlock rigidDiskBlock, Stream stream)
+        public static async Task<IEnumerable<PartitionBlock>> Read(RigidDiskBlock rigidDiskBlock, Stream stream, bool ignoreChecksum = false)
         {
             if (rigidDiskBlock.PartitionList == BlockIdentifiers.EndOfBlock)
             {
@@ -36,7 +36,7 @@
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
                 // read partition block
-                var partitionBlock = await Parse(blockBytes, (int)rigidDiskBlock.BlockSize);
+                var partitionBlock = await Parse(blockBytes, (int)rigidDiskBlock.BlockSize, ignoreChecksum);
 
                 // fail, if partition block is null
                 if (partitionBlock == null)
@@ -52,13 +52,10 @@
 
             rigidDiskBlock.PartitionBlocks = partitionBlocks;
 
-            rigidDiskBlock.FileSystemHeaderBlocks =
-                await FileSystemHeaderBlockReader.Read(rigidDiskBlock, stream);
-
             return partitionBlocks;
         }
 
-        public static async Task<PartitionBlock> Parse(byte[] blockBytes, int blockSize)
+        public static async Task<PartitionBlock> Parse(byte[] blockBytes, int blockSize, bool ignoreChecksum = false)
         {
             var blockStream = new MemoryStream(blockBytes);
 
@@ -119,7 +116,7 @@
 
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 8, (int)size * SizeOf.Long);
 
-            if (checksum != calculatedChecksum)
+            if (!ignoreChecksum && checksum != calculatedChecksum)
             {
                 throw new Exception("Invalid partition block checksum");
             }
