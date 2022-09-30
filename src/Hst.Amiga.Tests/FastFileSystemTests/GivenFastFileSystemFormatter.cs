@@ -180,7 +180,7 @@
             var bitmapExtensionBlocks = (await ReadBitmapExtensionBlocks(hdfStream, partitionStartOffset,
                 rootBlock.BitmapExtensionBlocksOffset, (int)partition.FileSystemBlockSize)).ToList();
 
-            // assert - calculated bitmap extension blocks coint is equal to bitmap extension blocks read
+            // assert - calculated bitmap extension blocks count is equal to bitmap extension blocks read
             Assert.Equal(bitmapExtensionBlocksCount, bitmapExtensionBlocks.Count);
             
             // assert - first 25 bitmap block offsets in root block is after root block offset
@@ -231,6 +231,36 @@
             // clean up
             hdfStream.Close();
             File.Delete(path);
+        }
+        
+        [Fact]
+        public async Task WhenFormatting1GbPartitionAfter30GbInHardDiskFileThenRootBlockAndBitmapBlocksAreCreated()
+        {
+            // arrange - create rigid disk block with size 64gb
+            var rigidDiskBlock = RigidDiskBlock.Create(64.GB());
+
+            // arrange - create partition 1 with size 30gb
+            var partitionBlock1 =
+                PartitionBlock.Create(rigidDiskBlock, DosTypeHelper.FormatDosType("DOS3"), "DH0", 30.GB());
+            rigidDiskBlock.PartitionBlocks = rigidDiskBlock.PartitionBlocks.Concat(new[] { partitionBlock1 }).ToList();
+
+            // arrange - create partition 2 with size 1gb
+            var partitionBlock2 =
+                PartitionBlock.Create(rigidDiskBlock, DosTypeHelper.FormatDosType("DOS3"), "DH0", 1.GB());
+            rigidDiskBlock.PartitionBlocks = rigidDiskBlock.PartitionBlocks.Concat(new[] { partitionBlock2 }).ToList();
+
+            // act - format second partition using fast file system formatter formatter
+            var stream = new BlockMemoryStream();
+            await FastFileSystemFormatter.FormatPartition(stream, partitionBlock2, "Work");
+            
+            // assert - stream has block written at boot block offset 
+            var bootBlockOffset = (long)partitionBlock2.LowCyl * rigidDiskBlock.Heads * rigidDiskBlock.Sectors * 512; 
+            Assert.True(stream.Blocks.ContainsKey(bootBlockOffset));
+
+            // assert - stream has block written at root block offset 
+            var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(partitionBlock2.LowCyl, partitionBlock2.HighCyl,
+                partitionBlock2.Reserved, partitionBlock2.Surfaces, partitionBlock2.BlocksPerTrack);
+            Assert.True(stream.Blocks.ContainsKey(bootBlockOffset + (rootBlockOffset * 512)));
         }
 
         private static async Task<IEnumerable<BitmapBlock>> ReadBitmapBlocks(Stream stream, long partitionStartOffset, IEnumerable<uint> bitmapBlockOffsets, int blockSize)

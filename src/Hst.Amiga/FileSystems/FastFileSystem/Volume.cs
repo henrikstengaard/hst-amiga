@@ -12,7 +12,7 @@
         public uint FirstBlock { get; set; }
         public uint LastBlock { get; set; }
         public uint Blocks { get; set; }
-        public uint PartitionStartOffset { get; set; }
+        public long PartitionStartOffset { get; set; }
         public uint Reserved { get; set; }
         public int DosType { get; set; }
         public int DataBlockSize { get; set; }

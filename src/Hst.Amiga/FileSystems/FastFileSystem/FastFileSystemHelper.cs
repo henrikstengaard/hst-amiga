@@ -216,7 +216,7 @@
 
             var volume = new Volume
             {
-                PartitionStartOffset = lowCyl * blocksPerCylinder * blockSize,
+                PartitionStartOffset = (long)lowCyl * blocksPerCylinder * blockSize,
                 DosType = dosType,
                 DataBlockSize = dataBlockSize,
                 UsesDirCache = usesDirCache,

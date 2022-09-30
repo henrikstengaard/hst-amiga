@@ -70,9 +70,8 @@
             
             BlockHelper.UpdateBitmaps(bitmapBlocks, bitmaps, reserved, fileSystemBlockSize);
             
-
             // calculate partition start offset
-            var partitionStartByteOffset = lowCyl * surfaces * blocksPerTrack * fileSystemBlockSize;
+            var partitionStartByteOffset = (long)lowCyl * surfaces * blocksPerTrack * fileSystemBlockSize;
 
             // write dos type at partition start
             stream.Seek(partitionStartByteOffset, SeekOrigin.Begin);

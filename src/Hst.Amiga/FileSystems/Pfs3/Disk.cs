@@ -51,7 +51,7 @@
             //     blocknr += transfer;                
             // }
 
-            var offset = g.blocksize * blocknr;
+            var offset = (long)g.blocksize * blocknr;
             g.stream.Seek(offset, SeekOrigin.Begin);
 
             // read block bytes
@@ -112,7 +112,7 @@
 
             BoundsCheck(true, blocknr, blocks, g);
             
-            var offset = g.blocksize * blocknr;
+            var offset = (long)g.blocksize * blocknr;
             g.stream.Seek(offset, SeekOrigin.Begin);
             
             await stream.WriteBytes(buffer);
