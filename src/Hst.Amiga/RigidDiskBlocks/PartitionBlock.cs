@@ -145,7 +145,7 @@
                 ? rigidDiskBlock.HiCylinder
                 : lowCyl + cylinders - 1;
 
-            var partitionSize = (highCyl - lowCyl + 1) * rigidDiskBlock.Heads * rigidDiskBlock.Sectors *
+            var partitionSize = (long)(highCyl - lowCyl + 1) * rigidDiskBlock.Heads * rigidDiskBlock.Sectors *
                                 rigidDiskBlock.BlockSize;
 
             var partitionBlock = new PartitionBlock
