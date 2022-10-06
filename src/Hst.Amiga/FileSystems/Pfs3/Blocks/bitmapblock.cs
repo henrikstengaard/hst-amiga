@@ -23,12 +23,12 @@
         public uint seqnr;
         public uint[] bitmap; /* the bitmap.                      */
         
-        public BitmapBlock(globaldata g)
+        public BitmapBlock(int longsperbmb)
         {
             id = Constants.BMBLKID; /* BM (bitmap block)                */
 
-            bitmap = new uint[g.glob_allocdata.longsperbmb];
-            for (var i = 0; i < g.glob_allocdata.longsperbmb; i++)
+            bitmap = new uint[longsperbmb];
+            for (var i = 0; i < longsperbmb; i++)
             {
                 bitmap[i] = 0xFFFFFFFF;
             }

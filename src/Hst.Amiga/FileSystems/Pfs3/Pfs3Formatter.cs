@@ -142,7 +142,7 @@
             // memset (bbl, 0, 2*BLOCKSIZE);
             // bbl->disktype = ID_PFS_DISK;
             // error = RawWrite ((UBYTE *)bbl, 2, BOOTBLOCK1, g);
-            var buffer = await BootBlockWriter.MakeBootBlock(bbl);
+            var buffer = await BootBlockWriter.MakeBootBlock(bbl, (int)g.blocksize);
             if (!await Disk.RawWrite(g.stream, buffer, 2, Constants.BOOTBLOCK1, g))
             {
                 throw new IOException("BOOTBLOCK write error");
@@ -237,6 +237,28 @@
             blk = await Directory.MakeDirBlock(blocknr, anodenr, anodenr, 0, g);
         }
 
+/* Create rootblockextension. Needed for AFS 2.3 options.
+ */
+        public static async Task<bool> MakeRBlkExtension (globaldata g)
+        {
+            volumedata volume = g.currentvolume;
+            uint blocknr;
+
+            if ((blocknr = Allocation.AllocReservedBlock(g)) == 0)
+                return false;
+
+            volume.rootblk.Extension = blocknr;
+            if ((volume.rblkextension = MakeFormatRBlkExtension(volume.rootblk, g)) == null)
+            {
+                Allocation.FreeReservedBlock (blocknr, g);
+                return false;
+            }
+
+            volume.rootblk.Options |= RootBlock.DiskOptionsEnum.MODE_EXTENSION;
+            volume.rootblockchangeflag = true;
+            return true;
+        }
+        
         public static CachedBlock MakeFormatRBlkExtension(RootBlock rootBlock, globaldata g)
         {
             // if (!(rext = AllocBufmem (sizeof(struct cachedblock) + rbl->reserved_blksize, g)))
@@ -289,7 +311,20 @@
             taken = (uint)((taken + 31) & ~0x1f);		/* multiple of 32 */
 
             return taken;
-        }        
+        }
+        
+        public static int CalculateReservedBitmapBlockCount(RootBlock rbl, long numReserved)
+        {
+            /* calculate number of 1024 byte blocks */
+            var numblocks = 1;
+            for (var i = 125; i < numReserved / 32; i += 256)
+            {
+                numblocks++;
+            }
+
+            // convert to number of reserved blocks and allocate
+            return (1024 * numblocks + rbl.ReservedBlksize - 1) / rbl.ReservedBlksize;
+        }
         
         /* makes reserved bitmap and allocates rootblockextension */
         public static void MakeReservedBitmap(RootBlock rbl, long numReserved, globaldata g)
@@ -299,14 +334,7 @@
             // int *bitmap, numblocks, i, last, cluster, rescluster;
 
             /* calculate number of 1024 byte blocks */
-            var numblocks = 1;
-            for (var i = 125; i < numReserved / 32; i += 256)
-            {
-                numblocks++;
-            }
-
-            // convert to number of reserved blocks and allocate
-            numblocks = (1024 * numblocks + rbl.ReservedBlksize - 1) / rbl.ReservedBlksize;
+            var numblocks = CalculateReservedBitmapBlockCount(rbl, numReserved);
             rbl.ReservedFree -= (uint)numblocks;
 
             // convert to number of sectors
@@ -320,7 +348,8 @@
             //FreeBufmem(*rbl, g);
             //*rbl = newrootblock;
             //bmb = (bitmapblock_t *)(*rbl+1);		/* bitmap directly behind rootblock */
-            var bmb = new BitmapBlock(g);
+            var longsPerBmb = (int)(numReserved / 32);
+            var bmb = new BitmapBlock(longsPerBmb + 1);
 
             /* init bitmapblock header */
             bmb.id = Constants.BMBLKID;
@@ -328,8 +357,8 @@
 
             /* fill bitmap */
             //bitmap = bmb->bitmap;
-            bmb.bitmap = new uint[(numReserved / 32) + 1];
-            for (var i = 0; i < numReserved / 32; i++)
+            bmb.bitmap = new uint[longsPerBmb + 1];
+            for (var i = 0; i < longsPerBmb; i++)
             {
                 // *bitmap++ = ~0; // ~ operator performs bitwise complement =  contain the highest possible value (signed to unsigned conversion)
                 bmb.bitmap[i] = uint.MaxValue;

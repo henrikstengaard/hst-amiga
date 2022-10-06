@@ -24,7 +24,7 @@
             var seqnr = await blockStream.ReadBigEndianUInt32();
 
             var index = new List<int>();
-            var indexCount = (blockBytes.Length - SizeOf.UWORD * 2 - SizeOf.ULONG * 2) / SizeOf.LONG;
+            var indexCount = (blockBytes.Length - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 2) / Amiga.SizeOf.Long;
             for (var i = 0; i < indexCount; i++)
             {
                 index.Add(await blockStream.ReadBigEndianInt32());

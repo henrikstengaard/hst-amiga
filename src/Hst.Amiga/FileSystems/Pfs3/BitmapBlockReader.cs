@@ -8,7 +8,7 @@
 
     public static class BitmapBlockReader
     {
-        public static async Task<BitmapBlock> Parse(byte[] blockBytes, globaldata g)
+        public static async Task<BitmapBlock> Parse(byte[] blockBytes, int longsperbmb)
         {
             var blockStream = new MemoryStream(blockBytes);
 
@@ -24,13 +24,13 @@
             var seqnr = await blockStream.ReadBigEndianUInt32();
             
             var bitmap = new List<uint>();
-            var bitmapCount = (blockBytes.Length - SizeOf.UWORD * 2 - SizeOf.ULONG * 2) / SizeOf.ULONG;
-            for (var i = 0; i < bitmapCount; i++)
+            //var bitmapCount = (blockBytes.Length - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 2) / Amiga.SizeOf.ULong;
+            for (var i = 0; i < longsperbmb; i++)
             {
                 bitmap.Add(await blockStream.ReadBigEndianUInt32());
             }
             
-            return new BitmapBlock(g)
+            return new BitmapBlock(longsperbmb)
             {
                 id = id,
                 not_used_1 = not_used,

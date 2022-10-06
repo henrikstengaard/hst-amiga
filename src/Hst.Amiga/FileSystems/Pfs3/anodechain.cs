@@ -9,6 +9,8 @@
         //     ULONG refcount;             /* will be discarded if refcount becomes 0 */
         //     struct anodechainnode head;
         // };
+        public anodechain next;
+        public anodechain prev;
         public uint refcount;
         public anodechainnode head;
 

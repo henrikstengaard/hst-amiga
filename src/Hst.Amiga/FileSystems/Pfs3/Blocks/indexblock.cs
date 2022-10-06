@@ -10,18 +10,19 @@
         //     ULONG seqnr;
         //     LONG index[0];          /* the indices                      */
         // } indexblock_t;        
-        
+
         public byte[] BlockBytes { get; set; }
 
         public ushort id { get; set; }
         public ushort not_used_1 { get; set; }
         public uint datestamp { get; set; }
         public uint seqnr;
-        public int[] index;          /* the indices                      */
+        public int[] index; /* the indices                      */
 
         public indexblock(globaldata g)
         {
-            index = new int[(g.RootBlock.ReservedBlksize - SizeOf.UWORD * 2 - SizeOf.ULONG * 2) / SizeOf.LONG];
+            index = new int[(g.RootBlock.ReservedBlksize - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 2) /
+                            Amiga.SizeOf.Long];
         }
     }
 }

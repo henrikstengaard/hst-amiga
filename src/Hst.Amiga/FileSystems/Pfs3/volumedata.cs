@@ -14,7 +14,7 @@
         public CachedBlock rblkextension; /* extended rblk, NULL if disabled*/
 //#endif
 
-        public LinkedList<lockentry> fileentries; /* all locks and open files             */
+        public LinkedList<IEntry> fileentries; /* all locks and open files             */
         public LinkedList<CachedBlock>[] anblks; //[Constants.HASHM_ANODE+1];   /* anode block hash table           */
         public LinkedList<CachedBlock>[] dirblks; //[Constants.HASHM_DIR+1];    /* dir block hash table             */
         public LinkedList<CachedBlock> indexblks; /* cached index blocks              */
@@ -34,7 +34,7 @@
 
         public volumedata()
         {
-            fileentries = new LinkedList<lockentry>();
+            fileentries = new LinkedList<IEntry>();
             anblks = new LinkedList<CachedBlock>[Constants.HASHM_ANODE + 1];
             dirblks = new LinkedList<CachedBlock>[Constants.HASHM_DIR + 1];
             indexblks = new LinkedList<CachedBlock>();

@@ -283,7 +283,7 @@
                     ** a cached block, so the type != ETF_VOLUME check is not
                     ** necessary. Just check the dirblockpointer
                     */
-                    var le = node.Value;
+                    var le = node.Value as lockentry;
                     if (le.le.info.file.dirblock == block)
                     {
                         le.le.dirblocknr = block.blocknr;
@@ -300,7 +300,7 @@
                     }
 
                     /* exnext references */
-                    if (le.le.type.dir == ListType.ListTypeDir.Dir && le.nextentry.dirblock == block)
+                    if (le.le.type.flags.dir != 0 && le.nextentry.dirblock == block)
                     {
                         le.nextdirblocknr = block.blocknr;
                         // le->nextdirblockoffset = (UBYTE *)le->nextentry.direntry - (UBYTE *)block;
@@ -332,6 +332,39 @@
             cachedBlock.oldblocknr = 0;
             cachedBlock.used = 0;
             cachedBlock.blk = null;
+        }
+        
+/* updates references of listentries to dirblock
+*/
+        public static void UpdateReference(uint blocknr, CachedBlock blk, globaldata g)
+        {
+            lockentry le;
+
+            //DB(Trace(1,"UpdateReference","block %lx\n", blocknr));
+
+            // for (le = (lockentry_t *)HeadOf(&blk->volume->fileentries); le->le.next; le = (lockentry_t *)le->le.next)
+            for (var node = Macro.HeadOf(blk.volume.fileentries); node != null; node = node.Next)
+            {
+                le = node.Value as lockentry;
+                /* ignoring the fact that not all objectinfos are fileinfos, but the
+                ** 'volumeinfo.volume' and 'deldirinfo.deldir' fields never are NULL anyway, so ...
+                ** maybe better to check for SPECIAL_FLUSHED
+                */
+                if (le.le.info.file.dirblock == null && le.le.dirblocknr == blocknr)
+                {
+                    le.le.info.file.dirblock = blk;
+                    le.le.info.file.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.le.dirblockoffset);
+                    le.le.dirblocknr = le.le.dirblockoffset = 0;
+                }
+
+                /* exnext references */
+                if (le.le.type.flags.dir != 0 && le.nextdirblocknr == blocknr)
+                {
+                    le.nextentry.dirblock = blk;
+                    le.nextentry.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.nextdirblockoffset);
+                    le.nextdirblocknr = le.nextdirblockoffset = 0;
+                }
+            }
         }
     }
 }

@@ -59,5 +59,25 @@
         {
             return Iso88591.GetBytes(value);
         }
+
+        public static char ToUpper(char c)
+        {
+            return (char)(c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c);
+        }
+
+        public static char InternationalToUpper(char c)
+        {
+            return (char)((c >= 'a' && c <= 'z') || (c >= 224 && c <= 254 && c != 247) ? c - ('a' - 'A') : c);
+        }
+        
+        public static string ToUpper(string text, bool international)
+        {
+            var upperCasedText = text.ToCharArray();
+            for (var i = 0; i < text.Length; i++)
+            {
+                upperCasedText[i] = international ? InternationalToUpper(text[i]) : ToUpper(text[i]);
+            }
+            return new string(upperCasedText);
+        }
     }
 }

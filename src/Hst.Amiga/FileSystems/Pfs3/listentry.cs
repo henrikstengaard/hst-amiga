@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class listentry
+    public class listentry : IEntry
     {
         // /* de algemene structure */
         //         typedef struct listentry
@@ -19,12 +19,19 @@
         public listentry next; /* for linkage                                      */
         public listentry prev;
         public FileLock filelock; /* <4A> contains accesstype, dirblocknr (redundant) */
-        public ListType type;
+        public ListType type { get; set; }
         public uint anodenr; /* object anodenr. Always valid. Used by ACTION_SLEEP */
         public uint diranodenr; /* anodenr of parent. Only valid during SLEEP_MODE. */
         public objectinfo info; /* refers to dir                                    */
         public uint dirblocknr; /* set when block flushed and info is set to NULL   */
-        // public uint dirblockoffset;
+        public uint dirblockoffset;
         public volumedata volume; /* pointer to volume                                */
+        
+        public listentry ListEntry => this;
+
+        public listentry()
+        {
+            filelock = new FileLock();
+        }
     }
 }

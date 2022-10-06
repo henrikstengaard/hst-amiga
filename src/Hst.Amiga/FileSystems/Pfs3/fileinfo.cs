@@ -14,6 +14,14 @@
         ** wordt in locks naar de rootdir gebruikt.
         ** Een *fileinfo van NULL verwijst naar de root van de current volume
         */
+        /*
+struct fileinfo
+{
+	struct direntry *direntry;      // pointer wijst naar direntry binnen gecached dirblock
+	struct cdirblock *dirblock;     // pointer naar gecached dirblock
+};
+         */
+        
         public direntry direntry;      // pointer wijst naar direntry binnen gecached dirblock
         public CachedBlock dirblock;     // pointer naar gecached dirblock
     }

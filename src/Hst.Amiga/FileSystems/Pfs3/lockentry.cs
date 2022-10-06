@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class lockentry
+    public class lockentry : IEntry
     {
         // typedef struct lockentry
         // {
@@ -17,5 +17,8 @@
         public fileinfo nextentry; // for examine
         public uint nextdirblocknr; // for flushed block only.. (dir/vollock only)
         public uint nextdirblockoffset;
+
+        public ListType type => le.type;
+        public listentry ListEntry => le;
     }
 }

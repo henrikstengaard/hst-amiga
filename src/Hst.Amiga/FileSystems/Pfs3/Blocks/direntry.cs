@@ -18,6 +18,11 @@
         //     UBYTE startofname;      /* filename, followed by filenote length & filenote */
         //     UBYTE pad;              /* make size even                   */
         // };
+
+        /// <summary>
+        /// offset in dirblock entries
+        /// </summary>
+        public int Offset { get; set; }
         
         public byte next;             /* sizeof direntry                  */
         public byte type;             /* dir, file, link etc              */
@@ -29,6 +34,7 @@
         public ushort creationtick;     /* ticks past minute                */
         public byte protection;       /* protection bits (like DOS)       */
         public byte nlength;          /* lenght of filename               */
+        public string name;
         public byte startofname;      /* filename, followed by filenote length & filenote */
         public byte pad;              /* make size even                   */
     }

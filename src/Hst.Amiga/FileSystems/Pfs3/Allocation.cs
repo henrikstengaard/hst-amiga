@@ -40,7 +40,7 @@
             blok.volume = volume;
             blok.blocknr = blocknr;
             blok.used = 0;
-            var blok_blk = new BitmapBlock(g)
+            var blok_blk = new BitmapBlock((int)g.glob_allocdata.longsperbmb)
             {
                 id = Constants.BMBLKID,
                 seqnr = seqnr

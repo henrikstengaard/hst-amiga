@@ -24,13 +24,14 @@
             }
 
             var nodes = new List<anode>();
-            var nodesCount = (g.RootBlock.ReservedBlksize - SizeOf.UWORD * 2 - SizeOf.ULONG * 3) / (SizeOf.ULONG * 3);
+            var nodesCount = (g.RootBlock.ReservedBlksize - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 3) /
+                             (Amiga.SizeOf.ULong * 3);
             for (var i = 0; i < nodesCount; i++)
             {
                 var clustersize = await blockStream.ReadBigEndianUInt32();
                 var blocknr = await blockStream.ReadBigEndianUInt32();
                 var next = await blockStream.ReadBigEndianUInt32();
-                
+
                 nodes.Add(new anode
                 {
                     clustersize = clustersize,
@@ -38,7 +39,7 @@
                     next = next
                 });
             }
-            
+
             return new anodeblock(g)
             {
                 id = id,

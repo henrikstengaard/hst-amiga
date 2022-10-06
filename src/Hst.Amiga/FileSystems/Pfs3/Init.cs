@@ -228,7 +228,7 @@
                 alloc_data.no_bmb = t;
                 alloc_data.bitmapstart = (uint)(rootblock.LastReserved + 1);
                 //memset (alloc_data.tobefreed, 0, TBF_CACHE_SIZE*2*sizeof(ULONG));
-                alloc_data.tobefreed = new uint[Constants.TBF_CACHE_SIZE * 2 * SizeOf.ULONG][];
+                alloc_data.tobefreed = new uint[Constants.TBF_CACHE_SIZE * 2 * Amiga.SizeOf.ULong][];
                 for (var i = 0; i < alloc_data.tobefreed.Length; i++)
                 {
                     alloc_data.tobefreed[i] = new uint[2];

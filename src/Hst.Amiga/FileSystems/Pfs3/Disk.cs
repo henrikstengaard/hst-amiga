@@ -80,7 +80,7 @@
 
             if (type == typeof(BitmapBlock))
             {
-                return await BitmapBlockReader.Parse(buffer, g);
+                return await BitmapBlockReader.Parse(buffer, (int)g.glob_allocdata.longsperbmb);
             }
 
             if (type == typeof(deldirblock))
@@ -184,6 +184,95 @@
             /* write them */
             //await RawWrite(g.dc.data[slotnr << g.blockshift], i-slotnr, g.dc.ref_[slotnr].blocknr, g);
             return Task.CompletedTask;
+        }
+        
+        /* SeekInFile
+**
+** Specification:
+**
+** - set fileposition
+** - if wrong position, resultposition unknown and error
+** - result = old position to start of file, -1 = error
+**
+** - the end of the file is 0 from end
+*/
+        public static async Task<int> SeekInFile(fileentry file, int offset, int mode, globaldata g)
+        {
+            int oldoffset, newoffset;
+            uint anodeoffset, blockoffset;
+            // #if DELDIR
+            deldirentry delfile = null;
+
+	        // DB(Trace(1,"SeekInFile","offset = %ld mode=%ld\n",offset,mode));
+            if (Macro.IsDelFile(file.le.info))
+            {
+                if ((delfile = await Directory.GetDeldirEntryQuick(file.le.info.delfile.slotnr, g)) == null)
+                    return -1;
+            }
+            // #endif
+
+            /* do the seeking */
+            oldoffset = (int)file.offset;
+            newoffset = -1;
+
+            /* TODO: 32-bit wraparound checks */
+
+            switch (mode)
+            {
+                case Constants.OFFSET_BEGINNING:
+                    newoffset = offset;
+                    break;
+		
+                case Constants.OFFSET_END:
+                    // #if DELDIR
+			        if (delfile != null)
+				        newoffset = (int)(Directory.GetDDFileSize(delfile, g) + offset);
+			        else
+                    // #endif
+                        newoffset = (int)(Directory.GetDEFileSize(file.le.info.file.direntry, g) + offset);
+                    break;
+		
+                case Constants.OFFSET_CURRENT:
+                    newoffset = oldoffset + offset;
+                    break;
+		
+                default:
+                    //*error = ERROR_SEEK_ERROR;
+                    return -1;
+            }
+
+// #if DELDIR
+	if ((newoffset > (delfile != null ? Directory.GetDDFileSize(delfile, g) :
+		Directory.GetDEFileSize(file.le.info.file.direntry, g))) || (newoffset < 0))
+// #else
+//             if ((newoffset > GetDEFileSize(file->le.info.file.direntry)) || (newoffset < 0))
+// #endif
+            {
+                //*error = ERROR_SEEK_ERROR;
+                return -1;
+            }
+
+            /* calculate new values */
+            anodeoffset = (uint)(newoffset >> g.blockshift);
+            blockoffset = (uint)(newoffset & Macro.BLOCKSIZEMASK(g));
+            file.currnode = file.anodechain.head;
+            anodes.CorrectAnodeAC(file.currnode, anodeoffset, g);
+            /* DiskSeek(anode.blocknr + anodeoffset, g); */
+	
+            file.anodeoffset  = anodeoffset;
+            file.blockoffset  = blockoffset;
+            file.offset       = (uint)newoffset;
+            return oldoffset;
+        }
+        
+/* flush all blocks in datacache (without updating them first).
+ */
+        public static void FlushDataCache(globaldata g)
+        {
+            for (var i = 0; i < g.dc.size; i++)
+            {
+                g.dc.ref_[i].blocknr = 0;
+            }
         }
     }
 }
