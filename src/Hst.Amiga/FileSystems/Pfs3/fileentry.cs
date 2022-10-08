@@ -1,5 +1,7 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
+    using System;
+
     public class fileentry : IEntry
     {
 /*
@@ -26,5 +28,6 @@
         public uint originalsize; // size of file at time of opening
         public bool checknotify; // set if a notify is necessary at ACTION_END time > ALSO touch flag <
         public listentry ListEntry => le;
+        public lockentry LockEntry => throw new NotImplementedException();
     }
 }

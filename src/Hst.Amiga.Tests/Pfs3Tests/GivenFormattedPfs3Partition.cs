@@ -37,14 +37,45 @@ public class GivenFormattedPfs3Partition
         
         // act - format first partition using pfs3 formatter
         await Pfs3Formatter.FormatPartition(stream, partitionBlock, "Workbench");
-        
-        var g = await Pfs3Helper.Mount(stream, partitionBlock);
 
-        var root = await Directory.GetRoot(g);
-        
-        var entry = await Directory.NewDir(root, "hello", "not used", g);
+        var pfs3Volume = await Pfs3Volume.Mount(stream, partitionBlock);
+        var root = await Directory.GetRoot(pfs3Volume.g);
+        await Directory.NewDir(root, "created", pfs3Volume.g);
+        await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        await Pfs3Helper.Unmount(g);
+        pfs3Volume = await Pfs3Volume.Mount(stream, partitionBlock);
+        root = await Directory.GetRoot(pfs3Volume.g);
+        await Directory.NewDir(root, "with", pfs3Volume.g);
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        pfs3Volume = await Pfs3Volume.Mount(stream, partitionBlock);
+        root = await Directory.GetRoot(pfs3Volume.g);
+        await Directory.NewDir(root, "hst.amiga library", pfs3Volume.g);
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        var dirnodenr = (uint)Macro.ANODE_ROOTDIR;
+        var dirEntries = await Directory.GetDirEntries(dirnodenr, pfs3Volume.g);
+
+        var t = 1;
+
+        // get first entry
+        // canode anode = new canode();
+        // await anodes.GetAnode(anode, dirnodenr, pfs3Volume.g);
+        // var dirblock = await Directory.LoadDirBlock(anode.blocknr, pfs3Volume.g);
+        // var blk = dirblock.dirblock;
+        // var firstEntry = DirEntryReader.Read(blk.entries, 0);
+        //
+        //
+        //
+        // var lockEntry = new lockentry
+        // {
+        //     le = entry.ListEntry,
+        //     //nextanode = root.file.direntry.anode
+        // };
+        //
+        // await Directory.ExamineAll(lockEntry, pfs3Volume.g);
+
+        // await Pfs3Helper.Unmount(g);
 
         // await using var blockStream = File.OpenWrite("blocks.bin");
         //
@@ -52,7 +83,7 @@ public class GivenFormattedPfs3Partition
         // {
         //     await blockStream.WriteAsync(block.Value, 0, block.Value.Length);
         // }
-        
+
 
         //var db = stream.Blocks.Where(x => BigEndianConverter.ConvertBytesToInt16(x.Value, 0) == Constants.DBLKID).ToList();
     }

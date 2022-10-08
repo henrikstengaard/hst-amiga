@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class direntry
+    public class direntry : IDirEntry
     {
         // struct direntry
         // {
@@ -27,15 +27,22 @@
         public byte next;             /* sizeof direntry                  */
         public byte type;             /* dir, file, link etc              */
         public uint anode;            /* anode number                     */
-        public uint fsize;            /* sizeof file                      */
-        public DateTime CreationDate;
+        public uint fsize { get; set; }           /* sizeof file                      */
+
         public ushort creationday;      /* days since Jan. 1, 1978 (like ADOS; WORD instead of LONG) */
         public ushort creationminute;   /* minutes past modnight            */
         public ushort creationtick;     /* ticks past minute                */
         public byte protection;       /* protection bits (like DOS)       */
         public byte nlength;          /* lenght of filename               */
-        public string name;
+        public string Name { get; set; }
         public byte startofname;      /* filename, followed by filenote length & filenote */
         public byte pad;              /* make size even                   */
+
+        public uint Size
+        {
+            get => fsize;
+            set => fsize = value;
+        }
+        public DateTime CreationDate { get; set; }
     }
 }

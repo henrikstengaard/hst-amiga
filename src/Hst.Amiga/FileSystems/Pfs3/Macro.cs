@@ -38,7 +38,7 @@
             return DirEntryReader.Read(blk.entries, de.next);
         }         
         public static int DB_HEADSPACE(globaldata g) => SizeOf.DirBlock.Struct(g);
-        public static int DB_ENTRYSPACE(globaldata g) => Constants.SIZEOF_RESBLOCK(g) - SizeOf.DirBlock.Struct(g);
+        public static int DB_ENTRYSPACE(globaldata g) => SizeOf.DirBlock.Entries(g);
         
         //public static int GetAnodeBlock(uint a, uint b, globaldata g) => anodes.big_GetAnodeBlock() (g.getanodeblock)(a, b);
         

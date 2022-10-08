@@ -29,6 +29,16 @@
         
         public listentry ListEntry => this;
 
+        public lockentry LockEntry =>
+            new lockentry
+            {
+                le = this,
+                nextentry = new fileinfo
+                {
+                    
+                }
+            };
+
         public listentry()
         {
             filelock = new FileLock();

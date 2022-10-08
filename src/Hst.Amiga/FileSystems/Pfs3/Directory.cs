@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
@@ -219,7 +220,7 @@
             }
         }
 
-        public static async Task<IEntry> NewDir(objectinfo parent, string dirname, string error, globaldata g)
+        public static async Task<IEntry> NewDir(objectinfo parent, string dirname, globaldata g)
         {
             objectinfo info = new objectinfo
             {
@@ -619,27 +620,33 @@
                 // entry = (struct direntry *)(&dirblock->blk.entries);
 
                 /* scan block */
+                var entryIndex = 0;
                 while (entry.next != 0)
                 {
-                    // found = intlcmp(intl_name, DIRENTRYNAME(entry));
-                    found = intl_name == entry.name;
+                    found = intl_name == entry.Name;
                     if (found)
                     {
                         break;
                     }
-
-                    entry = DirEntryReader.Read(blk.entries, entry.next);
+                    
+                    entry = DirEntryReader.Read(blk.entries, entryIndex);
+                    entryIndex += entry.next;
                 }
-
+                
                 /* load next block */
                 if (!found)
                 {
                     var result = await anodes.NextBlock(anode, anodeoffset, g);
                     anodeoffset = result.Item2;
                     if (result.Item1)
+                    {
                         dirblock = await LoadDirBlock(anode.blocknr + anodeoffset, g);
+                        blk = dirblock.dirblock;
+                    }
                     else
+                    {
                         eod = true;
+                    }
                 }
             }
 
@@ -710,9 +717,11 @@
                 if (i + newentry.next + 1 < Macro.DB_ENTRYSPACE(g))
                 {
                     //memcpy(entry, newentry, newentry->next);
-                    //*(UBYTE *)NEXTENTRY(entry) = 0;     // dirblock afsluiten
+                    DirEntryWriter.Write(blk.entries, i, newentry);
                     entry = newentry;
-                    entry.next = 0;
+                    //entry.next = 0;
+                    //*(UBYTE *)NEXTENTRY(entry) = 0;     // dirblock afsluiten
+                    blk.entries[i + newentry.next] = 0;
 
                     done = true;
                     break;
@@ -855,7 +864,7 @@
             // the trailing 0 of strcpy() creates the empty comment!
             // the flags field following this is 0 by the memset call
             //strcpy((UBYTE *)&direntry->startofname, name);
-            direntry.name = name;
+            direntry.Name = name;
 
 #if MULTIUSER
 	if (g->dirextension && g->muFS_ready)
@@ -863,7 +872,7 @@
 #endif
 
             DirEntryWriter.Write(entrybuffer, entryIndex, direntry);
-            
+
             return true;
         }
 
@@ -1014,7 +1023,7 @@
 
             /* check if found directory */
 // #if DELDIR
-	if (!found || Macro.IsFile(path) || Macro.IsDelFile(path))
+            if (!found || Macro.IsFile(path) || Macro.IsDelFile(path))
 // #else
 //             if (!found || IsFile(*path))
 // #endif
@@ -1088,7 +1097,7 @@
 
             return true;
         }
-        
+
 /* SearchInDeldir
  *
  * Search an object in the del-directory and return the objectinfo if found
@@ -1107,11 +1116,11 @@
 
             //ENTER("SearchInDeldir");
             if ((delnumptr = delname.LastIndexOf(Constants.DELENTRY_SEP)) <= -1)
-                return null;               /* no delentry seperator */
+                return null; /* no delentry seperator */
             //stcd_i(delnumptr + 1, (int *) &slotnr);  /* retrieve the slotnr  */
             slotnr = (uint)(delnumptr + 1);
 
-            delnumptr = 0;             /* patch string to get filename part  */
+            delnumptr = 0; /* patch string to get filename part  */
             //ctodstr(delname, intl_name);
             var intl_name = delname;
 
@@ -1141,18 +1150,18 @@
                     return null;
 
                 result.delfile.special = Constants.SPECIAL_DELFILE;
-                result.delfile.slotnr  = slotnr;
+                result.delfile.slotnr = slotnr;
                 Macro.Lock(dblk, g);
                 return dde;
             }
 
             return null;
         }
-        
+
         /*
  * Test if delfile is valid by scanning it's blocks
  */
-        public static async Task<bool> IsDelfileValid(deldirentry dde, CachedBlock ddblk,  globaldata g)
+        public static async Task<bool> IsDelfileValid(deldirentry dde, CachedBlock ddblk, globaldata g)
         {
             canode anode = new canode();
 
@@ -1169,7 +1178,7 @@
                 if (await BlockTaken(anode, g))
                 {
                     /* free attached anodechain */
-                    await FreeAnodesInChain(dde.anodenr, g);  /* only FREE anodes, not blocks!! */
+                    await FreeAnodesInChain(dde.anodenr, g); /* only FREE anodes, not blocks!! */
                     dde.anodenr = 0;
                     await Update.MakeBlockDirty(ddblk, g);
                     return false;
@@ -1178,7 +1187,7 @@
 
             return true;
         }
-        
+
         /*
  * Check if the blocks referenced by an anode are taken
  */
@@ -1188,7 +1197,7 @@
             CachedBlock bitmap;
             var allocData = g.glob_allocdata;
 
-            i = (anode.blocknr - allocData.bitmapstart) / 32;     // longwordnr
+            i = (anode.blocknr - allocData.bitmapstart) / 32; // longwordnr
             size = (anode.clustersize + 31) / 32;
             bmseqnr = i / allocData.longsperbmb;
             bmoffset = i % allocData.longsperbmb;
@@ -1215,6 +1224,7 @@
                                 return true;
                         }
                     }
+
                     bmoffset++;
                     if ((--size) == 0)
                         break;
@@ -1226,6 +1236,91 @@
             }
 
             return false;
+        }
+        
+        /*
+ * Get a >valid< deldirentry starting from deldirentrynr ddnr
+ * deldir is assumed present and enabled
+ */
+        public static async Task<deldirentry> GetDeldirEntry(int ddnr, globaldata g)
+        {
+            var rext = g.currentvolume.rblkextension;
+            CachedBlock ddblk;
+            deldirentry dde;
+            var blk = rext.rblkextension;
+            var maxdelentrynr = blk.deldirsize*Constants.DELENTRIES_PER_BLOCK - 1;
+            ushort oldlock;
+
+            while (ddnr <= maxdelentrynr)
+            {
+                /* get deldirentry */
+                if ((ddblk = await GetDeldirBlock((ushort)(ddnr/Constants.DELENTRIES_PER_BLOCK), g)) == null)
+                    break;
+
+                oldlock = ddblk.used;
+                Macro.Lock(ddblk, g);
+                var ddblk_blk = ddblk.dirblock;
+                dde = DelDirEntryReader.Read(ddblk_blk.entries, ddnr % Constants.DELENTRIES_PER_BLOCK);
+
+                /* check if dde valid */
+                if (await IsDelfileValid(dde, ddblk, g))
+                {
+                    /* later --> check if blocks retaken !! */
+                    /* can be done by scanning bitmap!!     */
+                    return dde;
+                }
+
+                ddnr++;
+                ddblk.used = oldlock;
+            }
+
+            /* nothing found */
+            return null;
+        }
+        
+        public static async Task<IEnumerable<IDirEntry>> GetDirEntries(uint dirnodenr, globaldata g)
+        {
+            canode anode = new canode();
+            var eod = false;
+            uint anodeoffset;
+            var dirEntries = new List<IDirEntry>();
+
+            await anodes.GetAnode(anode, dirnodenr, g);
+            anodeoffset = 0;
+            var dirblock = await LoadDirBlock(anode.blocknr, g);
+            var blk = dirblock.dirblock;
+            
+            while (!eod) /* eod stands for end-of-dir */
+            {
+                /* scan block */
+                var entryIndex = 0;
+                direntry entry;
+                do
+                {
+                    entry = DirEntryReader.Read(blk.entries, entryIndex);
+
+                    if (entry.next != 0)
+                    {
+                        dirEntries.Add(entry);
+                    }
+                    entryIndex += entry.next;
+                } while (entry.next != 0);
+                
+                /* load next block */
+                var result = await anodes.NextBlock(anode, anodeoffset, g);
+                anodeoffset = result.Item2;
+                if (result.Item1)
+                {
+                    dirblock = await LoadDirBlock(anode.blocknr + anodeoffset, g);
+                    blk = dirblock.dirblock;
+                }
+                else
+                {
+                    eod = true;
+                }
+            }
+
+            return dirEntries;
         }
     }
 }

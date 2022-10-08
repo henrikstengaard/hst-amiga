@@ -37,7 +37,7 @@
                 CreationDate = DateHelper.ReadDate(bytes, offset + 10),
                 protection = bytes[offset + 16],
                 nlength = nlength,
-                name = AmigaTextHelper.GetString(bytes, offset + 18, nlength),
+                Name = AmigaTextHelper.GetString(bytes, offset + 18, nlength),
                 startofname = (byte)(offset + 18),
                 pad = 0
             };

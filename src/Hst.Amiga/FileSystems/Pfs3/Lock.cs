@@ -131,7 +131,7 @@
             listentry.info = newinfo;
             
             // TODO: DOS communication, not sure this is needed 
-            //listentry.filelock.fl_Access = (type.Flags.access & 2) != 0 ? Constants.EXCLUSIVE_LOCK : Constants.SHARED_LOCK;
+            //listentry.filelock.fl_Access = (type.flags.access & 2) != 0 ? Constants.EXCLUSIVE_LOCK : Constants.SHARED_LOCK;
             //listentry.filelock.fl_Task = g.msgport;
             //listentry.filelock.fl_Volume = Macro.MKBADDR(g.currentvolume.devlist);
             
@@ -143,14 +143,14 @@
                 case Constants.ETF_VOLUME:
                     listentry.filelock.fl_Key = 0;
                     // listentry->lock.fl_Volume = MKBADDR(newinfo.volume.volume->devlist);
-                    // listentry->volume		  = newinfo.volume.volume;
+                    listentry.volume		  = newinfo.volume.volume;
                     break;
 
                 case Constants.ETF_LOCK:
                     /* every dirlock MUST have a different fl_Key (DOPUS!) */
                     listentry.filelock.fl_Key = (int)listentry.anodenr;
                     // listentry->lock.fl_Volume = MKBADDR(newinfo.file.dirblock->volume->devlist);
-                    // listentry->volume = newinfo.file.dirblock->volume;
+                    listentry.volume = newinfo.file.dirblock.volume;
                     break;
 
                 case Constants.ETF_FILEENTRY:
@@ -158,7 +158,7 @@
                     //var fe = listentry as fileentry;
                     listentry.filelock.fl_Key = (int)listentry.anodenr;
                     // listentry->lock.fl_Volume = MKBADDR(MKBADDR(newinfo.file.dirblock->volume->devlist);
-                    // listentry->volume = newinfo.file.dirblock->volume;
+                    listentry.volume = newinfo.file.dirblock.volume;
                     fileentry.originalsize = Macro.IsDelFile(newinfo)
                         ? Directory.GetDDFileSize(dde, g)
                         : Directory.GetDEFileSize(newinfo.file.direntry, g);

@@ -3,7 +3,7 @@
     public interface IEntry
     {
         listentry ListEntry { get; }
-        //lockentry LockEntry { get; }
+        lockentry LockEntry { get; }
         
         // //#define fe ((fileentry_t *)listentry)
         

@@ -20,5 +20,7 @@
 
         public ListType type => le.type;
         public listentry ListEntry => le;
+        
+        public lockentry LockEntry => this;
     }
 }
