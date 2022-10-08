@@ -31,6 +31,11 @@
 
         public static async Task Unmount(globaldata g)
         {
+            if (!g.stream.CanWrite)
+            {
+                return;
+            }
+            
             await Update.UpdateDisk(g);
         }
     }

@@ -262,7 +262,9 @@
             var numReserved = Pfs3Formatter.CalcNumReserved(g, rootBlock.ReservedBlksize);
             var reservedBitmapBlockCount = Pfs3Formatter.CalculateReservedBitmapBlockCount(rootBlock, numReserved);
 
-            blockBytes = await Disk.RawRead((uint)reservedBitmapBlockCount, Constants.ROOTBLOCK + 1, g);
+            var bytesPerBlock = (ushort)g.blocksize;
+            var resCluster = (ushort)(rootBlock.ReservedBlksize / bytesPerBlock);            
+            blockBytes = await Disk.RawRead((uint)reservedBitmapBlockCount * resCluster, Constants.ROOTBLOCK + 1, g);
             rootBlock.ReservedBitmapBlock = await BitmapBlockReader.Parse(blockBytes, (int)(numReserved / 32 + 1));
             
             /* check size and read all rootblock blocks */

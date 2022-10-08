@@ -18,6 +18,11 @@
         /// <exception cref="Exception"></exception>
         public static async Task FormatPartition(Stream stream, PartitionBlock partitionBlock, string diskName)
         {
+            if (!stream.CanWrite)
+            {
+                throw new IOException("Failed to format partition: Stream is not writable");
+            }
+            
             // format.c, FDSFormat()
 
             // g->firstblock = g->dosenvec->de_LowCyl * geom->dg_CylSectors;

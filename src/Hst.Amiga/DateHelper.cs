@@ -10,6 +10,13 @@
     {
         private const int TicksPerSecond = 50; // pal amiga has 50 ticks per second
 
+        /// <summary>
+        /// Convert days, minutes and ticks to date
+        /// </summary>
+        /// <param name="days">days since 1 jan 78</param>
+        /// <param name="minutes">minutes past midnight</param>
+        /// <param name="ticks">ticks (1/50 sec) past last minute</param>
+        /// <returns></returns>
         public static DateTime ConvertToDate(int days, int minutes, int ticks)
         {
             var seconds = ticks / TicksPerSecond;
@@ -18,8 +25,23 @@
                 .AddMilliseconds(milliseconds);
         }
 
+        /// <summary>
+        /// Convert date to amiga date
+        /// </summary>
+        /// <param name="date"></param>
+        /// <returns></returns>
         public static AmigaDate ConvertToAmigaDate(DateTime date)
         {
+            if (date == DateTime.MinValue || date < AmigaDate.AmigaEpocDate)
+            {
+                return new AmigaDate
+                {
+                    Days = 0,
+                    Minutes = 0,
+                    Ticks = 0
+                };
+            }
+            
             var diffDate = date - AmigaDate.AmigaEpocDate;
             var days = diffDate.Days;
             var minutes = diffDate.Hours * 60 + diffDate.Minutes;

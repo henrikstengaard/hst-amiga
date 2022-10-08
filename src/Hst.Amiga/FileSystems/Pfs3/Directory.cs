@@ -621,7 +621,7 @@
 
                 /* scan block */
                 var entryIndex = 0;
-                while (entry.next != 0)
+                while (entry.next != 0 && entryIndex + entry.next < blk.entries.Length)
                 {
                     found = intl_name == entry.Name;
                     if (found)
@@ -1278,12 +1278,12 @@
             return null;
         }
         
-        public static async Task<IEnumerable<IDirEntry>> GetDirEntries(uint dirnodenr, globaldata g)
+        public static async Task<IEnumerable<direntry>> GetDirEntries(uint dirnodenr, globaldata g)
         {
             canode anode = new canode();
             var eod = false;
             uint anodeoffset;
-            var dirEntries = new List<IDirEntry>();
+            var dirEntries = new List<direntry>();
 
             await anodes.GetAnode(anode, dirnodenr, g);
             anodeoffset = 0;
@@ -1304,7 +1304,7 @@
                         dirEntries.Add(entry);
                     }
                     entryIndex += entry.next;
-                } while (entry.next != 0);
+                } while (entry.next != 0 && entryIndex + entry.next < blk.entries.Length);
                 
                 /* load next block */
                 var result = await anodes.NextBlock(anode, anodeoffset, g);

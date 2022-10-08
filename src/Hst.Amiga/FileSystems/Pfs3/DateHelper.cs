@@ -20,14 +20,13 @@
 
         public static DateTime ReadDate(byte[] bytes, int offset)
         {
-            var amigaDate = new DateTime(1978, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            
             var days = BigEndianConverter.ConvertBytesToUInt16(bytes, offset); // days since 1 jan 78
             var minutes = BigEndianConverter.ConvertBytesToUInt16(bytes, offset + 2); // minutes past midnight
             var ticks = BigEndianConverter.ConvertBytesToUInt16(bytes, offset + 4); // ticks (1/50 sec) past last minute
-            return amigaDate.AddDays(days).AddMinutes(minutes).AddSeconds(60 / 50 * ticks);
+
+            return Amiga.DateHelper.ConvertToDate(days, minutes, ticks);
         }
-        
+
         public static async Task WriteDate(Stream stream, DateTime date)
         {
             var dateBytes = new byte[6];
@@ -37,23 +36,11 @@
         
         public static void WriteDate(DateTime date, byte[] data, int offset)
         {
-            if (date == DateTime.MinValue)
-            {
-                BigEndianConverter.ConvertUInt16ToBytes(0, data, offset + 0); // days since 1 jan 78
-                BigEndianConverter.ConvertUInt16ToBytes(0, data, offset + 2); // minutes past midnight
-                BigEndianConverter.ConvertUInt16ToBytes(0, data, offset + 4); // ticks (1/50 sec) past last minute
-                return;
-            }
+            var amigaDate = Amiga.DateHelper.ConvertToAmigaDate(date);
             
-            var amigaDate = new DateTime(1978, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            var diffDate = date - amigaDate;
-            var days = (ushort)diffDate.Days;
-            var minutes = (ushort)(diffDate.Hours * 60 + diffDate.Minutes);
-            var ticks = Convert.ToUInt16((double)50 / 60 * diffDate.Seconds);
-            
-            BigEndianConverter.ConvertUInt16ToBytes(days, data, offset + 0); // days since 1 jan 78
-            BigEndianConverter.ConvertUInt16ToBytes(minutes, data, offset + 2); // minutes past midnight
-            BigEndianConverter.ConvertUInt16ToBytes(ticks, data, offset + 4); // ticks (1/50 sec) past last minute
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)amigaDate.Days, data, offset + 0); // days since 1 jan 78
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)amigaDate.Minutes, data, offset + 2); // minutes past midnight
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)amigaDate.Ticks, data, offset + 4); // ticks (1/50 sec) past last minute
         }
     }
 }

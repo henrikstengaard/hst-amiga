@@ -276,13 +276,13 @@
 /* This is not necessarily exhaustive!	Some handlers may use other	 */
 /* values as needed, though <0 and >=0 should remain as supported as	 */
 /* possible.								 */
-        public static int ST_ROOT = 1;
-        public static int ST_USERDIR = 2;
-        public static int ST_SOFTLINK = 3;//	/* looks like dir, but may point to a file! */
-        public static int ST_LINKDIR = 4;//	/* hard link to dir */
-        public static int ST_FILE = -3;//	/* must be negative for FIB! */
-        public static int ST_LINKFILE = -4; //	/* hard link to file */
-        public static int ST_PIPEFILE =	-5; //	/* for pipes that support ExamineFH */        
+        public const int ST_ROOT = 1;
+        public const int ST_USERDIR = 2;
+        public const int ST_SOFTLINK = 3;//	/* looks like dir, but may point to a file! */
+        public const int ST_LINKDIR = 4;//	/* hard link to dir */
+        public const int ST_FILE = -3;//	/* must be negative for FIB! */
+        public const int ST_LINKFILE = -4; //	/* hard link to file */
+        public const int ST_PIPEFILE =	-5; //	/* for pipes that support ExamineFH */        
         
     }
 }
