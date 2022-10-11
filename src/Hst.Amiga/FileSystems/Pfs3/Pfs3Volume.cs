@@ -36,6 +36,17 @@
             return (await Directory.GetDirEntries(dirNodeNr, g)).Select(DirEntryConverter.ToEntry).ToList();
         }
 
+        public async Task ChangeDirectory(string path)
+        {
+            if (path.StartsWith("/") && !Macro.IsRoot(currentDirectory))
+            {
+                currentDirectory = await Directory.GetRoot(g);
+            }
+            
+            await Directory.Find(currentDirectory, path, g);
+            dirNodeNr = Macro.IsRoot(currentDirectory) ? (uint)Macro.ANODE_ROOTDIR : currentDirectory.file.direntry.anode;
+        }
+        
         /// <summary>
         /// Create directory in current directory
         /// </summary>

@@ -878,7 +878,7 @@
                 var entryIndex = 0;
                 while (entry.next != 0 && entryIndex + entry.next < blk.entries.Length)
                 {
-                    found = intl_name == entry.Name;
+                    found = intl_name == AmigaTextHelper.ToUpper(entry.Name, true);
                     if (found)
                     {
                         break;
@@ -965,7 +965,7 @@
                 entry = DirEntryReader.Read(blk.entries, 0);
 
                 /* goto end of dirblock; i = aantal gebruikte bytes */
-                for (i = 0; entry.next > 0; entry = DirEntryReader.Read(blk.entries, entry.next))
+                for (i = 0; entry.next > 0; entry = DirEntryReader.Read(blk.entries, i))
                     i += entry.next;
 
                 /* does it fit in this block? (keep space for trailing 0) */
@@ -1349,6 +1349,151 @@
             return 0;
         }
 
+        /* GetFullPath converts a relative path to an absolute path.
+ * The fileinfo of the new path is returned in [result].
+ * The return value is the filename without path.
+ * Error: return 0
+ *
+ * Parsing Syntax:
+ * : after '/' or at the beginning ==> root
+ * : after [name] ==> volume [name]
+ * / after / or ':' or at the beginning ==> parent
+ * / after dir ==> get dir
+ * / after file ==> error (ALWAYS) (AMIGADOS ok if LAST file)
+ *
+ * IN basispath, filename, g
+ * OUT fullpath, error
+ *
+ * If only a partial path is found, a pointer to the unparsed part
+ * will be stored in g->unparsed.
+ */
+// public static async Task<byte> GetFullPath(objectinfo basispath, string filename, objectinfo fullpath, globaldata g)
+// {
+//     byte pathpart;
+//     char parttype;
+// 	COUNT index;
+// 	bool eop = false, success = true;
+// 	volumedata volume;
+//
+// 	// VVV Init:getrootvolume
+// 	//ENTER("GetFullPath");
+// 	//g.unparsed = NULL;
+//
+// 	/* Set base path */
+//     if (basispath != null)
+//     {
+//         fullpath = basispath;
+//     }
+//     else
+//     {
+//         fullpath = await GetRoot(g);
+//     }
+//
+// 	/* The basispath should not be a file
+// 	 * BTW: softlink is illegal too, but not possible
+// 	 */
+// 	if (Macro.IsFile(fullpath) || Macro.IsDelFile(fullpath))
+// 	{
+// 		throw new IOException("ERROR_OBJECT_WRONG_TYPE");
+// 	}
+//
+// 	/* check if device present */
+//     if (Macro.IsVolume(fullpath) || Macro.IsDelDir(fullpath))
+//     {
+//         volume = fullpath.volume.volume;
+//     }
+//     else
+//     {
+//         volume = fullpath.file.dirblock.volume;
+//     }
+//
+//     if (!Volume.CheckVolume(volume, false, g))
+//     {
+//         return 0; // false
+//     }
+//
+//
+//     if (filename.IndexOf("/", StringComparison.OrdinalIgnoreCase))
+//     {
+//         
+//     }
+//     
+//     var parts = filename.Split('/');
+//     
+// 	/* extend base-path using filename and
+// 	 * continue until path complete (eop = end of path)
+// 	 */
+//     
+// 	while (!eop)
+// 	{
+// 		pathpart = filename;
+// 		index = filename.IndexOf(new char []{ '/', ':'}, StringComparison.OrdinalIgnoreCase);
+//         index = filename.IndexOf("/", StringComparison.OrdinalIgnoreCase);
+// 		parttype = filename[index];
+// 		filename[index] = 0x0;
+//
+// 		switch (parttype)
+// 		{
+// 			case ':':
+// 				success = false;
+// 				break;
+//
+// 			case '/':
+// 				if (pathpart == 0x0)
+// 				{
+// 					// if already at root, fail with an error
+// 					if (Macro.IsVolume(fullpath))
+// 					{
+// 						throw new IOException("ERROR_OBJECT_NOT_FOUND");
+// 					}
+// 					success = await GetParentOf(fullpath, g);
+// 				}
+// 				else
+// 					success = await GetDir(pathpart, fullpath, g);
+// 				break;
+//
+// 			default:
+// 				eop = true;
+//                 break;
+// 		}
+//
+// 		filename[index] = parttype;
+//
+// 		if (!success)
+// 		{
+// 			/* return pathrest for readlink() */
+// 			if (*error == ERROR_IS_SOFT_LINK)
+// 				g->unparsed = filename + index;
+// 			else if (*error == ERROR_OBJECT_NOT_FOUND)
+// 				g->unparsed = filename;
+// 			return NULL;
+// 		}
+//
+// 		if (!eop)
+// 			filename += index + 1;
+// 	}
+//
+// 	return filename;
+// }
+
+        public static async Task Find(objectinfo current, string path, globaldata g)
+        {
+            var parts = (path.StartsWith("/") ? path.Substring(1) : path).Split('/');
+
+            var foundParts = new List<string>();
+            
+            foreach (var part in parts)
+            {
+                if (!await GetObject(part, current, g))
+                {
+                    throw new IOException($"Entry '{part}' not found in path '{string.Concat("/", string.Join("/", foundParts))}'");
+                }
+
+                current.volume.root = 1;
+                foundParts.Add(part);
+            }
+        }
+
         public static async Task<objectinfo> GetRoot(globaldata g)
         {
             await Volume.UpdateCurrentDisk(g);
@@ -1384,9 +1529,8 @@
  *      - dirname without path; strlen(dirname) > 0
  * result back in path
  */
-        public static async Task<bool> GetDir(string dirname, globaldata g)
+        public static async Task<bool> GetDir(string dirname, objectinfo path, globaldata g)
         {
-            objectinfo path = new objectinfo();
             bool found;
 
             found = await GetObject(dirname, path, g);

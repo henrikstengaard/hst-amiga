@@ -1,8 +1,8 @@
 ﻿# Professional File System 3
 
-PFS3 directory contains classes to read and write partitions with Professional File System 3 (PFS3).
+PFS3 directory contains classes to read and write partitions with Professional File System 3 (PFS3). Professional File System 3 is a popular file system used by Amiga computers. 
 
-The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen and is almost identical to it's C code with exceptions of structs, unions and moving pointers.
+The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen and is almost identical to it's C code with exceptions of structs used to read and write data, unions and moving pointers.
 
 # Usage
 
@@ -24,6 +24,18 @@ var pfs3Volume = await Pfs3Volume.Mount(stream, partitionBlock);
 Example of listing entries from current directory using a mounted PFS3 volume:
 ```
 var entries = await pfs3Volume.GetEntries();
+```
+
+## Change directory
+
+Example of changing current directory to relative path from current directory using a mounted PFS3 volume:
+```
+await pfs3Volume.ChangeDirectory("New Dir");
+```
+
+Example of changing current directory to absolute path from root directory using a mounted PFS3 volume:
+```
+await pfs3Volume.ChangeDirectory("/New Dir");
 ```
 
 ## Creating a directory
