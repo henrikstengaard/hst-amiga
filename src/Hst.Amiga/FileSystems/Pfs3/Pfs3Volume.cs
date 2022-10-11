@@ -28,6 +28,21 @@
         }
 
         /// <summary>
+        /// Name of volume
+        /// </summary>
+        public string Name => g.RootBlock.DiskName;
+        
+        /// <summary>
+        /// Size of volume in bytes
+        /// </summary>
+        public long Size => (long)g.RootBlock.DiskSize * g.blocksize;
+        
+        /// <summary>
+        /// Free volume disk space in bytes
+        /// </summary>
+        public long Free => (long)g.RootBlock.BlocksFree * g.blocksize;
+
+        /// <summary>
         /// List entries in current directory
         /// </summary>
         /// <returns></returns>
@@ -36,6 +51,10 @@
             return (await Directory.GetDirEntries(dirNodeNr, g)).Select(DirEntryConverter.ToEntry).ToList();
         }
 
+        /// <summary>
+        /// Change current directory
+        /// </summary>
+        /// <param name="path">Relative or absolute path.</param>
         public async Task ChangeDirectory(string path)
         {
             if (path.StartsWith("/") && !Macro.IsRoot(currentDirectory))
