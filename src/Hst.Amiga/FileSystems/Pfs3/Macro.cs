@@ -7,6 +7,11 @@
 
     public static class Macro
     {
+        // comment: de is struct direntry *
+        public static int COMMENT(direntry de) => de.startofname + de.nlength;
+        
+        public static bool IsRoot(objectinfo oi) => oi == null || oi.volume.root == 0;
+        
         public static uint BLOCKSIZEMASK(globaldata g) => g.blocksize - 1;
         
         public static bool IsVolumeEntry(IEntry e) => e.ListEntry.type.flags.type == Constants.ETF_VOLUME;
@@ -14,6 +19,9 @@
         public static bool IsLockEntry(IEntry e) => e.ListEntry.type.flags.type == Constants.ETF_LOCK;
         public static bool SHAREDLOCK(IEntry e) => e.ListEntry.type.flags.access <= 1;
 
+        // public static uint ANODENR(fileentry fe) => fe.anodenr;
+        public static uint FIANODENR(fileinfo fi) => fi.direntry.anode;
+        
         // #define IsRollover(oi) ((IPTR)(oi).file.direntry>2 && ((oi).file.direntry->type==ST_ROLLOVERFILE))
         public static bool IsRollover(objectinfo oi) =>
             oi.file.direntry != null && oi.file.direntry.type == Convert.ToByte(Constants.ST_ROLLOVERFILE);
@@ -62,7 +70,7 @@
  */
         public static int FNSIZE = 108;
         public static int PATHSIZE = 256;
-        //public static int FILENAMESIZE  = (g->fnsize)
+        public static int FILENAMESIZE(globaldata g) => g.fnsize;
         public static int DNSIZE = 32;
         public static int CMSIZE = 80;
         public static int MAX_ENTRYSIZE = SizeOf.DirEntry.Struct + FNSIZE + CMSIZE + 34;

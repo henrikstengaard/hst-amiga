@@ -25,7 +25,7 @@
         public int Offset { get; set; }
         
         public byte next;             /* sizeof direntry                  */
-        public byte type;             /* dir, file, link etc              */
+        public int type;             /* dir, file, link etc              */
         public uint anode;            /* anode number                     */
         public uint fsize { get; set; }           /* sizeof file                      */
 
@@ -37,6 +37,8 @@
         public string Name { get; set; }
         public byte startofname;      /* filename, followed by filenote length & filenote */
         public byte pad;              /* make size even                   */
+        
+        public extrafields ExtraFields { get; set; }
 
         public uint Size
         {

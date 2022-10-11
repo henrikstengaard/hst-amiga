@@ -244,7 +244,7 @@
 
 /* Create rootblockextension. Needed for AFS 2.3 options.
  */
-        public static async Task<bool> MakeRBlkExtension (globaldata g)
+        public static bool MakeRBlkExtension (globaldata g)
         {
             volumedata volume = g.currentvolume;
             uint blocknr;

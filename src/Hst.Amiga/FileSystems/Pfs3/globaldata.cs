@@ -21,8 +21,6 @@
         public ushort fnsize;						/* filename size (18+)					*/
         public int directsize;                   /* number of blocks after which direct  */
 
-        public long[] allocbufmem;
-        
         public uint firstblock;/* first and last block of partition    */
         public uint lastblock;
 

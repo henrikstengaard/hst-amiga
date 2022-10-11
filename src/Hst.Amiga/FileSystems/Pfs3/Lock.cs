@@ -354,5 +354,20 @@
 	
             return false;	// no conflicting locks
         }
+        
+/* ScanLockList
+ *
+ * checks <list> for a lock on the file with anode anodenr
+ * ONLY FOR LOCKS TO CURRENTVOLUME
+ */
+        public static bool ScanLockList (listentry list, uint anodenr)
+        {
+            for (;list.next != null; list=list.next)
+            {
+                if (list.anodenr == anodenr)
+                    return true;
+            }
+            return false;
+        }
     }
 }

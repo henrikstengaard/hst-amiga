@@ -7,7 +7,6 @@
     {
         // struct volumedata   *next;          /* volumechain                          */
         // struct volumedata   *prev;      
-        public DeviceList devlist; /* <4A> device dos list                 */
         public RootBlock rootblk; /* the cached rootblock. Also in g.     */
 
 //#if VERSION23

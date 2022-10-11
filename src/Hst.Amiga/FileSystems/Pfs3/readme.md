@@ -1,35 +1,41 @@
-﻿## Data
+﻿# Professional File System 3
 
-- objectinfo: Information about a directory, file, name, size creation date etc.
-- object: File data.
+PFS3 directory contains classes to read and write partitions with Professional File System 3 (PFS3).
 
-## C code migration:
+The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen and is almost identical to it's C code with exceptions of structs, unions and moving pointers.
 
-~ is a bitwise not/complement, aka it changes all 0's to 1's and vice-versa. ~0 is a value with all bits set to 1.
+# Usage
 
-uint: ~0 = UInt32.MaxValue 
+The usage section describes how to use classes for reading and writing PFS3 partitions.
 
-A block is the same as sector size.
+## Mounting
 
-First reserved is 2 by default as boot block uses the first 2 blocks followed by root block.
+First the PFS3 volume has to be mounted using Pfs3Volume class. Mounted Pfs3 volume has current directory set to root directory.
 
-Reserved block number:
-- 0: Boot block
-- 1: Boot block (continued)
-- 2: Root block
-- 3: BM: Reserved bitmap block (g.glob_allocdata.res_bitmap)
-- 4: BM: Reserved bitmap block (continued)
-- 5: Blank
-- 6: EX: Root block extension
-- 8: MI: Bitmap index block
-- 9: MI: Bitmap index block (continued)
-- 10 - x: BM: Bitmap blocks for partition.
-- 
-- x - 14 : IB
-- x - 12 : AB
-- x - 10 : DB
-- x - 8 : DD
-- x - 6 : DD
-- x - 4 : EX
-- x - 2 : EX 
-- x : EX
+**Due to a limitation in the current implementation, pfs3 volume has to be unmounted and mounted between each write operation.**
+
+Example of mounting a PFS3 volume from a partition block in a stream:
+```
+var pfs3Volume = await Pfs3Volume.Mount(stream, partitionBlock);
+```
+
+## List entries
+
+Example of listing entries from current directory using a mounted PFS3 volume:
+```
+var entries = await pfs3Volume.GetEntries();
+```
+
+## Creating a directory
+
+Example of creating a directory in current directory using a mounted PFS3 volume:
+```
+await pfs3Volume.CreateDirectory("New Dir");
+```
+
+## Creating a file
+
+Example of creating a file in current directory using a mounted PFS3 volume:
+```
+await pfs3Volume.CreateFile("New File");
+```

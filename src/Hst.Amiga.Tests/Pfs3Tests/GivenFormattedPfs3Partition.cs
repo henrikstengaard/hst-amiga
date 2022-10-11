@@ -2,14 +2,14 @@
 
 using System.Linq;
 using System.Threading.Tasks;
+using FileSystems;
 using FileSystems.Pfs3;
 using Xunit;
-using Directory = FileSystems.Pfs3.Directory;
 
 public class GivenFormattedPfs3Disk : Pfs3TestBase
 {
     [Fact]
-    public async Task WhenCreateDirectoriesInRootThenDirectoriesExist()
+    public async Task WhenCreateDirectoryInRootDirectoryThenDirectoryExist()
     {
         // arrange - create pfs3 formatted disk
         await CreatePfs3FormattedDisk();
@@ -17,51 +17,78 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume from first partition
+        // act - mount pfs3 volume, create "New Dir" in root directory and unmount pfs3 volume
         var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
-        // act - get root directory
-        var root = await Directory.GetRoot(pfs3Volume.g);
-
-        // act - create directory "created" in root directory
-        await Directory.NewDir(root, "created", pfs3Volume.g);
-        
-        // act - unmount pfs3 volume
+        await pfs3Volume.CreateDirectory("New Dir");
         await Pfs3Helper.Unmount(pfs3Volume.g);
         
-        // act - mount pfs3 volume from first partition
+        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
         pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-
-        // act - get root directory
-        root = await Directory.GetRoot(pfs3Volume.g);
-        // act - create directory "with" in root directory
-        await Directory.NewDir(root, "with", pfs3Volume.g);
-
-        // act - unmount pfs3 volume
+        var entries = (await pfs3Volume.ListEntries()).ToList();
         await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // act - mount pfs3 volume from first partition
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // assert - root directory contains directory created
+        Assert.Single(entries);
+        Assert.Equal(1, entries.Count(x => x.Name == "New Dir" && x.Type == EntryType.Dir));
+    }
 
-        // act - get root directory
-        root = await Directory.GetRoot(pfs3Volume.g);
+    [Fact]
+    public async Task WhenCreateMultipleDirectoriesInRootDirectoryThenDirectoriesExist()
+    {
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
 
-        // act - create directory "hst.amiga library" in root directory
-        await Directory.NewDir(root, "hst.amiga library", pfs3Volume.g);
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create "New Dir1" in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateDirectory("New Dir1");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
         
-        // act - unmount pfs3 volume
+        // act - mount pfs3 volume, create "New Dir2" in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateDirectory("New Dir2");
         await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // act - mount pfs3 volume from first partition
+        // act - mount pfs3 volume, create "New Dir3" in root directory and unmount pfs3 volume
         pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
-        // act - get entries from root directory
-        var entries = (await pfs3Volume.GetEntries()).ToList();
+        await pfs3Volume.CreateDirectory("New Dir3");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // assert - root directory contains 3 created directories
+        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // assert - root directory contains directories created
         Assert.Equal(3, entries.Count);
-        Assert.Equal(1, entries.Count(x => x.Name == "created"));
-        Assert.Equal(1, entries.Count(x => x.Name == "with"));
-        Assert.Equal(1, entries.Count(x => x.Name == "hst.amiga library"));
+        Assert.Equal(1, entries.Count(x => x.Name == "New Dir1" && x.Type == EntryType.Dir));
+        Assert.Equal(1, entries.Count(x => x.Name == "New Dir2" && x.Type == EntryType.Dir));
+        Assert.Equal(1, entries.Count(x => x.Name == "New Dir3" && x.Type == EntryType.Dir));
+    }
+    
+    [Fact]
+    public async Task WhenCreateNewFileInRootThenFileExist()
+    {
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
+
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateFile("New File");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
     }
 }

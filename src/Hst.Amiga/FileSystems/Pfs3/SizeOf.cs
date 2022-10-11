@@ -49,5 +49,11 @@
         // {
         //     public static int Struct => ListEntry.Struct + Amiga.SizeOf.ULong * 4 + Amiga.SizeOf.Bool;
         // }
+
+        public static class ExtraFields
+        {
+            public static int Struct => Amiga.SizeOf.ULong + (Amiga.SizeOf.UWord * 2) +
+                                        (Amiga.SizeOf.ULong * 3) + Amiga.SizeOf.UWord;
+        }
     }
 }

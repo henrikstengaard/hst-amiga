@@ -5,16 +5,19 @@
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
-    using Blocks;
     using RigidDiskBlocks;
 
     public class Pfs3Volume : IAsyncDisposable
     {
         public readonly globaldata g;
+        private objectinfo currentDirectory;
+        private uint dirNodeNr;
 
-        public Pfs3Volume(globaldata g)
+        public Pfs3Volume(globaldata g, objectinfo currentDirectory, uint dirNodeNr)
         {
             this.g = g;
+            this.currentDirectory = currentDirectory;
+            this.dirNodeNr = dirNodeNr;
         }
 
         public async ValueTask DisposeAsync()
@@ -24,104 +27,48 @@
             GC.SuppressFinalize(this);
         }
 
-        public async Task<IEnumerable<Entry>> GetEntries()
+        /// <summary>
+        /// List entries in current directory
+        /// </summary>
+        /// <returns></returns>
+        public async Task<IEnumerable<Entry>> ListEntries()
         {
-            // root dir
-            var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
-            
-            return (await Directory.GetDirEntries(dirNodeNr, g)).Select(GetEntry)
-                .OrderBy(x => x.Type).ThenBy(x => x.Name).ToList();
+            return (await Directory.GetDirEntries(dirNodeNr, g)).Select(DirEntryConverter.ToEntry).ToList();
         }
 
-        private Entry GetEntry(direntry dirEntry)
+        /// <summary>
+        /// Create directory in current directory
+        /// </summary>
+        /// <param name="dirName"></param>
+        public async Task CreateDirectory(string dirName)
         {
-            return new Entry
-            {
-                Name = dirEntry.Name,
-                Type = GetEntryType(dirEntry.type),
-                Size = dirEntry.fsize,
-                ProtectionBits = GetProtectionBits(dirEntry.protection),
-                CreationDate = dirEntry.CreationDate
-            };
+            await Directory.NewDir(currentDirectory, dirName, g);
         }
 
-        private EntryType GetEntryType(int type)
+        /// <summary>
+        /// Create file in current directory
+        /// </summary>
+        /// <param name="fileName"></param>
+        public async Task CreateFile(string fileName)
         {
-            switch (type)
-            {
-                case Constants.ST_USERDIR:
-                    return EntryType.Dir;
-                case Constants.ST_FILE:
-                    return EntryType.File;
-                case Constants.ST_SOFTLINK:
-                    return EntryType.SoftLink;
-                case Constants.ST_LINKDIR:
-                    return EntryType.DirLink;
-                case Constants.ST_LINKFILE:
-                    return EntryType.FileLink;
-                default:
-                    return EntryType.File;
-            }
+            var notUsed = new objectinfo();
+            await Directory.NewFile(false, currentDirectory, fileName, notUsed, g);
         }
-
-        private ProtectionBits GetProtectionBits(int protection)
-        {
-            var protectionBits = ProtectionBits.Read | ProtectionBits.Write | ProtectionBits.Executable | ProtectionBits.Delete;
-
-            // add held resident flag, if bit is present
-            if ((protection & 128) == 128)
-            {
-                protectionBits |= ProtectionBits.HeldResident;
-            }
-
-            // add script flag, if bit is present
-            if ((protection & 64) == 64)
-            {
-                protectionBits |= ProtectionBits.Script;
-            }
-
-            // add pure flag, if bit is present
-            if ((protection & 32) == 32)
-            {
-                protectionBits |= ProtectionBits.Pure;
-            }
-
-            // add archive flag, if bit is present
-            if ((protection & 16) == 16)
-            {
-                protectionBits |= ProtectionBits.Archive;
-            }
-            
-            // remove read flag, if bit is present
-            if ((protection & 8) == 8)
-            {
-                protectionBits &= ~ProtectionBits.Read;
-            }
-            
-            // remove write flag, if bit is present
-            if ((protection & 4) == 4)
-            {
-                protectionBits &= ~ProtectionBits.Write;
-            }
-            
-            // remove executable flag, if bit is present
-            if ((protection & 2) == 2)
-            {
-                protectionBits &= ~ProtectionBits.Executable;
-            }
-
-            // remove delete flag, if bit is present
-            if ((protection & 1) == 1)
-            {
-                protectionBits &= ~ProtectionBits.Delete;
-            }
-            
-            return protectionBits;
-        }
-
+        
+        /// <summary>
+        /// Mount pfs3 volume in stream using partition block information
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="partitionBlock"></param>
+        /// <returns></returns>
         public static async Task<Pfs3Volume> Mount(Stream stream, PartitionBlock partitionBlock)
         {
-            return new Pfs3Volume(await Pfs3Helper.Mount(stream, partitionBlock));
+            var g = await Pfs3Helper.Mount(stream, partitionBlock);
+            
+            var root = await Directory.GetRoot(g);
+            var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
+            
+            return new Pfs3Volume(g, root, dirNodeNr);
         }
     }
 }

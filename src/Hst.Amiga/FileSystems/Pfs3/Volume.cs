@@ -323,7 +323,7 @@
             if (g.currentvolume.rblkextension == null &&
                 g.diskstate != Constants.ID_WRITE_PROTECTED)
             {
-                await Pfs3Formatter.MakeRBlkExtension (g);
+                Pfs3Formatter.MakeRBlkExtension (g);
             }
 
             /* upgrade deldir */
@@ -369,7 +369,7 @@
         
         public static async Task NewVolume (bool force, globaldata g)
         {
-            bool oldstate, newstate, changed;
+            bool oldstate, newstate;//, changed;
 
             /* check if something changed */
             // changed = UpdateChangeCount (g);
