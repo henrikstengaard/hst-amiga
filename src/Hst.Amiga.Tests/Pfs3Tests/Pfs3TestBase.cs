@@ -14,12 +14,15 @@ public abstract class Pfs3TestBase
     protected static readonly string Pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio");
     protected readonly RigidDiskBlock RigidDiskBlock = RigidDiskBlock
         .Create(100.MB().ToUniversalSize());
-    protected static readonly Stream Stream = new BlockMemoryStream();
+    protected static readonly BlockMemoryStream Stream = new BlockMemoryStream();
     
     public async Task CreatePfs3FormattedDisk()
     {
-        RigidDiskBlock.AddFileSystem(Pfs3DosType, await File.ReadAllBytesAsync(Pfs3AioPath))
+        Stream.SetLength(RigidDiskBlock.DiskSize);
+        
+        RigidDiskBlock.AddFileSystem(Pfs3DosType, await System.IO.File.ReadAllBytesAsync(Pfs3AioPath))
             .AddPartition("DH0", bootable: true);
+        await RigidDiskBlockWriter.WriteBlock(RigidDiskBlock, Stream);
         
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 

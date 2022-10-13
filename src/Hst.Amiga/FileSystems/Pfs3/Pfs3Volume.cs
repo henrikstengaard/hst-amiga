@@ -7,7 +7,7 @@
     using System.Threading.Tasks;
     using RigidDiskBlocks;
 
-    public class Pfs3Volume : IAsyncDisposable
+    public class Pfs3Volume : IAsyncDisposable, IDisposable
     {
         public readonly globaldata g;
         private objectinfo currentDirectory;
@@ -84,6 +84,20 @@
             var notUsed = new objectinfo();
             await Directory.NewFile(false, currentDirectory, fileName, notUsed, g);
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <param name="write"></param>
+        /// <returns></returns>
+        public async Task<EntryStream> OpenFile(string fileName, bool write)
+        {
+            var objectInfo = new objectinfo();
+            await Directory.Find(objectInfo, fileName, g);
+            var fileEntry = await File.Open(objectInfo, write, g) as fileentry;
+            return new EntryStream(fileEntry, g);
+        }
         
         /// <summary>
         /// Mount pfs3 volume in stream using partition block information
@@ -99,6 +113,11 @@
             var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
             
             return new Pfs3Volume(g, root, dirNodeNr);
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
         }
     }
 }

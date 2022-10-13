@@ -2,6 +2,8 @@
 
 PFS3 directory contains classes to read and write partitions with Professional File System 3 (PFS3). Professional File System 3 is a popular file system used by Amiga computers. 
 
+PFS3 is originally developed by Michiel Pelt.
+
 The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen and is almost identical to it's C code with exceptions of structs used to read and write data, unions and moving pointers.
 
 # Usage

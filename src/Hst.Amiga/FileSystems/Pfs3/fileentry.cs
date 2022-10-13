@@ -29,5 +29,10 @@
         public bool checknotify; // set if a notify is necessary at ACTION_END time > ALSO touch flag <
         public listentry ListEntry => le;
         public lockentry LockEntry => throw new NotImplementedException();
+
+        public fileentry()
+        {
+            
+        }
     }
 }

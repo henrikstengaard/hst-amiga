@@ -67,7 +67,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, entries.Count(x => x.Name == "New Dir2" && x.Type == EntryType.Dir));
         Assert.Equal(1, entries.Count(x => x.Name == "New Dir3" && x.Type == EntryType.Dir));
     }
-    
+
     [Fact]
     public async Task WhenCreateDirectoryInSubDirectoryThenDirectoryExist()
     {
@@ -126,5 +126,47 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - root directory contains file created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
+    }
+
+    [Fact]
+    public async Task WhenCreateWriteDataToNewFileThenFileExistAndDataMatches()
+    {
+        // arrange - data to write
+        var data = AmigaTextHelper.GetBytes("New file with simple text.");
+        
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
+
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateFile("New File");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // act - mount pfs3 volume, write data and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // act - mount pfs3 volume, read data and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        int bytesRead;
+        byte[] dataRead;
+        using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
     }
 }

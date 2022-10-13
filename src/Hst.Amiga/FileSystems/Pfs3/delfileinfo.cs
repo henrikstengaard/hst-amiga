@@ -4,5 +4,10 @@
     {
         public uint special;					// 2
         public uint slotnr;					// het slotnr voor deze deldirentry
+
+        public delfileinfo()
+        {
+            special = 3; // file by default
+        }
     }
 }

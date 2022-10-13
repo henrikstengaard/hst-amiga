@@ -16,7 +16,7 @@
 **
 ** result: the fileentry, or NULL if failure
 */
-        public static async Task<listentry> MakeListEntry(objectinfo info, ListType type, globaldata g)
+        public static async Task<IEntry> MakeListEntry(objectinfo info, ListType type, globaldata g)
         {
             var newinfo = new objectinfo();
             //uint size;
@@ -60,11 +60,10 @@
 // #endif
             {
                 throw new IOException("ERROR_IS_SOFT_LINK");
-                // return NULL;
             }
 
             var listentry = new listentry();
-            var fileentry = new fileentry();
+            //var fileentry = new fileentry();
             // if (!(listentry = AllocMemP (size, g)))
             // {
             // 	*error = ERROR_NO_FREE_STORE;
@@ -156,6 +155,10 @@
                 case Constants.ETF_FILEENTRY:
 //#define fe ((fileentry_t *)listentry)
                     //var fe = listentry as fileentry;
+                    var fileentry = new fileentry
+                    {
+                        le = listentry
+                    };
                     listentry.filelock.fl_Key = (int)listentry.anodenr;
                     // listentry->lock.fl_Volume = MKBADDR(MKBADDR(newinfo.file.dirblock->volume->devlist);
                     listentry.volume = newinfo.file.dirblock.volume;
@@ -180,10 +183,10 @@
 
 // #endif /* ROLLOVER */
 // #undef fe
-                    break;
+                    return fileentry;
 
                 default:
-                    listentry = null;
+                    // listentry = null;
                     return null;
             }
 
@@ -211,14 +214,14 @@
             var volume = entry.volume;
 
             /* add to head of list; als link locks using BPTRs */
-            // if (!Macro.IsMinListEmpty(volume.fileentries))
-            // {
+            if (!Macro.IsMinListEmpty(volume.fileentries))
+            {
             //     entry.filelock.fl_Link = MKBADDR(&(((listentry_t *)Macro.HeadOf(volume.fileentries))->lock))
-            // }
-            // else
-            // {
-            //     entry.filelock.fl_Link = 0;
-            // }
+            }
+            else
+            {
+                entry.filelock.fl_Link = 0;
+            }
 
             Macro.MinAddHead(volume.fileentries, entry);
 
@@ -280,7 +283,7 @@
         {
             //#define fe ((fileentry_t *)entry)
             var fe = entry as fileentry;
-            if (Macro.IsFileEntry(entry) && fe.anodechain != null)
+            if (Macro.IsFileEntry(entry) && fe?.anodechain != null)
             {
                 anodes.DetachAnodeChain(fe.anodechain, g);
             }
@@ -368,6 +371,67 @@
                     return true;
             }
             return false;
+        }
+        
+/* RemoveListEntry
+**
+** removes 'entry' from the list and frees entry with FreeFileEntry 
+**
+** also think about empty lists: kill volume if empty and not present
+** also	makes lock-links
+*/
+        public static void RemoveListEntry (IEntry entry, globaldata g)
+        {
+            // struct volumedata *volume;
+            // struct MinList *previous;
+
+            /* get volume */
+            //var volume = entry.volume;
+
+            /* remove from list */
+            Macro.MinRemove(entry, g);
+
+            /* update FileLock link */
+            // previous = (struct MinList *)entry->prev;
+            // if (!IsHead(entry))
+            // {
+            //     if (!IsTail(entry))
+            //         ((listentry_t *)previous)->lock.fl_Link = 
+            //         MKBADDR(&(((listentry_t *)entry)->next->lock));
+            //     else
+            //     ((listentry_t *)previous)->lock.fl_Link = 0;
+            // }
+            // entry->lock.fl_Task = NULL;
+            FreeListEntry (entry, g);
+
+            // UNUSED: Commented out as implementation doesn't switch between volumes
+//             if (g.currentvolume != volume)
+//             {
+//                 /* check if last lock; yes:kill (only if not current disk)
+//                 */
+//                 if (IsMinListEmpty (&volume->fileentries))
+//                 {
+//                     DB(Trace(1,"RemoveListEntry", "killing volumedata\n"));
+//
+// //			LockDosList (LDF_VOLUMES|LDF_READ);
+//                     Forbid ();
+//                     RemDosEntry ((struct DosList *)volume->devlist);
+//                     FreeDosEntry ((struct DosList *)volume->devlist);
+//                     FreeVolumeResources (volume, g);
+// //			UnLockDosList (LDF_VOLUMES|LDF_READ);
+//                     Permit ();
+//                 }
+//                 /* update doslist->dl_LockList if necessary
+//                 */
+//                 else if (previous == (struct MinList *)&volume->fileentries)
+//                 {
+// //			LockDosList (LDF_VOLUMES|LDF_READ);
+//                     Forbid ();
+//                     volume->devlist->dl_LockList = MKBADDR(&(((fileentry_t *)HeadOf(&volume->fileentries))->le.lock));
+// //			UnLockDosList (LDF_VOLUMES|LDF_READ);
+//                     Permit ();
+//                 }
+//             }
         }
     }
 }

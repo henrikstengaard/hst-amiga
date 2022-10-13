@@ -183,7 +183,12 @@
             for (var node = Macro.HeadOf(volume.bmindexblks); node != null; node = node.Next)
             {
                 indexblk = node.Value;
-                if (indexblk.IndexBlock.seqnr == nr)
+                if (indexblk.blk is BitmapBlock bitmapBlock && bitmapBlock.seqnr == nr)
+                {
+                    Lru.MakeLRU(indexblk, g);
+                    return indexblk;
+                }
+                if (indexblk.blk is indexblock indexBlock && indexBlock.seqnr == nr)
                 {
                     Lru.MakeLRU(indexblk, g);
                     return indexblk;
@@ -286,8 +291,8 @@
  */
         public static async Task<CachedBlock> GetBitmapBlock(uint seqnr, globaldata g)
         {
-            uint blocknr, temp;
-            CachedBlock bmb;
+            uint blocknr = 0, temp;
+            CachedBlock bmb = null;
             CachedBlock indexblock;
             var volume = g.currentvolume;
             var andata = g.glob_anodedata;
@@ -310,15 +315,32 @@
                 return null;
 
             /* get blocknr */
-            if ((blocknr = (uint)indexblock.IndexBlock.index[temp >> 16]) == 0 ||
-                (bmb = await Lru.AllocLRU(g)) == null)
-                return null;
+            switch (indexblock.blk)
+            {
+                case BitmapBlock bitmapBlock:
+                    if ((blocknr = bitmapBlock.bitmap[temp >> 16]) == 0 || (bmb = await Lru.AllocLRU(g)) == null)
+                    {
+                        return null;
+                    }
+                    break;
+                case indexblock indexBlock:
+                    if ((blocknr = (uint)indexBlock.index[temp >> 16]) == 0 || (bmb = await Lru.AllocLRU(g)) == null)
+                    {
+                        return null;
+                    }
+                    break;
+            }
 
+            if (bmb == null)
+            {
+                return null;
+            }
+            
             // DB(Trace(10,"GetBitmapBlock", "seqnr = %ld blocknr = %lx\n", seqnr, blocknr));
 
             /* read it */
-            var blk = await Disk.RawRead<BitmapBlock>(g.currentvolume.rescluster, blocknr, g);
-            if (blk == null)
+            bmb.blk = await Disk.RawRead<BitmapBlock>(g.currentvolume.rescluster, blocknr, g);
+            if (bmb.blk == null)
             {
                 Lru.FreeLRU(bmb, g);
                 return null;
@@ -365,7 +387,7 @@
  * 
  * -> all references that indicate the freed blocks must have been
  *  done (atomically).
- */        
+ */
         public static async Task FreeBlocksAC(anodechain achain, uint size, freeblocktype freetype, globaldata g)
         {
             anodechainnode chnode, tail;
@@ -510,7 +532,7 @@
 
             // EXIT("FreeBlocksAC");
         }
-        
+
         /* local function of FreeBlocksAC
  * restore anodechain (freeanode mode only)
  */
@@ -537,6 +559,251 @@
                 chnode.an.next = 0;
                 await anodes.SaveAnode(chnode.an, chnode.an.nr, g);
             }
+        }
+
+/*
+ * AllocateBlocksAC
+ * Allocate blocks to end of (cached) anodechain.
+ * If ref != NULL then online directory update enabled.
+ * Make sure the state is valid before you call this function!
+ * Returns success
+ * if FAIL, then a part of the needed blocks could already have been allocated
+ */
+        public static async Task<bool> AllocateBlocksAC(anodechain achain, uint size, fileinfo ref_, globaldata g)
+        {
+            uint nr, field, i = 0, j = 0, blocknr, blocksdone = 0;
+            uint extra;
+            uint oldfilesize = 0;
+            uint bmseqnr = 0;
+            ushort bmoffset = 0, oldlocknr = 0;
+            CachedBlock bitmap; // cbitmapblock_t
+            anodechainnode chnode;
+            var vol = g.currentvolume;
+            var alloc_data = g.glob_allocdata;
+            bool extend = false, updateroving = true;
+
+
+            //ENTER("AllocateBlocksAC");
+
+            /* Check if allocation possible */
+            if (alloc_data.alloc_available < size)
+                return false;
+
+            /* check for sufficient clean freespace (freespace that doesn't overlap
+             * with the current state on disk)
+             */
+            if (alloc_data.clean_blocksfree < size)
+            {
+                await Update.UpdateDisk(g);
+            }
+
+            // #if VERSION23
+        	/* remember filesize in order to be able to cancel */
+            if (ref_ != null)
+            {
+                oldfilesize = Directory.GetDEFileSize(ref_.direntry, g);
+            }
+            // #endif
+
+            /* count number of fragments and decide on fileextend preallocation
+             * get anode to expand
+             */
+            chnode = achain.head;
+            for (i = 0; chnode.next != null; i++)
+                chnode = chnode.next;
+
+            extra = Math.Min(256, i * 8);
+            if (chnode.an.blocknr != 0 && chnode.an.blocknr != UInt32.MaxValue) // != -1
+            {
+                i = chnode.an.blocknr + chnode.an.clustersize - alloc_data.bitmapstart;
+                nr = i / 32;
+                i %= 32;
+                j = (uint)(1L << (31 - (int)i));
+                bmseqnr = nr / alloc_data.longsperbmb;
+                bmoffset = (ushort)(nr % alloc_data.longsperbmb);
+                bitmap = await GetBitmapBlock(bmseqnr, g);
+                var bitmapBlk = bitmap.BitmapBlock;
+                field = bitmapBlk.bitmap[bmoffset];
+
+                /* block directly behind file free ? */
+                if ((field & j) != 0)
+                {
+                    extend = true;
+
+                    /* if the position we want to allocate does not corresponds to the
+                     * rovingpointer, the rovingpointer should not be updated
+                     */
+                    if (nr != g.RootBlock.RovingPtr)
+                        updateroving = false;
+                }
+            }
+
+
+            /* Get bitmap to allocate from */
+            if (!extend)
+            {
+                nr = g.RootBlock.RovingPtr;
+                bmseqnr = nr / alloc_data.longsperbmb;
+                bmoffset = (ushort)(nr % alloc_data.longsperbmb);
+                i = alloc_data.rovingbit;
+                j = (uint)(1L << (31 - (int)i));
+            }
+
+            /* Allocate */
+            while (size != 0)
+            {
+                /* scan all bitmapblocks */
+                bitmap = await GetBitmapBlock(bmseqnr, g);
+                oldlocknr = bitmap.used;
+
+                /* find all empty fields */
+                while (bmoffset < alloc_data.longsperbmb)
+                {
+                    var bitmapBlk = bitmap.BitmapBlock;
+                    field = bitmapBlk.bitmap[bmoffset];
+                    if (field != 0)
+                    {
+                        /* take all empty bits */
+                        for (; i < 32; j >>= 1, i++)
+                        {
+                            if ((field & j) != 0)
+                            {
+                                /* block is available, calc blocknr */
+                                blocknr = (bmseqnr * alloc_data.longsperbmb + bmoffset) * 32 + i +
+                                          alloc_data.bitmapstart;
+
+                                /* check in range */
+                                if (blocknr >= vol.numblocks)
+                                {
+                                    bmoffset = (ushort)alloc_data.longsperbmb;
+                                    continue;
+                                }
+                                /* take block */
+                                else
+                                {
+                                    /* uninitialized anode */
+                                    if (chnode.an.blocknr == UInt32.MaxValue) // = -1
+                                    {
+                                        chnode.an.blocknr = blocknr;
+                                        chnode.an.clustersize = 0;
+                                        chnode.an.next = 0;
+                                    }
+                                    /* check blockconnect */
+                                    else if (chnode.an.blocknr + chnode.an.clustersize != blocknr)
+                                    {
+                                        uint anodenr;
+
+                                        Macro.Lock(bitmap, g);
+
+                                        chnode.next = new anodechainnode();
+//                                         if (!(chnode.next = AllocMemP(anodechainnode), g)))
+//                                         {
+// // #if VERSION23
+// 									        if (ref_ != null)
+// 									        {
+// 										        Directory.SetDEFileSize(ref_.direntry, oldfilesize, g);
+// 										        await Update.MakeBlockDirty(ref_.dirblock, g);
+// 									        }
+// // #endif
+//                                             /* undo allocation so far */
+//                                             await FreeBlocksAC(achain, blocksdone, freeblocktype.freeanodes, g);
+//                                             return false;
+//                                         }
+
+                                        anodenr = await anodes.AllocAnode(chnode.an.nr, g); /* should not go wrong! */
+                                        chnode.an.next = anodenr;
+                                        await anodes.SaveAnode(chnode.an, chnode.an.nr, g);
+                                        chnode = chnode.next;
+                                        chnode.an.nr = anodenr;
+                                        chnode.an.blocknr = blocknr;
+                                        chnode.an.clustersize = 0;
+                                        chnode.an.next = 0;
+                                    }
+
+                                    
+                                    bitmapBlk.bitmap[bmoffset] &= (~j); /* remove block from freelist */
+                                    chnode.an.clustersize++; /* to file  	  	  */
+                                    await Update.MakeBlockDirty(bitmap, g);
+
+                                    /* update counters */
+                                    alloc_data.clean_blocksfree--;
+                                    alloc_data.alloc_available--;
+                                    blocksdone++;
+
+                                    /* update reference */
+                                    if (ref_ != null)
+                                    {
+                                        Directory.SetDEFileSize(ref_.dirblock.dirblock, ref_.direntry, Directory.GetDEFileSize(ref_.direntry, g) + Macro.BLOCKSIZE(g), g);
+                                        if (Macro.IsUpdateNeeded(Constants.RTBF_POSTPONED_TH, g))
+                                        {
+                                            /* make state valid and update disk */
+                                            await Update.MakeBlockDirty(ref_.dirblock, g);
+                                            await anodes.SaveAnode(chnode.an, chnode.an.nr, g);
+                                            await Update.UpdateDisk(g);
+
+                                            /* abort if running out of reserved blocks */
+                                            if (g.RootBlock.ReservedFree <= Constants.RESFREE_THRESHOLD)
+                                            {
+// #if VERSION23
+                                                Directory.SetDEFileSize(ref_.dirblock.dirblock, ref_.direntry, oldfilesize, g);
+                                                await Update.MakeBlockDirty (ref_.dirblock, g);
+// #endif
+                                                await FreeBlocksAC(achain, blocksdone, freeblocktype.freeanodes, g);
+                                                return false;
+                                            }
+                                        }
+                                    }
+
+
+                                    if (--size == 0)
+                                        goto alloc_end;
+                                }
+                            }
+                        }
+
+                        i = 0;
+                        j = (uint)(1L << 31);
+                    }
+
+                    bmoffset++;
+                }
+
+                bitmap.used = oldlocknr;
+
+                /* get ready for next block */
+                bmseqnr = (bmseqnr + 1) % (alloc_data.no_bmb);
+                bmoffset = 0;
+            }
+
+            alloc_end:
+
+            /* finish by saving anode and updating roving ptr */
+            await anodes.SaveAnode(chnode.an, chnode.an.nr, g);
+
+            /* add fileextension preallocation */
+            if (updateroving)
+            {
+                if (extend)
+                {
+                    i += extra;
+                    alloc_data.rovingbit = i % 32;
+                    bmoffset += (ushort)(i / 32);
+                    if (bmoffset >= alloc_data.longsperbmb)
+                    {
+                        bmoffset -= (ushort)alloc_data.longsperbmb;
+                        bmseqnr = (bmseqnr + 1) % (alloc_data.no_bmb);
+                    }
+                }
+                else
+                {
+                    alloc_data.rovingbit = i;
+                }
+
+                g.RootBlock.RovingPtr = bmseqnr * alloc_data.longsperbmb + bmoffset;
+            }
+
+            //EXIT("AllocateBlocksAC");
+            return true;
         }
     }
 }

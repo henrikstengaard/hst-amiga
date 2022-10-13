@@ -40,7 +40,7 @@
                 this.offset = offset;
             }
 
-            public T this[int index]
+            public T this[uint index]
             {
                 get => array[offset + index];
                 set => array[offset + index] = value;

@@ -6,6 +6,7 @@
     public class globaldata
     {
         public RootBlock RootBlock;
+        public DosEnvec DosEnvec { get; set; }
         public uint NumBuffers;
         public lru_data_s glob_lrudata;
         

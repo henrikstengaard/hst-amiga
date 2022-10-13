@@ -181,7 +181,7 @@
 ** If volume==NULL (no disk present) then FALSE is returned (@XLII).
 ** result: requested volume present/not present TRUE/FALSE
 */
-        public static bool CheckVolume(volumedata volume, bool write, globaldata g)
+        public static void CheckVolume(volumedata volume, bool write, globaldata g)
         {
             if (volume == null || g.currentvolume == null)
             {
@@ -230,15 +230,11 @@
 
                         break;
                 }
-
-                return true;
             }
             else
             {
                 throw new IOException("ERROR_DEVICE_NOT_MOUNTED");
             }
-
-            return true;
         }
 
         public static async Task<RootBlock> GetCurrentRoot(globaldata g)

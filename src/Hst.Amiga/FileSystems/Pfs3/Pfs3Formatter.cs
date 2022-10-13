@@ -30,7 +30,7 @@
             
             var g = Init.CreateGlobalData(partitionBlock.Sectors, partitionBlock.BlocksPerTrack,
                 partitionBlock.Surfaces, partitionBlock.LowCyl, partitionBlock.HighCyl, partitionBlock.NumBuffer,
-                partitionBlock.FileSystemBlockSize);
+                partitionBlock.FileSystemBlockSize, partitionBlock.Mask);
             g.stream = stream;
             
             /* remove error-induced soft protect */

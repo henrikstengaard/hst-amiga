@@ -5,6 +5,7 @@
 
         public static class Constants
         {
+                public const uint MAX_FILE_SIZE = 0xffffffff;
                 public const uint ULONG_MAX = UInt32.MaxValue;
                 
                 public static string deldirname = new string(new []{ (char)7 }.Concat(".DELDIR".ToArray()).ToArray());

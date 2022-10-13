@@ -4,11 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading.Tasks;
 
 public class BlockMemoryStream : Stream
 {
     private readonly int blockSize;
     private readonly IDictionary<long, byte[]> blocks;
+    private long length;
     private long position;
 
     public readonly ReadOnlyDictionary<long, byte[]> Blocks;
@@ -23,6 +25,7 @@ public class BlockMemoryStream : Stream
         this.blockSize = blockSize;
         this.blocks = new Dictionary<long, byte[]>();
         this.Blocks = new ReadOnlyDictionary<long, byte[]>(this.blocks);
+        this.length = 0;
         this.position = 0;
     }
 
@@ -69,6 +72,7 @@ public class BlockMemoryStream : Stream
 
     public override void SetLength(long value)
     {
+        length = value;
     }
 
     public override void Write(byte[] buffer, int offset, int count)
@@ -83,16 +87,31 @@ public class BlockMemoryStream : Stream
             blocks[position] = blockBytes;
             position += blockSize;
         }
+        
+        if (position > length)
+        {
+            length = position;
+        }
     }
 
     public override bool CanRead => true;
     public override bool CanSeek => true;
     public override bool CanWrite => true;
-    public override long Length => -1;
+    public override long Length => length;
 
     public override long Position
     {
         get => position;
         set => position = value;
+    }
+
+    public async Task WriteTo(Stream stream)
+    {
+        stream.SetLength(length);
+        foreach (var block in blocks)
+        {
+            stream.Seek(block.Key, SeekOrigin.Begin);
+            await stream.WriteAsync(block.Value, 0, block.Value.Length);
+        }
     }
 }

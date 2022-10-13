@@ -290,7 +290,7 @@
                 }
                 else
                 {
-                    for (s = 0, i = Constants.MAXSMALLINDEXNR; i >= 0 && g.RootBlock.idx.small.indexblocks[i] == 0; i--)
+                    for (s = 0, i = Constants.MAXSMALLINDEXNR; i >= 0 && g.RootBlock.idx.small.indexblocks[(uint)i] == 0; i--)
                     {
                     }
                 }
@@ -875,7 +875,7 @@
             anodechain chain;
 
             // ENTER("FindAnodeChain");
-            for (var node = Macro.HeadOf(g.currentvolume.anodechainlist); node.Next != null; node = node.Next)
+            for (var node = Macro.HeadOf(g.currentvolume.anodechainlist); node != null; node = node.Next)
             {
                 chain = node.Value;
                 if (chain.head.an.nr == anodenr)
@@ -975,5 +975,16 @@
             //
             // FreeMemP (chain, g);
         }
+        
+/*
+ * Tries to fetch the block that follows after anodeoffset. Returns success,
+ * updates anodechainpointer and anodeoffset. If failed, acnode will point to
+ * the tail of the anodechain
+ */
+        public static bool NextBlockAC(anodechainnode acnode, ref uint anodeoffset, globaldata g)
+        {
+            anodeoffset++;
+            return CorrectAnodeAC(acnode, anodeoffset, g);
+        }        
     }
 }

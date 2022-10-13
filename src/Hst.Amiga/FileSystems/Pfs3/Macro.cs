@@ -7,12 +7,17 @@
 
     public static class Macro
     {
+        public static void MarkDataDirty(int i, globaldata g) => g.dc.ref_[i].dirty = true;
+            
         // comment: de is struct direntry *
         public static int COMMENT(direntry de) => de.startofname + de.nlength;
         
         public static bool IsRoot(objectinfo oi) => oi == null || oi.volume.root == 0;
-        
+
+        public static uint BLOCKSIZE(globaldata g) => g.blocksize;
         public static uint BLOCKSIZEMASK(globaldata g) => g.blocksize - 1;
+        public static ushort BLOCKSHIFT(globaldata g) => g.blockshift;
+        public static int DIRECTSIZE(globaldata g) => g.directsize;
         
         public static bool IsVolumeEntry(IEntry e) => e.ListEntry.type.flags.type == Constants.ETF_VOLUME;
         public static bool IsFileEntry(IEntry e) => e.ListEntry.type.flags.type == Constants.ETF_FILEENTRY;
@@ -24,7 +29,7 @@
         
         // #define IsRollover(oi) ((IPTR)(oi).file.direntry>2 && ((oi).file.direntry->type==ST_ROLLOVERFILE))
         public static bool IsRollover(objectinfo oi) =>
-            oi.file.direntry != null && oi.file.direntry.type == Convert.ToByte(Constants.ST_ROLLOVERFILE);
+            oi.file.direntry != null && oi.file.direntry.type == Convert.ToSByte(Constants.ST_ROLLOVERFILE);
 
         public static int MKBADDR(uint x) => (int)x >> 2;
         
@@ -147,6 +152,12 @@ BPTR
             g.glob_lrudata.LRUqueue.Remove(node);
         }
 
+        public static void MinRemove(IEntry node, globaldata g)
+        {
+            var volume = g.currentvolume;
+            volume.fileentries.Remove(node);
+        }
+
         public static void MinRemove(CachedBlock node, globaldata g)
         {
             // #define MinRemove(node) Remove((struct Node *)node)
@@ -206,6 +217,8 @@ BPTR
             // #define HeadOf(list) ((void *)((list)->mlh_Head))
             return list.First;
         }
+
+        public static bool IsMinListEmpty<T>(LinkedList<T> list) => list.Count == 0;        
         
         public static async Task<CachedBlock> GetAnodeBlock(ushort seqnr, globaldata g)
         {

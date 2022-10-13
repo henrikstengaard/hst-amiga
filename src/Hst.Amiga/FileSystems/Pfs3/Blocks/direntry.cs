@@ -25,7 +25,7 @@
         public int Offset { get; set; }
         
         public byte next;             /* sizeof direntry                  */
-        public int type;             /* dir, file, link etc              */
+        public sbyte type;             /* dir, file, link etc              */
         public uint anode;            /* anode number                     */
         public uint fsize { get; set; }           /* sizeof file                      */
 

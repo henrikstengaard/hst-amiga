@@ -20,6 +20,7 @@
 
             if (dirEntry.ExtraFields != null)
             {
+                BigEndianConverter.ConvertUInt32ToBytes(dirEntry.ExtraFields.link, data, offset + 18 + nameBytes.Length);
                 // TODO: write extrafields after comment, if present
                 // offset = (ushort)(SizeOf.DirEntry.Struct + (direntry.nlength) + (Macro.COMMENT(direntry) & 0xfffe));
                 // dirext = (UWORD *)((UBYTE *)(direntry) + offset);

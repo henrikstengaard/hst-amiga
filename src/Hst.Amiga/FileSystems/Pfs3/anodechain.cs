@@ -17,6 +17,7 @@
         public anodechain()
         {
             head = new anodechainnode();
+            refcount = 0;
         }
     }
 }

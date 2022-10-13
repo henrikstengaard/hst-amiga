@@ -366,5 +366,28 @@
                 }
             }
         }
+        
+/* Updates objectinfo of a listentry (if necessary)
+ * This function only reloads the flushed directory block referred to. The
+ * load directory block routine will actually restore the reference.
+ */
+        public static async Task UpdateLE(listentry le, globaldata g)
+        {
+            //DB(Trace(1,"UpdateLE","Listentry %lx\n", le));
+
+            /* don't update volumeentries or deldirs!! */
+// #if DELDIR
+	        if (le == null || le.info.deldir.special <= Constants.SPECIAL_DELFILE)
+// #else
+//             if (!le || IsVolumeEntry(le))
+// #endif
+                return;
+
+            if (le.dirblocknr != 0)
+                await Directory.LoadDirBlock (le.dirblocknr, g);
+
+            MakeLRU (le.info.file.dirblock, g);
+            Macro.Lock(le.info.file.dirblock, g);
+        }        
     }
 }

@@ -256,8 +256,7 @@
             //DB(Trace(10, "NewFile", "%s\n", filename));
             /* check disk-writeprotection etc */
             /* check disk-writeprotection etc */
-            if (!Volume.CheckVolume(g.currentvolume, true, g))
-                throw new IOException("Volume not present");
+            Volume.CheckVolume(g.currentvolume, true, g);
 
 // #if DELDIR
             if (Macro.IsDelDir(directory))
@@ -291,6 +290,7 @@
                  * (used to simply delete old and make new)
                  */
                 info.file = newfile.file;
+                info.volume = newfile.volume;
                 anodenr = Macro.FIANODENR(info.file);
 
                 /* Check deleteprotection */
@@ -362,7 +362,7 @@
                 if (info.file.direntry.type != Constants.ST_ROLLOVERFILE)
                 {
                     /* Change directory entry */
-                    SetDEFileSize(info.file.direntry, 0, g);
+                    SetDEFileSize(info.file.dirblock.dirblock, info.file.direntry, 0, g);
                     info.file.direntry.type = Constants.ST_FILE;
                     await Update.MakeBlockDirty(info.file.dirblock, g);
 
@@ -433,7 +433,7 @@
             {
                 file = new fileinfo()
             };
-            listentry fileentry;
+            IEntry fileentry;
             ListType type = new ListType();
             CachedBlock blk;
             uint parentnr, blocknr;
@@ -441,8 +441,7 @@
             int l;
 
             /* check disk-writeprotection etc */
-            if (!Volume.CheckVolume(g.currentvolume, true, g))
-                return null;
+            Volume.CheckVolume(g.currentvolume, true, g);
 
 // #if DELDIR
             if (Macro.IsDelDir(parent))
@@ -499,17 +498,18 @@
             }
 
             type.value = Constants.ET_LOCK | Constants.ET_EXCLREAD;
-            if ((fileentry = await Lock.MakeListEntry(info, type, g)) == null)
+            fileentry = await Lock.MakeListEntry(info, type, g);
+            if (fileentry == null)
             {
                 // goto error2;
-                await DiskFullError(info, fileentry, g);
+                return await DiskFullError(info, null, g);
             }
 
-            if (!Lock.AddListEntry(fileentry, g)) /* Should never fail, accessconflict impossible */
+            if (!Lock.AddListEntry(fileentry.ListEntry, g)) /* Should never fail, accessconflict impossible */
             {
                 //ErrorMsg(AFS_ERROR_NEWDIR_ADDLISTENTRY, NULL, g);
                 // goto error2;
-                await DiskFullError(info, fileentry, g);
+                return await DiskFullError(info, fileentry, g);
             }
 
             /* Make first directoryblock (needed for parentfinding) */
@@ -517,7 +517,7 @@
             {
                 //*error = ERROR_DISK_FULL;
                 // error2:
-                await DiskFullError(info, fileentry, g);
+                return await DiskFullError(info, fileentry, g);
                 // await anodes.FreeAnode(info.file.direntry.anode, g);
                 // await RemoveDirEntry(info, g);
                 // if (fileentry != null)
@@ -534,7 +534,7 @@
             return fileentry;
         }
 
-        private static async Task DiskFullError(objectinfo info, listentry fileentry, globaldata g)
+        private static async Task<IEntry> DiskFullError(objectinfo info, IEntry fileentry, globaldata g)
         {
             await anodes.FreeAnode(info.file.direntry.anode, g);
             await RemoveDirEntry(info, g);
@@ -914,6 +914,8 @@
             {
                 info.file.direntry = entry;
                 info.file.dirblock = dirblock;
+                info.volume.root = 1;
+                info.volume.volume = dirblock.volume;
                 Macro.Lock(dirblock, g);
                 return true;
             }
@@ -1065,11 +1067,10 @@
         public static async Task UpdateChangedRef(fileinfo from, fileinfo to, int diff, globaldata g)
         {
             var volume = from.dirblock.volume;
-            listentry fe;
 
-            var node = Macro.HeadOf(volume.fileentries);
-            for (fe = node.Value.ListEntry; fe.next != null; fe = fe.next)
+            for (var node = Macro.HeadOf(volume.fileentries); node != null; node = node.Next)
             {
+                var fe = node.Value.ListEntry;
                 /* only dirs and files can be in a directory, but the volume *
                  * of volumeinfos can never point to a cached block, so a 
                  * type != ETF_VOLUME check is not necessary. Just check the
@@ -1228,7 +1229,7 @@
             }
 
             direntry.next = (byte)entrysize;
-            direntry.type = (byte)type;
+            direntry.type = (sbyte)type;
             // direntry->fsize        = 0;
             direntry.CreationDate = DateTime.Now;
             // direntry.creationday = (UWORD)time.ds_Days;
@@ -1939,10 +1940,11 @@
 #endif
         }
 
-        public static void SetDEFileSize(direntry direntry, uint size, globaldata g)
+        public static void SetDEFileSize(dirblock dirBlock, direntry direntry, uint size, globaldata g)
         {
+            var de = DirEntryReader.Read(dirBlock.entries, direntry.Offset);
             if (!g.largefile)
-                direntry.fsize = size;
+                de.fsize = size;
 #if LARGE_FILE_SIZE
 	else {
 		struct extrafields extrafields;
@@ -1955,6 +1957,7 @@
 		direntry->fsize = (ULONG)size;
 	}
 #endif
+            DirEntryWriter.Write(dirBlock.entries, de.Offset, de);
         }
 
 /* Change a directoryentry. Covers all reference changing too
@@ -1990,7 +1993,7 @@
             // UWORD *fields = (UWORD *)extra;
             //
             // /* patch protection lower 8 bits */
-            // extra.prot &= 0xffffff00;
+            extra.prot &= 0xffffff00;
             // offset = (ushort)(SizeOf.DirEntry.Struct + (direntry.nlength) + (Macro.COMMENT(direntry) & 0xfffe));
             // dirext = (UWORD *)((UBYTE *)(direntry) + offset);
             //
@@ -2271,6 +2274,119 @@
             if (result != null)
             {
                 Macro.Lock(result.dirblock, g);
+            }
+        }
+        
+        
+/* Write to an open file, or change its size (SFS = SetFileSize) */
+        // public static string dd_WriteSFS(struct DosPacket *pkt, globaldata * g)
+        // {
+        //     // ACTION_WRITE
+        //     // ARG1 = APTR fileentry. (filled in by Open())
+        //     // ARG2 = APTR buffer to put data into
+        //     // ARG3 = LONG #bytes to read
+        //     // RES1 = LONG #bytes read, 0=eof, -1=error
+        //     // RES2 = CODE failurecode if RES1=-1
+        //
+        //     // ACTION_SET_FILE_SIZE
+        //     // ARG1 = APTR fileentry. (filled in by Open())
+        //     // ARG2 = LONG offset
+        //     // ARG3 = LONG mode
+        //     // RES1 = LONG new file size
+        //     // RES2 = CODE failurecode if RES1=-1
+        //
+        //     listentry_t *listentry;
+        //
+        //     listentry = (listentry_t *)pkt->dp_Arg1;
+        //     if (!CheckVolume(listentry->volume, 1, &pkt->dp_Res2, g))
+        //         return -1;
+        //     UpdateLE(listentry, g);
+        //
+        //     if (pkt->dp_Type == ACTION_WRITE)
+        //     {
+        //         return (LONG)WriteToObject((fileentry_t *)listentry,
+        //             (UBYTE *)pkt->dp_Arg2, (ULONG)pkt->dp_Arg3,
+        //             &pkt->dp_Res2, g);
+        //     }
+        //     else                        /* SetFileSize */
+        //     {
+        //         return ChangeObjectSize((fileentry_t *)listentry,
+        //             pkt->dp_Arg2, pkt->dp_Arg3, &pkt->dp_Res2, g);
+        //     }
+        // }
+        
+        public static async Task<uint> ReadFromObject(fileentry file, byte[] buffer, uint size, globaldata g)
+        {
+            CheckAccess.CheckReadAccess(file, g);
+
+            /* check anodechain, make if not there */
+            if (file.anodechain == null)
+            {
+                //DB(Trace(2,"ReadFromObject","getting anodechain"));
+                if ((file.anodechain = await anodes.GetAnodeChain(file.le.anodenr, g)) == null)
+                {
+                    throw new IOException("ERROR_NO_FREE_STORE");
+                }
+            }
+
+            // #if ROLLOVER
+            if (Macro.IsRollover(file.le.info))
+            {
+                return await Disk.ReadFromRollover(file,buffer,size,g);
+            }
+            else
+                // #endif
+            {
+                return await Disk.ReadFromFile(file,buffer,size,g);
+            }
+        }
+        
+        public static async Task<uint> WriteToObject(fileentry file, byte[] buffer, uint size, globaldata g)
+        {
+            /* check write access */
+            CheckAccess.CheckWriteAccess(file, g);
+        
+            /* check anodechain, make if not there */
+            if (file.anodechain == null)
+            {
+                if ((file.anodechain = await anodes.GetAnodeChain(file.le.anodenr, g)) == null)
+                {
+                    throw new IOException("ERROR_NO_FREE_STORE");
+                }
+            }
+        
+            /* changing file -> set notify flag */
+            file.checknotify = true;
+            g.dirty = true;
+        
+            // #if ROLLOVER
+	        if (Macro.IsRollover(file.le.info))
+		        return await Disk.WriteToRollover(file,buffer,size,g);
+	        else
+                return await Disk.WriteToFile(file,buffer,size,g);
+        }
+        
+/*
+ * Updates size field of links
+ */
+        public static async Task UpdateLinks(direntry object_, globaldata g)
+        {
+            canode linklist = new canode();
+            objectinfo loi = new objectinfo();
+            extrafields extrafields = new extrafields();
+            uint linknr;
+
+            //ENTER("UpdateLinks");
+            GetExtraFields(object_, extrafields);
+            linknr = extrafields.link;
+            while (linknr != 0)
+            {
+                /* Update link: get link object info and update size */
+                await anodes.GetAnode(linklist, linknr, g);
+                await Lock.FetchObject(linklist.blocknr, linklist.nr, loi, g);
+                loi.file.direntry.fsize = object_.fsize;
+                await Update.MakeBlockDirty(loi.file.dirblock, g);
+                linknr = linklist.next;
             }
         }
     }

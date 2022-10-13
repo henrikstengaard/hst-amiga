@@ -25,7 +25,7 @@ public class GivenPfs3Formatter
         // arrange - create rigid disk block with 1 partition using pfs3 file system 
         var rigidDiskBlock = await RigidDiskBlock
             .Create(size)
-            .AddFileSystem(pfs3DosType, await File.ReadAllBytesAsync(pfs3AioPath))
+            .AddFileSystem(pfs3DosType, await System.IO.File.ReadAllBytesAsync(pfs3AioPath))
             .AddPartition("DH0", bootable: true)
             .WriteToStream(stream);
 
@@ -50,7 +50,7 @@ public class GivenPfs3Formatter
         // arrange - create rigid disk block with 1 partition using pfs3 file system 
         var rigidDiskBlock = await RigidDiskBlock
             .Create(size)
-            .AddFileSystem(pfs3DosType, await File.ReadAllBytesAsync(pfs3AioPath))
+            .AddFileSystem(pfs3DosType, await System.IO.File.ReadAllBytesAsync(pfs3AioPath))
             .AddPartition("DH0", bootable: true)
             .WriteToStream(stream);
 

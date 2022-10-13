@@ -13,7 +13,7 @@
             {
                 Offset = offset,
                 next = bytes[offset],
-                type = bytes[offset + 1],
+                type = (sbyte)bytes[offset + 1],
                 anode = BigEndianConverter.ConvertBytesToUInt32(bytes, offset + 2),
                 fsize = BigEndianConverter.ConvertBytesToUInt32(bytes, offset + 6),
                 CreationDate = DateHelper.ReadDate(bytes, offset + 10),

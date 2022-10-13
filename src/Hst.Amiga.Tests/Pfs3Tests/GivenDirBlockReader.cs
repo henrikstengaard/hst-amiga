@@ -12,7 +12,7 @@ public class GivenDirBlockReader
     [Fact]
     public async Task WhenReadDirEntriesThenEntriesMatch()
     {
-        var blockBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Pfs3", "dirblock_1.bin"));
+        var blockBytes = await System.IO.File.ReadAllBytesAsync(Path.Combine("TestData", "Pfs3", "dirblock_1.bin"));
 
         var g = new globaldata
         {
@@ -32,7 +32,7 @@ public class GivenDirBlockReader
         {
             dirEntry = DirEntryReader.Read(dirBlock.entries, offset);
 
-            if (dirEntry.type > 0)
+            if (dirEntry.next > 0)
             {
                 dirEntries.Add(dirEntry);
             }

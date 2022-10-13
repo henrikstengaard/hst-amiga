@@ -18,7 +18,7 @@
         /// <param name="fileSystemBlockSize"></param>
         /// <returns></returns>
         public static globaldata CreateGlobalData(uint sectors, uint blocksPerTrack, uint surfaces, 
-            uint lowCyl, uint highCyl, uint numBuffers, uint fileSystemBlockSize)
+            uint lowCyl, uint highCyl, uint numBuffers, uint fileSystemBlockSize, uint mask)
         {
             var blocksPerCylinder = sectors * blocksPerTrack * surfaces;
             
@@ -28,7 +28,11 @@
                 blocksize = (uint)fileSystemBlockSize,
                 TotalSectors = (highCyl - lowCyl + 1) * blocksPerCylinder,
                 firstblock = lowCyl * blocksPerCylinder,
-                lastblock = (highCyl + 1) * blocksPerCylinder - 1
+                lastblock = (highCyl + 1) * blocksPerCylinder - 1,
+                DosEnvec = new DosEnvec
+                {
+                    de_Mask = mask
+                }
             };
         }
         
