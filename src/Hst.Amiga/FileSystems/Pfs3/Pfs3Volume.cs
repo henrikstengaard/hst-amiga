@@ -117,7 +117,9 @@
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            Pfs3Helper.Unmount(g).GetAwaiter().GetResult();
+
+            GC.SuppressFinalize(this);
         }
     }
 }

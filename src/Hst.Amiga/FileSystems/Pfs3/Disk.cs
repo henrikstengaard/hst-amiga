@@ -289,7 +289,7 @@
             file.anodeoffset = anodeoffset;
             file.blockoffset = blockoffset;
             file.offset = (uint)newoffset;
-            return oldoffset;
+            return newoffset;
         }
 
 /* flush all blocks in datacache (without updating them first).
@@ -392,6 +392,7 @@
                 directread = true;
                 blockstoread = fullblks;
                 //dataptr = buffer;
+                data = buffer;
                 dataptr = 0;
 
                 /* read first blockpart */
@@ -406,7 +407,7 @@
                         t = BLOCKSIZE - blockoffset;
                         t = Math.Min(t, size);
                         //memcpy(dataptr, data+blockoffset, t);
-                        Array.Copy(bytesRead, 0, data, dataptr, t);
+                        Array.Copy(bytesRead, blockoffset, data, dataptr, t);
                         dataptr += (int)t;
                         if (blockstoread != 0)
                             blockstoread--;
@@ -513,9 +514,9 @@
             uint bytestowrite, blockstofill;
             uint anodeoffset, blockoffset;
             //UBYTE* data = NULL,  *dataptr;
-            var data = new List<byte>();
+            //var data = new List<byte>();
             int dataptr = 0;
-            bool directwrite = false;
+            // bool directwrite = false;
             anodechainnode chnode;
             int slotnr;
 
@@ -596,7 +597,7 @@
                 /* direct */
                 //dataptr = buffer;
                 dataptr = 0;
-                directwrite = true;
+                //directwrite = true;
 
                 /* first blockpart */
                 if (blockoffset != 0 || (totalblocks == 1 && newfileoffset > oldfilesize))
@@ -707,7 +708,7 @@
                 }
             }
 
-            indirectlastwrite:
+            //indirectlastwrite:
             /* write last block (RAW because cache direct), preserve block's old contents */
             if (bytestowrite != 0)
             {
@@ -738,24 +739,25 @@
             return size;
             // }
 
-            wtf_error:
-            if (newblocksinfile > oldblocksinfile)
-            {
-                /* restore old state of file */
-// #if VERSION23
-                Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, oldfilesize, g);
-                await Update.MakeBlockDirty(file.le.info.file.dirblock, g);
-                await Allocation.FreeBlocksAC(file.anodechain, newblocksinfile - oldblocksinfile,
-                    freeblocktype.freeanodes, g);
-// #else
-// 		FreeBlocksAC(file->anodechain, newblocksinfile-oldblocksinfile, freeanodes, g);
-// 		SetDEFileSize(file->le.info.file.direntry, oldfilesize, g);
-// 		await Update.MakeBlockDirty((struct cachedblock *)file->le.info.file.dirblock, g);
-// #endif
-            }
-
-            //DB(Trace(1,"WriteToFile","failed\n"));
-            return UInt32.MaxValue;
+            // UNUSED: Commented out as exception is thrown instead
+//             wtf_error:
+//             if (newblocksinfile > oldblocksinfile)
+//             {
+//                 /* restore old state of file */
+// // #if VERSION23
+//                 Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, oldfilesize, g);
+//                 await Update.MakeBlockDirty(file.le.info.file.dirblock, g);
+//                 await Allocation.FreeBlocksAC(file.anodechain, newblocksinfile - oldblocksinfile,
+//                     freeblocktype.freeanodes, g);
+// // #else
+// // 		FreeBlocksAC(file->anodechain, newblocksinfile-oldblocksinfile, freeanodes, g);
+// // 		SetDEFileSize(file->le.info.file.direntry, oldfilesize, g);
+// // 		await Update.MakeBlockDirty((struct cachedblock *)file->le.info.file.dirblock, g);
+// // #endif
+//             }
+//
+//             //DB(Trace(1,"WriteToFile","failed\n"));
+//             return UInt32.MaxValue;
         }
 
 /* check datacache. return cache slotnr or -1
@@ -974,6 +976,97 @@
 
 // #undef direntry_m
 // #undef filesize_m
+        }
+        
+        public static async Task<int> SeekInObject(fileentry file, int offset, int mode, globaldata g)
+        {
+            /* check access */
+            CheckAccess.CheckOperateFile(file, g);
+
+            /* check anodechain, make if not there */
+            if (file.anodechain == null)
+            {
+                if ((file.anodechain = await anodes.GetAnodeChain(file.le.anodenr, g)) == null)
+                {
+                    throw new IOException("ERROR_NO_FREE_STORE");
+                }
+            }
+
+            // #if ROLLOVER
+	        if (Macro.IsRollover(file.le.info))
+		        return SeekInRollover(file,offset,mode,g);
+	        else
+                // #endif
+            return await SeekInFile(file,offset,mode,g);
+        }
+        
+        static int SeekInRollover(fileentry file, int offset, int mode, globaldata g)
+        {
+            var BLOCKSHIFT = Macro.BLOCKSHIFT(g);
+            var BLOCKSIZEMASK = Macro.BLOCKSIZEMASK(g);
+
+            // #define filesize_m GetDEFileSize(file->le.info.file.direntry, g)
+            // #define direntry_m file->le.info.file.direntry
+            var filesize_m = Directory.GetDEFileSize(file.le.info.file.direntry, g);
+            var direntry_m = file.le.info.file.direntry;
+
+            extrafields extrafields = new extrafields();
+            int oldvirtualoffset, virtualoffset;
+            uint anodeoffset, blockoffset;
+
+            //DB(Trace(1,"SeekInRollover","offset = %ld mode=%ld\n",offset,mode));
+            Directory.GetExtraFields(direntry_m, extrafields);
+
+            /* do the seeking */
+            oldvirtualoffset = (int)(file.offset - extrafields.rollpointer);
+            if (oldvirtualoffset < 0)
+            {
+                oldvirtualoffset += (int)filesize_m;
+            }
+
+            switch (mode)
+            {
+                case Constants.OFFSET_BEGINNING:
+                    virtualoffset = offset;
+                    break;
+
+                case Constants.OFFSET_END:
+                    virtualoffset = (int)(extrafields.virtualsize + offset);
+                    break;
+		
+                case Constants.OFFSET_CURRENT:
+                    virtualoffset = oldvirtualoffset + offset;
+                    break;
+		
+                default:
+                    throw new IOException("ERROR_SEEK_ERROR");
+            }
+
+            if (virtualoffset > extrafields.virtualsize || virtualoffset < 0)
+            {
+                throw new IOException("ERROR_SEEK_ERROR");
+            }
+
+            /* calculate real offset */
+            file.offset = (uint)(virtualoffset + extrafields.rollpointer);
+            if (file.offset > filesize_m)
+            {
+                file.offset -= filesize_m;
+            }
+
+            /* calculate new values */
+            anodeoffset = file.offset >> BLOCKSHIFT;
+            blockoffset = file.offset & BLOCKSIZEMASK;
+            file.currnode = file.anodechain.head;
+            anodes.CorrectAnodeAC(file.currnode, anodeoffset, g);
+	
+            file.anodeoffset  = anodeoffset;
+            file.blockoffset  = blockoffset;
+
+            return oldvirtualoffset;
+
+// #undef filesize_m
+// #undef direntry_m
         }
     }
 }

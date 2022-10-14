@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.Tests.Pfs3Tests;
 
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FileSystems;
@@ -129,10 +130,10 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    public async Task WhenCreateWriteDataToNewFileThenFileExistAndDataMatches()
+    public async Task WhenCreateWriteDataToNewFileThenWhenReadDataFromFileDataMatches()
     {
         // arrange - data to write
-        var data = AmigaTextHelper.GetBytes("New file with simple text.");
+        var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create pfs3 formatted disk
         await CreatePfs3FormattedDisk();
@@ -147,7 +148,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - mount pfs3 volume, write data and unmount pfs3 volume
         pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -157,7 +158,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         int bytesRead;
         byte[] dataRead;
-        using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
         {
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
@@ -168,5 +169,58 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(data.Length, bytesRead);
         Assert.Equal(data.Length, dataRead.Length);
         Assert.Equal(data, dataRead);
+    }
+    
+    [Fact]
+    public async Task WhenCreateWriteDataToNewFileThenWhenSeekAndReadDataMatches()
+    {
+        // arrange - data to write
+        var data = AmigaTextHelper.GetBytes("New file with some text.");
+        
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
+
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateFile("New File");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // act - mount pfs3 volume, write data and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // act - mount pfs3 volume, read data and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        int bytesRead;
+        byte[] dataRead;
+        long seekPosition;
+        long readPosition;
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        {
+            seekPosition = entryStream.Seek(10, SeekOrigin.Begin);
+            dataRead = new byte[10];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, 10);
+            readPosition = entryStream.Position;
+        }
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // assert - stream seek resulted in position is equal to 10
+        Assert.Equal(10, seekPosition);
+
+        // assert - stream read of 10 bytes resulted in position is equal to 20
+        Assert.Equal(20, readPosition);
+        
+        // assert - 10 bytes of data read matches 10 bytes from data written
+        Assert.Equal(10, bytesRead);
+        var expectedDataRead = data.Skip(10).Take(10).ToArray();
+        Assert.Equal(expectedDataRead.Length, dataRead.Length);
+        Assert.Equal(expectedDataRead, dataRead);
     }
 }

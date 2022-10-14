@@ -67,6 +67,24 @@
             {
                 throw new IOException("ERROR_WRITE_PROTECTED");
             }
-        }        
+        }
+        
+/* check on operate access (like Seek)
+ */
+        public static void CheckOperateFile(fileentry file, globaldata g)
+        {
+            /* test on type */
+            // #if DELDIR
+            if (!Macro.IsDelFile(file.le.info) && !Macro.IsFile(file.le.info))
+            // #else
+            //             if (!IsFile(file->le.info)) 
+            // #endif
+            {
+                throw new IOException("ERROR_OBJECT_WRONG_TYPE");
+            }
+
+            /* volume must be or become currentvolume */
+            Volume.CheckVolume(file.le.volume, false, g);
+        }
     }
 }
