@@ -102,9 +102,17 @@ await using (var stream = await pfs3Volume.OpenFile("New File", false))
 
 ```
 
-## Delete
+## Deleting a file or directory
 
-TODO
+Example of deleting a file in current directory using a mounted PFS3 volume:
+```
+await pfs3Volume.Delete("New File");
+```
+
+Example of deleting a directory in current directory using a mounted PFS3 volume:
+```
+await pfs3Volume.Delete("New Dir");
+```
 
 ## Rename
 

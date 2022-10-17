@@ -800,7 +800,7 @@
  */
         public static async Task FreeAnode(uint anodenr, globaldata g)
         {
-            canode anode = null;
+            canode anode = new canode();
             var andata = g.glob_anodedata;
 
             /* don't kill reserved anodes */

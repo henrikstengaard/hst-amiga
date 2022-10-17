@@ -100,13 +100,13 @@
         }
 
         /// <summary>
-        /// Delete file from current directory
+        /// Delete file or directory from current directory
         /// </summary>
-        /// <param name="fileName"></param>
-        public async Task DeleteFile(string fileName)
+        /// <param name="name"></param>
+        public async Task Delete(string name)
         {
             var objectInfo = new objectinfo();
-            await Directory.Find(objectInfo, fileName, g);
+            await Directory.Find(objectInfo, name, g);
             await Directory.DeleteObject(objectInfo, g);
         }
         

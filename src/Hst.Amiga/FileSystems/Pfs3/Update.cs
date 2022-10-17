@@ -457,7 +457,7 @@
                 for (var node = Macro.HeadOf(volume.dirblks[i]); node != null; node = node.Next)
                 {
                     blk = node.Value;
-                    if (Macro.IsEmptyDBlk(blk) && !await IsFirstDBlk(blk, g) && !Cache.ISLOCKED(blk, g))
+                    if (blk.dirblock != null && Macro.IsEmptyDBlk(blk, g) && !await IsFirstDBlk(blk, g) && !Cache.ISLOCKED(blk, g))
                     {
                         previous = await GetAnodeOfDBlk(blk, anode, g);
                         await anodes.RemoveFromAnodeChain(anode, previous, blk.dirblock.anodenr, g);

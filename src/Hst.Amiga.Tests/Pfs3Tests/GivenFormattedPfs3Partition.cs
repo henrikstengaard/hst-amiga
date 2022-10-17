@@ -240,7 +240,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - mount pfs3 volume, delete file from root directory and unmount pfs3 volume
         pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.DeleteFile("New File");
+        await pfs3Volume.Delete("New File");
         await Pfs3Helper.Unmount(pfs3Volume.g);
         
         // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
@@ -269,7 +269,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - mount pfs3 volume, delete file from root directory and unmount pfs3 volume
         pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.DeleteFile("New File 1");
+        await pfs3Volume.Delete("New File 1");
         await Pfs3Helper.Unmount(pfs3Volume.g);
         
         // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
@@ -280,5 +280,33 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - root directory contains new file 1
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File 2" && x.Type == EntryType.File));
+    }
+    
+    [Fact]
+    public async Task WhenCreateAndDeleteDirectoryInRootDirectoryThenDirectoryDoesntExist()
+    {
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
+
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create "New Dir" in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateDirectory("New Dir");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // act - mount pfs3 volume, delete directory from root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.Delete("New Dir");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // assert - root directory is empty
+        Assert.Empty(entries);
     }
 }

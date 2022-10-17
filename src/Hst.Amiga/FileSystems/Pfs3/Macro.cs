@@ -273,11 +273,11 @@ BPTR
             MinAddHead(list[(blk.blocknr / 2) & mask], blk);
         }        
         
-        public static bool IsEmptyDBlk(CachedBlock blk)
+        public static bool IsEmptyDBlk(CachedBlock blk, globaldata g)
         {
             // #define FIRSTENTRY(blok) ((struct direntry*)((blok)->blk.entries))
             // #define IsEmptyDBlk(blk) (FIRSTENTRY(blk)->next == 0)
-            return blk.dirblock.entries.Length == 0;
+            return FIRSTENTRY(blk.dirblock).next == 0;
         }
         
         public static bool IsUpdateNeeded(int rtbf_threshold, globaldata g)
