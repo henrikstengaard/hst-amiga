@@ -86,7 +86,7 @@
         }
 
         /// <summary>
-        /// 
+        /// Open file for reading or writing data
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="write"></param>
@@ -97,6 +97,17 @@
             await Directory.Find(objectInfo, fileName, g);
             var fileEntry = await File.Open(objectInfo, write, g) as fileentry;
             return new EntryStream(fileEntry, g);
+        }
+
+        /// <summary>
+        /// Delete file from current directory
+        /// </summary>
+        /// <param name="fileName"></param>
+        public async Task DeleteFile(string fileName)
+        {
+            var objectInfo = new objectinfo();
+            await Directory.Find(objectInfo, fileName, g);
+            await Directory.DeleteObject(objectInfo, g);
         }
         
         /// <summary>

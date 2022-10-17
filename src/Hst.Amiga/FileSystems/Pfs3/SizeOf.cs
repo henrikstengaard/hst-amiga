@@ -21,12 +21,16 @@
 
         public static class DelDirBlock
         {
-            public const int Entry = Amiga.SizeOf.ULong * 2 + Amiga.SizeOf.UWord * 3 + 16 + Amiga.SizeOf.UWord;
 
             public static int Entries(globaldata g) =>
                 (g.RootBlock.ReservedBlksize - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 2 -
-                 Amiga.SizeOf.UWord * 4 -
-                 Amiga.SizeOf.ULong - Amiga.SizeOf.UWord * 3) / Entry;
+                Amiga.SizeOf.UWord * 5 -
+                Amiga.SizeOf.ULong - Amiga.SizeOf.UWord * 3) / DelDirEntry.Struct;
+        }
+
+        public static class DelDirEntry
+        {
+            public const int Struct = Amiga.SizeOf.ULong * 2 + Amiga.SizeOf.UWord * 3 + 16 + Amiga.SizeOf.UWord;
         }
 
         public static class DirEntry

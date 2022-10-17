@@ -20,7 +20,7 @@
                 protection = bytes[offset + 16],
                 nlength = nLength,
                 Name = AmigaTextHelper.GetString(bytes, offset + 18, nLength),
-                startofname = (byte)(offset + 18),
+                startofname = 18,
                 pad = 0
             };
         }

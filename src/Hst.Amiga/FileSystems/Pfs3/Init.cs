@@ -85,7 +85,7 @@
         public static async Task InitModules(volumedata volume, bool formatting, globaldata g)
         {
             var rootBlock = volume.rootblk;
-            var blk = volume.rblkextension.rblkextension;
+            var blk = volume.rblkextension?.rblkextension ?? new rootblockextension();
 
             g.RootBlock = rootBlock;
             g.uip = false;
