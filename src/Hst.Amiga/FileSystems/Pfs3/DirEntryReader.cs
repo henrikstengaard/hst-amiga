@@ -9,7 +9,7 @@
         {
             var nLength = bytes[offset + 17];
 
-            return new direntry
+            var dirEntry = new direntry
             {
                 Offset = offset,
                 next = bytes[offset],
@@ -23,6 +23,15 @@
                 startofname = 18,
                 pad = 0
             };
+
+            if (dirEntry.startofname + nLength < dirEntry.next)
+            {
+                // destcomment = (UBYTE *)&destentry->startofname + destentry->nlength;
+                var cLength = bytes[offset + dirEntry.startofname + nLength];
+                dirEntry.comment = AmigaTextHelper.GetString(bytes, offset + dirEntry.startofname + nLength + 1, cLength);
+            }
+            
+            return dirEntry;
         }
     }
 }

@@ -1478,23 +1478,28 @@
 // 	return filename;
 // }
 
-        public static async Task Find(objectinfo current, string path, globaldata g)
+        /// <summary>
+        /// Find object info for path
+        /// </summary>
+        /// <param name="current">Current directory</param>
+        /// <param name="path">Relative or absolute path to object</param>
+        /// <param name="g"></param>
+        /// <exception cref="IOException"></exception>
+        public static async Task<bool> Find(objectinfo current, string path, globaldata g)
         {
             var parts = (path.StartsWith("/") ? path.Substring(1) : path).Split('/');
-
-            var foundParts = new List<string>();
 
             foreach (var part in parts)
             {
                 if (!await GetObject(part, current, g))
                 {
-                    throw new IOException(
-                        $"Entry '{part}' not found in path '{string.Concat("/", string.Join("/", foundParts))}'");
+                    return false;
                 }
 
                 current.volume.root = 1;
-                foundParts.Add(part);
             }
+
+            return true;
         }
 
         public static async Task<objectinfo> GetRoot(globaldata g)
@@ -1614,7 +1619,8 @@
                 }
 
 // #endif
-                throw new IOException("ERROR_OBJECT_NOT_FOUND");
+                //throw new IOException("ERROR_OBJECT_NOT_FOUND");
+                return false;
             }
 
             return true;
@@ -2240,7 +2246,8 @@
             DirEntryWriter.Write(dirBlock.entries, from.file.direntry.Offset, to);
 
             /* fill in result and make block dirty */
-            result = from.file;
+            result.direntry = from.file.direntry;
+            result.dirblock = from.file.dirblock;
             await Update.MakeBlockDirty(from.file.dirblock, g);
 
             /* update references */
@@ -2284,44 +2291,6 @@
                 Macro.Lock(result.dirblock, g);
             }
         }
-
-
-/* Write to an open file, or change its size (SFS = SetFileSize) */
-        // public static string dd_WriteSFS(struct DosPacket *pkt, globaldata * g)
-        // {
-        //     // ACTION_WRITE
-        //     // ARG1 = APTR fileentry. (filled in by Open())
-        //     // ARG2 = APTR buffer to put data into
-        //     // ARG3 = LONG #bytes to read
-        //     // RES1 = LONG #bytes read, 0=eof, -1=error
-        //     // RES2 = CODE failurecode if RES1=-1
-        //
-        //     // ACTION_SET_FILE_SIZE
-        //     // ARG1 = APTR fileentry. (filled in by Open())
-        //     // ARG2 = LONG offset
-        //     // ARG3 = LONG mode
-        //     // RES1 = LONG new file size
-        //     // RES2 = CODE failurecode if RES1=-1
-        //
-        //     listentry_t *listentry;
-        //
-        //     listentry = (listentry_t *)pkt->dp_Arg1;
-        //     if (!CheckVolume(listentry->volume, 1, &pkt->dp_Res2, g))
-        //         return -1;
-        //     UpdateLE(listentry, g);
-        //
-        //     if (pkt->dp_Type == ACTION_WRITE)
-        //     {
-        //         return (LONG)WriteToObject((fileentry_t *)listentry,
-        //             (UBYTE *)pkt->dp_Arg2, (ULONG)pkt->dp_Arg3,
-        //             &pkt->dp_Res2, g);
-        //     }
-        //     else                        /* SetFileSize */
-        //     {
-        //         return ChangeObjectSize((fileentry_t *)listentry,
-        //             pkt->dp_Arg2, pkt->dp_Arg3, &pkt->dp_Res2, g);
-        //     }
-        // }
 
         public static async Task<uint> ReadFromObject(fileentry file, byte[] buffer, uint size, globaldata g)
         {
@@ -2724,6 +2693,253 @@
                 linklist.clustersize = newdiran;
                 await anodes.SaveAnode(linklist, linklist.nr, g);
                 linknr = linklist.next;
+            }
+        }
+
+        /* RenameAndMove
+ *
+ * Specification:
+ *
+ * - rename object
+ * - renaming directories into a child not allowed!
+ *
+ * Rename across devices tested in dd_Rename (DosToHandlerInterface)
+ *
+ * Implementation:
+ * 
+ * - source ophalen
+ * - check if new name allowed
+ * - destination maken
+ * - remove source direntry
+ * - add destination direntry
+ *
+ * maxneeds: 2 dblk changed, 1 new an : 3 res
+ *
+ * sourcedi = objectinfo of source directory
+ * destdi = objectinfo of destination directory
+ * srcinfo = objectinfo of source
+ * destinfo = objectinfo of destination
+ * src- destanodenr = anodenr of source- destination directory
+ */
+        public static async Task<bool> RenameAndMove(objectinfo sourcedi, objectinfo srcinfo, objectinfo destdi,
+            string destname, globaldata g)
+        {
+            direntry srcdirentry, destentry;
+            var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
+            uint srcanodenr, destanodenr;
+            short srcfieldoffset, destfieldoffset, fieldsize;
+            objectinfo destinfo = new objectinfo();
+            //objectinfo destdi = new objectinfo();
+            //string srccomment, destcomment;
+            //string destname;
+
+            // COMMENTED: Already set
+            // /* fetch source info & path and check if exists */
+            // if (!(destname = GetFullPath (destdir, destpath, destdi, error, g)))
+            // {
+            //     throw new IOException("ERROR_OBJECT_NOT_FOUND");
+            // }
+
+            /* source nor destination may be a volume */
+            if (Macro.IsVolume(srcinfo) || string.IsNullOrEmpty(destname))
+            {
+                throw new IOException("ERROR_OBJECT_WRONG_TYPE");
+            }
+
+            // #if DELDIR
+            if (Macro.IsDelDir(sourcedi) || Macro.IsDelDir(destdi) || Macro.IsDelDir(srcinfo))
+            {
+                throw new IOException("ERROR_WRITE_PROTECTED");
+            }
+            // #endif
+
+            /* check reserved area lock */
+            if (Macro.ReservedAreaIsLocked(g))
+            {
+                throw new IOException("ERROR_DISK_FULL");
+            }
+
+            srcdirentry = srcinfo.file.direntry;
+            //srccomment = Macro.COMMENT(srcdirentry);
+
+            /* check if new name allowed
+             * destpath should exist and file should not
+             * %9.1 the same name IS allowed (rename 'hello' to 'Hello')
+             */
+            destinfo = destdi.Clone();
+            if (await Find(destinfo, destname, g))
+            {
+                if (destinfo.file.direntry.Offset != srcinfo.file.direntry.Offset)
+                {
+                    throw new IOException("ERROR_OBJECT_EXISTS");
+                }
+            }
+
+            /* Test if a directory is being renamed to a child of itself. This is so
+             * if:
+             * 1) source (srcinfo) is a directory and
+             * 2) sourcepath (sourcedi) <> destinationpath (destdi) and
+             * 3) source (srcinfo) is part of destpath (destdi)
+             * Example: rename a/b to a/b/c/d:
+             * 1) a/b is dir [ok]; 2) a <> a/b/c [ok]; 3) a/b is part of a/b/c [ok]
+             * Links need special attention! 
+             */
+            srcanodenr = Macro.IsRootA(sourcedi) ? Constants.ANODE_ROOTDIR : Macro.FIANODENR(sourcedi.file);
+            destanodenr = Macro.IsRootA(destdi) ? Constants.ANODE_ROOTDIR : Macro.FIANODENR(destdi.file);
+            if (Macro.IsRealDir(srcinfo) && (srcanodenr != destanodenr) && await IsChildOf(destdi, srcinfo, g))
+            {
+                throw new IOException("ERROR_OBJECT_IN_USE");
+            }
+
+            /* Make destination  */
+            //destentry = (struct direntry *)&entrybuffer;
+            //destentry = srcdirentry;
+            destentry = new direntry
+            {
+                Offset = srcdirentry.Offset,
+                next = srcdirentry.next,
+                type = srcdirentry.type,
+                anode = srcdirentry.anode,
+                fsize = srcdirentry.fsize,
+                protection = srcdirentry.protection,
+                nlength = (byte)destname.Length,
+                Name = destname,
+                comment = srcdirentry.comment
+            };
+
+            /* copy header */
+            //memcpy(destentry, srcdirentry, offsetof(struct direntry, nlength));
+
+            /* copy name */
+            // destentry.nlength = (byte)destname.Length;
+            //    if (destentry.nlength > Macro.FILENAMESIZE(g) - 1)
+            //    {
+            //        destentry.nlength = Macro.FILENAMESIZE(g) - 1;
+            //    }
+            // memcpy((UBYTE *)&destentry->startofname, destname, destentry->nlength);
+            //
+            // /* copy comment */
+            // destcomment = (UBYTE *)&destentry->startofname + destentry->nlength;
+            // memcpy(destcomment, srccomment, *srccomment + 1);
+
+            /* copy fields */
+            srcfieldoffset =
+                (short)((SizeOf.DirEntry.Struct + srcdirentry.nlength + srcdirentry.comment.Length) & 0xfffe);
+            destfieldoffset = (short)((SizeOf.DirEntry.Struct + destname.Length + srcdirentry.comment.Length) & 0xfffe);
+            fieldsize = (byte)(srcdirentry.next - srcfieldoffset);
+            //    if (g.dirextension)
+            //    {
+            //        //memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)srcdirentry + srcfieldoffset, fieldsize);
+            //    }
+
+            /* set size */
+            if (g.dirextension)
+                destentry.next = (byte)(destfieldoffset + fieldsize);
+            else
+                destentry.next = (byte)destfieldoffset;
+
+            /* remove source and add new direntry 
+             * Makes srcinfo INVALID
+             */
+            //PFSDoNotify(&srcinfo->file, TRUE, g);
+
+            await ChangeDirEntry(srcinfo, destentry, destdi, destinfo.file, g); // output:destinfo
+
+            /* Update linklist and notify source if object moved across dirs
+             */
+            if (destanodenr != srcanodenr)
+            {
+                await MoveLink(destentry, destanodenr, g);
+                //PFSDoNotify (&destinfo.file, TRUE, g);
+            }
+            // else
+            // {
+            // 	//PFSDoNotify (&destinfo.file, FALSE, g);
+            // }
+
+            /* If object is a directory and parent changed, update dirblocks */
+            if (Macro.IsDir(destinfo) && (srcanodenr != destanodenr))
+            {
+                canode anode = new canode();
+                uint anodeoffset;
+                var gadoor = true;
+
+                anode.nr = destinfo.file.direntry.anode;
+                anodeoffset = 0;
+                await anodes.GetAnode(anode, anode.nr, g);
+                for (anodeoffset = 0; gadoor;)
+                {
+                    CachedBlock blk; // cdirblock
+
+                    blk = await LoadDirBlock(anode.blocknr + anodeoffset, g);
+                    if (blk != null)
+                    {
+                        var dirBlockBlk = blk.dirblock;
+                        dirBlockBlk.parent = destanodenr; // destination dir
+                        await Update.MakeBlockDirty(blk, g);
+                    }
+
+                    var nextBlockResult = await anodes.NextBlock(anode, anodeoffset, g);
+                    gadoor = nextBlockResult.Item1;
+                    anodeoffset = nextBlockResult.Item2;
+                }
+            }
+
+            return true;
+        }
+
+        public static async Task<bool> IsChildOf(objectinfo child, objectinfo parent, globaldata g)
+        {
+            objectinfo up = new objectinfo();
+            bool goon = true;
+
+            while (goon && !Macro.IsSameOI(child, parent))
+            {
+                goon = await GetParent(child, up, g);
+                child = up;
+            }
+
+            return Macro.IsSameOI(child, parent);
+        }
+
+/* 
+ * Update linklist to reflect moved node
+ * (is supercopy of UpdateLinkDir)
+ */
+        public static async Task MoveLink(direntry object_, uint newdiran, globaldata g)
+        {
+            canode linklist = new canode();
+            extrafields extrafields = new extrafields();
+            uint linknr;
+
+            //ENTER("MoveLink");
+            GetExtraFields(object_, extrafields);
+
+            /* check if is link or linked to */
+            if ((linknr = extrafields.link) == 0)
+            {
+                return;
+            }
+
+            /* check filetype */
+            if (object_.type == Constants.ST_LINKDIR || object_.type == Constants.ST_LINKFILE)
+            {
+                /* it is a link -> just change the linkdir */
+                await anodes.GetAnode(linklist, object_.anode, g);
+                linklist.blocknr = newdiran;
+                await anodes.SaveAnode(linklist, linklist.nr, g);
+            }
+            else
+            {
+                /* it is the head (linked to) */
+                while (linknr != 0)
+                {
+                    /* update linklist: change clustersize (== object dir) */
+                    await anodes.GetAnode(linklist, linknr, g);
+                    linklist.clustersize = newdiran; /* the object's directory */
+                    await anodes.SaveAnode(linklist, linklist.nr, g);
+                    linknr = linklist.next;
+                }
             }
         }
     }

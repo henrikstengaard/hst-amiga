@@ -18,10 +18,17 @@
             var nameBytes = AmigaTextHelper.GetBytes(dirEntry.Name);
             Array.Copy(nameBytes, 0, data, offset + 18, nameBytes.Length);
 
+            if (!string.IsNullOrEmpty(dirEntry.comment))
+            {
+                var commentBytes = AmigaTextHelper.GetBytes(dirEntry.comment);
+                data[offset + 18 + nameBytes.Length] = (byte)dirEntry.comment.Length;
+                Array.Copy(commentBytes, 0, data, offset + 18 + nameBytes.Length + 1, commentBytes.Length);
+            }
+            
             if (dirEntry.ExtraFields != null)
             {
-                BigEndianConverter.ConvertUInt32ToBytes(dirEntry.ExtraFields.link, data, offset + 18 + nameBytes.Length);
                 // TODO: write extrafields after comment, if present
+                //BigEndianConverter.ConvertUInt32ToBytes(dirEntry.ExtraFields.link, data, offset + 18 + nameBytes.Length);
                 // offset = (ushort)(SizeOf.DirEntry.Struct + (direntry.nlength) + (Macro.COMMENT(direntry) & 0xfffe));
                 // dirext = (UWORD *)((UBYTE *)(direntry) + offset);
                 // direntry.next = offset + 2 * j + 2;

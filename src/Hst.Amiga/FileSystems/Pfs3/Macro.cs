@@ -7,12 +7,19 @@
 
     public static class Macro
     {
+        public static bool IsSameOI(objectinfo oi1, objectinfo oi2)
+        {
+            return oi1.file.direntry.Offset == oi2.file.direntry.Offset && 
+                   oi1.file.dirblock.blocknr == oi2.file.dirblock.blocknr;
+        }
+        
         public static void MarkDataDirty(int i, globaldata g) => g.dc.ref_[i].dirty = true;
             
         // comment: de is struct direntry *
         public static int COMMENT(direntry de) => de.startofname + de.nlength;
         
         public static bool IsRoot(objectinfo oi) => oi == null || oi.volume.root == 0;
+        public static bool IsRootA(objectinfo oi) => oi.volume.root == 0;
 
         public static uint BLOCKSIZE(globaldata g) => g.blocksize;
         public static uint BLOCKSIZEMASK(globaldata g) => g.blocksize - 1;

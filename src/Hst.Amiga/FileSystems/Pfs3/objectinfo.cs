@@ -28,5 +28,32 @@ union objectinfo
 	        deldir = new deldirinfo();
 	        delfile = new delfileinfo();
         }
+
+        public objectinfo Clone()
+        {
+	        return new objectinfo
+	        {
+		        file = new fileinfo
+		        {
+			        dirblock = file.dirblock,
+			        direntry = file.direntry
+		        },
+		        volume = new volumeinfo
+		        {
+			        root = volume.root,
+			        volume = volume.volume
+		        },
+		        deldir = new deldirinfo
+		        {
+			        special = deldir.special,
+			        volume = deldir.volume
+		        },
+		        delfile = new delfileinfo
+		        {
+			        slotnr = delfile.slotnr,
+			        special = delfile.special
+		        }
+	        };
+        }
     }
 }

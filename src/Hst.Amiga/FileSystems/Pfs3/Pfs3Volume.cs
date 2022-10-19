@@ -62,7 +62,11 @@
                 currentDirectory = await Directory.GetRoot(g);
             }
             
-            await Directory.Find(currentDirectory, path, g);
+            if (!await Directory.Find(currentDirectory, path, g))
+            {
+                throw new IOException("Not found");
+            }
+            
             dirNodeNr = Macro.IsRoot(currentDirectory) ? (uint)Macro.ANODE_ROOTDIR : currentDirectory.file.direntry.anode;
         }
         
@@ -93,8 +97,11 @@
         /// <returns></returns>
         public async Task<EntryStream> OpenFile(string fileName, bool write)
         {
-            var objectInfo = new objectinfo();
-            await Directory.Find(objectInfo, fileName, g);
+            var objectInfo = currentDirectory.Clone();
+            if (!await Directory.Find(objectInfo, fileName, g))
+            {
+                throw new IOException("Not found");
+            }
             var fileEntry = await File.Open(objectInfo, write, g) as fileentry;
             return new EntryStream(fileEntry, g);
         }
@@ -105,9 +112,22 @@
         /// <param name="name"></param>
         public async Task Delete(string name)
         {
-            var objectInfo = new objectinfo();
-            await Directory.Find(objectInfo, name, g);
+            var objectInfo = currentDirectory.Clone();
+            if (!await Directory.Find(objectInfo, name, g))
+            {
+                throw new IOException("Not found");
+            }
             await Directory.DeleteObject(objectInfo, g);
+        }
+
+        public async Task Rename(string oldName, string newName)
+        {
+            var srcInfo = currentDirectory.Clone();
+            if (!await Directory.Find(srcInfo, oldName, g))
+            {
+                throw new IOException("Not found");
+            }
+            await Directory.RenameAndMove(currentDirectory, srcInfo, currentDirectory, newName, g);
         }
         
         /// <summary>

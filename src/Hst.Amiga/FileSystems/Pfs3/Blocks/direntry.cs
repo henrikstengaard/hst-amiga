@@ -29,14 +29,15 @@
         public uint anode;            /* anode number                     */
         public uint fsize { get; set; }           /* sizeof file                      */
 
-        public ushort creationday;      /* days since Jan. 1, 1978 (like ADOS; WORD instead of LONG) */
-        public ushort creationminute;   /* minutes past modnight            */
-        public ushort creationtick;     /* ticks past minute                */
+        // public ushort creationday;      /* days since Jan. 1, 1978 (like ADOS; WORD instead of LONG) */
+        // public ushort creationminute;   /* minutes past modnight            */
+        // public ushort creationtick;     /* ticks past minute                */
         public byte protection;       /* protection bits (like DOS)       */
         public byte nlength;          /* lenght of filename               */
         public string Name { get; set; }
         public byte startofname;      /* filename, followed by filenote length & filenote */
         public byte pad;              /* make size even                   */
+        public string comment;
         
         public extrafields ExtraFields { get; set; }
 
