@@ -62,7 +62,7 @@
                 currentDirectory = await Directory.GetRoot(g);
             }
             
-            if (!await Directory.Find(currentDirectory, path, g))
+            if ((await Directory.Find(currentDirectory, path, g)).Any())
             {
                 throw new IOException("Not found");
             }
@@ -98,7 +98,7 @@
         public async Task<EntryStream> OpenFile(string fileName, bool write)
         {
             var objectInfo = currentDirectory.Clone();
-            if (!await Directory.Find(objectInfo, fileName, g))
+            if ((await Directory.Find(objectInfo, fileName, g)).Any())
             {
                 throw new IOException("Not found");
             }
@@ -113,21 +113,41 @@
         public async Task Delete(string name)
         {
             var objectInfo = currentDirectory.Clone();
-            if (!await Directory.Find(objectInfo, name, g))
+            if ((await Directory.Find(objectInfo, name, g)).Any())
             {
                 throw new IOException("Not found");
             }
             await Directory.DeleteObject(objectInfo, g);
         }
 
+        /// <summary>
+        /// Rename or move a file or directory
+        /// </summary>
+        /// <param name="oldName">Old name</param>
+        /// <param name="newName">New name</param>
+        /// <exception cref="IOException"></exception>
         public async Task Rename(string oldName, string newName)
         {
             var srcInfo = currentDirectory.Clone();
-            if (!await Directory.Find(srcInfo, oldName, g))
+            if ((await Directory.Find(srcInfo, oldName, g)).Any())
             {
                 throw new IOException("Not found");
             }
-            await Directory.RenameAndMove(currentDirectory, srcInfo, currentDirectory, newName, g);
+
+            var destInfo = currentDirectory.Clone();
+            var remainingParts = await Directory.Find(destInfo, newName, g);
+
+            if (remainingParts.Length == 0)
+            {
+                throw new IOException("Exists");
+            }
+
+            if (remainingParts.Length > 1)
+            {
+                throw new IOException($"Directory '{remainingParts[0]}' not found");
+            }
+            
+            await Directory.RenameAndMove(currentDirectory, srcInfo, destInfo, remainingParts[0], g);
         }
         
         /// <summary>

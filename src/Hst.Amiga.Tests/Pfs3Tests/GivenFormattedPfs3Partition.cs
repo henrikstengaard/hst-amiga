@@ -338,4 +338,44 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "Renamed File" && x.Type == EntryType.File));
     }
+    
+    [Fact]
+    public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory()
+    {
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
+
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create "New Dir" in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateDirectory("New Dir");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateFile("New File");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // act - mount pfs3 volume, move file from root directory to subdirectory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.Rename("New File", "New Dir/Moved File");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        var rootEntries = (await pfs3Volume.ListEntries()).ToList();
+        await pfs3Volume.ChangeDirectory("New Dir");
+        var subDirEntries = (await pfs3Volume.ListEntries()).ToList();
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // assert - root directory contains directory
+        Assert.Single(rootEntries);
+        Assert.Equal(1, rootEntries.Count(x => x.Name == "New Dir" && x.Type == EntryType.Dir));
+        
+        // assert - sub directory contains moved file
+        Assert.Single(subDirEntries);
+        Assert.Equal(1, subDirEntries.Count(x => x.Name == "Moved File" && x.Type == EntryType.File));
+    }
 }

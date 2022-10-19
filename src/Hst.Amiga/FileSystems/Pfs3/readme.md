@@ -114,10 +114,16 @@ Example of deleting a directory in current directory using a mounted PFS3 volume
 await pfs3Volume.Delete("New Dir");
 ```
 
-## Rename
+## Rename a file or directory
 
-TODO
+Example of renaming a file in current directory using a mounted PFS3 volume:
+```
+await pfs3Volume.Rename("New File", "Renamed File");
+```
 
-## Move
+## Move a file or directory
 
-TODO
+Example of moving a file from current directory to a sub directory using a mounted PFS3 volume:
+```
+await pfs3Volume.Rename("New File", "New Dir/Moved File");
+```

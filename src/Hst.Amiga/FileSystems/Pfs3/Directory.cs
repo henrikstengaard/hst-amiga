@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
     using Core.Converters;
@@ -1479,27 +1480,30 @@
 // }
 
         /// <summary>
-        /// Find object info for path
+        /// Find object info for path. Returns remaining parts not found
         /// </summary>
         /// <param name="current">Current directory</param>
         /// <param name="path">Relative or absolute path to object</param>
         /// <param name="g"></param>
         /// <exception cref="IOException"></exception>
-        public static async Task<bool> Find(objectinfo current, string path, globaldata g)
+        public static async Task<string[]> Find(objectinfo current, string path, globaldata g)
         {
             var parts = (path.StartsWith("/") ? path.Substring(1) : path).Split('/');
 
-            foreach (var part in parts)
+            int i;
+            for (i = 0; i < parts.Length; i++)
             {
+                var part = parts[i];
+                
                 if (!await GetObject(part, current, g))
                 {
-                    return false;
+                    break;
                 }
 
                 current.volume.root = 1;
             }
-
-            return true;
+            
+            return parts.Skip(i).ToArray();
         }
 
         public static async Task<objectinfo> GetRoot(globaldata g)
@@ -2767,7 +2771,7 @@
              * %9.1 the same name IS allowed (rename 'hello' to 'Hello')
              */
             destinfo = destdi.Clone();
-            if (await Find(destinfo, destname, g))
+            if (!(await Find(destinfo, destname, g)).Any())
             {
                 if (destinfo.file.direntry.Offset != srcinfo.file.direntry.Offset)
                 {
