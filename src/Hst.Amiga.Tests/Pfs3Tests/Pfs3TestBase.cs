@@ -15,8 +15,8 @@ public abstract class Pfs3TestBase
     protected readonly RigidDiskBlock RigidDiskBlock = RigidDiskBlock
         .Create(100.MB().ToUniversalSize());
     protected static readonly BlockMemoryStream Stream = new BlockMemoryStream();
-    
-    public async Task CreatePfs3FormattedDisk()
+
+    protected async Task CreatePfs3FormattedDisk()
     {
         Stream.SetLength(RigidDiskBlock.DiskSize);
         
@@ -27,5 +27,11 @@ public abstract class Pfs3TestBase
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
         await Pfs3Formatter.FormatPartition(Stream, partitionBlock, "Workbench");
+    }
+
+    protected async Task WriteStreamToFile(string path)
+    {
+        await using var fileStream = System.IO.File.OpenWrite(path);
+        await Stream.WriteTo(fileStream);
     }
 }

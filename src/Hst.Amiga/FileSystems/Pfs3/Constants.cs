@@ -33,6 +33,7 @@
         public const int MODE_LONGFN = 1024;
         public const int MODE_LARGEFILE = 2048;
 
+        public const int FIBB_HELDRESIDENT = 7; /* program is a script (execute) file */
         public const int FIBB_SCRIPT = 6; /* program is a script (execute) file */
         public const int FIBB_PURE = 5; /* program is reentrant and rexecutable */
         public const int FIBB_ARCHIVE = 4; /* cleared whenever file is changed */
@@ -41,6 +42,7 @@
         public const int FIBB_EXECUTE = 1; /* ignored by system, used by Shell */
         public const int FIBB_DELETE = 0; /* prevent file from being deleted */
 
+        public const int FIBF_HELDRESIDENT = 1 << FIBB_HELDRESIDENT;
         public const int FIBF_SCRIPT = 1 << FIBB_SCRIPT;
         public const int FIBF_PURE = 1 << FIBB_PURE;
         public const int FIBF_ARCHIVE = 1 << FIBB_ARCHIVE;

@@ -149,6 +149,51 @@
             
             await Directory.RenameAndMove(currentDirectory, srcInfo, destInfo, remainingParts[0], g);
         }
+
+        /// <summary>
+        /// Set comment for file in current directory
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="comment"></param>
+        public async Task SetComment(string name, string comment)
+        {
+            var objectInfo = currentDirectory.Clone();
+            if ((await Directory.Find(objectInfo, name, g)).Any())
+            {
+                throw new IOException("Not found");
+            }
+            await Directory.AddComment(objectInfo, comment, g);
+        }
+
+        /// <summary>
+        /// Set protection for file in current directory
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="protection"></param>
+        public async Task SetProtection(string name, ProtectionBits protectionBits)
+        {
+            var objectInfo = currentDirectory.Clone();
+            if ((await Directory.Find(objectInfo, name, g)).Any())
+            {
+                throw new IOException("Not found");
+            }
+            await Directory.ProtectFile(objectInfo, DirEntryConverter.GetProtection(protectionBits), g);
+        }
+
+        /// <summary>
+        /// Set creation date for file in current directory
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="date"></param>
+        public async Task SetCreationDate(string name, DateTime date)
+        {
+            var objectInfo = currentDirectory.Clone();
+            if ((await Directory.Find(objectInfo, name, g)).Any())
+            {
+                throw new IOException("Not found");
+            }
+            await Directory.SetDate(objectInfo, date, g);
+        }
         
         /// <summary>
         /// Mount pfs3 volume in stream using partition block information

@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.Tests.Pfs3Tests;
 
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -377,5 +378,112 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - sub directory contains moved file
         Assert.Single(subDirEntries);
         Assert.Equal(1, subDirEntries.Count(x => x.Name == "Moved File" && x.Type == EntryType.File));
+    }
+    
+    [Fact]
+    public async Task WhenSetCommentForFileInRootThenCommentIsChanged()
+    {
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
+        
+        // arrange - comment to set
+        var comment = "Comment for file";
+
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateFile("New File");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // act - mount pfs3 volume, set comment for file in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.SetComment("New File", comment);
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
+        Assert.NotNull(dirEntry);
+        Assert.Equal(comment, dirEntry.Comment);
+    }
+    
+    [Fact]
+    public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged()
+    {
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
+
+        // arrange - protection bits to set
+        var protectionBits = ProtectionBits.Delete | ProtectionBits.Executable | ProtectionBits.Write | ProtectionBits.Read | ProtectionBits.HeldResident | ProtectionBits.Archive | ProtectionBits.Pure | ProtectionBits.Script;
+        
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateFile("New File");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // act - mount pfs3 volume, set protection bits for file in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.SetProtection("New File", protectionBits);
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
+        Assert.NotNull(dirEntry);
+        Assert.Equal(protectionBits, dirEntry.ProtectionBits);
+    }
+
+    [Fact]
+    public async Task WhenSetCreationDateForFileInRootThenCreationDateIsChanged()
+    {
+        // arrange - create pfs3 formatted disk
+        await CreatePfs3FormattedDisk();
+
+        // arrange - creation date to set
+        var creationDate = Trim(DateTime.Now.AddDays(-10), TimeSpan.TicksPerSecond);
+        
+        // arrange - get first partition
+        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
+        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.CreateFile("New File");
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // act - mount pfs3 volume, set creation date for file in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await pfs3Volume.SetCreationDate("New File", creationDate);
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+        
+        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
+        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        await Pfs3Helper.Unmount(pfs3Volume.g);
+
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
+        Assert.NotNull(dirEntry);
+        Assert.Equal(creationDate, dirEntry.CreationDate);
+    }
+
+    private static DateTime Trim(DateTime date, long ticks)
+    {
+        return new DateTime(date.Ticks - date.Ticks % ticks, date.Kind);
     }
 }

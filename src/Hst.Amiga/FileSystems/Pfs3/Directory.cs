@@ -1038,6 +1038,28 @@
             return true;
         }
 
+        public static async Task<bool> SetDate(objectinfo file, DateTime date, globaldata g)
+        {
+            // ENTER("SetDate");
+
+            // #if DELDIR
+	        if (file.deldir.special <= Constants.SPECIAL_DELFILE)
+	        {
+		        throw new IOException("ERROR_WRITE_PROTECTED");
+	        }
+            // #endif
+
+            Volume.CheckVolume(file.file.dirblock.volume, true, g);
+
+            // file->file.direntry->creationday = (UWORD)date->ds_Days;
+            // file->file.direntry->creationminute = (UWORD)date->ds_Minute;
+            // file->file.direntry->creationtick = (UWORD)date->ds_Tick;
+            file.file.direntry.CreationDate = date;
+            DirEntryWriter.Write(file.file.dirblock.dirblock.entries, file.file.direntry.Offset, file.file.direntry);
+            await Update.MakeBlockDirty(file.file.dirblock, g);
+            return true;
+        }
+        
         public static async Task Touch(objectinfo info, globaldata g) // ook archiveflag..
         {
             var time = DateTime.Now;
@@ -2806,6 +2828,7 @@
                 anode = srcdirentry.anode,
                 fsize = srcdirentry.fsize,
                 protection = srcdirentry.protection,
+                CreationDate = srcdirentry.CreationDate,
                 nlength = (byte)destname.Length,
                 Name = destname,
                 comment = srcdirentry.comment
@@ -2945,6 +2968,179 @@
                     linknr = linklist.next;
                 }
             }
+        }
+        
+/* AddComment
+ *
+ * - get old direntry
+ * - make new direntry
+ * - remove old direntry
+ * - add new direntry
+ *
+ * maxdirty: 1d, 1a = 2 res
+ */
+        public static async Task<bool> AddComment(objectinfo info, string comment, globaldata g)
+        {
+            direntry sourceentry, destentry;
+            objectinfo directory = new objectinfo();
+            //UBYTE *destcomment, *srccomment, entrybuffer[MAX_ENTRYSIZE];
+            short srcfieldoffset, destfieldoffset, fieldsize;
+
+//            DB(Trace(1, "AddComment", "%s\n", comment));
+            // #if DELDIR
+	        if (info.deldir.special <= Constants.SPECIAL_DELFILE)
+	        {
+		        throw new IOException("ERROR_WRITE_PROTECTED");
+	        }
+            // #endif
+
+            if (comment.Length > Constants.CMSIZE)
+            {
+                throw new IOException("ERROR_COMMENT_TOO_BIG");
+            }
+
+            /* check reserved area lock */
+            if (Macro.ReservedAreaIsLocked(g))
+            {
+                throw new IOException("ERROR_DISK_FULL");
+            }
+
+            /* make new direntry */
+            // destentry = (struct direntry *)entrybuffer;
+            sourceentry = info.file.direntry;
+
+            destentry = new direntry
+            {
+                Offset = sourceentry.Offset,
+                next = sourceentry.next,
+                type = sourceentry.type,
+                anode = sourceentry.anode,
+                fsize = sourceentry.fsize,
+                protection = sourceentry.protection,
+                CreationDate = sourceentry.CreationDate,
+                nlength = sourceentry.nlength,
+                Name = sourceentry.Name,
+                comment = comment
+            };
+            
+            /* copy header & name */
+            // memcpy(destentry, sourceentry, sizeof(struct direntry) + sourceentry->nlength - 1);
+
+            /* copy comment */
+            // destcomment = COMMENT(destentry);
+            // *destcomment = strlen(comment);
+            // memcpy(destcomment + 1, comment, *destcomment);
+
+            /* copy fields */
+            //srccomment = COMMENT(sourceentry);
+            srcfieldoffset = (short)((SizeOf.DirEntry.Struct + sourceentry.nlength + sourceentry.comment.Length) & 0xfffe);
+            destfieldoffset = (short)((SizeOf.DirEntry.Struct + sourceentry.nlength + comment.Length) & 0xfffe);
+            fieldsize = (short)(sourceentry.next - srcfieldoffset);
+            // if (g.dirextension)
+            //     memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)sourceentry + srcfieldoffset, fieldsize);
+
+            /* set size */
+            if (g.dirextension)
+                destentry.next = (byte)(destfieldoffset + fieldsize);
+            else
+                destentry.next = (byte)destfieldoffset;
+
+            /* remove old directoryentry and add new */
+            if (!await GetParent(info, directory, g))
+                return false;
+            else
+            {
+                await ChangeDirEntry(info, destentry, directory, info.file, g);
+                return true;
+            }
+        }
+        
+/* ProtectFile, SetDate
+ *
+ * - simple direntry in cache change, no change in size 
+ * - CACHEDDIRENTRY must have changeflag
+ *
+ * maxneeds: changes 1 block. NEVER allocates new block
+ */
+        public static async Task<bool> ProtectFile(objectinfo file, uint protection, globaldata g)
+        {
+            //ENTER("ProtectFile");
+
+            // isvolume check already done in dostohandler..
+            //
+            //  if (!file || !file->direntry)   /* @XLV */
+            //  {
+            //      *error = ERROR_OBJECT_WRONG_TYPE;
+            //      return DOSFALSE;
+            //  }
+
+            // #if DELDIR
+	        if (file.delfile.special <= Constants.SPECIAL_DELFILE)
+	        {
+		        if (file.delfile.special == Constants.SPECIAL_DELDIR)
+		        {
+			        protection &= Constants.DELENTRY_PROT_AND_MASK;
+			        protection |= Constants.DELENTRY_PROT_OR_MASK;
+			        g.currentvolume.rblkextension.rblkextension.dd_protection = protection;
+			        await Update.MakeBlockDirty(g.currentvolume.rblkextension, g);
+			        return true;
+		        }
+
+		        throw new IOException("ERROR_WRITE_PROTECTED");
+	        }
+            // #endif
+
+            /* check reserved area lock */
+            if (Macro.ReservedAreaIsLocked(g))
+            {
+                throw new IOException("ERROR_DISK_FULL");
+            }
+
+            file.file.direntry.protection = (byte)protection;
+
+            /* add second part of protection */
+            if (g.dirextension)
+            {
+                objectinfo directory = new objectinfo();
+                direntry sourceentry, destentry;
+                extrafields extrafields = new extrafields();
+                // UBYTE entrybuffer[MAX_ENTRYSIZE];
+
+                /* make new direntry */
+                //destentry = (struct direntry *)entrybuffer;
+                sourceentry = file.file.direntry;
+                destentry = new direntry
+                {
+                    Offset = sourceentry.Offset,
+                    next = sourceentry.next,
+                    type = sourceentry.type,
+                    anode = sourceentry.anode,
+                    fsize = sourceentry.fsize,
+                    protection = (byte)protection,
+                    CreationDate = sourceentry.CreationDate,
+                    nlength = sourceentry.nlength,
+                    Name = sourceentry.Name,
+                    comment = sourceentry.comment
+                };
+
+                /* copy source */
+                //memcpy(destentry, sourceentry, sourceentry->next);
+
+                /* set new extrafields */
+                GetExtraFields(sourceentry, extrafields);
+                extrafields.prot = protection;
+                AddExtraFields(destentry, extrafields);
+
+                /* commit changes */
+                if (!await GetParent(file, directory, g))
+                    return false;
+                else
+                    await ChangeDirEntry(file, destentry, directory, file.file, g);
+            }
+
+            /* mark block for update and return success */
+            await Update.MakeBlockDirty(file.file.dirblock, g);
+            return true;
         }
     }
 }

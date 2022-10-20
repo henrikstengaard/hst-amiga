@@ -23,33 +23,33 @@ var pfs3Volume = await Pfs3Volume.Mount(stream, partitionBlock);
 
 ## List entries
 
-Example of listing entries from current directory using a mounted PFS3 volume:
+Example of listing entries from current directory:
 ```
 var entries = await pfs3Volume.GetEntries();
 ```
 
 ## Change directory
 
-Example of changing current directory to relative path from current directory using a mounted PFS3 volume:
+Example of changing current directory to relative path from current directory:
 ```
 await pfs3Volume.ChangeDirectory("New Dir");
 ```
 
-Example of changing current directory to absolute path from root directory using a mounted PFS3 volume:
+Example of changing current directory to absolute path from root directory:
 ```
 await pfs3Volume.ChangeDirectory("/New Dir");
 ```
 
 ## Creating a directory
 
-Example of creating a directory in current directory using a mounted PFS3 volume:
+Example of creating a directory in current directory:
 ```
 await pfs3Volume.CreateDirectory("New Dir");
 ```
 
 ## Creating a file
 
-Example of creating a file in current directory using a mounted PFS3 volume:
+Example of creating a file in current directory:
 ```
 await pfs3Volume.CreateFile("New File");
 ```
@@ -58,7 +58,7 @@ await pfs3Volume.CreateFile("New File");
 
 Opening a file returns a stream for read and write data to and from files.
 
-Example of opening a file in current directory using a mounted PFS3 volume:
+Example of opening a file in current directory:
 ```
 var stream = await pfs3Volume.OpenFile("New File");
 ```
@@ -67,7 +67,7 @@ var stream = await pfs3Volume.OpenFile("New File");
 
 Reading data from a file is done using the stream returned from opening a file.
 
-Example of reading data from a file in current directory using a mounted PFS3 volume:
+Example of reading data from a file in current directory:
 ```
 await using (var stream = await pfs3Volume.OpenFile("New File", false))
 {
@@ -80,7 +80,7 @@ await using (var stream = await pfs3Volume.OpenFile("New File", false))
 
 Writing data to a file is done using the stream returned from opening a file.
 
-Example of writing data to a file in current directory using a mounted PFS3 volume:
+Example of writing data to a file in current directory:
 ```
 var buffer = AmigaTextHelper.GetBytes("New file with some text.");
 await using (var stream = await pfs3Volume.OpenFile("New File", true))
@@ -93,7 +93,7 @@ await using (var stream = await pfs3Volume.OpenFile("New File", true))
 
 Seek to a position in a file can be used to change position with in the file to read or write.
 
-Example of seeking to a position in file in current directory using a mounted PFS3 volume:
+Example of seeking to a position in file in current directory:
 ```
 await using (var stream = await pfs3Volume.OpenFile("New File", false))
 {
@@ -104,26 +104,47 @@ await using (var stream = await pfs3Volume.OpenFile("New File", false))
 
 ## Deleting a file or directory
 
-Example of deleting a file in current directory using a mounted PFS3 volume:
+Example of deleting a file in current directory:
 ```
 await pfs3Volume.Delete("New File");
 ```
 
-Example of deleting a directory in current directory using a mounted PFS3 volume:
+Example of deleting a directory in current directory:
 ```
 await pfs3Volume.Delete("New Dir");
 ```
 
 ## Rename a file or directory
 
-Example of renaming a file in current directory using a mounted PFS3 volume:
+Example of renaming a file in current directory:
 ```
 await pfs3Volume.Rename("New File", "Renamed File");
 ```
 
 ## Move a file or directory
 
-Example of moving a file from current directory to a sub directory using a mounted PFS3 volume:
+Example of moving a file from current directory to a sub directory:
 ```
 await pfs3Volume.Rename("New File", "New Dir/Moved File");
+```
+
+## Set comment for a file
+
+Example of setting a comment for a file from current directory:
+```
+await pfs3Volume.SetComment("New File", "Comment for file");
+```
+
+## Set protection bits for a file
+
+Example of setting read and write protection bits for a file from current directory:
+```
+await pfs3Volume.SetProtection("New File", ProtectionBits.Write | ProtectionBits.Read);
+```
+
+## Set creation date for a file
+
+Example of setting creation date for a file from current directory:
+```
+await pfs3Volume.SetCreationDate("New File", DateTime.Now.AddDays(-10));
 ```
