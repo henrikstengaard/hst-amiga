@@ -4,18 +4,28 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading.Tasks;
 
 public class BlockMemoryStream : Stream
 {
+    private readonly int blockSize;
     private readonly IDictionary<long, byte[]> blocks;
+    private long length;
     private long position;
 
     public readonly ReadOnlyDictionary<long, byte[]> Blocks;
 
-    public BlockMemoryStream()
+    public BlockMemoryStream(int blockSize = 512)
     {
+        if (blockSize % 512 != 0)
+        {
+            throw new ArgumentException("Block size must be dividable by 512", nameof(blockSize));
+        }
+            
+        this.blockSize = blockSize;
         this.blocks = new Dictionary<long, byte[]>();
         this.Blocks = new ReadOnlyDictionary<long, byte[]>(this.blocks);
+        this.length = 0;
         this.position = 0;
     }
 
@@ -25,15 +35,24 @@ public class BlockMemoryStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        if (!blocks.ContainsKey(position))
+        var bytesRead = 0;
+        for (var i = offset; i < Math.Min(buffer.Length, offset + count); i += blockSize)
         {
-            return count;
-        }
+            if (!blocks.ContainsKey(position))
+            {
+                break;
+            }
+            
+            var block = blocks[position];
 
-        var blockBytes = blocks[position];
-        var bytesRead = Math.Min(blockBytes.Length, count);
-        Array.Copy(blockBytes, 0, buffer, offset, bytesRead);
+            var length = i + blockSize < buffer.Length  ? blockSize : buffer.Length - i;
+            
+            Array.Copy(block, 0, buffer, i, length);
+            position += blockSize;
 
+            bytesRead += length;
+        }        
+        
         return bytesRead;
     }
 
@@ -53,23 +72,46 @@ public class BlockMemoryStream : Stream
 
     public override void SetLength(long value)
     {
+        length = value;
     }
 
     public override void Write(byte[] buffer, int offset, int count)
     {
-        var blockBytes = new byte[count];
-        Array.Copy(buffer, offset, blockBytes, 0, count);
-        blocks[position] = blockBytes;
+        for (var i = offset; i < Math.Min(buffer.Length, offset + count); i += blockSize)
+        {
+            var blockBytes = new byte[blockSize];
+
+            var length = i + blockSize < buffer.Length  ? blockSize : buffer.Length - i;
+            
+            Array.Copy(buffer, i, blockBytes, 0, length);
+            blocks[position] = blockBytes;
+            position += blockSize;
+        }
+        
+        if (position > length)
+        {
+            length = position;
+        }
     }
 
     public override bool CanRead => true;
     public override bool CanSeek => true;
     public override bool CanWrite => true;
-    public override long Length => -1;
+    public override long Length => length;
 
     public override long Position
     {
         get => position;
         set => position = value;
+    }
+
+    public async Task WriteTo(Stream stream)
+    {
+        stream.SetLength(length);
+        foreach (var block in blocks)
+        {
+            stream.Seek(block.Key, SeekOrigin.Begin);
+            await stream.WriteAsync(block.Value, 0, block.Value.Length);
+        }
     }
 }

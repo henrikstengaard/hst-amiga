@@ -290,7 +290,7 @@
                 }
                 else
                 {
-                    for (s = 0, i = Constants.MAXSMALLINDEXNR; i >= 0 && g.RootBlock.idx.small.indexblocks[i] == 0; i--)
+                    for (s = 0, i = Constants.MAXSMALLINDEXNR; i >= 0 && g.RootBlock.idx.small.indexblocks[(uint)i] == 0; i--)
                     {
                     }
                 }
@@ -800,7 +800,7 @@
  */
         public static async Task FreeAnode(uint anodenr, globaldata g)
         {
-            canode anode = null;
+            canode anode = new canode();
             var andata = g.glob_anodedata;
 
             /* don't kill reserved anodes */
@@ -875,7 +875,7 @@
             anodechain chain;
 
             // ENTER("FindAnodeChain");
-            for (var node = Macro.HeadOf(g.currentvolume.anodechainlist); node.Next != null; node = node.Next)
+            for (var node = Macro.HeadOf(g.currentvolume.anodechainlist); node != null; node = node.Next)
             {
                 chain = node.Value;
                 if (chain.head.an.nr == anodenr)
@@ -884,5 +884,107 @@
 
             return null;
         }
+        
+/*
+ * Tries to fetch the block that follows after anodeoffset. Returns
+ * success and anodeoffset is updated.
+ */
+        public static async Task<Tuple<bool, uint>> NextBlock(canode anode, uint anodeoffset, globaldata g)
+        {
+            anodeoffset++;
+            return await CorrectAnode(anode, anodeoffset, g);
+        }
+        
+/* 
+ * Correct anodeoffset overflow
+ */
+        /// <summary>
+        /// Note: anodeoffset can be changed in method and async doesn't allow ref,
+        /// therefore both boolean and updated anodeoffset is returned
+        /// </summary>
+        /// <param name="anode"></param>
+        /// <param name="anodeoffset"></param>
+        /// <param name="g"></param>
+        /// <returns></returns>
+        public static async Task<Tuple<bool, uint>> CorrectAnode (canode anode, uint anodeoffset, globaldata g)
+        {
+            while(anodeoffset >= anode.clustersize)
+            {
+                if (anode.next == 0)
+                {
+                    return new Tuple<bool, uint>(false, anodeoffset);
+                }
+
+                anodeoffset -= anode.clustersize;
+                await GetAnode(anode, anode.next, g);
+            }
+
+            return new Tuple<bool, uint>(true, anodeoffset);
+        }
+        
+        /* 
+ * Correct anodeoffset overflow. Corrects anodechainnode pointer pointed to by acnode.
+ * Returns success. If correction was not possible, acnode will be the tail of the
+ * anodechain. Anodeoffset is updated to point to a block within the current
+ * anodechainnode.
+ */
+        public static bool CorrectAnodeAC(anodechainnode acnode, uint anodeoffset, globaldata g)
+        {
+            while (anodeoffset >= acnode.an.clustersize)
+            {
+                if (acnode.next == null)
+                    return false;
+
+                anodeoffset -= acnode.an.clustersize;
+                acnode = acnode.next;
+            }
+
+            return true;
+        }
+
+/*
+ * Called when a reference to an anodechain ceases to exist
+ */
+        public static void DetachAnodeChain(anodechain chain, globaldata g)
+        {
+            chain.refcount--;
+            if (chain.refcount == 0)
+                FreeAnodeChain(chain, g);
+        }
+        
+/*
+ * Free an anodechain. Anodechain will be removed from list if it is
+ * in the list.
+ */
+        public static void FreeAnodeChain(anodechain chain, globaldata g)
+        {
+            // struct anodechainnode *node, *nextnode;
+            //
+            // ENTER("FreeAnodeChain");
+            // for (node=chain->head.next; node; node=nextnode)
+            // {
+            //     nextnode = node->next;
+            //     FreeMemP (node, g);
+            // }
+
+            if (chain.next != null)
+            {
+                throw new NotImplementedException();
+                //Macro.MinRemove(chain, g); // remove from any list
+            }
+            //
+            // FreeMemP (chain, g);
+        }
+        
+/*
+ * Tries to fetch the block that follows after anodeoffset. Returns success,
+ * updates anodechainpointer and anodeoffset. If failed, acnode will point to
+ * the tail of the anodechain
+ */
+        public static bool NextBlockAC(anodechainnode acnode, ref uint anodeoffset, globaldata g)
+        {
+            anodeoffset++;
+            return CorrectAnodeAC(acnode, anodeoffset, g);
+        }        
     }
 }

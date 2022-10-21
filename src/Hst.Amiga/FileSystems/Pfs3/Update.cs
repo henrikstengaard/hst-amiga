@@ -174,7 +174,7 @@
             }
             else
             {
-                blk.volume.rootblk.idx.small.indexblocks[(int)blk.IndexBlock.seqnr] = newblocknr;
+                blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr] = newblocknr;
                 blk.volume.rootblockchangeflag = true;
             }
         }
@@ -197,7 +197,8 @@
             var andata = g.glob_anodedata;
 
             blk.changeflag = true;
-            temp = Init.divide(bmb.IndexBlock.seqnr, andata.indexperblock);
+            var bitmapBlk = bmb.BitmapBlock;
+            temp = Init.divide(bitmapBlk.seqnr, andata.indexperblock);
             var indexblock = await Allocation.GetBitmapIndex ((ushort)temp /* & 0xffff */, g);
 
             // DBERR(if (!indexblock) ErrorTrace(5,"UpdateBMBLK", "GetBitmapIndex returned NULL!"));
@@ -205,19 +206,31 @@
             {
                 throw new IOException("UpdateBMBLK, GetBitmapIndex returned NULL!");
             }
-            
-            indexblock.IndexBlock.index[temp >> 16] = (int)newblocknr;
+
+            var indexBlockBlk = indexblock.BitmapBlock;
+            indexBlockBlk.bitmap[temp >> 16] = newblocknr;
             await MakeBlockDirty(indexblock, g);   /* recursion !! */
         }
-
-
+        
         public static void UpdateBMIBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
             // blk->changeflag = TRUE;
             // blk->volume->rootblk->idx.large.bitmapindex[((struct cindexblock *)blk)->blk.seqnr] = newblocknr;
             // blk->volume->rootblockchangeflag = TRUE;
             blk.changeflag = true;
-            blk.volume.rootblk.idx.large.bitmapindex[(int)blk.IndexBlock.seqnr] = newblocknr;
+            var seqnr = 0U;
+            switch (blk.blk)
+            {
+                case BitmapBlock bitmapBlock:
+                    seqnr = bitmapBlock.seqnr;
+                    break;
+                case indexblock indexBlock:
+                    seqnr = indexBlock.seqnr;
+                    break;
+                default:
+                    throw new IOException($"Invalid index block '{blk.blk.GetType().Name}'");
+            }
+            blk.volume.rootblk.idx.large.bitmapindex[seqnr] = newblocknr;
             blk.volume.rootblockchangeflag = true;
         }
 
@@ -444,7 +457,7 @@
                 for (var node = Macro.HeadOf(volume.dirblks[i]); node != null; node = node.Next)
                 {
                     blk = node.Value;
-                    if (Macro.IsEmptyDBlk(blk) && !await IsFirstDBlk(blk, g) && !Cache.ISLOCKED(blk, g))
+                    if (blk.dirblock != null && Macro.IsEmptyDBlk(blk, g) && !await IsFirstDBlk(blk, g) && !Cache.ISLOCKED(blk, g))
                     {
                         previous = await GetAnodeOfDBlk(blk, anode, g);
                         await anodes.RemoveFromAnodeChain(anode, previous, blk.dirblock.anodenr, g);

@@ -33,7 +33,7 @@
             //     list = node.Value;
             //     NewList((struct List *)list);
             // }
-            
+
 
             /* andere gegevens invullen */
             volume.numsofterrors = 0;
@@ -72,7 +72,7 @@
             if (rootblock.Extension > 0 && rootblock.Options.HasFlag(RootBlock.DiskOptionsEnum.MODE_EXTENSION))
             {
                 var rext = new CachedBlock(g);
-            
+
                 // rext = AllocBufmemR(sizeof(struct cachedblock) +rootblock->reserved_blksize, g);
                 // memset(rext, 0, sizeof(struct cachedblock) +rootblock->reserved_blksize);
                 IBlock blk;
@@ -94,7 +94,6 @@
                         throw new IOException("AFS_ERROR_EXTENSION_INVALID");
                     }
                 }
-
             }
             else
             {
@@ -103,7 +102,7 @@
 
             return volume;
         }
-        
+
 /* free all resources (memory) taken by volume accept doslist
 ** it is assumed all this data can be discarded (not checked here!)
 ** it is also assumed this volume is no part of any volumelist
@@ -114,10 +113,10 @@
 
             if (volume != null)
             {
-                FreeUnusedResources (volume, g);
+                FreeUnusedResources(volume, g);
 // #if VERSION23
-		// if (volume.rblkextension != null)
-		// 	FreeBufmem (volume.rblkextension, g);
+                // if (volume.rblkextension != null)
+                // 	FreeBufmem (volume.rblkextension, g);
 // #endif
 // #if DELDIR
 // 	//	if (g->deldirenabled)
@@ -129,7 +128,7 @@
 
             // EXIT("FreeVolumeResources");
         }
-        
+
         public static void FreeUnusedResources(volumedata volume, globaldata g)
         {
             // struct MinList *list;
@@ -156,11 +155,12 @@
             {
                 FreeMinList(list, g);
             }
+
             foreach (var list in volume.dirblks)
             {
                 FreeMinList(list, g);
             }
-            
+
             FreeMinList(volume.indexblks, g);
             FreeMinList(volume.bmblks, g);
             FreeMinList(volume.superblks, g);
@@ -175,6 +175,318 @@
                 Lru.FlushBlock(node.Value, g);
                 Lru.FreeLRU(node.Value, g);
             }
+        }
+
+        /* CheckVolume checks if a volume (ve lock) is (still) present.
+** If volume==NULL (no disk present) then FALSE is returned (@XLII).
+** result: requested volume present/not present TRUE/FALSE
+*/
+        public static void CheckVolume(volumedata volume, bool write, globaldata g)
+        {
+            if (volume == null || g.currentvolume == null)
+            {
+                switch (g.disktype)
+                {
+                    case Constants.ID_UNREADABLE_DISK:
+                    case Constants.ID_NOT_REALLY_DOS:
+                        throw new IOException("ERROR_NOT_A_DOS_DISK");
+
+                    case Constants.ID_NO_DISK_PRESENT:
+                        if (volume == null && g.currentvolume == null)
+                        {
+                            throw new IOException("ERROR_NO_DISK");
+                        }
+
+                        break;
+                    default:
+                        throw new IOException("ERROR_DEVICE_NOT_MOUNTED");
+                }
+            }
+            else if (g.currentvolume == volume)
+            {
+                switch (g.diskstate)
+                {
+                    case Constants.ID_WRITE_PROTECTED:
+                        if (write)
+                        {
+                            throw new IOException("ERROR_DISK_WRITE_PROTECTED");
+                        }
+
+                        break;
+
+                    case Constants.ID_VALIDATING:
+                        if (write)
+                        {
+                            throw new IOException("ERROR_DISK_NOT_VALIDATED");
+                        }
+
+                        break;
+
+                    case Constants.ID_VALIDATED:
+                        if (write && g.softprotect)
+                        {
+                            throw new IOException("ERROR_DISK_WRITE_PROTECTED");
+                        }
+
+                        break;
+                }
+            }
+            else
+            {
+                throw new IOException("ERROR_DEVICE_NOT_MOUNTED");
+            }
+        }
+
+        public static async Task<RootBlock> GetCurrentRoot(globaldata g)
+        {
+            // read boot block
+            var blockBytes = await Disk.RawRead(1, Constants.BOOTBLOCK1, g);
+            var rootBlock = await RootBlockReader.Parse(blockBytes);
+
+            if (!(rootBlock.DiskType == Constants.ID_PFS_DISK || rootBlock.DiskType == Constants.ID_PFS2_DISK))
+            {
+                throw new IOException("ID_NOT_REALLY_DOS");
+            }
+
+            g.disktype = Constants.ID_PFS_DISK;
+
+            // read root block
+            blockBytes = await Disk.RawRead(1, Constants.ROOTBLOCK, g);
+            rootBlock = await RootBlockReader.Parse(blockBytes);
+            
+            // read reserved bitmap blocks
+            var numReserved = Pfs3Formatter.CalcNumReserved(g, rootBlock.ReservedBlksize);
+            var reservedBitmapBlockCount = Pfs3Formatter.CalculateReservedBitmapBlockCount(rootBlock, numReserved);
+
+            var bytesPerBlock = (ushort)g.blocksize;
+            var resCluster = (ushort)(rootBlock.ReservedBlksize / bytesPerBlock);            
+            blockBytes = await Disk.RawRead((uint)reservedBitmapBlockCount * resCluster, Constants.ROOTBLOCK + 1, g);
+            rootBlock.ReservedBitmapBlock = await BitmapBlockReader.Parse(blockBytes, (int)(numReserved / 32 + 1));
+            
+            /* check size and read all rootblock blocks */
+            // 17.10: with 1024 byte blocks rblsize can be 1!
+            var rblsize = rootBlock.RblkCluster;
+            if (rblsize < 1 || rblsize > 521)
+            {
+                throw new IOException("ID_NOT_REALLY_DOS");
+            }
+
+            // original PFS_DISK with PFS2_DISK features -> don't mount
+            if (rootBlock.DiskType == Constants.ID_PFS_DISK && (rootBlock.Options.HasFlag(RootBlock.DiskOptionsEnum.MODE_LARGEFILE) ||
+                                                                rootBlock.ReservedBlksize > 1024))
+                throw new IOException("ID_NOT_REALLY_DOS");
+
+            Lru.InitLRU(g, rootBlock.ReservedBlksize);
+            
+            /* size check */
+            // if ((rootBlock.Options.HasFlag(RootBlock.DiskOptionsEnum.MODE_SIZEFIELD) &&
+            //     (g->geom->dg_TotalSectors != (*rootblock)->disksize))
+            // {
+            //     throw new IOException("ID_NOT_REALLY_DOS");
+            // }
+
+            return rootBlock;
+        }
+
+        public static async Task DiskInsertSequence(RootBlock rootBlock, globaldata g)
+        {
+            var fe = new fileentry
+            {
+                le = new listentry
+                {
+                    info = new objectinfo
+                    {
+                        
+                    }
+                }
+            };
+            
+            // fe = LOCKTOFILEENTRY(locklist);
+            // if(fe->le.type.flags.type == ETF_VOLUME)
+            //     g->currentvolume = fe->le.info.volume.volume;
+            // else
+            //     g->currentvolume = fe->le.volume;
+            
+            g.currentvolume = await MakeVolumeData(rootBlock, g);
+            
+            /* update rootblock */
+            g.RootBlock = g.currentvolume.rootblk = rootBlock;
+            
+            /* Reconfigure modules to new volume */
+            await Init.InitModules (g.currentvolume, false, g);
+
+            /* create rootblockextension if its not there yet */
+            if (g.currentvolume.rblkextension == null &&
+                g.diskstate != Constants.ID_WRITE_PROTECTED)
+            {
+                Pfs3Formatter.MakeRBlkExtension (g);
+            }
+
+            /* upgrade deldir */
+            if (rootBlock.DelDir > 0)
+            {
+                /* kill current deldir */
+                var ddblk = await Lru.AllocLRU(g);
+                if (ddblk != null)
+                {
+                    if ((ddblk.blk = await Disk.RawRead<deldirblock>(Constants.RESCLUSTER(g), rootBlock.DelDir, g) ) != null)
+                    {
+                        var blk = ddblk.deldirblock;
+                        if (blk.id == Constants.DELDIRID)
+                        {
+                            for (var i=0; i<31; i++)
+                            {
+                                var nr = blk.entries[i].anodenr;
+                                if (nr > 0)
+                                    await Directory.FreeAnodesInChain(nr, g);
+                            }
+                        }
+                    }
+                    Lru.FreeLRU(ddblk, g);
+                }
+                
+                /* create new deldir */
+                await Directory.SetDeldir(1, g);
+                Lru.ResToBeFreed(rootBlock.DelDir, g);
+                rootBlock.DelDir = 0;
+                rootBlock.Options |= RootBlock.DiskOptionsEnum.MODE_SUPERDELDIR;
+            }
+            
+            /* update datestamp and enable */
+            rootBlock.Options |= RootBlock.DiskOptionsEnum.MODE_DATESTAMP; 
+            rootBlock.Datestamp++;
+            g.dirty = true;
+        }
+        
+        public static async Task UpdateCurrentDisk(globaldata g)
+        {
+            await NewVolume(false, g);
+        }
+        
+        public static async Task NewVolume (bool force, globaldata g)
+        {
+            bool oldstate, newstate;//, changed;
+
+            /* check if something changed */
+            // changed = UpdateChangeCount (g);
+            // if (!FORCE && !changed)
+            //     return;
+	           //
+            // if (!AttemptLockDosList(LDF_VOLUMES | LDF_WRITE))
+            //     return;
+
+            // ENTER("NewVolume");
+            Disk.FlushDataCache(g);
+
+            /* newstate <=> there is a PFS disk present */
+            oldstate = g.currentvolume != null;
+            var rootBlock = await GetCurrentRoot(g);
+            newstate = rootBlock != null;
+
+            /* undo error enforced softprotect */
+            if (g.softprotect && g.protectkey == ~0)
+            {
+                g.protectkey = 0;
+                g.softprotect = false;
+            }
+
+            if (oldstate && !newstate)
+            {
+                await DiskRemoveSequence (g);
+            }
+
+            if (newstate)
+            {
+                // if (oldstate && SameDisk (rootBlock, g.currentvolume.rootblk))
+                // {
+                //     // FreeBufmem (rootblock, g);  /* @XLVII */
+                // }
+                // else
+                // {
+                //     if (oldstate)
+                //     {
+                //         await DiskRemoveSequence (g);
+                //     }
+                //     await DiskInsertSequence(rootBlock, g);
+                // }
+            }
+            else
+            {
+                g.currentvolume = null;    /* @XL */
+            }
+
+            // UnLockDosList(LDF_VOLUMES | LDF_WRITE);
+
+            // UpdateAndMotorOff(g);
+            //EXIT("NewVolume");
+        }
+        
+/* pre:
+**  globaldata->currentvolume not necessarily present
+** post:
+**  the old currentvolume is updated en als 'removed' currentvolume == 0
+** return waarde = currentdisk back in drive?
+** used by NewVolume and ACTION_INHIBIT
+*/
+        public static async Task DiskRemoveSequence(globaldata g)
+        {
+            volumedata oldvolume = g.currentvolume;
+
+            // ENTER("DiskRemoveSequence");
+
+            /* -I- update disk 
+            ** will ask for old volume if there are unsaved changes
+            ** causes recursive NewVolume call. That's why 'currentvolume'
+            ** has to be cleared first; UpdateDisk won't be called for the
+            ** same disk again
+            */
+            if(oldvolume != null && g.dirty)
+            {
+                // RequestCurrentVolumeBack(g);
+                await Update.UpdateDisk(g);
+                return;
+            }
+
+            /* disk removed */
+            g.currentvolume = null;
+            Disk.FlushDataCache(g);
+
+            /* -II- link locks in doslist 
+            ** lockentries: link to doslist...
+            ** fileentries: link them too...
+            */
+            // if(!Macro.IsMinListEmpty(&oldvolume->fileentries))
+            // {
+            //     DB(Trace(1, "DiskRemoveSequence", "there are locks\n"));
+            //     oldvolume->devlist->dl_LockList = MKBADDR(&(((listentry_t *)(HeadOf(&oldvolume->fileentries)))->lock));
+            //     oldvolume->devlist->dl_Task = NULL;
+            //     FreeUnusedResources(oldvolume, g);
+            // }
+            // else
+            // {
+            //     DB(Trace(1, "DiskRemoveSequence", "removing doslist\n"));
+            //     RemDosEntry((struct DosList*)oldvolume->devlist);
+            //     FreeDosEntry((struct DosList*)oldvolume->devlist);
+            //     MinRemove(oldvolume);
+            //     FreeVolumeResources(oldvolume, g);
+            // }
+
+// #ifdef TRACKDISK
+//             if(g->trackdisk)
+//             {
+//                 g->request->iotd_Req.io_Command = CMD_CLEAR;
+//                 DoIO((struct IORequest*)g->request);
+//             }
+// #endif
+
+            // CreateInputEvent(FALSE, g);
+
+// #if ACCESS_DETECT
+// 	g->tdmode = ACCESS_UNDETECTED;
+// #endif
+
+            // EXIT("DiskRemoveSequence");
+            // return;
         }
     }
 }

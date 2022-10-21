@@ -10,5 +10,10 @@
         
         public anodechainnode next;
         public canode an;
+
+        public anodechainnode()
+        {
+            an = new canode();
+        }
     }
 }

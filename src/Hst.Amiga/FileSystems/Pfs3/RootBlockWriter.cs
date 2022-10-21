@@ -38,7 +38,10 @@
                 await blockStream.WriteBigEndianUInt32(t);
             }
 
-            await blockStream.WriteBytes(await BitmapBlockWriter.BuildBlock(rootBlock.ReservedBitmapBlock));
+            if (rootBlock.ReservedBitmapBlock != null)
+            {
+                await blockStream.WriteBytes(await BitmapBlockWriter.BuildBlock(rootBlock.ReservedBitmapBlock));
+            }
             
             var blockBytes = blockStream.ToArray();
             return blockBytes;            

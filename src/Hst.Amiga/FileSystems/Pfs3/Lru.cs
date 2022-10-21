@@ -283,7 +283,7 @@
                     ** a cached block, so the type != ETF_VOLUME check is not
                     ** necessary. Just check the dirblockpointer
                     */
-                    var le = node.Value;
+                    var le = node.Value.LockEntry;
                     if (le.le.info.file.dirblock == block)
                     {
                         le.le.dirblocknr = block.blocknr;
@@ -300,7 +300,7 @@
                     }
 
                     /* exnext references */
-                    if (le.le.type.dir == ListType.ListTypeDir.Dir && le.nextentry.dirblock == block)
+                    if (le.le.type.flags.dir != 0 && le.nextentry.dirblock == block)
                     {
                         le.nextdirblocknr = block.blocknr;
                         // le->nextdirblockoffset = (UBYTE *)le->nextentry.direntry - (UBYTE *)block;
@@ -333,5 +333,61 @@
             cachedBlock.used = 0;
             cachedBlock.blk = null;
         }
+        
+/* updates references of listentries to dirblock
+*/
+        public static void UpdateReference(uint blocknr, CachedBlock blk, globaldata g)
+        {
+            lockentry le;
+
+            //DB(Trace(1,"UpdateReference","block %lx\n", blocknr));
+
+            // for (le = (lockentry_t *)HeadOf(&blk->volume->fileentries); le->le.next; le = (lockentry_t *)le->le.next)
+            for (var node = Macro.HeadOf(blk.volume.fileentries); node != null; node = node.Next)
+            {
+                le = node.Value.LockEntry;
+                /* ignoring the fact that not all objectinfos are fileinfos, but the
+                ** 'volumeinfo.volume' and 'deldirinfo.deldir' fields never are NULL anyway, so ...
+                ** maybe better to check for SPECIAL_FLUSHED
+                */
+                if (le.le.info.file.dirblock == null && le.le.dirblocknr == blocknr)
+                {
+                    le.le.info.file.dirblock = blk;
+                    le.le.info.file.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.le.dirblockoffset);
+                    le.le.dirblocknr = le.le.dirblockoffset = 0;
+                }
+
+                /* exnext references */
+                if (le.le.type.flags.dir != 0 && le.nextdirblocknr == blocknr)
+                {
+                    le.nextentry.dirblock = blk;
+                    le.nextentry.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.nextdirblockoffset);
+                    le.nextdirblocknr = le.nextdirblockoffset = 0;
+                }
+            }
+        }
+        
+/* Updates objectinfo of a listentry (if necessary)
+ * This function only reloads the flushed directory block referred to. The
+ * load directory block routine will actually restore the reference.
+ */
+        public static async Task UpdateLE(listentry le, globaldata g)
+        {
+            //DB(Trace(1,"UpdateLE","Listentry %lx\n", le));
+
+            /* don't update volumeentries or deldirs!! */
+// #if DELDIR
+	        if (le == null || le.info.deldir.special <= Constants.SPECIAL_DELFILE)
+// #else
+//             if (!le || IsVolumeEntry(le))
+// #endif
+                return;
+
+            if (le.dirblocknr != 0)
+                await Directory.LoadDirBlock (le.dirblocknr, g);
+
+            MakeLRU (le.info.file.dirblock, g);
+            Macro.Lock(le.info.file.dirblock, g);
+        }        
     }
 }

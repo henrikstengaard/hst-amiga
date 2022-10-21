@@ -24,7 +24,7 @@
         public anodeblock(globaldata g)
         {
             id = Constants.ABLKID; /* AB                               */
-            nodes = new anode[(g.RootBlock.ReservedBlksize - SizeOf.UWORD * 2 - SizeOf.ULONG * 3) / anode.Size];
+            nodes = new anode[(g.RootBlock.ReservedBlksize - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 3) / anode.Size];
             for (var i = 0; i < nodes.Length; i++)
             {
                 nodes[i] = new anode();

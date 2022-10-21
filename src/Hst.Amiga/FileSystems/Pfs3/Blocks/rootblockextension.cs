@@ -69,6 +69,7 @@
             superindex = new uint[Constants.MAXSUPER + 1];
             deldir = new uint[32];
             tobedone = new postponed_op();
+            dd_creationdate = DateTime.Now;
         }
     }
 }

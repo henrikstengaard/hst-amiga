@@ -16,9 +16,10 @@
         /// <param name="highCyl"></param>
         /// <param name="numBuffers"></param>
         /// <param name="fileSystemBlockSize"></param>
+        /// <param name="mask"></param>
         /// <returns></returns>
         public static globaldata CreateGlobalData(uint sectors, uint blocksPerTrack, uint surfaces, 
-            uint lowCyl, uint highCyl, uint numBuffers, uint fileSystemBlockSize)
+            uint lowCyl, uint highCyl, uint numBuffers, uint fileSystemBlockSize, uint mask)
         {
             var blocksPerCylinder = sectors * blocksPerTrack * surfaces;
             
@@ -28,8 +29,25 @@
                 blocksize = (uint)fileSystemBlockSize,
                 TotalSectors = (highCyl - lowCyl + 1) * blocksPerCylinder,
                 firstblock = lowCyl * blocksPerCylinder,
-                lastblock = (highCyl + 1) * blocksPerCylinder - 1
+                lastblock = (highCyl + 1) * blocksPerCylinder - 1,
+                DosEnvec = new DosEnvec
+                {
+                    de_Mask = mask
+                }
             };
+        }
+
+        public static uint CalculateReservedBlockSize(uint totalSectors)
+        {
+            if (totalSectors > Constants.MAXDISKSIZE2K)
+            {
+                return 4096;
+            }
+            if (totalSectors > Constants.MAXDISKSIZE1K)
+            {
+                return 2048;
+            }
+            return 1024;
         }
         
         /**********************************************************************/
@@ -81,7 +99,7 @@
         public static async Task InitModules(volumedata volume, bool formatting, globaldata g)
         {
             var rootBlock = volume.rootblk;
-            var blk = volume.rblkextension.rblkextension;
+            var blk = volume.rblkextension?.rblkextension ?? new rootblockextension();
 
             g.RootBlock = rootBlock;
             g.uip = false;
@@ -228,7 +246,7 @@
                 alloc_data.no_bmb = t;
                 alloc_data.bitmapstart = (uint)(rootblock.LastReserved + 1);
                 //memset (alloc_data.tobefreed, 0, TBF_CACHE_SIZE*2*sizeof(ULONG));
-                alloc_data.tobefreed = new uint[Constants.TBF_CACHE_SIZE * 2 * SizeOf.ULONG][];
+                alloc_data.tobefreed = new uint[Constants.TBF_CACHE_SIZE * 2 * Amiga.SizeOf.ULong][];
                 for (var i = 0; i < alloc_data.tobefreed.Length; i++)
                 {
                     alloc_data.tobefreed[i] = new uint[2];

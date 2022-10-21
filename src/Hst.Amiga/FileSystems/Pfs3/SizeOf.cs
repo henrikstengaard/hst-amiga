@@ -2,30 +2,62 @@
 {
     public static class SizeOf
     {
-        public const int UWORD = 2;
-        public const int ULONG = 4;
-        public const int LONG = 4;
-
-        public const int INDEXBLOCK_T = 2 * UWORD + 2 * ULONG;
-        public const int ANODEBLOCK_T = 2 * UWORD + 3 * ULONG;
-        public const int ANODE_T = 3 * ULONG;
+        public const int INDEXBLOCK_T = 2 * Amiga.SizeOf.UWord + 2 * Amiga.SizeOf.ULong;
+        public const int ANODEBLOCK_T = 2 * Amiga.SizeOf.UWord + 3 * Amiga.SizeOf.ULong;
+        public const int ANODE_T = 3 * Amiga.SizeOf.ULong;
 
         public static class RootBlock
         {
             public static int IdxUnion => Constants.MAXSMALLBITMAPINDEX + 1 + Constants.MAXSMALLINDEXNR + 1;
         }
-        
+
         public static class DirBlock
         {
-            public static int Entries(globaldata g) => g.RootBlock.ReservedBlksize - UWORD * 4 - ULONG * 3;
+            public static int Struct(globaldata g) => Amiga.SizeOf.UWord * 4 + Amiga.SizeOf.ULong * 3 + Entries(g);
+
+            public static int Entries(globaldata g) =>
+                g.RootBlock.ReservedBlksize - Amiga.SizeOf.UWord * 4 - Amiga.SizeOf.ULong * 3;
         }
-        
+
         public static class DelDirBlock
         {
-            public const int Entry = SizeOf.ULONG * 2 + SizeOf.UWORD * 3 + 16 + SizeOf.UWORD;
 
-            public static int Entries(globaldata g) => (g.RootBlock.ReservedBlksize - SizeOf.UWORD * 2 - SizeOf.ULONG * 2 - SizeOf.UWORD * 4 -
-                                                        SizeOf.ULONG - SizeOf.UWORD * 3) / Entry;
+            public static int Entries(globaldata g) =>
+                (g.RootBlock.ReservedBlksize - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 2 -
+                Amiga.SizeOf.UWord * 5 -
+                Amiga.SizeOf.ULong - Amiga.SizeOf.UWord * 3) / DelDirEntry.Struct;
+        }
+
+        public static class DelDirEntry
+        {
+            public const int Struct = Amiga.SizeOf.ULong * 2 + Amiga.SizeOf.UWord * 3 + 16 + Amiga.SizeOf.UWord;
+        }
+
+        public static class DirEntry
+        {
+            public static int Struct => Amiga.SizeOf.UByte + Amiga.SizeOf.Byte + (Amiga.SizeOf.ULong * 2) +
+                                        (Amiga.SizeOf.UWord * 3) + (Amiga.SizeOf.UByte * 4);
+        }
+
+        public static class FileInfo
+        {
+            public static int Struct => DirEntry.Struct;
+        }
+
+        // public static class LockEntry
+        // {
+        //     public static int Struct => Amiga.SizeOf.ULong * 3 + ListEntry.Struct + FileInfo.Struct;
+        // }
+        //
+        // public static class FileEntry
+        // {
+        //     public static int Struct => ListEntry.Struct + Amiga.SizeOf.ULong * 4 + Amiga.SizeOf.Bool;
+        // }
+
+        public static class ExtraFields
+        {
+            public static int Struct => Amiga.SizeOf.ULong + (Amiga.SizeOf.UWord * 2) +
+                                        (Amiga.SizeOf.ULong * 3) + Amiga.SizeOf.UWord;
         }
     }
 }

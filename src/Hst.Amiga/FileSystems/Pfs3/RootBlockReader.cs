@@ -50,6 +50,7 @@
             
             return new RootBlock
             {
+                DiskType = diskType,
                 Options = (RootBlock.DiskOptionsEnum)options,
                 Datestamp = datestamp,
                 CreationDate = creationDate,

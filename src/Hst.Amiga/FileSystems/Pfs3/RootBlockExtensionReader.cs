@@ -37,7 +37,7 @@
             var deldirroving = await blockStream.ReadBigEndianUInt16();
             var deldirsize = await blockStream.ReadBigEndianUInt16();
             var fnsize = await blockStream.ReadBigEndianUInt16();
-            
+
             // not_used_2[3]
             for (var i = 0; i < 3; i++)
             {

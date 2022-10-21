@@ -6,6 +6,6 @@
         public uint blocknr;
         public uint next;
 
-        public const int Size = SizeOf.ULONG * 3;
+        public const int Size = Amiga.SizeOf.ULong * 3;
     }
 }

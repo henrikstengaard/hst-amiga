@@ -6,6 +6,7 @@
     public class globaldata
     {
         public RootBlock RootBlock;
+        public DosEnvec DosEnvec { get; set; }
         public uint NumBuffers;
         public lru_data_s glob_lrudata;
         
@@ -21,11 +22,17 @@
         public ushort fnsize;						/* filename size (18+)					*/
         public int directsize;                   /* number of blocks after which direct  */
 
-        public long[] allocbufmem;
-        
         public uint firstblock;/* first and last block of partition    */
         public uint lastblock;
 
+        /* disktype: ID_PFS_DISK/NO_DISK_PRESENT/UNREADABLE_DISK
+         * (only valid if currentvolume==NULL) 
+         */
+        public uint disktype;
+
+        /* state of currentvolume (ID_WRITE_PROTECTED/VALIDATED/VALIDATING) */
+        public uint diskstate;
+        
         /* 1 if 'ACTION_WRITE_PROTECTED'     	*/
         public bool softprotect;
         
