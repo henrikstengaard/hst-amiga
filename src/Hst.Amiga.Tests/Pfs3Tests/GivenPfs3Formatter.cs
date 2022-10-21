@@ -36,7 +36,7 @@ public class GivenPfs3Formatter
         
         // TODO - assert pfs3 blocks are created as expected
         Assert.NotEmpty(stream.Blocks);
-    }    
+    }
     
     [Fact]
     public async Task WhenFormatting1GbPartitionAtStartOfHardDiskFileThenPfs3BlocksAreCreated()

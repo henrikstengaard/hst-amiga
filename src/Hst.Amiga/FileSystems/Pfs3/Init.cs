@@ -16,6 +16,7 @@
         /// <param name="highCyl"></param>
         /// <param name="numBuffers"></param>
         /// <param name="fileSystemBlockSize"></param>
+        /// <param name="mask"></param>
         /// <returns></returns>
         public static globaldata CreateGlobalData(uint sectors, uint blocksPerTrack, uint surfaces, 
             uint lowCyl, uint highCyl, uint numBuffers, uint fileSystemBlockSize, uint mask)
@@ -34,6 +35,19 @@
                     de_Mask = mask
                 }
             };
+        }
+
+        public static uint CalculateReservedBlockSize(uint totalSectors)
+        {
+            if (totalSectors > Constants.MAXDISKSIZE2K)
+            {
+                return 4096;
+            }
+            if (totalSectors > Constants.MAXDISKSIZE1K)
+            {
+                return 2048;
+            }
+            return 1024;
         }
         
         /**********************************************************************/
