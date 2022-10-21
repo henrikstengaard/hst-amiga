@@ -57,12 +57,13 @@
         /// <param name="path">Relative or absolute path.</param>
         public async Task ChangeDirectory(string path)
         {
-            if (path.StartsWith("/") && !Macro.IsRoot(currentDirectory))
+            var isRootPath = path.StartsWith("/");
+            if (isRootPath && !Macro.IsRoot(currentDirectory))
             {
                 currentDirectory = await Directory.GetRoot(g);
             }
             
-            if ((await Directory.Find(currentDirectory, path, g)).Any())
+            if (!isRootPath && (await Directory.Find(currentDirectory, path, g)).Any())
             {
                 throw new IOException("Not found");
             }
@@ -77,6 +78,7 @@
         public async Task CreateDirectory(string dirName)
         {
             await Directory.NewDir(currentDirectory, dirName, g);
+            await Update.UpdateDisk(g);
         }
 
         /// <summary>
@@ -87,6 +89,14 @@
         {
             var notUsed = new objectinfo();
             await Directory.NewFile(false, currentDirectory, fileName, notUsed, g);
+            await Update.UpdateDisk(g);
+
+            foreach (var fileentry in g.currentvolume.fileentries)
+            {
+                fileentry.ListEntry.type.flags.access = Constants.ET_FILEENTRY;
+                fileentry.ListEntry.filelock.fl_Access = Constants.ET_FILEENTRY;
+            }
+            g.currentvolume.fileentries.Clear();
         }
 
         /// <summary>
@@ -103,6 +113,9 @@
                 throw new IOException("Not found");
             }
             var fileEntry = await File.Open(objectInfo, write, g) as fileentry;
+            
+            File.MakeSharedFileEntriesAndClear(g);
+            
             return new EntryStream(fileEntry, g);
         }
 

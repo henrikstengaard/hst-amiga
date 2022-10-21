@@ -81,6 +81,16 @@
             }
 
             Lock.RemoveListEntry(fe, g);
-        }        
+        }
+
+        public static void MakeSharedFileEntriesAndClear(globaldata g)
+        {
+            foreach (var fileEntry in g.currentvolume.fileentries)
+            {
+                fileEntry.ListEntry.type.flags.access = Constants.ET_SHAREDWRITE;
+            }
+            
+            g.currentvolume.fileentries.Clear();
+        }
     }
 }

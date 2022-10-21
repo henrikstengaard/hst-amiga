@@ -19,13 +19,11 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create "New Dir" in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create "New Dir" in root directory
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         await pfs3Volume.CreateDirectory("New Dir");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
         await Pfs3Helper.Unmount(pfs3Volume.g);
 
@@ -43,25 +41,16 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create "New Dir1" in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+
+        // act - create "New Dir1", "New Dir2", "New Dir3" in root directory
         await pfs3Volume.CreateDirectory("New Dir1");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
-        
-        // act - mount pfs3 volume, create "New Dir2" in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         await pfs3Volume.CreateDirectory("New Dir2");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
-
-        // act - mount pfs3 volume, create "New Dir3" in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         await pfs3Volume.CreateDirectory("New Dir3");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory contains directories created
         Assert.Equal(3, entries.Count);
@@ -79,19 +68,18 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create "New Dir1" in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+
+        // act - create "New Dir1" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
         
-        // act - mount pfs3 volume, change directory to "New Dir", create "Sub Dir" directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - change directory to "New Dir", create "Sub Dir" directory
         await pfs3Volume.ChangeDirectory("New Dir");
         await pfs3Volume.CreateDirectory("Sub Dir");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - change to root directory and list entries
+        await pfs3Volume.ChangeDirectory("/");
         var entries = (await pfs3Volume.ListEntries()).ToList();
 
         // assert - root directory contains directory created
@@ -115,15 +103,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+
+        // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory contains file created
         Assert.Single(entries);
@@ -142,21 +129,19 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
 
-        // act - mount pfs3 volume, write data and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create file in root directory
+        await pfs3Volume.CreateFile("New File");
+
+        // act - write data
         await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // act - mount pfs3 volume, read data and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - read data
         int bytesRead;
         byte[] dataRead;
         await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
@@ -164,7 +149,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
         }
-        await Pfs3Helper.Unmount(pfs3Volume.g);
         
         // assert - data read matches data written
         Assert.Equal(data.Length, bytesRead);
@@ -184,21 +168,19 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
 
-        // act - mount pfs3 volume, write data and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create file in root directory
+        await pfs3Volume.CreateFile("New File");
+
+        // act - write data
         await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // act - mount pfs3 volume, read data and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - read data
         int bytesRead;
         byte[] dataRead;
         long seekPosition;
@@ -210,7 +192,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             bytesRead = await entryStream.ReadAsync(dataRead, 0, 10);
             readPosition = entryStream.Position;
         }
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - stream seek resulted in position is equal to 10
         Assert.Equal(10, seekPosition);
@@ -234,20 +215,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
-
-        // act - mount pfs3 volume, delete file from root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.Delete("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create file in root directory
+        await pfs3Volume.CreateFile("New File");
+
+        // act - delete file from root directory
+        await pfs3Volume.Delete("New File");
+        
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory is empty
         Assert.Empty(entries);
@@ -262,21 +240,18 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        
+        // act - create file in root directory
         await pfs3Volume.CreateFile("New File 1");
         await pfs3Volume.CreateFile("New File 2");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // act - mount pfs3 volume, delete file from root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - delete file from root directory
         await pfs3Volume.Delete("New File 1");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory contains new file 1
         Assert.Single(entries);
@@ -292,20 +267,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create "New Dir" in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        
+        // act - create "New Dir" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
         
-        // act - mount pfs3 volume, delete directory from root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - delete directory from root directory
         await pfs3Volume.Delete("New Dir");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory is empty
         Assert.Empty(entries);
@@ -320,20 +292,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
-
-        // act - mount pfs3 volume, rename file in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.Rename("New File", "Renamed File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create file in root directory
+        await pfs3Volume.CreateFile("New File");
+
+        // act - rename file in root directory
+        await pfs3Volume.Rename("New File", "Renamed File");
+        
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory contains file created
         Assert.Single(entries);
@@ -349,27 +318,22 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create "New Dir" in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateDirectory("New Dir");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create "New Dir" in root directory
+        await pfs3Volume.CreateDirectory("New Dir");
+        
+        // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
-        // act - mount pfs3 volume, move file from root directory to subdirectory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - move file from root directory to subdirectory
         await pfs3Volume.Rename("New File", "New Dir/Moved File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
         
         // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         var rootEntries = (await pfs3Volume.ListEntries()).ToList();
         await pfs3Volume.ChangeDirectory("New Dir");
         var subDirEntries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory contains directory
         Assert.Single(rootEntries);
@@ -392,20 +356,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
-
-        // act - mount pfs3 volume, set comment for file in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.SetComment("New File", comment);
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create file in root directory
+        await pfs3Volume.CreateFile("New File");
+
+        // act - set comment for file in root directory
+        await pfs3Volume.SetComment("New File", comment);
+        
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory contains file created
         Assert.Single(entries);
@@ -426,20 +387,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
-
-        // act - mount pfs3 volume, set protection bits for file in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.SetProtection("New File", protectionBits);
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create file in root directory
+        await pfs3Volume.CreateFile("New File");
+
+        // act - set protection bits for file in root directory
+        await pfs3Volume.SetProtection("New File", protectionBits);
+        
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory contains file created
         Assert.Single(entries);
@@ -460,20 +418,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume, create file in root directory and unmount pfs3 volume
-        var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateFile("New File");
-        await Pfs3Helper.Unmount(pfs3Volume.g);
-
-        // act - mount pfs3 volume, set creation date for file in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.SetCreationDate("New File", creationDate);
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         
-        // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - create file in root directory
+        await pfs3Volume.CreateFile("New File");
+
+        // act - set creation date for file in root directory
+        await pfs3Volume.SetCreationDate("New File", creationDate);
+        
+        // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
 
         // assert - root directory contains file created
         Assert.Single(entries);

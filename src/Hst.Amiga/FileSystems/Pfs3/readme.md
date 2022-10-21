@@ -14,8 +14,6 @@ The usage section describes how to use classes for reading and writing PFS3 part
 
 First the PFS3 volume has to be mounted using Pfs3Volume class. Mounted Pfs3 volume has current directory set to root directory by default. PFS3 volume implements disposable and will automatically unmount with a using statement.
 
-**Due to a limitation in the current implementation, pfs3 volume has to be unmounted and mounted between each write operation.**
-
 Example of mounting a PFS3 volume from a partition block in a stream:
 ```
 var pfs3Volume = await Pfs3Volume.Mount(stream, partitionBlock);
