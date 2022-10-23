@@ -97,6 +97,7 @@
 
         public static uint RESCLUSTER(globaldata g) => g.currentvolume.rescluster;
 
+        public const int CL_UNUSED = 1;
         public const uint BOOTBLOCK1 = 0;
         public const uint BOOTBLOCK2 = 1;
         public const uint ROOTBLOCK = 2;

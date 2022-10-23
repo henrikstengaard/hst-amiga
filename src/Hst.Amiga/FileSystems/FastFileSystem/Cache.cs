@@ -13,7 +13,15 @@
     {
         public static async Task<IEnumerable<Entry>> ReadEntries(Volume vol, EntryBlock parent, bool recursive = false)
         {
+            return await ReadEntries(vol, parent.HeaderKey == 0 ? (int)vol.RootBlockOffset : parent.HeaderKey,
+                recursive);
+        }
+
+        public static async Task<IEnumerable<Entry>> ReadEntries(Volume vol, int dir, bool recursive = false)
+        {
             var list = new List<Entry>();
+
+            var parent = await Disk.ReadEntryBlock(vol, dir);
 
             var nSect = parent.Extension;
 
@@ -110,7 +118,7 @@
                 {
                     throw new IOException("Invalid sec type for parent block");
                 }
-                
+
                 /* create a new dir cache block */
                 var newDirCacheBlock = new DirCacheBlock
                 {
@@ -216,7 +224,7 @@
             {
                 throw new IOException("Invalid sec type for new dir cache block");
             }
-            
+
             int nCache;
 
             if (nSect == -1)
@@ -239,7 +247,7 @@
 
             var dirCacheBlock = new DirCacheBlock
             {
-                Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset :parent.HeaderKey,
+                Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : parent.HeaderKey,
                 RecordsNb = 0,
                 NextDirC = 0
             };
@@ -307,6 +315,7 @@
             {
                 return l;
             }
+
             dirCacheBlock.Records[ptr + l] = 0;
             return l + 1;
         }

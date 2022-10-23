@@ -12,7 +12,7 @@
                 Type = GetEntryType(dirEntry.type),
                 Size = dirEntry.fsize,
                 ProtectionBits = GetProtectionBits(dirEntry.protection),
-                CreationDate = dirEntry.CreationDate,
+                Date = dirEntry.CreationDate,
                 Comment = dirEntry.comment
             };
         }

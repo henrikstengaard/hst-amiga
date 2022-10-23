@@ -27,7 +27,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - root block contains 2 entries
@@ -100,7 +100,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             var entry = entries.FirstOrDefault(x => x.Name == "test.txt");
@@ -151,7 +151,7 @@
             entryStream.Close();
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - entry exists
@@ -187,7 +187,7 @@
             await FileSystems.FastFileSystem.Directory.CreateDirectory(volume, volume.RootBlock, directoryName);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - entry exists
@@ -220,7 +220,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
@@ -233,7 +233,7 @@
                 newName);
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - entry with old name doesn't exist
@@ -269,7 +269,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
@@ -278,10 +278,10 @@
 
             // act - remote entry from root block
             var entryName = entry.Name;
-            await FileSystems.FastFileSystem.Directory.RemoveEntry(volume, volume.RootBlock, entryName);
+            await FileSystems.FastFileSystem.Directory.RemoveEntry(volume, (int)volume.RootBlockOffset, entryName);
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - entry doesn't exist, is removed
@@ -310,7 +310,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
@@ -323,7 +323,7 @@
                 Constants.ACCMASK_A | Constants.ACCMASK_E | Constants.ACCMASK_W);
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - get entry
@@ -336,7 +336,7 @@
                 Constants.ACCMASK_R);
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - get entry
@@ -366,7 +366,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - read entries recursively from root block
-            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // act - get first file entry
@@ -380,7 +380,7 @@
                 "A comment");
 
             // act - read entries recursively from root block
-            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlock, true))
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true))
                 .OrderBy(x => x.Name).ToList();
 
             // assert - get entry

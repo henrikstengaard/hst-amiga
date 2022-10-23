@@ -7,7 +7,7 @@
     using System.Threading.Tasks;
     using RigidDiskBlocks;
 
-    public class Pfs3Volume : IAsyncDisposable, IDisposable
+    public class Pfs3Volume : IFileSystemVolume, IAsyncDisposable, IDisposable
     {
         public readonly globaldata g;
         private objectinfo currentDirectory;
@@ -105,7 +105,7 @@
         /// <param name="fileName"></param>
         /// <param name="write"></param>
         /// <returns></returns>
-        public async Task<EntryStream> OpenFile(string fileName, bool write)
+        public async Task<Stream> OpenFile(string fileName, bool write)
         {
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, fileName, g)).Any())
@@ -179,11 +179,11 @@
         }
 
         /// <summary>
-        /// Set protection for file in current directory
+        /// Set protection bits for file in current directory
         /// </summary>
         /// <param name="name"></param>
         /// <param name="protection"></param>
-        public async Task SetProtection(string name, ProtectionBits protectionBits)
+        public async Task SetProtectionBits(string name, ProtectionBits protectionBits)
         {
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
@@ -198,7 +198,7 @@
         /// </summary>
         /// <param name="name"></param>
         /// <param name="date"></param>
-        public async Task SetCreationDate(string name, DateTime date)
+        public async Task SetDate(string name, DateTime date)
         {
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())

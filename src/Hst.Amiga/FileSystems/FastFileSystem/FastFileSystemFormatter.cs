@@ -90,7 +90,7 @@
             {
                 // seek bitmap block offset
                 var bitmapBlockByteOffset = partitionStartByteOffset +
-                                            bitmapBlock.Offset * fileSystemBlockSize;
+                                            (reserved + bitmapBlock.Offset) * fileSystemBlockSize;
                 stream.Seek(bitmapBlockByteOffset, SeekOrigin.Begin);
 
                 // build and write bitmap block
@@ -108,7 +108,7 @@
             {
                 // seek bitmap extension block offset
                 var bitmapExtensionBlockByteOffset = partitionStartByteOffset +
-                                                     bitmapExtensionBlock.Offset *
+                                                     (reserved + bitmapExtensionBlock.Offset) *
                                                      fileSystemBlockSize;
                 stream.Seek(bitmapExtensionBlockByteOffset, SeekOrigin.Begin);
 
@@ -123,7 +123,7 @@
                 {
                     // seek bitmap block offset
                     var bitmapBlockByteOffset = partitionStartByteOffset +
-                                                bitmapBlock.Offset *
+                                                (reserved + bitmapBlock.Offset) *
                                                 fileSystemBlockSize;
                     stream.Seek(bitmapBlockByteOffset, SeekOrigin.Begin);
 

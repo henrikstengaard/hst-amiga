@@ -3,6 +3,7 @@
     using System.Collections.Generic;
     using System.IO;
     using System.Threading.Tasks;
+    using Blocks;
 
     public class Pfs3Doctor
     {
@@ -25,7 +26,7 @@
             volume.rescluster = 0;
             volume.disksize = volume.lastblock - volume.firstblock + 1;
             volume.lastreserved = volume.disksize - 256;	/* temp value, calculated later */
-            volume.PartitionOffset = volume.firstblock * sizeBlock;
+            volume.PartitionOffset = volume.firstblock * volume.blocksize;
             
             volume.cache = Device.InitCache(volume, 64, 32);		/* make this configurable ? */
 
@@ -118,7 +119,7 @@ public static async Task GetRootBlock(Volume volume)
 
 	// read rootblock 
 	var rblBytes = await Device.GetBlock(volume, Constants.ROOTBLOCK + volume.firstblock, volume.blocksize);
-	var rootBlock = RootBlockReader.Parse(rblBytes);
+	var rootBlock = await RootBlockReader.Parse(rblBytes);
 
 // 	// check rootblock type
 // 	if (!IsRootBlock(rbl))
@@ -241,5 +242,30 @@ public static async Task GetRootBlock(Volume volume)
 // 	return e_none;
 }
         
+
+public static bool IsRootBlock(RootBlock r)
+{
+	// check rootblock type
+	if (r.DiskType != Constants.ID_PFS_DISK && r.DiskType != Constants.ID_PFS2_DISK)
+	{
+		// if (ss.verbose)
+		// 	volume.showmsg($"Unexpected rootblock id 0x{r.DiskType:x8}\n", r.disktype);
+		return false;
+	}
+
+	// check options
+	// require non-null options to accept rootblock as such,
+	// otherwise it could be a bootblock 
+	var modemask = RootBlock.DiskOptionsEnum.MODE_HARDDISK | RootBlock.DiskOptionsEnum.MODE_SPLITTED_ANODES | RootBlock.DiskOptionsEnum.MODE_DIR_EXTENSION;
+	if ((r.Options & modemask) != modemask)
+	{
+		// if (ss.verbose)
+		// 	volume.showmsg("Unexpected rootblock options 0x%08lx\n", r->options);
+		return false;
+	}
+
+	return true;
+}
+
     }
 }

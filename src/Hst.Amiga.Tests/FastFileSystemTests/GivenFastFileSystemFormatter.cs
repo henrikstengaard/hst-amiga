@@ -168,7 +168,7 @@
 
             // arrange - read root bitmap blocks from stream
             var rootBitmapBlocks = (await ReadBitmapBlocks(hdfStream, partitionStartOffset, rootBlock.BitmapBlockOffsets.Select(x => (uint)x),
-                (int)partition.FileSystemBlockSize)).ToList();
+                (int)partition.Reserved, (int)partition.FileSystemBlockSize)).ToList();
 
             // assert - first 25 bitmap block offsets in root block is after root block offset
             for (var i = 0; i < bitmapBlocksCount && i < 25; i++)
@@ -178,7 +178,7 @@
 
             // arrange - read bitmap extension blocks from stream
             var bitmapExtensionBlocks = (await ReadBitmapExtensionBlocks(hdfStream, partitionStartOffset,
-                rootBlock.BitmapExtensionBlocksOffset, (int)partition.FileSystemBlockSize)).ToList();
+                 rootBlock.BitmapExtensionBlocksOffset, (int)partition.Reserved, (int)partition.FileSystemBlockSize)).ToList();
 
             // assert - calculated bitmap extension blocks count is equal to bitmap extension blocks read
             Assert.Equal(bitmapExtensionBlocksCount, bitmapExtensionBlocks.Count);
@@ -263,7 +263,7 @@
             Assert.True(stream.Blocks.ContainsKey(bootBlockOffset + (rootBlockOffset * 512)));
         }
 
-        private static async Task<IEnumerable<BitmapBlock>> ReadBitmapBlocks(Stream stream, long partitionStartOffset, IEnumerable<uint> bitmapBlockOffsets, int blockSize)
+        private static async Task<IEnumerable<BitmapBlock>> ReadBitmapBlocks(Stream stream, long partitionStartOffset, IEnumerable<uint> bitmapBlockOffsets, int reserved, int blockSize)
         {
             var bitmapBlocks = new List<BitmapBlock>();
             
@@ -275,7 +275,7 @@
                 }
                 
                 // seek bitmap block offset in hdf stream
-                stream.Seek(partitionStartOffset + blockBitmapBlockOffset * blockSize,
+                stream.Seek(partitionStartOffset + (blockBitmapBlockOffset + reserved) * blockSize,
                     SeekOrigin.Begin);
                 
                 // read bitmap block from hdf stream
@@ -288,14 +288,14 @@
             return bitmapBlocks;
         }
 
-        private static async Task<IEnumerable<BitmapExtensionBlock>> ReadBitmapExtensionBlocks(Stream stream, long partitionStartOffset, long bitmapExtensionBlocksOffset, int blockSize)
+        private static async Task<IEnumerable<BitmapExtensionBlock>> ReadBitmapExtensionBlocks(Stream stream, long partitionStartOffset, long bitmapExtensionBlocksOffset, int reserved, int blockSize)
         {
             var bitmapExtensionBlocks = new List<BitmapExtensionBlock>();
             
             while (bitmapExtensionBlocksOffset != 0)
             {
                 // seek bitmap extension block offset in stream
-                stream.Seek(partitionStartOffset + bitmapExtensionBlocksOffset * blockSize,
+                stream.Seek(partitionStartOffset + (bitmapExtensionBlocksOffset + reserved) * blockSize,
                     SeekOrigin.Begin);
 
                 // read bitmap extension block from stream
@@ -303,7 +303,7 @@
                 var bitmapExtensionBlock = BitmapExtensionBlockParser.Parse(bitmapExtensionBlockBytes);
 
                 bitmapExtensionBlock.BitmapBlocks = await ReadBitmapBlocks(stream, partitionStartOffset,
-                    bitmapExtensionBlock.BitmapBlockOffsets, blockSize);
+                    bitmapExtensionBlock.BitmapBlockOffsets, reserved, blockSize);
                 
                 bitmapExtensionBlocksOffset = bitmapExtensionBlock.NextBitmapExtensionBlockPointer;
                 

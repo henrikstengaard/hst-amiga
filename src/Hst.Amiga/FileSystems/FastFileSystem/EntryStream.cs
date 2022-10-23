@@ -26,7 +26,7 @@
 
         public EntryStream(Volume volume, bool writeMode, bool eof, EntryBlock fhdr)
         {
-            this.length = 0;
+            this.length = fhdr.ByteSize;
             this.volume = volume;
             this.writeMode = writeMode;
             this.eof = eof;
@@ -80,7 +80,7 @@
         public override long Seek(long offset, SeekOrigin origin)
         {
             AdfFileSeek((uint)offset).GetAwaiter().GetResult();
-            return 0;
+            return this.pos;
         }
 
         public override void SetLength(long value)
@@ -113,7 +113,11 @@
         public override bool CanSeek => true;
         public override bool CanWrite => writeMode;
         public override long Length => length;
-        public override long Position { get; set; }
+        public override long Position
+        {
+            get => this.pos;
+            set => Seek(value, SeekOrigin.Begin);
+        }
 
         private async Task AdfFileSeek(uint pos)
         {

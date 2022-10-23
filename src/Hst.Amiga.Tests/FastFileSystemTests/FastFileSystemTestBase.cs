@@ -2,13 +2,37 @@
 {
     using System;
     using System.IO;
+    using System.Linq;
+    using System.Text;
     using System.Threading.Tasks;
     using Core.Extensions;
     using Extensions;
     using FileSystems;
+    using FileSystems.FastFileSystem;
+    using RigidDiskBlocks;
 
     public abstract class FastFileSystemTestBase
     {
+        protected static readonly byte[] Dos3DosType = { 0x44, 0x4f, 0x53, 0x3 };
+        protected static readonly byte[] DummyFastFileSystemBytes = Encoding.ASCII.GetBytes(
+            "$VER: FastFileSystem 1.0 (12/12/22) ");  
+        protected readonly RigidDiskBlock RigidDiskBlock = RigidDiskBlock
+            .Create(100.MB().ToUniversalSize());
+        protected static readonly BlockMemoryStream Stream = new();
+        
+        protected async Task CreateFastFileSystemFormattedDisk()
+        {
+            Stream.SetLength(RigidDiskBlock.DiskSize);
+        
+            RigidDiskBlock.AddFileSystem(Dos3DosType, DummyFastFileSystemBytes)
+                .AddPartition("DH0", bootable: true);
+            await RigidDiskBlockWriter.WriteBlock(RigidDiskBlock, Stream);
+        
+            var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+
+            await FastFileSystemFormatter.FormatPartition(Stream, partitionBlock, "Workbench");
+        }
+        
         protected readonly DateTime Date = new(2022, 2, 3, 14, 45, 33, DateTimeKind.Utc);
         
         protected async Task<byte[]> CreateExpectedRootBlockBytes()

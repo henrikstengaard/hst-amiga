@@ -106,7 +106,6 @@
 
                 MapBlockHelper.SetBlock(bitmapBlocksList[bitmapBlockIndex], blockIndex,
                     entry.Value ? BitmapBlock.BlockState.Free : BitmapBlock.BlockState.Used);
-                //bitmapBlocksList[bitmapBlockIndex].BlocksFreeMap[blockIndex] = entry.Value;
             }
         }
 

@@ -1,5 +1,15 @@
 ﻿# Blocks
 
+FFS uses following blocks:
+
+- Root block: Root blocks contain volume name, etc. and links to other blocks.
+- Bitmap block: Bitmap blocks contain information about free and allocated blocks.
+- Bitmap extension block: Bitmap extension blocks contain additional bitmap blocks.
+- Dir cache block: Dir cache blocks contains records for caching and improving reading directories.
+- Entry block: Entry blocks contains directory and file entries.
+- File ext block: File extension blocks contain additional file entry information.
+- Data block: Data blocks contains data for entry blocks.
+
 ## Bitmap block
 
 A bitmap block contain information about free and allocated blocks.

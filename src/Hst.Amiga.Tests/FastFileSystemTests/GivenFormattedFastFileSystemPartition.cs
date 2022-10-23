@@ -1,56 +1,57 @@
-﻿namespace Hst.Amiga.Tests.Pfs3Tests;
+﻿namespace Hst.Amiga.Tests.FastFileSystemTests;
 
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FileSystems;
-using FileSystems.Pfs3;
+using FileSystems.FastFileSystem;
 using Xunit;
 
-public class GivenFormattedPfs3Disk : Pfs3TestBase
+public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
 {
     [Fact]
     public async Task WhenCreateDirectoryInRootDirectoryThenDirectoryExist()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        
         // act - create "New Dir" in root directory
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        await pfs3Volume.CreateDirectory("New Dir");
+        await ffsVolume.CreateDirectory("New Dir");
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains directory created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New Dir" && x.Type == EntryType.Dir));
     }
-
+    
     [Fact]
     public async Task WhenCreateMultipleDirectoriesInRootDirectoryThenDirectoriesExist()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
 
         // act - create "New Dir1", "New Dir2", "New Dir3" in root directory
-        await pfs3Volume.CreateDirectory("New Dir1");
-        await pfs3Volume.CreateDirectory("New Dir2");
-        await pfs3Volume.CreateDirectory("New Dir3");
+        await ffsVolume.CreateDirectory("New Dir1");
+        await ffsVolume.CreateDirectory("New Dir2");
+        await ffsVolume.CreateDirectory("New Dir3");
 
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains directories created
         Assert.Equal(3, entries.Count);
@@ -62,81 +63,81 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [Fact]
     public async Task WhenCreateDirectoryInSubDirectoryThenDirectoryExist()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
 
         // act - create "New Dir1" in root directory
-        await pfs3Volume.CreateDirectory("New Dir");
+        await ffsVolume.CreateDirectory("New Dir");
         
         // act - change directory to "New Dir", create "Sub Dir" directory
-        await pfs3Volume.ChangeDirectory("New Dir");
-        await pfs3Volume.CreateDirectory("Sub Dir");
+        await ffsVolume.ChangeDirectory("New Dir");
+        await ffsVolume.CreateDirectory("Sub Dir");
 
         // act - change to root directory and list entries
-        await pfs3Volume.ChangeDirectory("/");
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        await ffsVolume.ChangeDirectory("/");
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains directory created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New Dir" && x.Type == EntryType.Dir));
         
-        await pfs3Volume.ChangeDirectory("New Dir");
-        entries = (await pfs3Volume.ListEntries()).ToList();
+        await ffsVolume.ChangeDirectory("New Dir");
+        entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - "New Dir" directory contains directory created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "Sub Dir" && x.Type == EntryType.Dir));
     }
-
+    
     [Fact]
     public async Task WhenCreateNewFileInRootThenFileExist()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
 
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        await ffsVolume.CreateFile("New File");
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains file created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
     }
-
+    
     [Fact]
     public async Task WhenCreateWriteDataToNewFileThenWhenReadDataFromFileDataMatches()
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
 
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        //await ffsVolume.CreateFile("New File");
 
         // act - write data
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", true))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -144,7 +145,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // act - read data
         int bytesRead;
         byte[] dataRead;
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", false))
         {
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
@@ -162,20 +163,20 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
 
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        //await ffsVolume.CreateFile("New File");
 
-        // act - write data
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        // act - create file and write data
+        await using (var entryStream = await ffsVolume.OpenFile("New File", true))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -185,7 +186,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         byte[] dataRead;
         long seekPosition;
         long readPosition;
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", false))
         {
             seekPosition = entryStream.Seek(10, SeekOrigin.Begin);
             dataRead = new byte[10];
@@ -209,23 +210,23 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [Fact]
     public async Task WhenCreateAndDeleteFileInRootThenFileDoesntExist()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
         
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        await ffsVolume.CreateFile("New File");
 
         // act - delete file from root directory
-        await pfs3Volume.Delete("New File");
+        await ffsVolume.Delete("New File");
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory is empty
         Assert.Empty(entries);
@@ -234,24 +235,24 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [Fact]
     public async Task WhenCreateTwoFilesAndDeleteOneFileInRootThenOneFileExists()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
         
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File 1");
-        await pfs3Volume.CreateFile("New File 2");
+        await ffsVolume.CreateFile("New File 1");
+        await ffsVolume.CreateFile("New File 2");
 
         // act - delete file from root directory
-        await pfs3Volume.Delete("New File 1");
+        await ffsVolume.Delete("New File 1");
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains new file 1
         Assert.Single(entries);
@@ -261,23 +262,23 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [Fact]
     public async Task WhenCreateAndDeleteDirectoryInRootDirectoryThenDirectoryDoesntExist()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
         
         // act - create "New Dir" in root directory
-        await pfs3Volume.CreateDirectory("New Dir");
+        await ffsVolume.CreateDirectory("New Dir");
         
         // act - delete directory from root directory
-        await pfs3Volume.Delete("New Dir");
+        await ffsVolume.Delete("New Dir");
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory is empty
         Assert.Empty(entries);
@@ -286,23 +287,23 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [Fact]
     public async Task WhenCreateAndRenameFileInRootThenFileIsRenamed()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
         
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        await ffsVolume.CreateFile("New File");
 
         // act - rename file in root directory
-        await pfs3Volume.Rename("New File", "Renamed File");
+        await ffsVolume.Rename("New File", "Renamed File");
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains file created
         Assert.Single(entries);
@@ -312,28 +313,28 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [Fact]
     public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
         
         // act - create "New Dir" in root directory
-        await pfs3Volume.CreateDirectory("New Dir");
+        await ffsVolume.CreateDirectory("New Dir");
         
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        await ffsVolume.CreateFile("New File");
 
         // act - move file from root directory to subdirectory
-        await pfs3Volume.Rename("New File", "New Dir/Moved File");
+        await ffsVolume.Rename("New File", "New Dir/Moved File");
         
         // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
-        var rootEntries = (await pfs3Volume.ListEntries()).ToList();
-        await pfs3Volume.ChangeDirectory("New Dir");
-        var subDirEntries = (await pfs3Volume.ListEntries()).ToList();
+        var rootEntries = (await ffsVolume.ListEntries()).ToList();
+        await ffsVolume.ChangeDirectory("New Dir");
+        var subDirEntries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains directory
         Assert.Single(rootEntries);
@@ -347,8 +348,8 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [Fact]
     public async Task WhenSetCommentForFileInRootThenCommentIsChanged()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
         
         // arrange - comment to set
         var comment = "Comment for file";
@@ -356,17 +357,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
         
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        await ffsVolume.CreateFile("New File");
 
         // act - set comment for file in root directory
-        await pfs3Volume.SetComment("New File", comment);
+        await ffsVolume.SetComment("New File", comment);
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains file created
         Assert.Single(entries);
@@ -378,8 +379,8 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [Fact]
     public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
         // arrange - protection bits to set
         var protectionBits = ProtectionBits.Delete | ProtectionBits.Executable | ProtectionBits.Write | ProtectionBits.Read | ProtectionBits.HeldResident | ProtectionBits.Archive | ProtectionBits.Pure | ProtectionBits.Script;
@@ -387,17 +388,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
         
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        await ffsVolume.CreateFile("New File");
 
         // act - set protection bits for file in root directory
-        await pfs3Volume.SetProtectionBits("New File", protectionBits);
+        await ffsVolume.SetProtectionBits("New File", protectionBits);
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains file created
         Assert.Single(entries);
@@ -407,34 +408,34 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    public async Task WhenSetCreationDateForFileInRootThenCreationDateIsChanged()
+    public async Task WhenSetDateForFileInRootThenCreationDateIsChanged()
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        // arrange - create fast file system formatted disk
+        await CreateFastFileSystemFormattedDisk();
 
-        // arrange - creation date to set
-        var creationDate = Trim(DateTime.Now.AddDays(-10), TimeSpan.TicksPerSecond);
+        // arrange - date to set
+        var date = Trim(DateTime.Now.AddDays(-10), TimeSpan.TicksPerSecond);
         
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        // act - mount fast file system volume
+        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
         
         // act - create file in root directory
-        await pfs3Volume.CreateFile("New File");
+        await ffsVolume.CreateFile("New File");
 
         // act - set date for file in root directory
-        await pfs3Volume.SetDate("New File", creationDate);
+        await ffsVolume.SetDate("New File", date);
         
         // act - list entries in root directory
-        var entries = (await pfs3Volume.ListEntries()).ToList();
+        var entries = (await ffsVolume.ListEntries()).ToList();
 
         // assert - root directory contains file created
         Assert.Single(entries);
         var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
         Assert.NotNull(dirEntry);
-        Assert.Equal(creationDate, dirEntry.Date);
+        Assert.Equal(date, dirEntry.Date);
     }
 
     private static DateTime Trim(DateTime date, long ticks)

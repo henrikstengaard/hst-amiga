@@ -22,7 +22,7 @@
         
         public static async Task<RootBlock> ReadRootBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlockBytes(volume, (int)sector);
+            var blockBytes = await ReadBlock(volume, (int)sector);
             return RootBlockParser.Parse(blockBytes);
         }
         
@@ -34,7 +34,7 @@
         
         public static async Task<BitmapBlock> ReadBitmapBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlockBytes(volume, (int)sector);
+            var blockBytes = await ReadBlock(volume, (int)sector);
             return BitmapBlockParser.Parse(blockBytes);
         }
         
@@ -46,13 +46,13 @@
 
         public static async Task<BitmapExtensionBlock> ReadBitmapExtensionBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlockBytes(volume, (int)sector);
+            var blockBytes = await ReadBlock(volume, (int)sector);
             return BitmapExtensionBlockParser.Parse(blockBytes);
         }
 
         public static async Task<EntryBlock> ReadEntryBlock(Volume volume, int sector)
         {
-            var blockBytes = await ReadBlockBytes(volume, sector);
+            var blockBytes = await ReadBlock(volume, sector);
             return EntryBlockParser.Parse(blockBytes);
         }
         
@@ -88,7 +88,7 @@
 
         public static async Task<FileExtBlock> ReadFileExtBlock(Volume volume, int nSect)
         {
-            var blockBytes = await ReadBlockBytes(volume, nSect);
+            var blockBytes = await ReadBlock(volume, nSect);
             var fileExtBlock = FileExtBlockParser.Parse(blockBytes);
 
             if (fileExtBlock.HeaderKey != nSect)
@@ -128,7 +128,7 @@
         
         public static async Task<DirCacheBlock> ReadDirCacheBlock(Volume vol, int nSect)
         {
-            var blockBytes = await Disk.ReadBlock(vol, nSect);
+            var blockBytes = await ReadBlock(vol, nSect);
 
             var dirCacheBlock = DirCacheBlockParser.Parse(blockBytes);
             if (dirCacheBlock.HeaderKey != nSect)
@@ -144,7 +144,7 @@
             dirCacheBlock.HeaderKey = nSect;
 
             var blockBytes = DirCacheBlockBuilder.Build(dirCacheBlock, vol.BlockSize);
-            await Disk.WriteBlock(vol, nSect, blockBytes);
+            await WriteBlock(vol, nSect, blockBytes);
         }
         
         /// <summary>

@@ -10,13 +10,14 @@
 
     public static class Directory
     {
-        public static async Task<IEnumerable<Entry>> ReadEntries(Volume volume, EntryBlock startEntryBlock,
-            bool recursive = false)
+        public static async Task<IEnumerable<Entry>> ReadEntries(Volume volume, int nSect, bool recursive = false)
         {
             if (volume.UsesDirCache)
             {
-                return await Cache.ReadEntries(volume, startEntryBlock, recursive);
+                return await Cache.ReadEntries(volume, nSect, recursive);
             }
+
+            var startEntryBlock = await Disk.ReadEntryBlock(volume, nSect);
 
             var hashTable = startEntryBlock.HashTable.ToList();
             var entries = new List<Entry>();
@@ -42,7 +43,8 @@
 
                 if (recursive && entry.IsDirectory())
                 {
-                    entry.SubDir = (await ReadEntries(volume, entryBlock, true)).ToList();
+                    entry.SubDir = (await ReadEntries(volume,
+                        FastFileSystemHelper.GetSector(volume, entryBlock.HeaderKey), true)).ToList();
                 }
 
                 //         /* same hashcode linked list */
@@ -58,7 +60,8 @@
 
                     if (recursive && entry.IsDirectory())
                     {
-                        entry.SubDir = (await ReadEntries(volume, entryBlock, true)).ToList();
+                        entry.SubDir = (await ReadEntries(volume,
+                            FastFileSystemHelper.GetSector(volume, entryBlock.HeaderKey), true)).ToList();
                     }
 
                     nextSector = entryBlock.NextSameHash;
@@ -112,7 +115,7 @@
 
             return entry;
         }
-        
+
         public static char ToUpper(char c)
         {
             return (char)(c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c);
@@ -272,7 +275,8 @@
 
                 dir.HashTable[hashValue] = newSect;
                 dir.Date = DateTime.Now;
-                await WriteEntryBlock(vol, dir.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : dir.HeaderKey, dir);
+                await WriteEntryBlock(vol, dir.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : dir.HeaderKey,
+                    dir);
 
                 return newSect;
             }
@@ -311,13 +315,13 @@
             {
                 throw new IOException($"Invalid secondary type '{updEntry.SecType}'");
             }
-            
+
             updEntry.NextSameHash = newSect2;
             await WriteEntryBlock(vol, updEntry.HeaderKey, updEntry);
 
             return newSect2;
         }
-        
+
         /// <summary>
         /// Create directory
         /// </summary>
@@ -440,7 +444,7 @@
                 {
                     throw new IOException("Invalid entry secType");
                 }
-                
+
                 previous.NextSameHash = nSect;
                 await WriteEntryBlock(vol, previous.HeaderKey, previous);
             }
@@ -465,9 +469,10 @@
             await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
-        public static async Task RemoveEntry(Volume vol, EntryBlock parent, string name)
+        public static async Task RemoveEntry(Volume vol, int pSect, string name)
         {
-            var pSect = parent.HeaderKey;
+            var parent = await Disk.ReadEntryBlock(vol, pSect);
+
             var result = await GetEntryBlock(vol, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
@@ -535,6 +540,38 @@
         }
 
         /// <summary>
+        /// Set date for entry
+        /// </summary>
+        /// <param name="vol">Volume</param>
+        /// <param name="parent"></param>
+        /// <param name="name"></param>
+        /// <param name="date"></param>
+        /// <exception cref="IOException"></exception>
+        public static async Task SetEntryDate(Volume vol, EntryBlock parent, string name, DateTime date)
+        {
+            var result = await GetEntryBlock(vol, parent.HashTable, name, false);
+            var nSect = result.NSect;
+            var entryBlock = result.EntryBlock;
+            if (nSect == -1)
+            {
+                throw new IOException("entry not found");
+            }
+
+            if (!(entryBlock.SecType == Constants.ST_DIR || entryBlock.SecType == Constants.ST_FILE))
+            {
+                throw new IOException("Invalid entry secType");
+            }
+
+            entryBlock.Date = date;
+            await WriteEntryBlock(vol, nSect, entryBlock);
+
+            if (vol.UsesDirCache)
+            {
+                await Cache.UpdateCache(vol, parent, entryBlock, false);
+            }
+        }
+
+        /// <summary>
         /// Set access for entry
         /// </summary>
         /// <param name="vol">Volume</param>
@@ -556,7 +593,7 @@
             {
                 throw new IOException("Invalid entry secType");
             }
-            
+
             entryBlock.Access = access;
             await WriteEntryBlock(vol, nSect, entryBlock);
 
@@ -588,14 +625,58 @@
             {
                 throw new IOException("Invalid entry secType");
             }
-            
-            entryBlock.Comment = comment.Length > Constants.MAXCMMTLEN ? comment.Substring(0, Constants.MAXCMMTLEN) : comment;
+
+            entryBlock.Comment = comment.Length > Constants.MAXCMMTLEN
+                ? comment.Substring(0, Constants.MAXCMMTLEN)
+                : comment;
             await WriteEntryBlock(volume, nSect, entryBlock);
-            
+
             if (volume.UsesDirCache)
             {
                 await Cache.UpdateCache(volume, parent, entryBlock, true);
             }
+        }
+
+        public static async Task<FindEntryResult> FindEntry(EntryBlock currentDirectory, string path, Volume volume)
+        {
+            var parts = (path.StartsWith("/") ? path.Substring(1) : path).Split('/');
+
+            if (parts.Length == 0 || string.IsNullOrEmpty(parts[0]))
+            {
+                return new FindEntryResult
+                {
+                    Name = string.Empty,
+                    EntryBlock = currentDirectory,
+                    PartsNotFound = Array.Empty<string>()
+                };
+            }
+
+            int i;
+            for (i = 0; i < parts.Length; i++)
+            {
+                var part = parts[i];
+
+                var entry = (await ReadEntries(volume,
+                        currentDirectory.HeaderKey == 0 ? (int)volume.RootBlockOffset : currentDirectory.HeaderKey))
+                    .FirstOrDefault(x =>
+                        x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
+                if (entry == null)
+                {
+                    break;
+                }
+
+                if (entry.IsDirectory())
+                {
+                    currentDirectory = entry.EntryBlock;
+                }
+            }
+
+            return new FindEntryResult
+            {
+                Name = parts.Last(),
+                EntryBlock = currentDirectory,
+                PartsNotFound = parts.Skip(i).ToArray()
+            };
         }
     }
 }

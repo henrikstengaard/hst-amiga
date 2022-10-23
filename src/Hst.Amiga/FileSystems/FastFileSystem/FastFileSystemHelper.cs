@@ -55,7 +55,7 @@
         public static async Task ExtractVolume(Volume volume,
             string outputPath)
         {
-            var entries = (await Directory.ReadEntries(volume, volume.RootBlock, true)).ToList();
+            var entries = (await Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true)).ToList();
 
             await ExtractDirectory(volume, volume.RootBlock, entries, volume.RootBlock.DiskName);
         }
@@ -234,6 +234,11 @@
             await Bitmap.AdfReadBitmap(volume, (int)blocks, rootBlock);
 
             return volume;
+        }
+
+        public static int GetSector(Volume volume, int sector)
+        {
+            return sector == 0 ? (int)volume.RootBlockOffset : sector;
         }
     }
 }

@@ -120,6 +120,7 @@
 
             for (i = 0; i < nolines; i++)
             {
+                cache.cachelines[i] = new cacheline();
                 cache.cachelines[i].blocknr = Constants.CL_UNUSED; /* a bloknr that is never used */
                 cache.cachelines[i].data = new byte[linesize * volume.blocksize];
                 cache.LRUpool.AddFirst(cache.cachelines[i]);
