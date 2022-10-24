@@ -208,7 +208,7 @@
             }
 
             // seek root block offset
-            stream.Seek(partitionStartOffset + (rootBlockOffset * blockSize), SeekOrigin.Begin);
+            stream.Seek(partitionStartOffset + (long)rootBlockOffset * blockSize, SeekOrigin.Begin);
             var rootBlockBytes = await stream.ReadBytes((int)blockSize);
 
             // parse root block bytes
@@ -226,7 +226,7 @@
                 Stream = stream,
                 Reserved = reserved,
                 BlockSize = (int)blockSize,
-                FirstBlock = reserved,
+                FirstBlock = 0,
                 LastBlock = blocks - 1,
                 Mounted = true
             };

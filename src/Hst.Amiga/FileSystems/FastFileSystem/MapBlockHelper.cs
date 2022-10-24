@@ -37,13 +37,19 @@
         /// Bytes:  |- FF -||- FF -||- 3F -||- FF -|
         /// </summary>
         /// <param name="blockFreeMap"></param>
+        /// <param name="offset"></param>
         /// <returns></returns>
-        public static uint ConvertBlockFreeMapToUInt32(bool[] blockFreeMap)
+        public static uint ConvertBlockFreeMapToUInt32(bool[] blockFreeMap, int offset = 0)
         {
             uint mapEntry = 0;
-            for (int block = 0; block < 32 && block < blockFreeMap.Length; block++)
+            for (var i = 0; i < Constants.BitmapsPerULong && offset + i < blockFreeMap.Length; i++)
             {
-                mapEntry |= (uint)((blockFreeMap[block] ? 1 : 0) << block);
+                if (!blockFreeMap[offset + i])
+                {
+                    continue;
+                }
+                
+                mapEntry |= 1U << i;
             }
             return mapEntry;
         }

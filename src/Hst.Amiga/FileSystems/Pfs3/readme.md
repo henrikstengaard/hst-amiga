@@ -6,6 +6,17 @@ PFS3 is originally developed by Michiel Pelt.
 
 The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen and is almost identical to it's C code with exceptions of structs used to read and write data, unions and moving pointers.
 
+## Blocks
+
+See [Blocks](Blocks) page for details about blocks used by PFS3.
+
+## DOS types
+
+| DOS type | DOS type hex | Description                                                                                            |
+|----------|--------------|--------------------------------------------------------------------------------------------------------|
+| PFS\3    | 0x50465303   | Normal version.                                                                                        |
+| PDS\3    | 0x50445303   | Direct SCSI version, true SCSI controller supports up to drive's max capacity, if it is less than 2TB. |
+
 ## Usage
 
 The usage section describes how to use classes for reading and writing PFS3 partitions.

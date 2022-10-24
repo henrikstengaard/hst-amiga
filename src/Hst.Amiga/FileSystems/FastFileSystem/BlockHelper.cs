@@ -4,8 +4,8 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
+    using Amiga.Extensions;
     using Blocks;
-    using Core.Extensions;
 
     public static class BlockHelper
     {
@@ -42,12 +42,21 @@
             {
                 blocksFreeMap[i] = true;
             }
-
-            return blocksFreeMap.ChunkBy(bitmapsPerBitmapBlockCount).Select(x => new BitmapBlock
+            
+            for (var b = 0; b < blocksFreeMap.Length; b += bitmapsPerBitmapBlockCount)
             {
-                Map = x.ChunkBy(Constants.BitmapsPerULong).Select(bitmapBlockMaps =>
-                    MapBlockHelper.ConvertBlockFreeMapToUInt32(bitmapBlockMaps.ToArray())).ToArray()
-            }).ToList();
+                var map = new List<uint>();
+                
+                for (var m = 0; m < Math.Min(blocksFreeMap.Length, bitmapsPerBitmapBlockCount); m += Constants.BitmapsPerULong)
+                {
+                    map.Add(MapBlockHelper.ConvertBlockFreeMapToUInt32(blocksFreeMap, b + m));
+                }
+
+                yield return new BitmapBlock
+                {
+                    Map = map.ToArray()
+                };
+            }
         }
 
         public static IEnumerable<BitmapExtensionBlock> CreateBitmapExtensionBlocks(
@@ -58,12 +67,14 @@
                 Convert.ToInt32((blockSize - SizeOf.Long) / SizeOf.Long);
 
             // chunk bitmap blocks
-            var bitmapBlockChunks = bitmapBlocks.ChunkBy(pointersPerBitmapExtensionBlock).ToList();
+            var bitmapBlockChunks = new List<BitmapExtensionBlock>();
+            bitmapBlocks.ChunkBy(pointersPerBitmapExtensionBlock, blocks => bitmapBlockChunks.Add(
+                new BitmapExtensionBlock
+                {
+                    BitmapBlocks = blocks.ToList(),
+                }));
 
-            return bitmapBlockChunks.Select(x => new BitmapExtensionBlock
-            {
-                BitmapBlocks = x,
-            }).ToList();
+            return bitmapBlockChunks;
         }
 
         public static IEnumerable<BitmapExtensionBlock> CreateBitmapExtensionBlocks(
@@ -73,7 +84,8 @@
             var offsetsPerBitmapExtensionBlock = Convert.ToInt32((blockSize - 4) / 4);
             var currentBitmapExtensionBlockOffset = bitmapExtensionBlockOffset;
 
-            var bitmapBlockChunks = bitmapBlocks.ChunkBy(offsetsPerBitmapExtensionBlock).ToList();
+            var bitmapBlockChunks = new List<IEnumerable<BitmapBlock>>();
+            bitmapBlocks.ChunkBy(offsetsPerBitmapExtensionBlock, blocks => bitmapBlockChunks.Add(blocks.ToList()));
             for (var i = 0; i < bitmapBlockChunks.Count; i++)
             {
                 var bitmapBlockChunk = bitmapBlockChunks[i].ToList();

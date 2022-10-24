@@ -13,15 +13,23 @@
 
     public abstract class FastFileSystemTestBase
     {
+        protected const long Size1MB = 1024 * 1024;
+        protected const long Size1GB = 1024 * 1024 * 1024;
+    
+        protected const long DiskSize100MB = Size1MB * 100;
+        protected const long DiskSize4GB = Size1GB * 4;
+        protected const long DiskSize16GB = Size1GB * 16;
+        
         protected static readonly byte[] Dos3DosType = { 0x44, 0x4f, 0x53, 0x3 };
         protected static readonly byte[] DummyFastFileSystemBytes = Encoding.ASCII.GetBytes(
             "$VER: FastFileSystem 1.0 (12/12/22) ");  
-        protected readonly RigidDiskBlock RigidDiskBlock = RigidDiskBlock
+        protected RigidDiskBlock RigidDiskBlock = RigidDiskBlock
             .Create(100.MB().ToUniversalSize());
         protected static readonly BlockMemoryStream Stream = new();
         
-        protected async Task CreateFastFileSystemFormattedDisk()
+        protected async Task CreateFastFileSystemFormattedDisk(long diskSize = 100 * 1024 * 1024)
         {
+            RigidDiskBlock = RigidDiskBlock.Create(diskSize.ToUniversalSize());
             Stream.SetLength(RigidDiskBlock.DiskSize);
         
             RigidDiskBlock.AddFileSystem(Dos3DosType, DummyFastFileSystemBytes)

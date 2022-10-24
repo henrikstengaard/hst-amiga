@@ -1,8 +1,9 @@
 ﻿namespace Hst.Amiga.RigidDiskBlocks
 {
     using System;
+    using System.Collections.Generic;
     using System.Linq;
-    using Core.Extensions;
+    using Extensions;
 
     public static class BlockHelper
     {
@@ -15,8 +16,8 @@
             }
 
             var maxSize = 512 - (5 * 4);
-            var loadSegBlocks = fileSystemBytes.ChunkBy(maxSize)
-                .Select(x => CreateLoadSegBlock(x.ToArray())).ToList();
+            var loadSegBlocks = new List<LoadSegBlock>();
+            fileSystemBytes.ChunkBy(maxSize, bytes => loadSegBlocks.Add(CreateLoadSegBlock(bytes.ToArray())));
 
             return new FileSystemHeaderBlock
             {

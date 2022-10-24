@@ -10,14 +10,14 @@ See [Blocks](Blocks) page for details about blocks used by Fast File System.
 
 ## DOS types
 
-| Dostype | des                                               |
-|---------|---------------------------------------------------|
-| DOS\0   | Old file system                                   |
-| DOS\1   | Fast file system                                  |
-| DOS\2   | International mode                                |
-| DOS\3   | Fast file system + International mode             |
-| DOS\4   | International mode + Dir cache                    |
-| DOS\5   | Fast file system + International mode + Dir cache |
+| DOS type | DOS type hex | Description                                       |
+|----------|--------------|---------------------------------------------------|
+| DOS\0    | 0x444F5300   | Old file system                                   |
+| DOS\1    | 0x444F5301   | Fast file system                                  |
+| DOS\2    | 0x444F5302   | International mode                                |
+| DOS\3    | 0x444F5303   | Fast file system + International mode             |
+| DOS\4    | 0x444F5304   | International mode + Dir cache                    |
+| DOS\5    | 0x444F5305   | Fast file system + International mode + Dir cache |
 
 ## Usage
 
