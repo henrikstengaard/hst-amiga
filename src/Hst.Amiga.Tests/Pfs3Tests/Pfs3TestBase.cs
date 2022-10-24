@@ -13,14 +13,22 @@ using Constants = FileSystems.Pfs3.Constants;
 
 public abstract class Pfs3TestBase
 {
+    protected const long Size1MB = 1024 * 1024;
+    protected const long Size1GB = 1024 * 1024 * 1024;
+    
+    protected const long DiskSize100MB = Size1MB * 100;
+    protected const long DiskSize4GB = Size1GB * 4;
+    protected const long DiskSize16GB = Size1GB * 16;
+    
     protected static readonly byte[] Pfs3DosType = { 0x50, 0x44, 0x53, 0x3 };
     protected static readonly string Pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio");
-    protected readonly RigidDiskBlock RigidDiskBlock = RigidDiskBlock
+    protected RigidDiskBlock RigidDiskBlock = RigidDiskBlock
         .Create(100.MB().ToUniversalSize());
     protected static readonly BlockMemoryStream Stream = new BlockMemoryStream();
 
-    protected async Task CreatePfs3FormattedDisk()
+    protected async Task CreatePfs3FormattedDisk(long diskSize = 100 * 1024 * 1024)
     {
+        RigidDiskBlock = RigidDiskBlock.Create(diskSize.ToUniversalSize());
         Stream.SetLength(RigidDiskBlock.DiskSize);
         
         RigidDiskBlock.AddFileSystem(Pfs3DosType, await System.IO.File.ReadAllBytesAsync(Pfs3AioPath))

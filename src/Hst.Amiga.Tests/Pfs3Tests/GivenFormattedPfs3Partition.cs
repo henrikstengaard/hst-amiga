@@ -10,11 +10,14 @@ using Xunit;
 
 public class GivenFormattedPfs3Disk : Pfs3TestBase
 {
-    [Fact]
-    public async Task WhenCreateDirectoryInRootDirectoryThenDirectoryExist()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateDirectoryInRootDirectoryThenDirectoryExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -32,11 +35,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, entries.Count(x => x.Name == "New Dir" && x.Type == EntryType.Dir));
     }
 
-    [Fact]
-    public async Task WhenCreateMultipleDirectoriesInRootDirectoryThenDirectoriesExist()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateMultipleDirectoriesInRootDirectoryThenDirectoriesExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -59,11 +65,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, entries.Count(x => x.Name == "New Dir3" && x.Type == EntryType.Dir));
     }
 
-    [Fact]
-    public async Task WhenCreateDirectoryInSubDirectoryThenDirectoryExist()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateDirectoryInSubDirectoryThenDirectoryExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -94,11 +103,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, entries.Count(x => x.Name == "Sub Dir" && x.Type == EntryType.Dir));
     }
 
-    [Fact]
-    public async Task WhenCreateNewFileInRootThenFileExist()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateNewFileInRootThenFileExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -117,14 +129,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
     }
 
-    [Fact]
-    public async Task WhenCreateWriteDataToNewFileThenWhenReadDataFromFileDataMatches()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateWriteDataToNewFileThenWhenReadDataFromFileDataMatches(long diskSize)
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -156,14 +171,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(data, dataRead);
     }
     
-    [Fact]
-    public async Task WhenCreateWriteDataToNewFileThenWhenSeekAndReadDataMatches()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateWriteDataToNewFileThenWhenSeekAndReadDataMatches(long diskSize)
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -206,11 +224,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(expectedDataRead, dataRead);
     }
     
-    [Fact]
-    public async Task WhenCreateAndDeleteFileInRootThenFileDoesntExist()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateAndDeleteFileInRootThenFileDoesntExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -231,11 +252,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Empty(entries);
     }
     
-    [Fact]
-    public async Task WhenCreateTwoFilesAndDeleteOneFileInRootThenOneFileExists()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateTwoFilesAndDeleteOneFileInRootThenOneFileExists(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -258,11 +282,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, entries.Count(x => x.Name == "New File 2" && x.Type == EntryType.File));
     }
     
-    [Fact]
-    public async Task WhenCreateAndDeleteDirectoryInRootDirectoryThenDirectoryDoesntExist()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateAndDeleteDirectoryInRootDirectoryThenDirectoryDoesntExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -283,11 +310,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Empty(entries);
     }
     
-    [Fact]
-    public async Task WhenCreateAndRenameFileInRootThenFileIsRenamed()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenCreateAndRenameFileInRootThenFileIsRenamed(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -309,11 +339,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, entries.Count(x => x.Name == "Renamed File" && x.Type == EntryType.File));
     }
     
-    [Fact]
-    public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - get first partition
         var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
@@ -344,11 +377,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, subDirEntries.Count(x => x.Name == "Moved File" && x.Type == EntryType.File));
     }
     
-    [Fact]
-    public async Task WhenSetCommentForFileInRootThenCommentIsChanged()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenSetCommentForFileInRootThenCommentIsChanged(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
         
         // arrange - comment to set
         var comment = "Comment for file";
@@ -375,11 +411,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(comment, dirEntry.Comment);
     }
     
-    [Fact]
-    public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - protection bits to set
         var protectionBits = ProtectionBits.Delete | ProtectionBits.Executable | ProtectionBits.Write | ProtectionBits.Read | ProtectionBits.HeldResident | ProtectionBits.Archive | ProtectionBits.Pure | ProtectionBits.Script;
@@ -406,11 +445,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(protectionBits, dirEntry.ProtectionBits);
     }
 
-    [Fact]
-    public async Task WhenSetCreationDateForFileInRootThenCreationDateIsChanged()
+    [Theory]
+    [InlineData(DiskSize100MB)]
+    [InlineData(DiskSize4GB)]
+    [InlineData(DiskSize16GB)]
+    public async Task WhenSetCreationDateForFileInRootThenCreationDateIsChanged(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk();
+        await CreatePfs3FormattedDisk(diskSize);
 
         // arrange - creation date to set
         var creationDate = Trim(DateTime.Now.AddDays(-10), TimeSpan.TicksPerSecond);
