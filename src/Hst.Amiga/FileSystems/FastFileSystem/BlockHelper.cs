@@ -36,22 +36,28 @@
 
             var bitmapsPerBitmapBlockCount = CalculateBitmapsPerBitmapBlockCount(blockSize);
 
-            // build bitmaps
-            var blocksFreeMap = new bool[blocksCount];
-            for (var i = 0; i < blocksCount; i++)
-            {
-                blocksFreeMap[i] = true;
-            }
-            
-            for (var b = 0; b < blocksFreeMap.Length; b += bitmapsPerBitmapBlockCount)
+            for (var b = 0; b < blocksCount; b += bitmapsPerBitmapBlockCount)
             {
                 var map = new List<uint>();
-                
-                for (var m = 0; m < Math.Min(blocksFreeMap.Length, bitmapsPerBitmapBlockCount); m += Constants.BitmapsPerULong)
-                {
-                    map.Add(MapBlockHelper.ConvertBlockFreeMapToUInt32(blocksFreeMap, b + m));
-                }
 
+                var bitmapsInBitmapBlock = Math.Min(blocksCount - b, bitmapsPerBitmapBlockCount);
+                for (var m = 0; m < bitmapsInBitmapBlock; m += Constants.BitmapsPerULong)
+                {
+                    if (m + Constants.BitmapsPerULong > bitmapsInBitmapBlock)
+                    {
+                        var bitmaps = 0U;
+                        var lastBlocks = bitmapsInBitmapBlock - m;
+                        for (var i = 0; i < lastBlocks; i++)
+                        {
+                            bitmaps |= 1U << i;
+                        }
+                        map.Add(bitmaps);
+                        continue;
+                    }
+                    
+                    map.Add(uint.MaxValue);
+                }
+                
                 yield return new BitmapBlock
                 {
                     Map = map.ToArray()
