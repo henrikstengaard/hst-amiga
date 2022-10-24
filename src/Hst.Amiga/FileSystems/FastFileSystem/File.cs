@@ -1,6 +1,5 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    using System;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
@@ -9,12 +8,13 @@
     {
         public static async Task<Stream> Open(Volume volume, Entry entry, FileMode mode = FileMode.Read)
         {
-            var parentBlock = await Disk.ReadEntryBlock(volume, entry.Parent);
-            return await Open(volume, parentBlock, entry.Name, mode);
+            return await Open(volume, entry.Parent, entry.Name, mode);
         }
 
-        public static async Task<Stream> Open(Volume volume, EntryBlock parent, string name, FileMode mode)
+        public static async Task<Stream> Open(Volume volume, uint parentSector, string name, FileMode mode)
         {
+            var parent = await Disk.ReadEntryBlock(volume, parentSector);
+            
             var write = mode == FileMode.Write || mode == FileMode.Append;
 
             if (!volume.Stream.CanWrite && write)

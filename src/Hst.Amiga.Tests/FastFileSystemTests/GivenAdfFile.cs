@@ -71,7 +71,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - open entry stream
-            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, volume.RootBlock, "test.txt",
+            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, volume.RootBlockOffset, "test.txt",
                 FileSystems.FastFileSystem.FileMode.Read);
 
             // act - read entry stream
@@ -142,7 +142,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - open entry stream
-            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, volume.RootBlock, fileName,
+            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, volume.RootBlockOffset, fileName,
                 FileSystems.FastFileSystem.FileMode.Write);
 
             // act - write entry stream
@@ -184,7 +184,7 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - create directory in root block
-            await FileSystems.FastFileSystem.Directory.CreateDirectory(volume, volume.RootBlock, directoryName);
+            await FileSystems.FastFileSystem.Directory.CreateDirectory(volume, volume.RootBlockOffset, directoryName);
 
             // act - read entries recursively from root block
             var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlockOffset, true))
@@ -319,7 +319,7 @@
 
             // act - set access for entry
             var entryName = entry.Name;
-            await FileSystems.FastFileSystem.Directory.SetEntryAccess(volume, volume.RootBlock, entryName,
+            await FileSystems.FastFileSystem.Directory.SetEntryAccess(volume, volume.RootBlockOffset, entryName,
                 Constants.ACCMASK_A | Constants.ACCMASK_E | Constants.ACCMASK_W);
 
             // act - read entries recursively from root block
@@ -332,7 +332,7 @@
             Assert.Equal((uint)(Constants.ACCMASK_A | Constants.ACCMASK_E | Constants.ACCMASK_W), entry.Access);
 
             // act - set access for entry
-            await FileSystems.FastFileSystem.Directory.SetEntryAccess(volume, volume.RootBlock, entryName,
+            await FileSystems.FastFileSystem.Directory.SetEntryAccess(volume, volume.RootBlockOffset, entryName,
                 Constants.ACCMASK_R);
 
             // act - read entries recursively from root block
@@ -376,7 +376,7 @@
 
             // act - set access for entry
             var entryName = entry.Name;
-            await FileSystems.FastFileSystem.Directory.SetEntryComment(volume, volume.RootBlock, entryName,
+            await FileSystems.FastFileSystem.Directory.SetEntryComment(volume, volume.RootBlockOffset, entryName,
                 "A comment");
 
             // act - read entries recursively from root block

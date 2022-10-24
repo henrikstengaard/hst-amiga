@@ -5,18 +5,17 @@
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
-    using Blocks;
     using RigidDiskBlocks;
 
     public class FastFileSystemVolume : IFileSystemVolume
     {
         private readonly Volume volume;
-        private EntryBlock currentDirectory;
+        private uint currentDirectorySector;
 
-        public FastFileSystemVolume(Volume volume, EntryBlock currentDirectory)
+        public FastFileSystemVolume(Volume volume, uint currentDirectorySector)
         {
             this.volume = volume;
-            this.currentDirectory = currentDirectory;
+            this.currentDirectorySector = currentDirectorySector;
         }
 
         public ValueTask DisposeAsync()
@@ -45,8 +44,7 @@
 
         public async Task<IEnumerable<FileSystems.Entry>> ListEntries()
         {
-            return (await Directory.ReadEntries(volume,
-                    FastFileSystemHelper.GetSector(volume, currentDirectory.HeaderKey))).Select(EntryConverter.ToEntry)
+            return (await Directory.ReadEntries(volume, currentDirectorySector)).Select(EntryConverter.ToEntry)
                 .ToList();
         }
 
@@ -55,17 +53,17 @@
             var isRootPath = path.StartsWith("/");
             if (isRootPath)
             {
-                currentDirectory = volume.RootBlock;
+                currentDirectorySector = volume.RootBlockOffset;
             }
 
-            var findEntryResult = await Directory.FindEntry(currentDirectory, path, volume);
+            var findEntryResult = await Directory.FindEntry(currentDirectorySector, path, volume);
 
             if (findEntryResult.PartsNotFound.Any())
             {
                 throw new IOException("Not found");
             }
 
-            currentDirectory = findEntryResult.EntryBlock;
+            currentDirectorySector = findEntryResult.Sector;
         }
 
         /// <summary>
@@ -74,7 +72,7 @@
         /// <param name="dirName"></param>
         public async Task CreateDirectory(string dirName)
         {
-            await Directory.CreateDirectory(volume, currentDirectory, dirName);
+            await Directory.CreateDirectory(volume, currentDirectorySector, dirName);
         }
 
         /// <summary>
@@ -83,7 +81,7 @@
         /// <param name="fileName"></param>
         public async Task CreateFile(string fileName)
         {
-            using (var _ = await File.Open(volume, currentDirectory, fileName, FileMode.Write))
+            using (var _ = await File.Open(volume, currentDirectorySector, fileName, FileMode.Write))
             {
             }
         }
@@ -96,7 +94,7 @@
         /// <returns></returns>
         public async Task<Stream> OpenFile(string fileName, bool write)
         {
-            return await File.Open(volume, currentDirectory, fileName,
+            return await File.Open(volume, currentDirectorySector, fileName,
                 write ? FileMode.Write : FileMode.Read);
         }
 
@@ -106,8 +104,7 @@
         /// <param name="name"></param>
         public async Task Delete(string name)
         {
-            await Directory.RemoveEntry(volume, FastFileSystemHelper.GetSector(volume, currentDirectory.HeaderKey),
-                name);
+            await Directory.RemoveEntry(volume, currentDirectorySector, name);
         }
 
         /// <summary>
@@ -118,14 +115,14 @@
         /// <exception cref="IOException"></exception>
         public async Task Rename(string oldName, string newName)
         {
-            var srcEntryResult = await Directory.FindEntry(currentDirectory, oldName, volume);
+            var srcEntryResult = await Directory.FindEntry(currentDirectorySector, oldName, volume);
 
             if (srcEntryResult.PartsNotFound.Any())
             {
                 throw new IOException("Not found");
             }
 
-            var destEntryResult = await Directory.FindEntry(currentDirectory, newName, volume);
+            var destEntryResult = await Directory.FindEntry(currentDirectorySector, newName, volume);
             var partsNotFound = destEntryResult.PartsNotFound.ToList();
 
             if (!partsNotFound.Any())
@@ -138,14 +135,8 @@
                 throw new IOException($"Directory '{partsNotFound[0]}' not found");
             }
 
-            var srcSector = srcEntryResult.EntryBlock is RootBlock
-                ? volume.RootBlockOffset
-                : srcEntryResult.EntryBlock.HeaderKey;
-            var destSector = destEntryResult.EntryBlock is RootBlock
-                ? volume.RootBlockOffset
-                : destEntryResult.EntryBlock.HeaderKey;
-
-            await Directory.RenameEntry(volume, srcSector, srcEntryResult.Name, destSector, destEntryResult.Name);
+            await Directory.RenameEntry(volume, srcEntryResult.Sector, srcEntryResult.Name, destEntryResult.Sector, 
+                destEntryResult.Name);
         }
 
         /// <summary>
@@ -155,7 +146,7 @@
         /// <param name="comment"></param>
         public async Task SetComment(string name, string comment)
         {
-            await Directory.SetEntryComment(volume, currentDirectory, name, comment);
+            await Directory.SetEntryComment(volume, currentDirectorySector, name, comment);
         }
 
         /// <summary>
@@ -165,7 +156,7 @@
         /// <param name="protectionBits"></param>
         public async Task SetProtectionBits(string name, ProtectionBits protectionBits)
         {
-            await Directory.SetEntryAccess(volume, currentDirectory, name,
+            await Directory.SetEntryAccess(volume, currentDirectorySector, name,
                 EntryConverter.GetAccess(protectionBits));
         }
 
@@ -176,7 +167,7 @@
         /// <param name="date"></param>
         public async Task SetDate(string name, DateTime date)
         {
-            await Directory.SetEntryDate(volume, currentDirectory, name, date);
+            await Directory.SetEntryDate(volume, currentDirectorySector, name, date);
         }
 
         /// <summary>
@@ -191,7 +182,7 @@
                 partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved,
                 partitionBlock.FileSystemBlockSize);
 
-            return new FastFileSystemVolume(volume, volume.RootBlock);
+            return new FastFileSystemVolume(volume, volume.RootBlockOffset);
         }
     }
 }

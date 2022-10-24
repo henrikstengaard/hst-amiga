@@ -91,7 +91,7 @@
                     continue;
                 }
 
-                var entryStream = await File.Open(volume, parent, entry.Name, FileMode.Read);
+                var entryStream = await File.Open(volume, GetSector(volume, parent), entry.Name, FileMode.Read);
 
                 if (entryStream == null)
                 {
@@ -236,9 +236,9 @@
             return volume;
         }
 
-        public static uint GetSector(Volume volume, uint sector)
+        public static uint GetSector(Volume volume, EntryBlock entryBlock)
         {
-            return sector == 0 ? volume.RootBlockOffset : sector;
+            return entryBlock.SecType == Constants.ST_ROOT ? volume.RootBlockOffset : entryBlock.HeaderKey;
         }
     }
 }

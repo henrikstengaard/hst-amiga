@@ -44,7 +44,7 @@
                 if (recursive && entry.IsDirectory())
                 {
                     entry.SubDir = (await ReadEntries(volume,
-                        FastFileSystemHelper.GetSector(volume, entryBlock.HeaderKey), true)).ToList();
+                        FastFileSystemHelper.GetSector(volume, entryBlock), true)).ToList();
                 }
 
                 //         /* same hashcode linked list */
@@ -61,7 +61,7 @@
                     if (recursive && entry.IsDirectory())
                     {
                         entry.SubDir = (await ReadEntries(volume,
-                            FastFileSystemHelper.GetSector(volume, entryBlock.HeaderKey), true)).ToList();
+                            FastFileSystemHelper.GetSector(volume, entryBlock), true)).ToList();
                     }
 
                     nextSector = entryBlock.NextSameHash;
@@ -328,11 +328,13 @@
         /// Create directory
         /// </summary>
         /// <param name="vol"></param>
-        /// <param name="parent"></param>
+        /// <param name="parentSector"></param>
         /// <param name="name"></param>
         /// <exception cref="IOException"></exception>
-        public static async Task CreateDirectory(Volume vol, EntryBlock parent, string name)
+        public static async Task CreateDirectory(Volume vol, uint parentSector, string name)
         {
+            var parent = await Disk.ReadEntryBlock(vol, parentSector);
+            
             /* -1 : do not use a specific, already allocated sector */
             var nSect = await CreateEntry(vol, parent, name, uint.MaxValue);
             if (nSect == uint.MaxValue)
@@ -544,14 +546,16 @@
         /// <summary>
         /// Set date for entry
         /// </summary>
-        /// <param name="vol">Volume</param>
-        /// <param name="parent"></param>
+        /// <param name="volume">Volume</param>
+        /// <param name="parentSector"></param>
         /// <param name="name"></param>
         /// <param name="date"></param>
         /// <exception cref="IOException"></exception>
-        public static async Task SetEntryDate(Volume vol, EntryBlock parent, string name, DateTime date)
+        public static async Task SetEntryDate(Volume volume, uint parentSector, string name, DateTime date)
         {
-            var result = await GetEntryBlock(vol, parent.HashTable, name, false);
+            var parent = await Disk.ReadEntryBlock(volume, parentSector);
+            
+            var result = await GetEntryBlock(volume, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
             if (nSect == uint.MaxValue)
@@ -565,25 +569,27 @@
             }
 
             entryBlock.Date = date;
-            await WriteEntryBlock(vol, nSect, entryBlock);
+            await WriteEntryBlock(volume, nSect, entryBlock);
 
-            if (vol.UsesDirCache)
+            if (volume.UsesDirCache)
             {
-                await Cache.UpdateCache(vol, parent, entryBlock, false);
+                await Cache.UpdateCache(volume, parent, entryBlock, false);
             }
         }
 
         /// <summary>
         /// Set access for entry
         /// </summary>
-        /// <param name="vol">Volume</param>
-        /// <param name="parent"></param>
+        /// <param name="volume">Volume</param>
+        /// <param name="parentSector"></param>
         /// <param name="name"></param>
         /// <param name="access"></param>
         /// <exception cref="IOException"></exception>
-        public static async Task SetEntryAccess(Volume vol, EntryBlock parent, string name, uint access)
+        public static async Task SetEntryAccess(Volume volume, uint parentSector, string name, uint access)
         {
-            var result = await GetEntryBlock(vol, parent.HashTable, name, false);
+            var parent = await Disk.ReadEntryBlock(volume, parentSector);
+            
+            var result = await GetEntryBlock(volume, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
             if (nSect == uint.MaxValue)
@@ -597,11 +603,11 @@
             }
 
             entryBlock.Access = access;
-            await WriteEntryBlock(vol, nSect, entryBlock);
+            await WriteEntryBlock(volume, nSect, entryBlock);
 
-            if (vol.UsesDirCache)
+            if (volume.UsesDirCache)
             {
-                await Cache.UpdateCache(vol, parent, entryBlock, false);
+                await Cache.UpdateCache(volume, parent, entryBlock, false);
             }
         }
 
@@ -609,12 +615,14 @@
         /// Set entry comment
         /// </summary>
         /// <param name="volume">Volume mounted</param>
-        /// <param name="parent">Parent entry block</param>
+        /// <param name="parentSector">Parent sector</param>
         /// <param name="name">Name of entry</param>
         /// <param name="comment">Comment</param>
         /// <exception cref="IOException"></exception>
-        public static async Task SetEntryComment(Volume volume, EntryBlock parent, string name, string comment)
+        public static async Task SetEntryComment(Volume volume, uint parentSector, string name, string comment)
         {
+            var parent = await Disk.ReadEntryBlock(volume, parentSector);
+
             var result = await GetEntryBlock(volume, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
@@ -639,7 +647,7 @@
             }
         }
 
-        public static async Task<FindEntryResult> FindEntry(EntryBlock currentDirectory, string path, Volume volume)
+        public static async Task<FindEntryResult> FindEntry(uint sector, string path, Volume volume)
         {
             var parts = (path.StartsWith("/") ? path.Substring(1) : path).Split('/');
 
@@ -648,19 +656,20 @@
                 return new FindEntryResult
                 {
                     Name = string.Empty,
-                    EntryBlock = currentDirectory,
+                    Sector = sector,
                     PartsNotFound = Array.Empty<string>()
                 };
             }
 
+            var entryBlock = await Disk.ReadEntryBlock(volume, sector);
+            
             int i;
             for (i = 0; i < parts.Length; i++)
             {
                 var part = parts[i];
 
                 var entry = (await ReadEntries(volume,
-                        currentDirectory.HeaderKey == 0 ? volume.RootBlockOffset : currentDirectory.HeaderKey))
-                    .FirstOrDefault(x =>
+                    FastFileSystemHelper.GetSector(volume, entryBlock))).FirstOrDefault(x =>
                         x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
                 if (entry == null)
                 {
@@ -669,14 +678,14 @@
 
                 if (entry.IsDirectory())
                 {
-                    currentDirectory = entry.EntryBlock;
+                    sector = FastFileSystemHelper.GetSector(volume, entry.EntryBlock);
                 }
             }
 
             return new FindEntryResult
             {
                 Name = parts.Last(),
-                EntryBlock = currentDirectory,
+                Sector = sector,
                 PartsNotFound = parts.Skip(i).ToArray()
             };
         }
