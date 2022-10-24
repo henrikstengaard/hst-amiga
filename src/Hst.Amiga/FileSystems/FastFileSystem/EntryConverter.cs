@@ -34,7 +34,7 @@
             }
         }
 
-        public static ProtectionBits GetProtectionBits(int access)
+        public static ProtectionBits GetProtectionBits(uint access)
         {
             var protectionBits = ProtectionBits.None;
 
@@ -81,9 +81,9 @@
             return protectionBits;
         }
 
-        public static int GetAccess(ProtectionBits protectionBits)
+        public static uint GetAccess(ProtectionBits protectionBits)
         {
-            int access = 0;
+            uint access = 0;
 
             if (protectionBits.HasFlag(ProtectionBits.HeldResident))
             {

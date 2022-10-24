@@ -16,10 +16,10 @@
                 throw new IOException("Invalid dir block type");
             }
             
-            var headerKey = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x4);
-            var highSeq = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x8);
-            var indexSize = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0xc); // hashtable & data blocks
-            var firstData = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x10);
+            var headerKey = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
+            var highSeq = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x8);
+            var indexSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0xc); // hashtable & data blocks
+            var firstData = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x10);
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
 
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 0x14);
@@ -28,24 +28,24 @@
                 throw new IOException("Invalid dir block checksum");
             }
             
-            var index = new List<int>();
+            var index = new List<uint>();
             for (var i = 0; i < Constants.INDEX_SIZE; i++)
             {
-                index.Add(BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
+                index.Add(BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
             }
 
-            var access = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x140);
+            var access = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x140);
             var comment = blockBytes.ReadStringWithLength(0x148);
 
             var date = DateHelper.ReadDate(blockBytes, 0x1a4);
             var name = blockBytes.ReadStringWithLength(0x1b0);
 
-            var realEntry = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d4);
-            var nextLink = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1d8);
+            var realEntry = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1d4);
+            var nextLink = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1d8);
 
-            var nextSameHash = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0);
-            var parent = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f4);
-            var extension = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f8);
+            var nextSameHash = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1f0);
+            var parent = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1f4);
+            var extension = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1f8);
             var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + (SizeOf.Long * 3));
 
             if (secType != Constants.ST_DIR)

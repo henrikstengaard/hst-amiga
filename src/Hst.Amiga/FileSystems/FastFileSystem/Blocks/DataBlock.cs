@@ -6,10 +6,10 @@
         public byte[] BlockBytes { get; set; }
         
         public int Type { get; }
-        public int HeaderKey { get; set; }
-        public int SeqNum { get; set; }
-        public int DataSize { get; set; }
-        public int NextData { get; set; }
+        public uint HeaderKey { get; set; }
+        public uint SeqNum { get; set; }
+        public uint DataSize { get; set; }
+        public uint NextData { get; set; }
         public int Checksum { get; set; }
         public byte[] Data { get; set; }
 

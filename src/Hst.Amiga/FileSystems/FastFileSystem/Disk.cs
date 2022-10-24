@@ -6,14 +6,14 @@
 
     public static class Disk
     {
-        private static async Task<byte[]> ReadBlockBytes(Volume volume, int sector)
+        private static async Task<byte[]> ReadBlockBytes(Volume volume, uint sector)
         {
             var blockOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
             volume.Stream.Seek(blockOffset, SeekOrigin.Begin);
             return await Amiga.Disk.ReadBlock(volume.Stream, volume.BlockSize);
         }
 
-        private static async Task WriteBlockBytes(Volume volume, int sector, byte[] blockBytes)
+        private static async Task WriteBlockBytes(Volume volume, uint sector, byte[] blockBytes)
         {
             var blockOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
             volume.Stream.Seek(blockOffset, SeekOrigin.Begin);
@@ -22,11 +22,11 @@
         
         public static async Task<RootBlock> ReadRootBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlock(volume, (int)sector);
+            var blockBytes = await ReadBlock(volume, sector);
             return RootBlockParser.Parse(blockBytes);
         }
         
-        public static async Task WriteRootBlock(Volume volume, int nSect, RootBlock root)
+        public static async Task WriteRootBlock(Volume volume, uint nSect, RootBlock root)
         {
             var blockBytes = RootBlockBuilder.Build(root, volume.BlockSize);
             await WriteBlock(volume, nSect, blockBytes);
@@ -34,11 +34,11 @@
         
         public static async Task<BitmapBlock> ReadBitmapBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlock(volume, (int)sector);
+            var blockBytes = await ReadBlock(volume, sector);
             return BitmapBlockParser.Parse(blockBytes);
         }
         
-        public static async Task WriteBitmapBlock(Volume vol, int nSect, BitmapBlock bitmapBlock)
+        public static async Task WriteBitmapBlock(Volume vol, uint nSect, BitmapBlock bitmapBlock)
         {
             var blockBytes = BitmapBlockBuilder.Build(bitmapBlock, vol.BlockSize);
             await WriteBlock(vol, nSect, blockBytes);
@@ -46,17 +46,17 @@
 
         public static async Task<BitmapExtensionBlock> ReadBitmapExtensionBlock(Volume volume, uint sector)
         {
-            var blockBytes = await ReadBlock(volume, (int)sector);
+            var blockBytes = await ReadBlock(volume, sector);
             return BitmapExtensionBlockParser.Parse(blockBytes);
         }
 
-        public static async Task<EntryBlock> ReadEntryBlock(Volume volume, int sector)
+        public static async Task<EntryBlock> ReadEntryBlock(Volume volume, uint sector)
         {
             var blockBytes = await ReadBlock(volume, sector);
             return EntryBlockParser.Parse(blockBytes);
         }
         
-        public static async Task<DataBlock> ReadDataBlock(Volume vol, int nSect)
+        public static async Task<DataBlock> ReadDataBlock(Volume vol, uint nSect)
         {
             var blockBytes = await ReadBlock(vol, nSect);
 
@@ -78,15 +78,15 @@
             };
         }
         
-        public static async Task WriteDataBlock(Volume volume, int nSect, DataBlock dataBlock)
+        public static async Task WriteDataBlock(Volume volume, uint nSect, DataBlock dataBlock)
         {
             var blockBytes = Macro.isOFS(volume.DosType)
                 ? DataBlockBuilder.Build(dataBlock, volume.BlockSize)
                 : dataBlock.Data;
-            await WriteBlock(volume,nSect,blockBytes);
+            await WriteBlock(volume, nSect, blockBytes);
         }        
 
-        public static async Task<FileExtBlock> ReadFileExtBlock(Volume volume, int nSect)
+        public static async Task<FileExtBlock> ReadFileExtBlock(Volume volume, uint nSect)
         {
             var blockBytes = await ReadBlock(volume, nSect);
             var fileExtBlock = FileExtBlockParser.Parse(blockBytes);
@@ -96,7 +96,7 @@
                 throw new IOException("Header key not equal to sector");
             }
 
-            if (fileExtBlock.HighSeq < 0 || fileExtBlock.HighSeq > Constants.MAX_DATABLK)
+            if (fileExtBlock.HighSeq > Constants.MAX_DATABLK)
             {
                 throw new IOException("High seq out of range");
             }
@@ -114,19 +114,19 @@
             return fileExtBlock;
         }
 
-        public static async Task WriteFileHdrBlock(Volume vol, int nSect, FileHeaderBlock fileHeaderBlock)
+        public static async Task WriteFileHdrBlock(Volume vol, uint nSect, FileHeaderBlock fileHeaderBlock)
         {
             var blockBytes = EntryBlockBuilder.Build(fileHeaderBlock, vol.BlockSize);
             await WriteBlock(vol, nSect, blockBytes);
         }
         
-        public static async Task WriteFileExtBlock(Volume vol, int nSect, FileExtBlock fileExtBlock)
+        public static async Task WriteFileExtBlock(Volume vol, uint nSect, FileExtBlock fileExtBlock)
         {
             var blockBytes = FileExtBlockBuilder.Build(fileExtBlock, vol.BlockSize);
             await WriteBlock(vol, nSect, blockBytes);
         }
         
-        public static async Task<DirCacheBlock> ReadDirCacheBlock(Volume vol, int nSect)
+        public static async Task<DirCacheBlock> ReadDirCacheBlock(Volume vol, uint nSect)
         {
             var blockBytes = await ReadBlock(vol, nSect);
 
@@ -139,7 +139,7 @@
             return dirCacheBlock;
         }
 
-        public static async Task WriteDirCacheBlock(Volume vol, int nSect, DirCacheBlock dirCacheBlock)
+        public static async Task WriteDirCacheBlock(Volume vol, uint nSect, DirCacheBlock dirCacheBlock)
         {
             dirCacheBlock.HeaderKey = nSect;
 
@@ -153,12 +153,12 @@
         /// <param name="volume"></param>
         /// <param name="logicalSector"></param>
         /// <returns>True, if logical sector number is within volume first and last block. Otherwise false.</returns>
-        public static bool IsSectorNumberValid(Volume volume, int logicalSector)
+        public static bool IsSectorNumberValid(Volume volume, uint logicalSector)
         {
-            return 0 <= logicalSector && logicalSector <= volume.LastBlock - volume.FirstBlock;
+            return logicalSector <= volume.LastBlock - volume.FirstBlock;
         }
 
-        public static void ThrowExceptionIfSectorNumberInvalid(Volume volume, int logicalSector)
+        public static void ThrowExceptionIfSectorNumberInvalid(Volume volume, uint logicalSector)
         {
             if (IsSectorNumberValid(volume, logicalSector))
             {
@@ -175,7 +175,7 @@
         /// <param name="logicalSector">Logical block number</param>
         /// <returns></returns>
         /// <exception cref="IOException"></exception>
-        public static async Task<byte[]> ReadBlock(Volume volume, int logicalSector)
+        public static async Task<byte[]> ReadBlock(Volume volume, uint logicalSector)
         {
             if (!volume.Mounted)
             {
@@ -189,10 +189,10 @@
                 throw new IOException($"Logical sector '{logicalSector}' is out of range");
             }
 
-            return await ReadBlockBytes(volume, (int)physicalSector);
+            return await ReadBlockBytes(volume, physicalSector);
         }
         
-        public static async Task WriteBlock(Volume volume, int logicalSector, byte[] blockBytes)
+        public static async Task WriteBlock(Volume volume, uint logicalSector, byte[] blockBytes)
         {
             if (!volume.Mounted)
             {
@@ -212,7 +212,7 @@
                 throw new IOException($"Logical sector '{logicalSector}' is out of range");
             }
             
-            await WriteBlockBytes(volume, (int)physicalSector, blockBytes);
+            await WriteBlockBytes(volume, physicalSector, blockBytes);
         }        
     }
 }

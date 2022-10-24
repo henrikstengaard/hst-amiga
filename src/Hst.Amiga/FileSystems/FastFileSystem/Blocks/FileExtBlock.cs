@@ -6,18 +6,18 @@
         public byte[] BlockBytes { get; set; }
 
         public int Type { get; }
-        public int HeaderKey { get; set; }
-        public int HighSeq { get; set; }
-        public int IndexSize { get; set; }
-        public int FirstData { get; set; }
+        public uint HeaderKey { get; set; }
+        public uint HighSeq { get; set; }
+        public uint IndexSize { get; set; }
+        public uint FirstData { get; set; }
         public int Checksum { get; set; }
-        public int[] Index { get; set; }
-        public int RealEntry { get; set; }
-        public int NextLink { get; set; }
-        public int Info { get; set; }
-        public int NextSameHash { get; set; }
-        public int Parent { get; set; }
-        public int Extension { get; set; }
+        public uint[] Index { get; set; }
+        public uint RealEntry { get; set; }
+        public uint NextLink { get; set; }
+        public uint Info { get; set; }
+        public uint NextSameHash { get; set; }
+        public uint Parent { get; set; }
+        public uint Extension { get; set; }
         public int SecType { get; }
 
         public FileExtBlock()
@@ -25,7 +25,7 @@
             Type = Constants.T_LIST;
             IndexSize = 0;
             FirstData = 0;
-            Index = new int[Constants.MAX_DATABLK];
+            Index = new uint[Constants.MAX_DATABLK];
             Info = 0;
             NextSameHash = 0;
             SecType = Constants.ST_FILE;

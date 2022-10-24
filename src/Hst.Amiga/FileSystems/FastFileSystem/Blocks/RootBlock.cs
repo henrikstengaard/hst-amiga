@@ -8,8 +8,8 @@
         public override int Type => Constants.T_HEADER;
         public override int SecType => Constants.ST_ROOT;
         
-        public int BitmapFlags { get; set; }
-        public int[] BitmapBlockOffsets { get; set; } // bmPages
+        public uint BitmapFlags { get; set; }
+        public uint[] BitmapBlockOffsets { get; set; } // bmPages
         public uint BitmapBlocksOffset { get; set; }
         
         /// <summary>
@@ -32,9 +32,9 @@
             HashTableSize = Constants.HT_SIZE;
             FirstData = 0;
             Checksum = 0;
-            HashTable = new int[Constants.HT_SIZE];
-            
-            BitmapFlags = -1;
+            HashTable = new uint[Constants.HT_SIZE];
+
+            BitmapFlags = Constants.BM_VALID;// -1
 
             var now = DateTime.UtcNow;
             Date = now;
@@ -43,7 +43,7 @@
 
             Extension = 0;
 
-            BitmapBlockOffsets = Array.Empty<int>();
+            BitmapBlockOffsets = Array.Empty<uint>();
             BitmapBlocks = new List<BitmapBlock>();
             BitmapExtensionBlocks = new List<BitmapExtensionBlock>();
         }

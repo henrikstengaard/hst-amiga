@@ -139,10 +139,10 @@
             }
 
             var srcSector = srcEntryResult.EntryBlock is RootBlock
-                ? (int)volume.RootBlockOffset
+                ? volume.RootBlockOffset
                 : srcEntryResult.EntryBlock.HeaderKey;
             var destSector = destEntryResult.EntryBlock is RootBlock
-                ? (int)volume.RootBlockOffset
+                ? volume.RootBlockOffset
                 : destEntryResult.EntryBlock.HeaderKey;
 
             await Directory.RenameEntry(volume, srcSector, srcEntryResult.Name, destSector, destEntryResult.Name);

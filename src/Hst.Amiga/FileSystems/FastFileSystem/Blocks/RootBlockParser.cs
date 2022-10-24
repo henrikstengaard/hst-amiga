@@ -16,7 +16,7 @@
                 throw new IOException($"Invalid root block type '{type}'");
             }
             
-            var hashtableSize = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0xc); // hashtable
+            var hashtableSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0xc); // hashtable
 
             if (hashtableSize != Constants.HT_SIZE)
             {
@@ -25,20 +25,20 @@
             
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
             
-            var index = new List<int>();
+            var index = new List<uint>();
             for (var i = 0; i < Constants.HT_SIZE; i++)
             {
-                index.Add(BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
+                index.Add(BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
             }
 
-            var bitmapFlags = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x138); // bm_flag
+            var bitmapFlags = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x138); // bm_flag
 
-            var bitmapBlockOffsets = new List<int>();
+            var bitmapBlockOffsets = new List<uint>();
 
             for (var i = 0; i < 25; i++)
             {
                 var bitmapBlockOffset =
-                    BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x13c + (i * SizeOf.Long));
+                    BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x13c + (i * SizeOf.Long));
                 bitmapBlockOffsets.Add(bitmapBlockOffset);
             }
 
@@ -51,7 +51,7 @@
             var diskAlterationDate = DateHelper.ReadDate(blockBytes, 0x1d8);
             var fileSystemCreationDate = DateHelper.ReadDate(blockBytes, 0x1e4);
 
-            var extension = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f8);
+            var extension = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1f8);
             var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1fc);
 
             if (secType != Constants.ST_ROOT)
@@ -68,7 +68,7 @@
                 FirstData = 0,
                 Checksum = checksum,
                 BitmapFlags = bitmapFlags,
-                BitmapBlocksOffset = (uint)bitmapBlockOffsets[0],
+                BitmapBlocksOffset = bitmapBlockOffsets[0],
                 BitmapBlockOffsets = bitmapBlockOffsets.ToArray(),
                 BitmapExtensionBlocksOffset = bitmapExtensionBlocksOffset,
                 Date = date,

@@ -31,9 +31,9 @@
             // assert - bytes read and root block matches type and disk name
             Assert.Equal(FloppyDiskConstants.BlockSize, bytesRead);
             Assert.Equal(2, rootBlock.Type);
-            Assert.Equal(0, rootBlock.HeaderKey);
-            Assert.Equal(0, rootBlock.HighSeq);
-            Assert.Equal(Constants.HT_SIZE, rootBlock.HashTableSize);
+            Assert.Equal(0U, rootBlock.HeaderKey);
+            Assert.Equal(0U, rootBlock.HighSeq);
+            Assert.Equal((uint)Constants.HT_SIZE, rootBlock.HashTableSize);
             Assert.Equal("DOS3", rootBlock.DiskName);
         }
     }

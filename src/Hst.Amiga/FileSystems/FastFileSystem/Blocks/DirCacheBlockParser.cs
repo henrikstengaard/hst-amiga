@@ -14,10 +14,10 @@
                 throw new IOException("Invalid dir cache block type");
             }
             
-            var headerKey = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x4);
-            var parent = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x8);
-            var recordsNb = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0xc);
-            var nextDirC = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x10);
+            var headerKey = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
+            var parent = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x8);
+            var recordsNb = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0xc);
+            var nextDirC = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x10);
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
             
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 0x14);

@@ -10,7 +10,7 @@
 
     public static class Directory
     {
-        public static async Task<IEnumerable<Entry>> ReadEntries(Volume volume, int nSect, bool recursive = false)
+        public static async Task<IEnumerable<Entry>> ReadEntries(Volume volume, uint nSect, bool recursive = false)
         {
             if (volume.UsesDirCache)
             {
@@ -86,7 +86,7 @@
                 Name = entryBlock.Name,
                 Comment = string.Empty,
                 Date = entryBlock.Date,
-                Access = -1,
+                Access = uint.MaxValue, //-1
                 Size = 0,
                 Real = 0,
                 EntryBlock = entryBlock
@@ -150,7 +150,7 @@
             return new string(nstr);
         }
 
-        public static async Task<NameToEntryBlockResult> GetEntryBlock(Volume volume, int[] ht, string name,
+        public static async Task<NameToEntryBlockResult> GetEntryBlock(Volume volume, uint[] ht, string name,
             bool nUpdSect)
         {
             var intl = Macro.isINTL(volume.DosType) || volume.UsesDirCache;
@@ -162,11 +162,11 @@
             if (nSect == 0)
                 return new NameToEntryBlockResult
                 {
-                    NSect = -1
+                    NSect = uint.MaxValue //-1
                 };
 
             EntryBlock entry;
-            var updSect = 0;
+            var updSect = 0U;
             var found = false;
             do
             {
@@ -175,7 +175,7 @@
                 {
                     return new NameToEntryBlockResult
                     {
-                        NSect = -1
+                        NSect = uint.MaxValue //-1
                     };
                 }
 
@@ -195,22 +195,22 @@
             if (nSect == 0 && !found)
                 return new NameToEntryBlockResult
                 {
-                    NSect = -1,
+                    NSect = uint.MaxValue, // -1
                 };
 
             return new NameToEntryBlockResult
             {
                 NSect = nSect,
                 EntryBlock = entry,
-                NUpdSect = nUpdSect ? new int?(updSect) : null
+                NUpdSect = nUpdSect ? new uint?(updSect) : null
             };
         }
 
         public static async Task<EntryBlock> CreateFile(Volume vol, EntryBlock parent, string name)
         {
             /* -1 : do not use a specific, already allocated sector */
-            var nSect = await CreateEntry(vol, parent, name, -1);
-            if (nSect == -1) throw new IOException("error nSect is -1");
+            var nSect = await CreateEntry(vol, parent, name, uint.MaxValue);
+            if (nSect == uint.MaxValue) throw new IOException("error nSect is -1");
 
             if (!(parent.SecType == Constants.ST_ROOT || parent.SecType == Constants.ST_DIR))
             {
@@ -221,7 +221,7 @@
             {
                 HeaderKey = nSect,
                 Name = name,
-                Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : parent.HeaderKey,
+                Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey,
                 Date = DateTime.Now
             };
 
@@ -246,7 +246,7 @@
         /// <param name="thisSect">insert this sector pointer into the hashTable (here 'thisSect' must be allocated before in the bitmap). if 'thisSect'==-1, allocate a sector</param>
         /// <returns></returns>
         /// <exception cref="IOException"></exception>
-        public static async Task<int> CreateEntry(Volume vol, EntryBlock dir, string name, int thisSect)
+        public static async Task<uint> CreateEntry(Volume vol, EntryBlock dir, string name, uint thisSect)
         {
             if (!(dir.SecType == Constants.ST_ROOT || dir.SecType == Constants.ST_DIR))
             {
@@ -261,13 +261,13 @@
 
             if (nSect == 0)
             {
-                int newSect;
-                if (thisSect != -1)
+                uint newSect;
+                if (thisSect != uint.MaxValue)
                     newSect = thisSect;
                 else
                 {
                     newSect = Bitmap.AdfGet1FreeBlock(vol);
-                    if (newSect == -1)
+                    if (newSect == uint.MaxValue)
                     {
                         throw new IOException("nSect==-1");
                     }
@@ -275,7 +275,7 @@
 
                 dir.HashTable[hashValue] = newSect;
                 dir.Date = DateTime.Now;
-                await WriteEntryBlock(vol, dir.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : dir.HeaderKey,
+                await WriteEntryBlock(vol, dir.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : dir.HeaderKey,
                     dir);
 
                 return newSect;
@@ -286,7 +286,9 @@
             {
                 updEntry = await Disk.ReadEntryBlock(vol, nSect);
                 if (updEntry == null)
-                    return -1;
+                {
+                    return uint.MaxValue;
+                }
                 if (updEntry.Name.Length == len)
                 {
                     var name3 = MyToUpper(updEntry.Name, intl);
@@ -299,13 +301,13 @@
                 nSect = updEntry.NextSameHash;
             } while (nSect != 0);
 
-            int newSect2;
-            if (thisSect != -1)
+            uint newSect2;
+            if (thisSect != uint.MaxValue)
                 newSect2 = thisSect;
             else
             {
                 newSect2 = Bitmap.AdfGet1FreeBlock(vol);
-                if (newSect2 == -1)
+                if (newSect2 == uint.MaxValue)
                 {
                     throw new IOException("nSect==-1");
                 }
@@ -332,8 +334,8 @@
         public static async Task CreateDirectory(Volume vol, EntryBlock parent, string name)
         {
             /* -1 : do not use a specific, already allocated sector */
-            var nSect = await CreateEntry(vol, parent, name, -1);
-            if (nSect == -1)
+            var nSect = await CreateEntry(vol, parent, name, uint.MaxValue);
+            if (nSect == uint.MaxValue)
             {
                 throw new IOException("no sector available");
             }
@@ -343,13 +345,13 @@
                 HeaderKey = nSect,
                 Name = name,
                 Date = DateTime.Now,
-                Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : parent.HeaderKey
+                Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey
             };
 
             if (vol.UsesDirCache)
             {
                 await Cache.AddInCache(vol, parent, dirBlock);
-                await Cache.CreateEmptyCache(vol, dirBlock, -1);
+                await Cache.CreateEmptyCache(vol, dirBlock, uint.MaxValue);
             }
 
             await WriteEntryBlock(vol, nSect, dirBlock);
@@ -357,7 +359,7 @@
             await Bitmap.AdfUpdateBitmap(vol);
         }
 
-        public static async Task RenameEntry(Volume vol, int pSect, string oldName, int nPSect, string newName)
+        public static async Task RenameEntry(Volume vol, uint pSect, string oldName, uint nPSect, string newName)
         {
             if (oldName == newName)
             {
@@ -380,7 +382,7 @@
             var nSect = result.NSect;
             var parentEntryBlock = result.EntryBlock;
             var prevSect = result.NUpdSect ?? 0;
-            if (nSect == -1)
+            if (nSect == uint.MaxValue)
             {
                 throw new IOException("existing entry not found");
             }
@@ -463,13 +465,13 @@
             }
         }
 
-        public static async Task WriteEntryBlock(Volume vol, int nSect, EntryBlock ent)
+        public static async Task WriteEntryBlock(Volume vol, uint nSect, EntryBlock ent)
         {
             var blockBytes = EntryBlockBuilder.Build(ent, vol.BlockSize);
             await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
-        public static async Task RemoveEntry(Volume vol, int pSect, string name)
+        public static async Task RemoveEntry(Volume vol, uint pSect, string name)
         {
             var parent = await Disk.ReadEntryBlock(vol, pSect);
 
@@ -477,7 +479,7 @@
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
             var nSect2 = result.NUpdSect ?? 0;
-            if (nSect == -1)
+            if (nSect == uint.MaxValue)
             {
                 throw new IOException($"entry '{name}' not found");
             }
@@ -552,7 +554,7 @@
             var result = await GetEntryBlock(vol, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
-            if (nSect == -1)
+            if (nSect == uint.MaxValue)
             {
                 throw new IOException("entry not found");
             }
@@ -579,12 +581,12 @@
         /// <param name="name"></param>
         /// <param name="access"></param>
         /// <exception cref="IOException"></exception>
-        public static async Task SetEntryAccess(Volume vol, EntryBlock parent, string name, int access)
+        public static async Task SetEntryAccess(Volume vol, EntryBlock parent, string name, uint access)
         {
             var result = await GetEntryBlock(vol, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
-            if (nSect == -1)
+            if (nSect == uint.MaxValue)
             {
                 throw new IOException("entry not found");
             }
@@ -616,7 +618,7 @@
             var result = await GetEntryBlock(volume, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
-            if (nSect == -1)
+            if (nSect == uint.MaxValue)
             {
                 throw new IOException("entry not found");
             }
@@ -657,7 +659,7 @@
                 var part = parts[i];
 
                 var entry = (await ReadEntries(volume,
-                        currentDirectory.HeaderKey == 0 ? (int)volume.RootBlockOffset : currentDirectory.HeaderKey))
+                        currentDirectory.HeaderKey == 0 ? volume.RootBlockOffset : currentDirectory.HeaderKey))
                     .FirstOrDefault(x =>
                         x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
                 if (entry == null)

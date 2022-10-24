@@ -14,7 +14,7 @@
                 HeaderKey = 887,
                 HighSeq = 0,
                 HashTableSize = 72,
-                HashTable = Enumerable.Range(1, 72).ToArray(),
+                HashTable = Enumerable.Range(1, 72).Select(x => (uint)x).ToArray(),
                 Comment = "Comment",
                 Name = "DirEntry",
                 Parent = 880,

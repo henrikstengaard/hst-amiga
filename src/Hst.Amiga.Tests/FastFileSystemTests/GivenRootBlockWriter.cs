@@ -16,8 +16,8 @@
             var rootBlock = new RootBlock
             {
                 Name = diskName,
-                BitmapBlocksOffset = 881,
-                BitmapBlockOffsets = new[] { 881 },
+                BitmapBlocksOffset = 881U,
+                BitmapBlockOffsets = new[] { 881U },
                 Date = Date,
                 DiskAlterationDate = DateTime.MinValue,
                 FileSystemCreationDate = Date,

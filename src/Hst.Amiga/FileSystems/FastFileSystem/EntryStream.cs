@@ -10,7 +10,7 @@
     {
         private readonly Volume volume;
 
-        private readonly int length;
+        private readonly uint length;
 
         private bool eof;
         private readonly EntryBlock fileHdr;
@@ -123,10 +123,10 @@
         {
             int i;
 
-            var nPos = (int)Math.Min(pos, length);
-            this.pos = (uint)nPos;
+            var nPos = Math.Min(pos, length);
+            this.pos = nPos;
             var extBlock = Pos2DataBlock(nPos);
-            if (extBlock == -1)
+            if (extBlock == uint.MaxValue)
             {
                 currentData =
                     await Disk.ReadDataBlock(volume, fileHdr.DataBlocks[Constants.MAX_DATABLK - 1 - curDataPtr]);
@@ -154,7 +154,7 @@
         * adfPos2DataBlock
             *
             */
-        private int Pos2DataBlock(int position) //, int *posInExtBlk, int *posInDataBlk, int32_t *curDataN )
+        private uint Pos2DataBlock(uint position) //, int *posInExtBlk, int *posInDataBlk, int32_t *curDataN )
         {
             posInDataBlk = (uint)(position % volume.BlockSize);
             curDataPtr = (uint)(position / volume.BlockSize);
@@ -163,11 +163,11 @@
             if (curDataPtr < 72)
             {
                 posInExtBlk = 0;
-                return -1;
+                return uint.MaxValue;
             }
 
             posInExtBlk = (uint)((position - 72 * volume.BlockSize) % volume.BlockSize);
-            var extBlock = (int)((position - 72 * volume.BlockSize) / volume.BlockSize);
+            var extBlock = (uint)((position - 72 * volume.BlockSize) / volume.BlockSize);
             if (posInExtBlk == 0)
                 extBlock++;
             return extBlock;
@@ -244,7 +244,7 @@
  */
         public async Task AdfReadNextFileBlock()
         {
-            int nSect;
+            uint nSect;
             // struct bOFSDataBlock *data;
             // RETCODE rc = RC_OK;
 
@@ -312,7 +312,7 @@
 
             if (pos == 0 || posInDataBlk == blockSize)
             {
-                if (await AdfCreateNextFileBlock() == -1)
+                if (await AdfCreateNextFileBlock() == uint.MaxValue)
                 {
                     /* bug found by Rikard */
                     throw new IOException("adfWritefile : no more free sector availbale");
@@ -335,7 +335,7 @@
                 posInDataBlk += (uint)size;
                 if (posInDataBlk == blockSize && bytesWritten < n)
                 {
-                    if (await AdfCreateNextFileBlock() == -1)
+                    if (await AdfCreateNextFileBlock() == uint.MaxValue)
                     {
                         /* bug found by Rikard */
                         throw new IOException("adfWritefile : no more free sector available");
@@ -348,18 +348,18 @@
             return bytesWritten;
         }
 
-        public async Task<int> AdfCreateNextFileBlock()
+        public async Task<uint> AdfCreateNextFileBlock()
         {
-            var nSect = 0;
+            uint nSect;
             var blockSize = volume.DataBlockSize;
 
             /* the first data blocks pointers are inside the file header block */
             if (nDataBlock < Constants.MAX_DATABLK)
             {
                 nSect = Bitmap.AdfGet1FreeBlock(volume);
-                if (nSect == -1)
+                if (nSect == uint.MaxValue)
                 {
-                    return -1;
+                    return uint.MaxValue;
                 }
 
                 if (nDataBlock == 0)
@@ -375,9 +375,9 @@
                 if (nDataBlock % Constants.MAX_DATABLK == 0)
                 {
                     var extSect = Bitmap.AdfGet1FreeBlock(volume);
-                    if (extSect == -1)
+                    if (extSect == uint.MaxValue)
                     {
-                        return -1;
+                        return uint.MaxValue;
                     }
 
                     /* the future block is the first file extension block */
@@ -405,9 +405,9 @@
                 }
 
                 nSect = Bitmap.AdfGet1FreeBlock(volume);
-                if (nSect == -1)
+                if (nSect == uint.MaxValue)
                 {
-                    return -1;
+                    return uint.MaxValue;
                 }
 
                 currentExt.Index[Constants.MAX_DATABLK - 1 - posInExtBlk] = nSect;
@@ -423,23 +423,23 @@
                 if (pos >= blockSize)
                 {
                     data.NextData = nSect;
-                    await Disk.WriteDataBlock(volume, (int)curDataPtr, currentData);
+                    await Disk.WriteDataBlock(volume, curDataPtr, currentData);
                 }
 
                 /* initialize a new data block */
                 for (var i = 0; i < blockSize; i++)
                     data.Data[i] = 0;
-                data.SeqNum = (int)(nDataBlock + 1);
+                data.SeqNum = nDataBlock + 1;
                 data.DataSize = blockSize;
                 data.NextData = 0;
                 data.HeaderKey = fileHdr.HeaderKey;
             }
             else if (pos >= blockSize)
             {
-                await Disk.WriteDataBlock(volume, (int)curDataPtr, currentData);
+                await Disk.WriteDataBlock(volume, curDataPtr, currentData);
             }
 
-            curDataPtr = (uint)nSect;
+            curDataPtr = nSect;
             nDataBlock++;
 
             return nSect;
@@ -463,22 +463,22 @@
             {
                 if (writeMode)
                 {
-                    fileHdr.ByteSize = (int)pos;
+                    fileHdr.ByteSize = pos;
                     if (Macro.isOFS(volume.DosType))
                     {
                         //var data = currentData as OfsDataBlock;
-                        currentData.DataSize = (int)posInDataBlk;
+                        currentData.DataSize = posInDataBlk;
                     }
 
                     if (fileHdr.ByteSize > 0)
                     {
-                        await Disk.WriteDataBlock(volume, (int)curDataPtr, currentData);
+                        await Disk.WriteDataBlock(volume, curDataPtr, currentData);
                     }
                 }
             }
             if (writeMode)
             {
-                fileHdr.ByteSize = (int)pos;
+                fileHdr.ByteSize = pos;
                 fileHdr.Date = DateTime.Now;
                 await Disk.WriteFileHdrBlock(volume, fileHdr.HeaderKey, fileHdr as FileHeaderBlock);
 

@@ -4,8 +4,8 @@
 
     public class NameToEntryBlockResult
     {
-        public int NSect { get; set; }
+        public uint NSect { get; set; }
         public EntryBlock EntryBlock { get; set; }
-        public int? NUpdSect { get; set; }
+        public uint? NUpdSect { get; set; }
     }
 }

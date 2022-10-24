@@ -6,10 +6,10 @@
         public byte[] BlockBytes { get; set; }
 
         public int Type { get; }
-        public int HeaderKey { get; set; }
-        public int Parent { get; set; }
-        public int RecordsNb { get; set; }
-        public int NextDirC { get; set; }
+        public uint HeaderKey { get; set; }
+        public uint Parent { get; set; }
+        public uint RecordsNb { get; set; }
+        public uint NextDirC { get; set; }
         public int Checksum { get; set; }
         public byte[] Records { get; set; }
 

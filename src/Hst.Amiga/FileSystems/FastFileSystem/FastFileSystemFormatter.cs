@@ -36,7 +36,7 @@
             {
                 BitmapBlocksOffset = rootBlockOffset + 1,
                 Name = diskName,
-                Extension = (int)rootBlockOffset
+                Extension = rootBlockOffset
             };
 
             var bitmapBlocks = BlockHelper.CreateBitmapBlocks(lowCyl,

@@ -27,8 +27,8 @@
 
         /* block constants */
 
-        public const int BM_VALID = -1;
-        public const int BM_INVALID = 0;
+        public const uint BM_VALID = uint.MaxValue; //-1;
+        public const uint BM_INVALID = 0;
 
         public const int INDEX_SIZE = 72;
         public const int HT_SIZE = INDEX_SIZE;

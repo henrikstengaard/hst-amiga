@@ -25,9 +25,9 @@
             var bitmapBlocks = rootBlock.BitmapBlocks.ToList();
             SetBitmapBlockOffsets(bitmapBlocks, rootBlock.BitmapBlocksOffset);
 
-            rootBlock.BitmapBlockOffsets = bitmapBlocks.Select(x => (int)x.Offset)
+            rootBlock.BitmapBlockOffsets = bitmapBlocks.Select(x => x.Offset)
                 .Concat(Enumerable.Range(1, Constants.MaxBitmapBlockPointersInRootBlock - bitmapBlocks.Count)
-                    .Select(_ => 0)).ToArray();
+                    .Select(_ => 0U)).ToArray();
 
             rootBlock.BitmapExtensionBlocksOffset =
                 rootBlock.BitmapExtensionBlocks.Any()

@@ -11,13 +11,7 @@
 
     public static class Cache
     {
-        public static async Task<IEnumerable<Entry>> ReadEntries(Volume vol, EntryBlock parent, bool recursive = false)
-        {
-            return await ReadEntries(vol, parent.HeaderKey == 0 ? (int)vol.RootBlockOffset : parent.HeaderKey,
-                recursive);
-        }
-
-        public static async Task<IEnumerable<Entry>> ReadEntries(Volume vol, int dir, bool recursive = false)
+        public static async Task<IEnumerable<Entry>> ReadEntries(Volume vol, uint dir, bool recursive = false)
         {
             var list = new List<Entry>();
 
@@ -62,8 +56,7 @@
 
                     if (recursive && entry.IsDirectory())
                     {
-                        var subDirParent = await Disk.ReadEntryBlock(vol, entry.Sector);
-                        entry.SubDir = (await ReadEntries(vol, subDirParent, true)).ToList();
+                        entry.SubDir = (await ReadEntries(vol, entry.Sector, true)).ToList();
                     }
 
                     n++;
@@ -109,7 +102,7 @@
             {
                 /* request one new block free */
                 var nCache = Bitmap.AdfGet1FreeBlock(vol);
-                if (nCache == -1)
+                if (nCache == uint.MaxValue) // -1
                 {
                     throw new IOException("nCache==-1");
                 }
@@ -122,7 +115,7 @@
                 /* create a new dir cache block */
                 var newDirCacheBlock = new DirCacheBlock
                 {
-                    Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : parent.HeaderKey,
+                    Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey,
                     RecordsNb = 0,
                     NextDirC = 0
                 };
@@ -218,19 +211,19 @@
             }
         }
 
-        public static async Task CreateEmptyCache(Volume vol, EntryBlock parent, int nSect)
+        public static async Task CreateEmptyCache(Volume vol, EntryBlock parent, uint nSect)
         {
             if (!(parent.SecType == Constants.ST_ROOT || parent.SecType == Constants.ST_DIR))
             {
                 throw new IOException("Invalid sec type for new dir cache block");
             }
 
-            int nCache;
+            uint nCache;
 
-            if (nSect == -1)
+            if (nSect == uint.MaxValue)
             {
                 nCache = Bitmap.AdfGet1FreeBlock(vol);
-                if (nCache == -1)
+                if (nCache == uint.MaxValue)
                 {
                     throw new IOException("nCache==-1");
                 }
@@ -247,7 +240,7 @@
 
             var dirCacheBlock = new DirCacheBlock
             {
-                Parent = parent.SecType == Constants.ST_ROOT ? (int)vol.RootBlockOffset : parent.HeaderKey,
+                Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey,
                 RecordsNb = 0,
                 NextDirC = 0
             };
@@ -265,9 +258,9 @@
         {
             var cacheEntry = new CacheEntry
             {
-                Header = BigEndianConverter.ConvertBytesToInt32(dirCacheBlock.Records, ptr),
-                Size = BigEndianConverter.ConvertBytesToInt32(dirCacheBlock.Records, ptr + 4),
-                Protect = BigEndianConverter.ConvertBytesToInt32(dirCacheBlock.Records, ptr + 8)
+                Header = BigEndianConverter.ConvertBytesToUInt32(dirCacheBlock.Records, ptr),
+                Size = BigEndianConverter.ConvertBytesToUInt32(dirCacheBlock.Records, ptr + 4),
+                Protect = BigEndianConverter.ConvertBytesToUInt32(dirCacheBlock.Records, ptr + 8)
             };
             var days = BigEndianConverter.ConvertBytesToInt16(dirCacheBlock.Records, ptr + 16);
             var minutes = BigEndianConverter.ConvertBytesToInt16(dirCacheBlock.Records, ptr + 18);
@@ -292,9 +285,9 @@
 
         public static int PutCacheEntry(DirCacheBlock dirCacheBlock, ref int ptr, CacheEntry cacheEntry)
         {
-            BigEndianConverter.ConvertInt32ToBytes(cacheEntry.Header, dirCacheBlock.Records, ptr);
-            BigEndianConverter.ConvertInt32ToBytes(cacheEntry.Size, dirCacheBlock.Records, ptr + 4);
-            BigEndianConverter.ConvertInt32ToBytes(cacheEntry.Protect, dirCacheBlock.Records, ptr + 8);
+            BigEndianConverter.ConvertUInt32ToBytes(cacheEntry.Header, dirCacheBlock.Records, ptr);
+            BigEndianConverter.ConvertUInt32ToBytes(cacheEntry.Size, dirCacheBlock.Records, ptr + 4);
+            BigEndianConverter.ConvertUInt32ToBytes(cacheEntry.Protect, dirCacheBlock.Records, ptr + 8);
             var amigaDate = DateHelper.ConvertToAmigaDate(cacheEntry.Date);
             BigEndianConverter.ConvertInt16ToBytes((short)amigaDate.Days, dirCacheBlock.Records, ptr + 16);
             BigEndianConverter.ConvertInt16ToBytes((short)amigaDate.Minutes, dirCacheBlock.Records, ptr + 18);
@@ -327,9 +320,9 @@
         /// <param name="parent"></param>
         /// <param name="headerKey"></param>
         /// <exception cref="IOException"></exception>
-        public static async Task DeleteFromCache(Volume vol, EntryBlock parent, int headerKey)
+        public static async Task DeleteFromCache(Volume vol, EntryBlock parent, uint headerKey)
         {
-            var prevSect = -1;
+            var prevSect = uint.MaxValue; // -1
             var nSect = parent.Extension;
             var found = false;
             do
@@ -345,7 +338,7 @@
                     if (found)
                     {
                         var entryLen = offset - oldOffset;
-                        if (dirCacheBlock.RecordsNb > 1 || prevSect == -1)
+                        if (dirCacheBlock.RecordsNb > 1 || prevSect == uint.MaxValue)
                         {
                             if (n < dirCacheBlock.RecordsNb - 1)
                             {

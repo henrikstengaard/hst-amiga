@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
+    using System;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
@@ -23,7 +24,7 @@
 
             var result = await Directory.GetEntryBlock(volume, parent.HashTable, name, false);
             var nSect = result.NSect;
-            if (!write && nSect == -1)
+            if (!write && nSect == uint.MaxValue)
             {
                 if (!volume.IgnoreErrors)
                 {
@@ -48,7 +49,7 @@
             {
                 case false when Macro.hasR(entry.Access):
                     throw new IOException("access denied");
-                case true when nSect != -1:
+                case true when nSect != uint.MaxValue:
                     throw new IOException("file already exists");
             }
 
@@ -115,16 +116,16 @@
                 header = entry.HeaderKey,
             };
             // adfFileRealSize( entry.ByteSize, vol.DataBlockSize, &(fileBlocks->nbData), &(fileBlocks->nbExtens) );
-            AdfFileRealSize((uint)entry.ByteSize, vol.DataBlockSize, fileBlocks);
+            AdfFileRealSize(entry.ByteSize, vol.DataBlockSize, fileBlocks);
 
-            fileBlocks.data = new int[fileBlocks.nbData];
+            fileBlocks.data = new uint[fileBlocks.nbData];
             // fileBlocks->data=(SECTNUM*)malloc(fileBlocks->nbData * sizeof(SECTNUM));
             // if (!fileBlocks->data) {
             //     (*adfEnv.eFct)("adfGetFileBlocks : malloc");
             //     return RC_MALLOC;
             // }
 
-            fileBlocks.extens= new int[fileBlocks.nbExtens];
+            fileBlocks.extens= new uint[fileBlocks.nbExtens];
             // fileBlocks.extens=(SECTNUM*)malloc(fileBlocks->nbExtens * sizeof(SECTNUM));
             // if (!fileBlocks->extens) {
             //     (*adfEnv.eFct)("adfGetFileBlocks : malloc");
@@ -160,17 +161,17 @@
  * Compute number of datablocks and file extension blocks
  *
  */
-        public static int AdfFileRealSize(uint size, int blockSize, FileBlocks fileBlocks) // int32_t *dataN, int32_t *extN
+        public static uint AdfFileRealSize(uint size, uint blockSize, FileBlocks fileBlocks) // int32_t *dataN, int32_t *extN
         {
             // int32_t data, ext;
 
             /*--- number of data blocks ---*/
-            var data = (int)(size / blockSize);
+            var data = size / blockSize;
             if ( size % blockSize != 0)
                 data++;
 
             /*--- number of header extension blocks ---*/
-            var ext = 0;
+            var ext = 0U;
             if (data > Constants.MAX_DATABLK) {
                 ext = (data - Constants.MAX_DATABLK) / Constants.MAX_DATABLK;
                 if ((data - Constants.MAX_DATABLK) % Constants.MAX_DATABLK != 0)

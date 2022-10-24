@@ -55,7 +55,7 @@
         public static async Task ExtractVolume(Volume volume,
             string outputPath)
         {
-            var entries = (await Directory.ReadEntries(volume, (int)volume.RootBlockOffset, true)).ToList();
+            var entries = (await Directory.ReadEntries(volume, volume.RootBlockOffset, true)).ToList();
 
             await ExtractDirectory(volume, volume.RootBlock, entries, volume.RootBlock.DiskName);
         }
@@ -198,7 +198,7 @@
             // vol->dosType = boot.dosType[3];
             var dosType = (int)bootBlockBytes[3];
             var usesDirCache = (dosType & Constants.FSMASK_DIRCACHE) != 0;
-            var dataBlockSize = Macro.isFFS(dosType) ? 512 : 488;
+            var dataBlockSize = Macro.isFFS(dosType) ? 512U : 488U;
 
             // calculate root block offset, if not set
             if (rootBlockOffset == 0)
@@ -231,14 +231,14 @@
                 Mounted = true
             };
 
-            await Bitmap.AdfReadBitmap(volume, (int)blocks, rootBlock);
+            await Bitmap.AdfReadBitmap(volume, blocks, rootBlock);
 
             return volume;
         }
 
-        public static int GetSector(Volume volume, int sector)
+        public static uint GetSector(Volume volume, uint sector)
         {
-            return sector == 0 ? (int)volume.RootBlockOffset : sector;
+            return sector == 0 ? volume.RootBlockOffset : sector;
         }
     }
 }

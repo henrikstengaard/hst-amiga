@@ -8,7 +8,7 @@
 
     public static class Bitmap
     {
-        public static async Task AdfReadBitmap(Volume vol, int nBlock, RootBlock root)
+        public static async Task AdfReadBitmap(Volume vol, uint nBlock, RootBlock root)
         {
             int i;
 
@@ -17,7 +17,7 @@
                 mapSize++;
             vol.BitmapSize = mapSize;
             vol.BitmapTable = new BitmapBlock[mapSize];
-            vol.BitmapBlocks = new int[mapSize];
+            vol.BitmapBlocks = new uint[mapSize];
             vol.BitmapBlocksChg = new bool[mapSize];
 
             for (i = 0; i < mapSize; i++)
@@ -28,35 +28,35 @@
 
             var j = 0;
             i = 0;
-            int nSect;
+            uint nSect;
             while (i < Constants.BM_SIZE && root.BitmapBlockOffsets[i] != 0)
             {
                 vol.BitmapBlocks[j] = nSect = root.BitmapBlockOffsets[i];
                 Disk.ThrowExceptionIfSectorNumberInvalid(vol, nSect);
 
-                vol.BitmapTable[j] = await Disk.ReadBitmapBlock(vol, (uint)nSect);
+                vol.BitmapTable[j] = await Disk.ReadBitmapBlock(vol, nSect);
                 j++;
                 i++;
             }
 
-            nSect = (int)root.BitmapExtensionBlocksOffset;
+            nSect = root.BitmapExtensionBlocksOffset;
             while (nSect != 0)
             {
-                var bmExt = await Disk.ReadBitmapExtensionBlock(vol, (uint)nSect);
+                var bmExt = await Disk.ReadBitmapExtensionBlock(vol, nSect);
                 i = 0;
                 while (i < 127 && j < mapSize)
                 {
-                    nSect = (int)bmExt.BitmapBlockOffsets[i];
+                    nSect = bmExt.BitmapBlockOffsets[i];
                     Disk.ThrowExceptionIfSectorNumberInvalid(vol, nSect);
 
                     vol.BitmapBlocks[j] = nSect;
 
-                    vol.BitmapTable[j] = await Disk.ReadBitmapBlock(vol, (uint)nSect);
+                    vol.BitmapTable[j] = await Disk.ReadBitmapBlock(vol, nSect);
                     i++;
                     j++;
                 }
 
-                nSect = (int)bmExt.NextBitmapExtensionBlockPointer;
+                nSect = bmExt.NextBitmapExtensionBlockPointer;
             }
         }
 
@@ -65,7 +65,7 @@
             var root = await Disk.ReadRootBlock(vol, vol.RootBlockOffset);
 
             root.BitmapFlags = Constants.BM_INVALID;
-            await Disk.WriteRootBlock(vol, (int)vol.RootBlockOffset, root);
+            await Disk.WriteRootBlock(vol, vol.RootBlockOffset, root);
 
             for (var i = 0; i < vol.BitmapSize; i++)
                 if (vol.BitmapBlocksChg[i])
@@ -77,19 +77,19 @@
             root.BitmapFlags = Constants.BM_VALID;
             root.Date = DateTime.Now;
 
-            await Disk.WriteRootBlock(vol, (int)vol.RootBlockOffset, root);
+            await Disk.WriteRootBlock(vol, vol.RootBlockOffset, root);
         }
 
-        public static int AdfGet1FreeBlock(Volume vol)
+        public static uint AdfGet1FreeBlock(Volume vol)
         {
             var block = AdfGetFreeBlocks(vol, 1);
-            return block.Any() ? block[0] : -1;
+            return block.Any() ? block[0] : uint.MaxValue; // -1
         }
 
-        public static int[] AdfGetFreeBlocks(Volume vol, int nbSect)
+        public static uint[] AdfGetFreeBlocks(Volume vol, uint nbSect)
         {
-            var sectList = new List<int>();
-            var block = (int)vol.RootBlockOffset;
+            var sectList = new List<uint>();
+            var block = vol.RootBlockOffset;
 
             var i = 0;
             var diskFull = false;
@@ -113,11 +113,10 @@
                 for (var j = 0; j < nbSect; j++)
                     AdfSetBlockUsed(vol, sectList[j]);
 
-            return i == nbSect ? sectList.ToArray() : Array.Empty<int>();
+            return i == nbSect ? sectList.ToArray() : Array.Empty<uint>();
         }
-
-
-        private static readonly uint[] bitMask =
+        
+        private static readonly uint[] BitMask =
         {
             0x1, 0x2, 0x4, 0x8,
             0x10, 0x20, 0x40, 0x80,
@@ -129,35 +128,35 @@
             0x10000000, 0x20000000, 0x40000000, 0x80000000
         };
 
-        public static void AdfSetBlockUsed(Volume vol, int nSect)
-        {
-            int sectOfMap = nSect - 2;
-            int block = sectOfMap / (127 * 32);
-            int indexInMap = (sectOfMap / 32) % 127;
-
-            var oldValue = vol.BitmapTable[block].Map[indexInMap];
-
-            vol.BitmapTable[block].Map[indexInMap] = oldValue & ~bitMask[sectOfMap % 32];
-            vol.BitmapBlocksChg[block] = true;
-        }
-
-        public static bool AdfIsBlockFree(Volume vol, int nSect)
+        public static void AdfSetBlockUsed(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - 2;
             var block = sectOfMap / (127 * 32);
             var indexInMap = (sectOfMap / 32) % 127;
 
-            return (vol.BitmapTable[block].Map[indexInMap] & bitMask[sectOfMap % 32]) != 0;
+            var oldValue = vol.BitmapTable[block].Map[indexInMap];
+
+            vol.BitmapTable[block].Map[indexInMap] = oldValue & ~BitMask[sectOfMap % 32];
+            vol.BitmapBlocksChg[block] = true;
         }
 
-        public static void AdfSetBlockFree(Volume vol, int nSect)
+        public static bool AdfIsBlockFree(Volume vol, uint nSect)
+        {
+            var sectOfMap = nSect - 2;
+            var block = sectOfMap / (127 * 32);
+            var indexInMap = (sectOfMap / 32) % 127;
+
+            return (vol.BitmapTable[block].Map[indexInMap] & BitMask[sectOfMap % 32]) != 0;
+        }
+
+        public static void AdfSetBlockFree(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - 2;
             var block = sectOfMap / (127 * 32);
             var indexInMap = (sectOfMap / 32) % 127;
 
             var oldValue = vol.BitmapTable[ block ].Map[ indexInMap ];
-            vol.BitmapTable[ block ].Map[ indexInMap ] = oldValue | bitMask[ sectOfMap % 32 ];
+            vol.BitmapTable[ block ].Map[ indexInMap ] = oldValue | BitMask[ sectOfMap % 32 ];
             vol.BitmapBlocksChg[ block ] = true;
         }
     }

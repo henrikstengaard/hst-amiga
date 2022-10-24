@@ -17,26 +17,26 @@
             }
 
             BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.Type, blockBytes, 0x0);
-            BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.HeaderKey, blockBytes, 0x4);
-            BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.HighSeq, blockBytes, 0x8);
-            BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.IndexSize, blockBytes, 0xc);
-            BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.FirstData, blockBytes, 0x10);
+            BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.HeaderKey, blockBytes, 0x4);
+            BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.HighSeq, blockBytes, 0x8);
+            BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.IndexSize, blockBytes, 0xc);
+            BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.FirstData, blockBytes, 0x10);
             BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.Checksum, blockBytes, 0x14);
 
             for (var i = 0; i < Constants.INDEX_SIZE; i++)
             {
-                BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.Index[i], blockBytes, 0x18 + (i * SizeOf.Long));
+                BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.Index[i], blockBytes, 0x18 + (i * SizeOf.Long));
             }
             
             for (var i = 0; i < 45; i++)
             {
-                BigEndianConverter.ConvertInt32ToBytes(0, blockBytes, 0x138 + (i * SizeOf.Long));
+                BigEndianConverter.ConvertUInt32ToBytes(0, blockBytes, 0x138 + (i * SizeOf.Long));
             }
 
-            BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.Info, blockBytes, 0x1ec);
-            BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.NextSameHash, blockBytes, 0x1f0);
-            BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.Parent, blockBytes, 0x1f4);
-            BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.Extension, blockBytes, 0x1f8);
+            BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.Info, blockBytes, 0x1ec);
+            BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.NextSameHash, blockBytes, 0x1f0);
+            BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.Parent, blockBytes, 0x1f4);
+            BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.Extension, blockBytes, 0x1f8);
             BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.SecType, blockBytes, 0x1fc);
             
             fileExtBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 20);

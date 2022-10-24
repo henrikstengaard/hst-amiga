@@ -15,7 +15,7 @@
         public long PartitionStartOffset { get; set; }
         public uint Reserved { get; set; }
         public int DosType { get; set; }
-        public int DataBlockSize { get; set; }
+        public uint DataBlockSize { get; set; }
         public uint RootBlockOffset { get; set; }
         public RootBlock RootBlock { get; set; }
         public EntryBlock CurrentDirectory { get; set; }
@@ -24,9 +24,9 @@
         
         public bool UsesDirCache { get; set; }
         
-        public int BitmapSize { get; set; }
+        public uint BitmapSize { get; set; }
         public BitmapBlock[] BitmapTable { get; set; }
-        public int[] BitmapBlocks { get; set; }
+        public uint[] BitmapBlocks { get; set; }
         public bool[] BitmapBlocksChg { get; set; }
         
         public bool IgnoreErrors { get; set; }
@@ -37,7 +37,7 @@
             Logs = new List<string>();
             
             BitmapTable = Array.Empty<BitmapBlock>();
-            BitmapBlocks = Array.Empty<int>();
+            BitmapBlocks = Array.Empty<uint>();
             BitmapBlocksChg = Array.Empty<bool>();
         }
     }

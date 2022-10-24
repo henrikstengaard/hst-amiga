@@ -15,13 +15,13 @@
                 throw new IOException($"Invalid data block type '{type}'");
             }
 
-            var headerKey = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x4);
-            var seqNum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x8);
-            var dataSize = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0xc); // hashtable & data blocks
-            var nextData = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x10);
+            var headerKey = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
+            var seqNum = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x8);
+            var dataSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0xc); // hashtable & data blocks
+            var nextData = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x10);
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
 
-            if (dataSize < 0 || dataSize > 488)
+            if (dataSize > 488)
             {
                 throw new IOException($"Invalid data block data size '{dataSize}'");
             }

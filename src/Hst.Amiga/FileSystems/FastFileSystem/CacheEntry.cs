@@ -4,9 +4,9 @@
 
     public class CacheEntry
     {
-        public int Header;
-        public int Size;
-        public int Protect;
+        public uint Header;
+        public uint Size;
+        public uint Protect;
         public DateTime Date; 
         public int Type;
         public string Name;

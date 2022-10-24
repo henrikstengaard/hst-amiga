@@ -2,10 +2,10 @@
 {
     public class FileBlocks
     {
-        public int header;
-        public int nbExtens;
-        public int[] extens;
-        public int nbData;
-        public int[] data;
+        public uint header;
+        public uint nbExtens;
+        public uint[] extens;
+        public uint nbData;
+        public uint[] data;
     }
 }
