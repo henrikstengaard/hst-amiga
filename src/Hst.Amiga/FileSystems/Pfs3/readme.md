@@ -21,6 +21,13 @@ See [Blocks](Blocks) page for details about blocks used by PFS3.
 
 The usage section describes how to use classes for reading and writing PFS3 partitions.
 
+### Formatting a partition with PFS3
+
+Example of formatting a partition block in a stream with PFS3 and volume name "Workbench":
+```
+await Pfs3Formatter.FormatPartition(stream, partitionBlock, "Workbench");
+```
+
 ### Mounting a PFS3 volume
 
 First the PFS3 volume has to be mounted using Pfs3Volume class. Mounted Pfs3 volume has current directory set to root directory by default. PFS3 volume implements disposable and will automatically unmount with a using statement.

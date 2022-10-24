@@ -23,6 +23,13 @@ See [Blocks](Blocks) page for details about blocks used by Fast File System.
 
 The usage section describes how to use classes for reading and writing PFS3 partitions.
 
+### Formatting a partition with Fast File System
+
+Example of formatting a partition block in a stream with Fast File System and volume name "Workbench":
+```
+await FastFileSystemFormatter.FormatPartition(stream, partitionBlock, "Workbench");
+```
+
 ### Mounting a Fast File System volume
 
 First the Fast File System volume has to be mounted using FastFileSystemVolume class. Mounted Fast File System volume has current directory set to root directory by default. Fast File System volume implements disposable and will automatically unmount with a using statement.
