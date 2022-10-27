@@ -195,10 +195,14 @@
             stream.Seek(partitionStartOffset, SeekOrigin.Begin);
             var bootBlockBytes = await stream.ReadBytes((int)blockSize);
 
-            // vol->dosType = boot.dosType[3];
-            var dosType = (int)bootBlockBytes[3];
-            var usesDirCache = (dosType & Constants.FSMASK_DIRCACHE) != 0;
-            var dataBlockSize = Macro.isFFS(dosType) ? 512U : 488U;
+            var mode = (int)bootBlockBytes[3];
+            var useOfs = Macro.UseOfs(mode);
+            var useIntl = Macro.UseIntl(mode);
+            var useFfs = Macro.UseFfs(mode);
+            var useDirCache = Macro.UseDirCache(mode);
+            var useLnfs = Macro.UseLnfs(mode);
+
+            var dataBlockSize = useFfs ? 512U : 488U;
 
             // calculate root block offset, if not set
             if (rootBlockOffset == 0)
@@ -217,9 +221,13 @@
             var volume = new Volume
             {
                 PartitionStartOffset = (long)lowCyl * blocksPerCylinder * blockSize,
-                DosType = dosType,
+                DosType = mode,
                 DataBlockSize = dataBlockSize,
-                UsesDirCache = usesDirCache,
+                UseOfs = useOfs,
+                UseIntl = useIntl,
+                UseFfs = useFfs,
+                UseDirCache = useDirCache,
+                UseLnfs = useLnfs,
                 RootBlockOffset = rootBlockOffset,
                 RootBlock = rootBlock,
                 Blocks = blocks,

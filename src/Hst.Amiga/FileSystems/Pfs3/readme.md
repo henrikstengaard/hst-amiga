@@ -23,7 +23,7 @@ The usage section describes how to use classes for reading and writing PFS3 part
 
 ### Formatting a partition with PFS3
 
-Example of formatting a partition block in a stream with PFS3 and volume name "Workbench":
+Example of quick formatting a partition block in a stream with PFS3 and volume name "Workbench":
 ```
 await Pfs3Formatter.FormatPartition(stream, partitionBlock, "Workbench");
 ```

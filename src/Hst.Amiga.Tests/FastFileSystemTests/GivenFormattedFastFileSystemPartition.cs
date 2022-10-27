@@ -4,26 +4,23 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Extensions;
 using FileSystems;
-using FileSystems.FastFileSystem;
 using Xunit;
 
 public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
 {
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateDirectoryInRootDirectoryThenDirectoryExist(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create "New Dir" in root directory
         await ffsVolume.CreateDirectory("New Dir");
@@ -37,19 +34,16 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateMultipleDirectoriesInRootDirectoryThenDirectoriesExist(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
 
         // act - create "New Dir1", "New Dir2", "New Dir3" in root directory
         await ffsVolume.CreateDirectory("New Dir1");
@@ -67,19 +61,16 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateDirectoryInSubDirectoryThenDirectoryExist(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
 
         // act - create "New Dir1" in root directory
         await ffsVolume.CreateDirectory("New Dir");
@@ -105,19 +96,16 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateNewFileInRootThenFileExist(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
 
         // act - create file in root directory
         await ffsVolume.CreateFile("New File");
@@ -131,22 +119,19 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateWriteDataToNewFileThenWhenReadDataFromFileDataMatches(long diskSize)
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
 
         // act - create file in root directory
         //await ffsVolume.CreateFile("New File");
@@ -173,22 +158,19 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateWriteDataToNewFileThenWhenSeekAndReadDataMatches(long diskSize)
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
 
         // act - create file in root directory
         //await ffsVolume.CreateFile("New File");
@@ -226,19 +208,16 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateAndDeleteFileInRootThenFileDoesntExist(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create file in root directory
         await ffsVolume.CreateFile("New File");
@@ -254,19 +233,16 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateTwoFilesAndDeleteOneFileInRootThenOneFileExists(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create file in root directory
         await ffsVolume.CreateFile("New File 1");
@@ -284,19 +260,16 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateAndDeleteDirectoryInRootDirectoryThenDirectoryDoesntExist(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create "New Dir" in root directory
         await ffsVolume.CreateDirectory("New Dir");
@@ -312,19 +285,16 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateAndRenameFileInRootThenFileIsRenamed(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create file in root directory
         await ffsVolume.CreateFile("New File");
@@ -341,19 +311,16 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory(long diskSize)
     {
         // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create "New Dir" in root directory
         await ffsVolume.CreateDirectory("New Dir");
@@ -379,22 +346,19 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenSetCommentForFileInRootThenCommentIsChanged(long diskSize)
     {
-        // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-        
         // arrange - comment to set
         var comment = "Comment for file";
 
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create file in root directory
         await ffsVolume.CreateFile("New File");
@@ -413,22 +377,19 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged(long diskSize)
     {
-        // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
         // arrange - protection bits to set
         var protectionBits = ProtectionBits.Delete | ProtectionBits.Executable | ProtectionBits.Write | ProtectionBits.Read | ProtectionBits.HeldResident | ProtectionBits.Archive | ProtectionBits.Pure | ProtectionBits.Script;
         
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create file in root directory
         await ffsVolume.CreateFile("New File");
@@ -447,22 +408,19 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenSetDateForFileInRootThenCreationDateIsChanged(long diskSize)
     {
-        // arrange - create fast file system formatted disk
-        await CreateFastFileSystemFormattedDisk(diskSize);
-
         // arrange - date to set
-        var date = Trim(DateTime.Now.AddDays(-10), TimeSpan.TicksPerSecond);
+        var date = DateTime.Now.AddDays(-10).Trim(TimeSpan.TicksPerSecond);
         
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
-
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        
         // act - mount fast file system volume
-        await using var ffsVolume = await FastFileSystemVolume.Mount(Stream, partitionBlock);
+        await using var ffsVolume = await MountVolume(stream);
         
         // act - create file in root directory
         await ffsVolume.CreateFile("New File");
@@ -478,10 +436,5 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
         Assert.NotNull(dirEntry);
         Assert.Equal(date, dirEntry.Date);
-    }
-
-    private static DateTime Trim(DateTime date, long ticks)
-    {
-        return new DateTime(date.Ticks - date.Ticks % ticks, date.Kind);
     }
 }

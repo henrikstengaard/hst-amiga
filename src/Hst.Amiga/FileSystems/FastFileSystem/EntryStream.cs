@@ -260,7 +260,7 @@
             {
                 nSect = fileHdr.FirstData;
             }
-            else if (Macro.isOFS(volume.DosType))
+            else if (volume.UseOfs)
             {
                 nSect = data.NextData;
             }
@@ -289,7 +289,7 @@
             currentData = await Disk.ReadDataBlock(volume, nSect);
             data = currentData;
 
-            if (Macro.isOFS(volume.DosType) && data.SeqNum != nDataBlock + 1)
+            if (volume.UseOfs && data.SeqNum != nDataBlock + 1)
             {
                 throw new IOException("adfReadNextFileBlock : seqnum incorrect");
             }
@@ -416,7 +416,7 @@
             }
 
             /* builds OFS header */
-            if (Macro.isOFS(volume.DosType))
+            if (volume.UseOfs)
             {
                 var data = currentData;
                 /* writes previous data block and link it  */
@@ -464,7 +464,7 @@
                 if (writeMode)
                 {
                     fileHdr.ByteSize = pos;
-                    if (Macro.isOFS(volume.DosType))
+                    if (volume.UseOfs)
                     {
                         //var data = currentData as OfsDataBlock;
                         currentData.DataSize = posInDataBlk;
@@ -482,7 +482,7 @@
                 fileHdr.Date = DateTime.Now;
                 await Disk.WriteFileHdrBlock(volume, fileHdr.HeaderKey, fileHdr as FileHeaderBlock);
 
-                if (volume.UsesDirCache) 
+                if (volume.UseDirCache) 
                 {
                     var parent = await Disk.ReadEntryBlock(volume, fileHdr.Parent);
                     await Cache.UpdateCache(volume, parent, fileHdr, true);

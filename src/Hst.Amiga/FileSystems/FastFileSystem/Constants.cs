@@ -36,7 +36,9 @@
         public const int MAX_DATABLK = INDEX_SIZE;
 
         public const int MAXNAMELEN = 30;
+        public const int LNFSMAXNAMELEN = 107;
         public const int MAXCMMTLEN = 79;
+        public const int LNFSNAMECMMTLEN = 112; /* Merged name and comment */
 
         /* block primary and secondary types */
 
@@ -50,5 +52,6 @@
         public const int T_LIST = 16;
         public const int T_DATA = 8;
         public const int T_DIRC = 33;
+        public const int TYPE_COMMENT = 64;
     }
 }

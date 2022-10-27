@@ -34,6 +34,8 @@
         public uint Access { get; set; } // 0x140: file header block
         public uint ByteSize { get; set; } // 0x144: file header block
         public string Comment { get; set; } // 0x148: length, 0x149: comment
+        public uint CommentBlock { get; set; } // 0x1b8: comment block used by lnfs dir and file header blocks
+
         public DateTime Date { get; set; } // 0x1a4: days, 0x1a8: mins, 0x1ac: ticks
         public string Name { get; set; } // 0x1b0: length, 0x1b1: name
         public uint RealEntry { get; set; } // 0x1d4

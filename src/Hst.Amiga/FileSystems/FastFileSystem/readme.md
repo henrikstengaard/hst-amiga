@@ -10,14 +10,20 @@ See [Blocks](Blocks) page for details about blocks used by Fast File System.
 
 ## DOS types
 
-| DOS type | DOS type hex | Description                                       |
-|----------|--------------|---------------------------------------------------|
-| DOS\0    | 0x444F5300   | Old file system                                   |
-| DOS\1    | 0x444F5301   | Fast file system                                  |
-| DOS\2    | 0x444F5302   | International mode                                |
-| DOS\3    | 0x444F5303   | Fast file system + International mode             |
-| DOS\4    | 0x444F5304   | International mode + Dir cache                    |
-| DOS\5    | 0x444F5305   | Fast file system + International mode + Dir cache |
+FFS operates in several modes, defined by "dostypes". AmigaOS filesystems are identified by a four letter descriptor which is specified either in the RDB or a mountlist or dosdriver; alternatively (as was the case in trackdisk-like devices like floppy disks), the disk itself could be formatted in any dostype specified.
+
+FFS can be set to following dostypes:
+
+| Dostype | Dostype hex | Mode                                                       | Max filename length | Description                                                                                                                                                                             |
+|---------|-------------|------------------------------------------------------------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| DOS\0   | 0x444F5300  | Old file system (OFS)                                      | 31                  | The original Amiga filesystem (OFS).                                                                                                                                                    |
+| DOS\1   | 0x444F5301  | Fast file system (FFS)                                     | 31                  | The new filesystem (FFS).                                                                                                                                                               |
+| DOS\2   | 0x444F5302  | International mode (OFS-INTL)                              | 31                  | International mode for OFS to handle filenames with "international characters" - i.e. those not found in English (Latin character set), such as ä and ê.                                |
+| DOS\3   | 0x444F5303  | Fast file system + International mode (FFS-INTL)           | 31                  | International mode for FFS (FFS-INTL). This was the most commonly used FFS mode. (All higher dostypes have international mode always enabled).                                          |
+| DOS\4   | 0x444F5304  | International mode + Dir cache (OFS-DC)                    | 31                  | Directory Cache (OFS-DC) mode enables a primitive cache by creating dedicated directory lists instead of reading the linked directory/file entries that can be scattered over the disk. |
+| DOS\5   | 0x444F5305  | Fast file system + International mode + Dir cache (FFS-DC) | 31                  | Both dircache modes were not backwards compatible with earlier versions of FFS.                                                                                                         |
+| DOS\6   | 0x444F5306  | Old file system + Long Filename (OFS-LNFS)                 | 107                 | Long filenames for OFS (OFS-LNFS). Requires AmigaOS 3.1.4+, FastFileSystem v46+ and Workbench prefs maximum filename length set to 101.                                                 |
+| DOS\7   | 0x444F5307  | Fast file system + Long Filename (FFS-LNFS)                | 107                 | Long filenames for FFS (FFS-LNFS). Requires AmigaOS 3.1.4+, FastFileSystem v46+ and Workbench prefs maximum filename length set to 101.                                                 |
 
 ## Usage
 
@@ -25,7 +31,7 @@ The usage section describes how to use classes for reading and writing PFS3 part
 
 ### Formatting a partition with Fast File System
 
-Example of formatting a partition block in a stream with Fast File System and volume name "Workbench":
+Example of quick formatting a partition block in a stream with Fast File System and volume name "Workbench":
 ```
 await FastFileSystemFormatter.FormatPartition(stream, partitionBlock, "Workbench");
 ```

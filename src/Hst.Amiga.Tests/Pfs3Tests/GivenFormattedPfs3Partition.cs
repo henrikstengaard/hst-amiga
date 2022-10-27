@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Extensions;
 using FileSystems;
 using FileSystems.Pfs3;
 using Xunit;
@@ -11,19 +12,18 @@ using Xunit;
 public class GivenFormattedPfs3Disk : Pfs3TestBase
 {
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateDirectoryInRootDirectoryThenDirectoryExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
 
         // act - create "New Dir" in root directory
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
         await pfs3Volume.CreateDirectory("New Dir");
         
         // act - list entries in root directory
@@ -36,20 +36,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateMultipleDirectoriesInRootDirectoryThenDirectoriesExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-
+        await using var pfs3Volume = await MountVolume(stream);
+        
         // act - create "New Dir1", "New Dir2", "New Dir3" in root directory
         await pfs3Volume.CreateDirectory("New Dir1");
         await pfs3Volume.CreateDirectory("New Dir2");
@@ -66,19 +63,16 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateDirectoryInSubDirectoryThenDirectoryExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await using var pfs3Volume = await MountVolume(stream);
 
         // act - create "New Dir1" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
@@ -104,19 +98,16 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateNewFileInRootThenFileExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await using var pfs3Volume = await MountVolume(stream);
 
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
@@ -130,22 +121,19 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateWriteDataToNewFileThenWhenReadDataFromFileDataMatches(long diskSize)
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await using var pfs3Volume = await MountVolume(stream);
 
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
@@ -172,22 +160,19 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateWriteDataToNewFileThenWhenSeekAndReadDataMatches(long diskSize)
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
+        await using var pfs3Volume = await MountVolume(stream);
 
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
@@ -225,20 +210,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateAndDeleteFileInRootThenFileDoesntExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
+        await using var pfs3Volume = await MountVolume(stream);
+
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
 
@@ -253,20 +235,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateTwoFilesAndDeleteOneFileInRootThenOneFileExists(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
+        await using var pfs3Volume = await MountVolume(stream);
+
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File 1");
         await pfs3Volume.CreateFile("New File 2");
@@ -283,20 +262,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateAndDeleteDirectoryInRootDirectoryThenDirectoryDoesntExist(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
+        await using var pfs3Volume = await MountVolume(stream);
+
         // act - create "New Dir" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
         
@@ -311,20 +287,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenCreateAndRenameFileInRootThenFileIsRenamed(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
+        await using var pfs3Volume = await MountVolume(stream);
+
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
 
@@ -340,20 +313,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory(long diskSize)
     {
         // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
+        await using var pfs3Volume = await MountVolume(stream);
+
         // act - create "New Dir" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
         
@@ -378,23 +348,20 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenSetCommentForFileInRootThenCommentIsChanged(long diskSize)
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-        
         // arrange - comment to set
         var comment = "Comment for file";
 
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
+        await using var pfs3Volume = await MountVolume(stream);
+
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
 
@@ -412,23 +379,20 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged(long diskSize)
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
         // arrange - protection bits to set
         var protectionBits = ProtectionBits.Delete | ProtectionBits.Executable | ProtectionBits.Write | ProtectionBits.Read | ProtectionBits.HeldResident | ProtectionBits.Archive | ProtectionBits.Pure | ProtectionBits.Script;
         
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
+        await using var pfs3Volume = await MountVolume(stream);
+
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
 
@@ -446,28 +410,25 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100MB)]
-    [InlineData(DiskSize4GB)]
-    [InlineData(DiskSize16GB)]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
     public async Task WhenSetCreationDateForFileInRootThenCreationDateIsChanged(long diskSize)
     {
-        // arrange - create pfs3 formatted disk
-        await CreatePfs3FormattedDisk(diskSize);
-
-        // arrange - creation date to set
-        var creationDate = Trim(DateTime.Now.AddDays(-10), TimeSpan.TicksPerSecond);
+        // arrange - date to set
+        var date = DateTime.Now.AddDays(-10).Trim(TimeSpan.TicksPerSecond);
         
-        // arrange - get first partition
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk(diskSize);
 
         // act - mount pfs3 volume
-        await using var pfs3Volume = await Pfs3Volume.Mount(Stream, partitionBlock);
-        
+        await using var pfs3Volume = await MountVolume(stream);
+
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
 
         // act - set date for file in root directory
-        await pfs3Volume.SetDate("New File", creationDate);
+        await pfs3Volume.SetDate("New File", date);
         
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
@@ -476,11 +437,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Single(entries);
         var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
         Assert.NotNull(dirEntry);
-        Assert.Equal(creationDate, dirEntry.Date);
-    }
-
-    private static DateTime Trim(DateTime date, long ticks)
-    {
-        return new DateTime(date.Ticks - date.Ticks % ticks, date.Kind);
+        Assert.Equal(date, dirEntry.Date);
     }
 }

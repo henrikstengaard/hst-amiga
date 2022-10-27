@@ -22,7 +22,11 @@
         public bool Mounted { get; set; }
         public bool ReadOnly { get; set; }
         
-        public bool UsesDirCache { get; set; }
+        public bool UseOfs { get; set; }
+        public bool UseFfs { get; set; }
+        public bool UseIntl { get; set; }
+        public bool UseDirCache { get; set; }
+        public bool UseLnfs { get; set; }
         
         public uint BitmapSize { get; set; }
         public BitmapBlock[] BitmapTable { get; set; }

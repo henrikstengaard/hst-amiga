@@ -13,40 +13,50 @@ using Constants = FileSystems.Pfs3.Constants;
 
 public abstract class Pfs3TestBase
 {
-    protected const long Size1MB = 1024 * 1024;
-    protected const long Size1GB = 1024 * 1024 * 1024;
+    private const long Size1Mb = 1024 * 1024;
+    private const long Size1Gb = 1024 * 1024 * 1024;
     
-    protected const long DiskSize100MB = Size1MB * 100;
-    protected const long DiskSize4GB = Size1GB * 4;
-    protected const long DiskSize16GB = Size1GB * 16;
-    
-    protected static readonly byte[] Pfs3DosType = { 0x50, 0x44, 0x53, 0x3 };
-    protected static readonly string Pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio");
-    protected RigidDiskBlock RigidDiskBlock = RigidDiskBlock
-        .Create(100.MB().ToUniversalSize());
-    protected static readonly BlockMemoryStream Stream = new BlockMemoryStream();
+    protected const long DiskSize100Mb = Size1Mb * 100;
+    protected const long DiskSize4Gb = Size1Gb * 4;
+    protected const long DiskSize16Gb = Size1Gb * 16;
 
-    protected async Task CreatePfs3FormattedDisk(long diskSize = 100 * 1024 * 1024)
+    private static readonly byte[] Pfs3DosType = { 0x50, 0x44, 0x53, 0x3 };
+    private static readonly string Pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio");
+    
+    protected async Task<BlockMemoryStream> CreatePfs3FormattedDisk(long diskSize = 100 * 1024 * 1024)
     {
-        RigidDiskBlock = RigidDiskBlock.Create(diskSize.ToUniversalSize());
-        Stream.SetLength(RigidDiskBlock.DiskSize);
+        var stream = new BlockMemoryStream();
         
-        RigidDiskBlock.AddFileSystem(Pfs3DosType, await System.IO.File.ReadAllBytesAsync(Pfs3AioPath))
+        var rigidDiskBlock = RigidDiskBlock.Create(diskSize.ToUniversalSize());
+        stream.SetLength(rigidDiskBlock.DiskSize);
+        
+        rigidDiskBlock.AddFileSystem(Pfs3DosType, await System.IO.File.ReadAllBytesAsync(Pfs3AioPath))
             .AddPartition("DH0", bootable: true);
-        await RigidDiskBlockWriter.WriteBlock(RigidDiskBlock, Stream);
+        await RigidDiskBlockWriter.WriteBlock(rigidDiskBlock, stream);
         
-        var partitionBlock = RigidDiskBlock.PartitionBlocks.First();
+        var partitionBlock = rigidDiskBlock.PartitionBlocks.First();
 
-        await Pfs3Formatter.FormatPartition(Stream, partitionBlock, "Workbench");
+        await Pfs3Formatter.FormatPartition(stream, partitionBlock, "Workbench");
+
+        return stream;
+    }
+    
+    protected async Task<Pfs3Volume> MountVolume(Stream stream)
+    {
+        var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+
+        var partitionBlock = rigidDiskBlock.PartitionBlocks.First();
+
+        return await Pfs3Volume.Mount(stream, partitionBlock);
     }
 
-    protected async Task WriteStreamToFile(string path)
+    protected async Task WriteStreamToFile(BlockMemoryStream stream, string path)
     {
         await using var fileStream = System.IO.File.OpenWrite(path);
-        await Stream.WriteTo(fileStream);
+        await stream.WriteTo(fileStream);
     }
 
-    public string VerifyPfs3Disk(PartitionBlock partition)
+    public string VerifyPfs3Disk(BlockMemoryStream stream, PartitionBlock partition)
     {
         var reportBuilder = new StringBuilder();
 
@@ -55,7 +65,7 @@ public abstract class Pfs3TestBase
         var reservedBlockSize = Init.CalculateReservedBlockSize(partition.Sectors);
 
         var reservedBlockEnd = 0L;
-        foreach (var block in Stream.Blocks.OrderBy(x => x.Key))
+        foreach (var block in stream.Blocks.OrderBy(x => x.Key))
         {
             if (block.Key < start || block.Key < reservedBlockEnd)
             {

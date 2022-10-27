@@ -5,7 +5,7 @@
 
     public static class EntryBlockParser
     {
-        public static EntryBlock Parse(byte[] blockBytes)
+        public static EntryBlock Parse(byte[] blockBytes, bool useLnfs = false)
         {
             var type = BigEndianConverter.ConvertBytesToInt32(blockBytes);
             var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + (SizeOf.Long * 3));
@@ -20,9 +20,13 @@
                 case Constants.ST_ROOT:
                     return RootBlockParser.Parse(blockBytes);
                 case Constants.ST_DIR:
-                    return DirBlockParser.Parse(blockBytes);
+                    return useLnfs
+                        ? LongNameFileSystemDirBlockReader.Read(blockBytes) as EntryBlock
+                        : DirBlockParser.Parse(blockBytes);
                 case Constants.ST_FILE:
-                    return FileHeaderBlockParser.Parse(blockBytes);
+                    return useLnfs
+                        ? LongNameFileSystemFileHeaderBlockReader.Parse(blockBytes) as EntryBlock
+                        : FileHeaderBlockParser.Parse(blockBytes);
                 default:
                     throw new IOException($"Invalid entry block sec type '{secType}'");
             }

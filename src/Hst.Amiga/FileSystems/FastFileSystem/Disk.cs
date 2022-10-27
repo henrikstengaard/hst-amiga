@@ -53,14 +53,23 @@
         public static async Task<EntryBlock> ReadEntryBlock(Volume volume, uint sector)
         {
             var blockBytes = await ReadBlock(volume, sector);
-            return EntryBlockParser.Parse(blockBytes);
+            var entryBlock = EntryBlockParser.Parse(blockBytes, volume.UseLnfs);
+
+            if (volume.UseLnfs && entryBlock.CommentBlock != 0)
+            {
+                var commentBlockBytes = await ReadBlock(volume, entryBlock.CommentBlock);
+                var commentBlock = LongNameFileSystemCommentBlockReader.Parse(commentBlockBytes);
+                entryBlock.Comment = commentBlock.Comment;
+            }
+
+            return entryBlock;
         }
         
         public static async Task<DataBlock> ReadDataBlock(Volume vol, uint nSect)
         {
             var blockBytes = await ReadBlock(vol, nSect);
 
-            if (Macro.isOFS(vol.DosType))
+            if (vol.UseOfs)
             {
                 var dBlock = DataBlockParser.Parse(blockBytes);
                 if (!IsSectorNumberValid(vol, dBlock.HeaderKey))
@@ -80,7 +89,7 @@
         
         public static async Task WriteDataBlock(Volume volume, uint nSect, DataBlock dataBlock)
         {
-            var blockBytes = Macro.isOFS(volume.DosType)
+            var blockBytes = volume.UseOfs
                 ? DataBlockBuilder.Build(dataBlock, volume.BlockSize)
                 : dataBlock.Data;
             await WriteBlock(volume, nSect, blockBytes);
@@ -116,7 +125,7 @@
 
         public static async Task WriteFileHdrBlock(Volume vol, uint nSect, FileHeaderBlock fileHeaderBlock)
         {
-            var blockBytes = EntryBlockBuilder.Build(fileHeaderBlock, vol.BlockSize);
+            var blockBytes = EntryBlockBuilder.Build(fileHeaderBlock, vol.BlockSize, vol.UseLnfs);
             await WriteBlock(vol, nSect, blockBytes);
         }
         

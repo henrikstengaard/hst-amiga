@@ -12,7 +12,7 @@
     {
         public static async Task<IEnumerable<Entry>> ReadEntries(Volume volume, uint nSect, bool recursive = false)
         {
-            if (volume.UsesDirCache)
+            if (volume.UseDirCache)
             {
                 return await Cache.ReadEntries(volume, nSect, recursive);
             }
@@ -153,9 +153,9 @@
         public static async Task<NameToEntryBlockResult> GetEntryBlock(Volume volume, uint[] ht, string name,
             bool nUpdSect)
         {
-            var intl = Macro.isINTL(volume.DosType) || volume.UsesDirCache;
+            var intl = volume.UseIntl || volume.UseDirCache;
             var hashVal = GetHashValue(name, intl);
-            var nameLen = Math.Min(name.Length, Constants.MAXNAMELEN);
+            var nameLen = Math.Min(name.Length, volume.UseLnfs ? Constants.LNFSMAXNAMELEN : Constants.MAXNAMELEN);
             var upperName = MyToUpper(name, intl);
 
             var nSect = ht[hashVal];
@@ -227,7 +227,7 @@
 
             await Disk.WriteFileHdrBlock(vol, nSect, entryBlock);
 
-            if (vol.UsesDirCache)
+            if (vol.UseDirCache)
             {
                 await Cache.AddInCache(vol, parent, entryBlock);
             }
@@ -253,7 +253,7 @@
                 throw new IOException($"Invalid secondary type '{dir.SecType}'");
             }
 
-            var intl = Macro.isINTL(vol.DosType) || vol.UsesDirCache;
+            var intl = vol.UseIntl || vol.UseDirCache;
             var len = Math.Min(name.Length, Constants.MAXNAMELEN);
             var name2 = MyToUpper(name, intl);
             var hashValue = GetHashValue(name, intl);
@@ -289,6 +289,7 @@
                 {
                     return uint.MaxValue;
                 }
+
                 if (updEntry.Name.Length == len)
                 {
                     var name3 = MyToUpper(updEntry.Name, intl);
@@ -334,7 +335,7 @@
         public static async Task CreateDirectory(Volume vol, uint parentSector, string name)
         {
             var parent = await Disk.ReadEntryBlock(vol, parentSector);
-            
+
             /* -1 : do not use a specific, already allocated sector */
             var nSect = await CreateEntry(vol, parent, name, uint.MaxValue);
             if (nSect == uint.MaxValue)
@@ -350,7 +351,7 @@
                 Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey
             };
 
-            if (vol.UsesDirCache)
+            if (vol.UseDirCache)
             {
                 await Cache.AddInCache(vol, parent, dirBlock);
                 await Cache.CreateEmptyCache(vol, dirBlock, uint.MaxValue);
@@ -368,7 +369,7 @@
                 return;
             }
 
-            var intl = Macro.isINTL(vol.DosType) || vol.UsesDirCache;
+            var intl = vol.UseIntl || vol.UseDirCache;
             var len = newName.Length;
             // myToUpper((uint8_t*)name2, (uint8_t*)newName, len, intl);
             // myToUpper((uint8_t*)name3, (uint8_t*)oldName, strlen(oldName), intl);
@@ -453,7 +454,7 @@
                 await WriteEntryBlock(vol, previous.HeaderKey, previous);
             }
 
-            if (vol.UsesDirCache)
+            if (vol.UseDirCache)
             {
                 if (pSect != nPSect)
                 {
@@ -469,7 +470,50 @@
 
         public static async Task WriteEntryBlock(Volume vol, uint nSect, EntryBlock ent)
         {
-            var blockBytes = EntryBlockBuilder.Build(ent, vol.BlockSize);
+            if (vol.UseLnfs)
+            {
+                // check if comment fits in lnfs dir block,
+                // if yes: if comment block is present, move comment to entry block and free comment block 
+                // if no: create comment block, move comment, allocate block and write block
+
+                var nameAndCommendSpaceLeft = Constants.LNFSNAMECMMTLEN - ent.Name.Length + 1;
+                var useCommentBlock = nameAndCommendSpaceLeft < ent.Comment.Length + 1;
+
+                if (useCommentBlock)
+                {
+                    // get free block for comment block, if use comment block and no block is allocated
+                    if (ent.CommentBlock == 0)
+                    {
+                        ent.CommentBlock = Bitmap.AdfGet1FreeBlock(vol);
+                    }
+
+                    // create comment block
+                    var commentBlock = new LongNameFileSystemCommentBlock
+                    {
+                        OwnKey = ent.CommentBlock,
+                        HeaderKey = nSect,
+                        Comment = ent.Comment
+                    };
+
+                    // remove comment from entry block
+                    ent.Comment = string.Empty;
+
+                    // write comment block to disk
+                    var commentBlockBytes = LongNameFileSystemCommentBlockWriter.Build(commentBlock, vol.BlockSize);
+                    await Disk.WriteBlock(vol, ent.CommentBlock, commentBlockBytes);
+                }
+                else
+                {
+                    // free comment block, if not using comment block and block is allocated
+                    if (ent.CommentBlock != 0)
+                    {
+                        Bitmap.AdfSetBlockFree(vol, ent.CommentBlock);
+                        await Bitmap.AdfUpdateBitmap(vol);
+                    }
+                }
+            }
+
+            var blockBytes = EntryBlockBuilder.Build(ent, vol.BlockSize, vol.UseLnfs);
             await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
@@ -495,7 +539,7 @@
             /* in parent hashTable */
             if (nSect2 == 0)
             {
-                var intl = Macro.isINTL(vol.DosType) || vol.UsesDirCache;
+                var intl = vol.UseIntl || vol.UseDirCache;
                 var hashVal = GetHashValue(name, intl);
                 parent.HashTable[hashVal] = entryBlock.NextSameHash;
                 await WriteEntryBlock(vol, pSect, parent);
@@ -510,15 +554,20 @@
 
             if (entryBlock.SecType == Constants.ST_FILE)
             {
-                var fileHeaderBlock = EntryBlockParser.Parse(entryBlock.BlockBytes);
+                var fileHeaderBlock = EntryBlockParser.Parse(entryBlock.BlockBytes, vol.UseLnfs);
                 await File.AdfFreeFileBlocks(vol, fileHeaderBlock);
                 Bitmap.AdfSetBlockFree(vol, nSect); //marks the FileHeaderBlock as free in BitmapBlock
+                if (vol.UseLnfs && fileHeaderBlock.CommentBlock != 0)
+                {
+                    Bitmap.AdfSetBlockFree(vol,
+                        fileHeaderBlock.CommentBlock); //marks the comment block as free in BitmapBlock
+                }
             }
             else if (entryBlock.SecType == Constants.ST_DIR)
             {
                 Bitmap.AdfSetBlockFree(vol, nSect);
                 /* free dir cache block : the directory must be empty, so there's only one cache block */
-                if (vol.UsesDirCache)
+                if (vol.UseDirCache)
                     Bitmap.AdfSetBlockFree(vol, entryBlock.Extension);
             }
             else
@@ -526,7 +575,7 @@
                 throw new IOException($"secType {entryBlock.SecType} not supported");
             }
 
-            if (vol.UsesDirCache)
+            if (vol.UseDirCache)
             {
                 await Cache.DeleteFromCache(vol, parent, entryBlock.HeaderKey);
             }
@@ -554,7 +603,7 @@
         public static async Task SetEntryDate(Volume volume, uint parentSector, string name, DateTime date)
         {
             var parent = await Disk.ReadEntryBlock(volume, parentSector);
-            
+
             var result = await GetEntryBlock(volume, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
@@ -571,7 +620,7 @@
             entryBlock.Date = date;
             await WriteEntryBlock(volume, nSect, entryBlock);
 
-            if (volume.UsesDirCache)
+            if (volume.UseDirCache)
             {
                 await Cache.UpdateCache(volume, parent, entryBlock, false);
             }
@@ -588,7 +637,7 @@
         public static async Task SetEntryAccess(Volume volume, uint parentSector, string name, uint access)
         {
             var parent = await Disk.ReadEntryBlock(volume, parentSector);
-            
+
             var result = await GetEntryBlock(volume, parent.HashTable, name, false);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
@@ -605,7 +654,7 @@
             entryBlock.Access = access;
             await WriteEntryBlock(volume, nSect, entryBlock);
 
-            if (volume.UsesDirCache)
+            if (volume.UseDirCache)
             {
                 await Cache.UpdateCache(volume, parent, entryBlock, false);
             }
@@ -641,7 +690,7 @@
                 : comment;
             await WriteEntryBlock(volume, nSect, entryBlock);
 
-            if (volume.UsesDirCache)
+            if (volume.UseDirCache)
             {
                 await Cache.UpdateCache(volume, parent, entryBlock, true);
             }
@@ -662,7 +711,7 @@
             }
 
             var entryBlock = await Disk.ReadEntryBlock(volume, sector);
-            
+
             int i;
             for (i = 0; i < parts.Length; i++)
             {
@@ -670,7 +719,7 @@
 
                 var entry = (await ReadEntries(volume,
                     FastFileSystemHelper.GetSector(volume, entryBlock))).FirstOrDefault(x =>
-                        x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
+                    x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
                 if (entry == null)
                 {
                     break;
