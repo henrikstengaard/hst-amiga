@@ -25,14 +25,16 @@
         public IEnumerable<BitmapBlock> BitmapBlocks { get; set; }
         public IEnumerable<BitmapExtensionBlock> BitmapExtensionBlocks { get; set; }
 
-        public RootBlock()
+        public RootBlock(int fileSystemBlockSize) : base(fileSystemBlockSize)
         {
+            var hashtableSize = FastFileSystemHelper.CalculateHashtableSize((uint)fileSystemBlockSize);
+            
             HeaderKey = 0;
             HighSeq = 0;
-            HashTableSize = Constants.HT_SIZE;
+            HashTableSize = hashtableSize;
             FirstData = 0;
             Checksum = 0;
-            HashTable = new uint[Constants.HT_SIZE];
+            HashTable = new uint[hashtableSize];
 
             BitmapFlags = Constants.BM_VALID;// -1
 

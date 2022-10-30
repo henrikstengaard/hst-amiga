@@ -179,7 +179,7 @@
         public static async Task<FastFileSystemVolume> Mount(Stream stream, PartitionBlock partitionBlock)
         {
             var volume = await FastFileSystemHelper.Mount(stream, partitionBlock.LowCyl, partitionBlock.HighCyl,
-                partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved,
+                partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved, partitionBlock.BlockSize,
                 partitionBlock.FileSystemBlockSize);
 
             return new FastFileSystemVolume(volume, volume.RootBlockOffset);

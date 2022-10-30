@@ -12,8 +12,8 @@
         {
             int i;
 
-            var mapSize = nBlock / (127 * 32);
-            if (nBlock % (127 * 32) != 0)
+            var mapSize = (uint)(nBlock / (vol.OffsetsPerBitmapBlock * 32));
+            if (nBlock % (vol.OffsetsPerBitmapBlock * 32) != 0)
                 mapSize++;
             vol.BitmapSize = mapSize;
             vol.BitmapTable = new BitmapBlock[mapSize];
@@ -23,7 +23,7 @@
             for (i = 0; i < mapSize; i++)
             {
                 vol.BitmapBlocksChg[i] = false;
-                vol.BitmapTable[i] = new BitmapBlock();
+                vol.BitmapTable[i] = new BitmapBlock(vol.FileSystemBlockSize);
             }
 
             var j = 0;
@@ -44,7 +44,7 @@
             {
                 var bmExt = await Disk.ReadBitmapExtensionBlock(vol, nSect);
                 i = 0;
-                while (i < 127 && j < mapSize)
+                while (i < vol.OffsetsPerBitmapBlock && j < mapSize)
                 {
                     nSect = bmExt.BitmapBlockOffsets[i];
                     Disk.ThrowExceptionIfSectorNumberInvalid(vol, nSect);
@@ -131,8 +131,8 @@
         public static void AdfSetBlockUsed(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - 2;
-            var block = sectOfMap / (127 * 32);
-            var indexInMap = (sectOfMap / 32) % 127;
+            var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
+            var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 
             var oldValue = vol.BitmapTable[block].Map[indexInMap];
 
@@ -143,8 +143,8 @@
         public static bool AdfIsBlockFree(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - 2;
-            var block = sectOfMap / (127 * 32);
-            var indexInMap = (sectOfMap / 32) % 127;
+            var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
+            var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 
             return (vol.BitmapTable[block].Map[indexInMap] & BitMask[sectOfMap % 32]) != 0;
         }
@@ -152,8 +152,8 @@
         public static void AdfSetBlockFree(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - 2;
-            var block = sectOfMap / (127 * 32);
-            var indexInMap = (sectOfMap / 32) % 127;
+            var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
+            var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 
             var oldValue = vol.BitmapTable[ block ].Map[ indexInMap ];
             vol.BitmapTable[ block ].Map[ indexInMap ] = oldValue | BitMask[ sectOfMap % 32 ];

@@ -2,7 +2,6 @@
 {
     using System.Collections.Generic;
     using System.IO;
-    using Amiga.Extensions;
     using Core.Converters;
 
     public static class DirBlockParser
@@ -18,7 +17,7 @@
             
             var headerKey = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
             var highSeq = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x8);
-            var indexSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0xc); // hashtable & data blocks
+            //var indexSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0xc); // hashtable & data blocks
             var firstData = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x10);
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
 
@@ -27,33 +26,15 @@
             {
                 throw new IOException("Invalid dir block checksum");
             }
-            
+
+            var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
             var index = new List<uint>();
-            for (var i = 0; i < Constants.INDEX_SIZE; i++)
+            for (var i = 0; i < indexSize; i++)
             {
                 index.Add(BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
             }
-
-            var access = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x140);
-            var comment = blockBytes.ReadStringWithLength(0x148);
-
-            var date = DateHelper.ReadDate(blockBytes, 0x1a4);
-            var name = blockBytes.ReadStringWithLength(0x1b0);
-
-            var realEntry = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1d4);
-            var nextLink = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1d8);
-
-            var nextSameHash = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1f0);
-            var parent = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1f4);
-            var extension = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1f8);
-            var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1f0 + (SizeOf.Long * 3));
-
-            if (secType != Constants.ST_DIR)
-            {
-                throw new IOException($"Invalid dir block sec type '{type}'");
-            }
             
-            return new DirBlock
+            var dirBlock = new DirBlock(blockBytes.Length)
             {
                 BlockBytes = blockBytes,
                 HeaderKey = headerKey,
@@ -61,17 +42,17 @@
                 FirstData = firstData,
                 Checksum = checksum,
                 IndexSize = indexSize,
-                Index = index.ToArray(),
-                Access = access,
-                Comment = comment,
-                Date = date,
-                Name = name,
-                RealEntry = realEntry,
-                NextLink = nextLink,
-                NextSameHash = nextSameHash,
-                Parent = parent,
-                Extension = extension
+                Index = index.ToArray()
             };
+            
+            EntryBlockParser.ReadGenericEntryBlock(dirBlock, blockBytes);
+
+            if (dirBlock.SecType != Constants.ST_DIR)
+            {
+                throw new IOException($"Invalid dir block sec type '{type}'");
+            }
+            
+            return dirBlock;
         }
     }
 }

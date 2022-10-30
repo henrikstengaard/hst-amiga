@@ -2,6 +2,7 @@
 
 using System.Linq;
 using System.Threading.Tasks;
+using FileSystems.FastFileSystem;
 using FileSystems.Pfs3.Doctor;
 using RigidDiskBlocks;
 using Xunit;

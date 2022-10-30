@@ -20,17 +20,17 @@
         private uint posInDataBlk;
         private uint curDataPtr;
         private FileExtBlock currentExt;
-        private uint nDataBlock = 0;
+        private uint nDataBlock;
         private DataBlock currentData;
-        private bool writeMode;
+        private readonly bool writeMode;
 
-        public EntryStream(Volume volume, bool writeMode, bool eof, EntryBlock fhdr)
+        public EntryStream(Volume volume, bool writeMode, bool eof, EntryBlock entryBlock)
         {
-            this.length = fhdr.ByteSize;
+            this.length = entryBlock.ByteSize;
             this.volume = volume;
             this.writeMode = writeMode;
             this.eof = eof;
-            this.fileHdr = fhdr;
+            this.fileHdr = entryBlock;
             this.pos = 0;
             this.posInExtBlk = 0;
             this.posInDataBlk = 0;
@@ -119,17 +119,17 @@
             set => Seek(value, SeekOrigin.Begin);
         }
 
-        private async Task AdfFileSeek(uint pos)
+        private async Task AdfFileSeek(uint position)
         {
             int i;
 
-            var nPos = Math.Min(pos, length);
+            var nPos = Math.Min(position, length);
             this.pos = nPos;
             var extBlock = Pos2DataBlock(nPos);
             if (extBlock == uint.MaxValue)
             {
                 currentData =
-                    await Disk.ReadDataBlock(volume, fileHdr.DataBlocks[Constants.MAX_DATABLK - 1 - curDataPtr]);
+                    await Disk.ReadDataBlock(volume, fileHdr.DataBlocks[volume.IndexSize - 1 - curDataPtr]);
             }
             else
             {
@@ -156,8 +156,8 @@
             */
         private uint Pos2DataBlock(uint position) //, int *posInExtBlk, int *posInDataBlk, int32_t *curDataN )
         {
-            posInDataBlk = (uint)(position % volume.BlockSize);
-            curDataPtr = (uint)(position / volume.BlockSize);
+            posInDataBlk = (uint)(position % volume.FileSystemBlockSize);
+            curDataPtr = (uint)(position / volume.FileSystemBlockSize);
             if (posInDataBlk == 0)
                 curDataPtr++;
             if (curDataPtr < 72)
@@ -166,8 +166,8 @@
                 return uint.MaxValue;
             }
 
-            posInExtBlk = (uint)((position - 72 * volume.BlockSize) % volume.BlockSize);
-            var extBlock = (uint)((position - 72 * volume.BlockSize) / volume.BlockSize);
+            posInExtBlk = (uint)((position - 72 * volume.FileSystemBlockSize) % volume.FileSystemBlockSize);
+            var extBlock = (uint)((position - 72 * volume.FileSystemBlockSize) / volume.FileSystemBlockSize);
             if (posInExtBlk == 0)
                 extBlock++;
             return extBlock;
@@ -266,22 +266,22 @@
             }
             else
             {
-                if (nDataBlock < Constants.MAX_DATABLK)
-                    nSect = fileHdr.DataBlocks[Constants.MAX_DATABLK - 1 - nDataBlock];
+                if (nDataBlock < volume.IndexSize)
+                    nSect = fileHdr.DataBlocks[volume.IndexSize - 1 - nDataBlock];
                 else
                 {
-                    if (nDataBlock == Constants.MAX_DATABLK)
+                    if (nDataBlock == volume.IndexSize)
                     {
                         currentExt = await Disk.ReadFileExtBlock(volume, fileHdr.Extension);
                         posInExtBlk = 0;
                     }
-                    else if (posInExtBlk == Constants.MAX_DATABLK)
+                    else if (posInExtBlk == volume.IndexSize)
                     {
                         currentExt = await Disk.ReadFileExtBlock(volume, currentExt.Extension);
                         posInExtBlk = 0;
                     }
 
-                    nSect = currentExt.Index[Constants.MAX_DATABLK - 1 - posInExtBlk];
+                    nSect = currentExt.Index[volume.IndexSize - 1 - posInExtBlk];
                     posInExtBlk++;
                 }
             }
@@ -354,7 +354,7 @@
             var blockSize = volume.DataBlockSize;
 
             /* the first data blocks pointers are inside the file header block */
-            if (nDataBlock < Constants.MAX_DATABLK)
+            if (nDataBlock < volume.IndexSize)
             {
                 nSect = Bitmap.AdfGet1FreeBlock(volume);
                 if (nSect == uint.MaxValue)
@@ -366,13 +366,13 @@
                 {
                     fileHdr.FirstData = nSect;
                 }
-                fileHdr.DataBlocks[Constants.MAX_DATABLK - 1 - nDataBlock] = nSect;
+                fileHdr.DataBlocks[volume.IndexSize - 1 - nDataBlock] = nSect;
                 fileHdr.HighSeq++;
             }
             else
             {
                 /* one more sector is needed for one file extension block */
-                if (nDataBlock % Constants.MAX_DATABLK == 0)
+                if (nDataBlock % volume.IndexSize == 0)
                 {
                     var extSect = Bitmap.AdfGet1FreeBlock(volume);
                     if (extSect == uint.MaxValue)
@@ -381,21 +381,21 @@
                     }
 
                     /* the future block is the first file extension block */
-                    if (nDataBlock == Constants.MAX_DATABLK)
+                    if (nDataBlock == volume.IndexSize)
                     {
-                        currentExt = new FileExtBlock();
+                        currentExt = new FileExtBlock(volume.FileSystemBlockSize);
                         fileHdr.Extension = extSect;
                     }
 
                     /* not the first : save the current one, and link it with the future */
-                    if (nDataBlock >= 2 * Constants.MAX_DATABLK)
+                    if (nDataBlock >= 2 * volume.IndexSize)
                     {
                         currentExt.Extension = extSect;
                         await Disk.WriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
                     }
 
                     /* initializes a file extension block */
-                    for (var i = 0; i < Constants.MAX_DATABLK; i++)
+                    for (var i = 0; i < volume.IndexSize; i++)
                         currentExt.Index[i] = 0;
                     currentExt.HeaderKey = extSect;
                     currentExt.Parent = fileHdr.HeaderKey;
@@ -410,7 +410,7 @@
                     return uint.MaxValue;
                 }
 
-                currentExt.Index[Constants.MAX_DATABLK - 1 - posInExtBlk] = nSect;
+                currentExt.Index[volume.IndexSize - 1 - posInExtBlk] = nSect;
                 currentExt.HighSeq++;
                 posInExtBlk++;
             }

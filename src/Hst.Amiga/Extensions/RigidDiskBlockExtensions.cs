@@ -14,7 +14,8 @@
         public static RigidDiskBlock AddFileSystem(this RigidDiskBlock rigidDiskBlock,
             string dosType, byte[] fileSystemBytes, bool overwrite = false)
         {
-            return AddFileSystem(rigidDiskBlock, DosTypeHelper.FormatDosType(dosType), string.Empty, fileSystemBytes, overwrite);
+            return AddFileSystem(rigidDiskBlock, DosTypeHelper.FormatDosType(dosType), string.Empty, fileSystemBytes,
+                overwrite);
         }
 
         public static RigidDiskBlock AddFileSystem(this RigidDiskBlock rigidDiskBlock,
@@ -22,7 +23,7 @@
         {
             return AddFileSystem(rigidDiskBlock, dosType, string.Empty, fileSystemBytes, overwrite);
         }
-        
+
         public static RigidDiskBlock AddFileSystem(this RigidDiskBlock rigidDiskBlock,
             byte[] dosType, string fileSystemName, byte[] fileSystemBytes, bool overwrite = false)
         {
@@ -30,26 +31,27 @@
             {
                 throw new ArgumentException($"DOS Type must consist of 4 bytes", nameof(dosType));
             }
-            
+
             if (!overwrite && rigidDiskBlock.FileSystemHeaderBlocks.Any(x => x.DosType.SequenceEqual(dosType)))
             {
                 throw new ArgumentException($"DOS Type '{dosType.FormatDosType()}' already exists", nameof(dosType));
             }
-            
+
             var version = VersionStringReader.Read(fileSystemBytes);
             var fileVersion = VersionStringReader.Parse(version);
 
             var fileSystemHeaderBlock = BlockHelper.CreateFileSystemHeaderBlock(dosType, fileVersion.Version,
                 fileVersion.Revision, fileSystemName, fileSystemBytes);
 
-            rigidDiskBlock.FileSystemHeaderBlocks = rigidDiskBlock.FileSystemHeaderBlocks.Where(x => !x.DosType.SequenceEqual(dosType)).Concat(new[]
-                { fileSystemHeaderBlock });
+            rigidDiskBlock.FileSystemHeaderBlocks = rigidDiskBlock.FileSystemHeaderBlocks
+                .Where(x => !x.DosType.SequenceEqual(dosType)).Concat(new[]
+                    { fileSystemHeaderBlock });
 
             return rigidDiskBlock;
         }
 
         public static RigidDiskBlock AddPartition(this RigidDiskBlock rigidDiskBlock,
-            string driveName, long size = 0, bool bootable = false)
+            string driveName, long size = 0, int fileSystemBlockSize = 512, bool bootable = false)
         {
             var firstFileSystemHeaderBlock = rigidDiskBlock.FileSystemHeaderBlocks.FirstOrDefault();
 
@@ -58,14 +60,17 @@
                 throw new Exception("No file system header blocks");
             }
 
-            return AddPartition(rigidDiskBlock, firstFileSystemHeaderBlock.DosType, driveName, size, bootable);
+            return AddPartition(rigidDiskBlock, firstFileSystemHeaderBlock.DosType, driveName, size,
+                fileSystemBlockSize, bootable);
         }
 
         public static RigidDiskBlock AddPartition(this RigidDiskBlock rigidDiskBlock, byte[] dosType, string driveName,
             long size = 0,
+            int fileSystemBlockSize = 512,
             bool bootable = false)
         {
-            var partitionBlock = PartitionBlock.Create(rigidDiskBlock, dosType, driveName, size, bootable);
+            var partitionBlock =
+                PartitionBlock.Create(rigidDiskBlock, dosType, driveName, size, fileSystemBlockSize, bootable);
             rigidDiskBlock.PartitionBlocks = rigidDiskBlock.PartitionBlocks.Concat(new[] { partitionBlock });
 
             return rigidDiskBlock;

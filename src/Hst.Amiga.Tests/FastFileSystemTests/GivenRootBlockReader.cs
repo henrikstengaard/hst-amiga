@@ -17,7 +17,8 @@
             // arrange - calculate root block offset
             var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(FloppyDiskConstants.DoubleDensity.LowCyl,
                 FloppyDiskConstants.DoubleDensity.HighCyl, FloppyDiskConstants.DoubleDensity.ReservedBlocks,
-                FloppyDiskConstants.DoubleDensity.Heads, FloppyDiskConstants.DoubleDensity.Sectors);
+                FloppyDiskConstants.DoubleDensity.Heads, FloppyDiskConstants.DoubleDensity.Sectors,
+                FloppyDiskConstants.FileSystemBlockSize);
             await using var adfStream = System.IO.File.OpenRead(adfPath);
 
             // arrange - seek root block offset
@@ -27,13 +28,15 @@
             var rootBlockBytes = new byte[FloppyDiskConstants.BlockSize];
             var bytesRead = await adfStream.ReadAsync(rootBlockBytes, 0, FloppyDiskConstants.BlockSize);
             var rootBlock = RootBlockParser.Parse(rootBlockBytes);
-            
+
             // assert - bytes read and root block matches type and disk name
+            var expectedHashtableSize =
+                FastFileSystemHelper.CalculateHashtableSize(FloppyDiskConstants.FileSystemBlockSize);
             Assert.Equal(FloppyDiskConstants.BlockSize, bytesRead);
             Assert.Equal(2, rootBlock.Type);
             Assert.Equal(0U, rootBlock.HeaderKey);
             Assert.Equal(0U, rootBlock.HighSeq);
-            Assert.Equal((uint)Constants.HT_SIZE, rootBlock.HashTableSize);
+            Assert.Equal(expectedHashtableSize, rootBlock.HashTableSize);
             Assert.Equal("DOS3", rootBlock.DiskName);
         }
     }

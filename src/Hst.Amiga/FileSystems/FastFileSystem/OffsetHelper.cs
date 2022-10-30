@@ -7,11 +7,12 @@
 
     public static class OffsetHelper
     {
-        public static uint CalculateRootBlockOffset(uint lowCyl, uint highCyl, uint reserved, uint heads, uint sectors)
+        public static uint CalculateRootBlockOffset(uint lowCyl, uint highCyl, uint reserved, uint heads, uint sectors, uint fileSystemBlockSize)
         {
             var cylinders = highCyl - lowCyl + 1;
             var highKey = cylinders * heads * sectors - reserved;
             var rootKey = (reserved + highKey) / 2;
+            rootKey /= fileSystemBlockSize / 512U;
             return rootKey;
         }
 

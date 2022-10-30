@@ -16,54 +16,47 @@
                 throw new IOException($"Invalid root block type '{type}'");
             }
             
-            var hashtableSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0xc); // hashtable
-
-            if (hashtableSize != Constants.HT_SIZE)
-            {
-                throw new IOException($"Invalid root block hashtable size '{hashtableSize}'");
-            }
-            
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
             
+            var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
             var index = new List<uint>();
-            for (var i = 0; i < Constants.HT_SIZE; i++)
+            for (var i = 0; i < indexSize; i++)
             {
                 index.Add(BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
             }
 
-            var bitmapFlags = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x138); // bm_flag
-
+            var bitmapFlags = BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0xc8); // bm_flag
+            
             var bitmapBlockOffsets = new List<uint>();
-
             for (var i = 0; i < 25; i++)
             {
                 var bitmapBlockOffset =
-                    BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x13c + (i * SizeOf.Long));
+                    BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0xc4 + (SizeOf.ULong * i));
                 bitmapBlockOffsets.Add(bitmapBlockOffset);
             }
 
-            var bitmapExtensionBlocksOffset = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1a0);
+            var bitmapExtensionBlocksOffset = BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0x60);
 
-            var date = DateHelper.ReadDate(blockBytes, 0x1a4);
+            var date = DateHelper.ReadDate(blockBytes, blockBytes.Length - 0x5c);
 
-            var diskName = blockBytes.ReadStringWithLength(0x1b0, Constants.MAXNAMELEN);
+            var diskName = blockBytes.ReadStringWithLength(blockBytes.Length - 0x50, Constants.MAXNAMELEN);
 
-            var diskAlterationDate = DateHelper.ReadDate(blockBytes, 0x1d8);
-            var fileSystemCreationDate = DateHelper.ReadDate(blockBytes, 0x1e4);
+            var diskAlterationDate = DateHelper.ReadDate(blockBytes, blockBytes.Length - 0x28);
+            var fileSystemCreationDate = DateHelper.ReadDate(blockBytes, blockBytes.Length - 0x1c);
 
-            var extension = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x1f8);
-            var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x1fc);
+            var extension = BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0x08);
+            var secType = BigEndianConverter.ConvertBytesToInt32(blockBytes, blockBytes.Length - 0x04);
 
             if (secType != Constants.ST_ROOT)
             {
                 throw new IOException($"Invalid root block sec type '{type}'");
             }
             
-            return new RootBlock
+            return new RootBlock(blockBytes.Length)
             {
                 BlockBytes = blockBytes,
                 HighSeq = 0,
-                HashTableSize = Constants.INDEX_SIZE,
+                HashTableSize = indexSize,
                 HashTable = index.ToArray(),
                 FirstData = 0,
                 Checksum = checksum,

@@ -9,13 +9,14 @@ using File = System.IO.File;
 
 public class GivenLongNameFileSystemCommentBlockReader
 {
-    [Fact]
-    public async Task WhenReadBlockWithFileCommentThenCommentIsEqual()
+    [Theory]
+    [InlineData("dos7_comment-block-1.bin")]
+    [InlineData("dos7_bs1024_comment-block-1.bin")]
+    public async Task WhenReadBlockWithFileCommentThenCommentIsEqual(string blockFilename)
     {
         // arrange - read long filename file header block bytes
         var blockBytes =
-            await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems",
-                "dos7_comment-block-1.bin"));
+            await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems", blockFilename));
 
         // act - read long name file system comment block
         var longNameFileSystemCommentBlock = LongNameFileSystemCommentBlockReader.Parse(blockBytes);
@@ -28,13 +29,14 @@ public class GivenLongNameFileSystemCommentBlockReader
             longNameFileSystemCommentBlock.Comment);
     }
 
-    [Fact]
-    public async Task WhenReadBlockWithDirCommentThenCommentIsEqual()
+    [Theory]
+    [InlineData("dos7_comment-block-2.bin")]
+    [InlineData("dos7_bs1024_comment-block-2.bin")]
+    public async Task WhenReadBlockWithDirCommentThenCommentIsEqual(string blockFilename)
     {
         // arrange - read long filename file header block bytes
         var blockBytes =
-            await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems",
-                "dos7_comment-block-2.bin"));
+            await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems", blockFilename));
 
         // act - read long name file system comment block
         var longNameFileSystemCommentBlock = LongNameFileSystemCommentBlockReader.Parse(blockBytes);

@@ -3,6 +3,7 @@
     public static class FloppyDiskConstants
     {
         public const int BlockSize = 512;
+        public const int FileSystemBlockSize = 512;
 
         public static class DoubleDensity
         {

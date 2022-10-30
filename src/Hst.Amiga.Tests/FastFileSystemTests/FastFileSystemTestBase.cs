@@ -27,14 +27,14 @@
             "$VER: FastFileSystem 0.1 (01/01/22) ");
 
         protected async Task<BlockMemoryStream> CreateFastFileSystemFormattedDisk(long diskSize = 100 * 1024 * 1024,
-            byte[] dosType = null)
+            byte[] dosType = null, int fileSystemBlockSize = 512)
         {
             var stream = new BlockMemoryStream();
             var rigidDiskBlock = RigidDiskBlock.Create(diskSize.ToUniversalSize());
             stream.SetLength(rigidDiskBlock.DiskSize);
 
             rigidDiskBlock.AddFileSystem(dosType ?? Dos3DosType, DummyFastFileSystemBytes)
-                .AddPartition("DH0", bootable: true);
+                .AddPartition("DH0", bootable: true, fileSystemBlockSize: fileSystemBlockSize);
             await RigidDiskBlockWriter.WriteBlock(rigidDiskBlock, stream);
 
             var partitionBlock = rigidDiskBlock.PartitionBlocks.First();

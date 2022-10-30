@@ -11,13 +11,14 @@ using Xunit;
 public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
 {
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateDirectoryInRootDirectoryThenDirectoryExist(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateDirectoryInRootDirectoryThenDirectoryExist(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -34,13 +35,14 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateMultipleDirectoriesInRootDirectoryThenDirectoriesExist(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateMultipleDirectoriesInRootDirectoryThenDirectoriesExist(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -61,13 +63,14 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateDirectoryInSubDirectoryThenDirectoryExist(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateDirectoryInSubDirectoryThenDirectoryExist(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -96,13 +99,14 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateNewFileInRootThenFileExist(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateNewFileInRootThenFileExist(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -119,16 +123,17 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateWriteDataToNewFileThenWhenReadDataFromFileDataMatches(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateWriteDataToNewFileThenWhenReadDataFromFileDataMatches(long diskSize, int fileSystemBlockSize)
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -158,16 +163,17 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateWriteDataToNewFileThenWhenSeekAndReadDataMatches(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateWriteDataToNewFileThenWhenSeekAndReadDataMatches(long diskSize, int fileSystemBlockSize)
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
         
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -208,13 +214,14 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateAndDeleteFileInRootThenFileDoesntExist(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateAndDeleteFileInRootThenFileDoesntExist(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -233,13 +240,14 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateTwoFilesAndDeleteOneFileInRootThenOneFileExists(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateTwoFilesAndDeleteOneFileInRootThenOneFileExists(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -260,13 +268,14 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateAndDeleteDirectoryInRootDirectoryThenDirectoryDoesntExist(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateAndDeleteDirectoryInRootDirectoryThenDirectoryDoesntExist(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -285,13 +294,14 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateAndRenameFileInRootThenFileIsRenamed(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenCreateAndRenameFileInRootThenFileIsRenamed(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -311,13 +321,14 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory(long diskSize, int fileSystemBlockSize)
     {
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -346,16 +357,17 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenSetCommentForFileInRootThenCommentIsChanged(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenSetCommentForFileInRootThenCommentIsChanged(long diskSize, int fileSystemBlockSize)
     {
         // arrange - comment to set
         var comment = "Comment for file";
 
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -377,16 +389,17 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged(long diskSize, int fileSystemBlockSize)
     {
         // arrange - protection bits to set
         var protectionBits = ProtectionBits.Delete | ProtectionBits.Executable | ProtectionBits.Write | ProtectionBits.Read | ProtectionBits.HeldResident | ProtectionBits.Archive | ProtectionBits.Pure | ProtectionBits.Script;
         
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
@@ -408,16 +421,17 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
 
     [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenSetDateForFileInRootThenCreationDateIsChanged(long diskSize)
+    [InlineData(DiskSize100Mb, 512)]
+    [InlineData(DiskSize100Mb, 1024)]
+    [InlineData(DiskSize4Gb, 512)]
+    [InlineData(DiskSize16Gb, 512)]
+    public async Task WhenSetDateForFileInRootThenCreationDateIsChanged(long diskSize, int fileSystemBlockSize)
     {
         // arrange - date to set
         var date = DateTime.Now.AddDays(-10).Trim(TimeSpan.TicksPerSecond);
         
         // arrange - create fast file system formatted disk
-        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType);
+        var stream = await CreateFastFileSystemFormattedDisk(diskSize, dosType: Dos3DosType, fileSystemBlockSize);
         
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);

@@ -22,7 +22,7 @@
             var hashTable = startEntryBlock.HashTable.ToList();
             var entries = new List<Entry>();
 
-            for (var i = 0; i < Constants.HT_SIZE; i++)
+            for (var i = 0; i < hashTable.Count; i++)
             {
                 if (hashTable[i] == 0)
                 {
@@ -126,7 +126,7 @@
             return (char)((c >= 'a' && c <= 'z') || (c >= 224 && c <= 254 && c != 247) ? c - ('a' - 'A') : c);
         }
 
-        public static int GetHashValue(string name, bool intl)
+        public static int GetHashValue(int hashTableSize, string name, bool intl)
         {
             var hash = (uint)name.Length;
             foreach (var c in name)
@@ -135,7 +135,7 @@
                 hash = (hash * 13 + upper) & 0x7ff;
             }
 
-            hash %= Constants.HT_SIZE;
+            hash %= (uint)hashTableSize;
             return (int)hash;
         }
 
@@ -154,7 +154,7 @@
             bool nUpdSect)
         {
             var intl = volume.UseIntl || volume.UseDirCache;
-            var hashVal = GetHashValue(name, intl);
+            var hashVal = GetHashValue(ht.Length, name, intl);
             var nameLen = Math.Min(name.Length, volume.UseLnfs ? Constants.LNFSMAXNAMELEN : Constants.MAXNAMELEN);
             var upperName = MyToUpper(name, intl);
 
@@ -217,7 +217,7 @@
                 throw new IOException($"Invalid secondary type '{parent.SecType}'");
             }
 
-            var entryBlock = new FileHeaderBlock
+            var entryBlock = new FileHeaderBlock(vol.FileSystemBlockSize)
             {
                 HeaderKey = nSect,
                 Name = name,
@@ -256,7 +256,7 @@
             var intl = vol.UseIntl || vol.UseDirCache;
             var len = Math.Min(name.Length, Constants.MAXNAMELEN);
             var name2 = MyToUpper(name, intl);
-            var hashValue = GetHashValue(name, intl);
+            var hashValue = GetHashValue(dir.HashTable.Length, name, intl);
             var nSect = dir.HashTable[hashValue];
 
             if (nSect == 0)
@@ -343,7 +343,7 @@
                 throw new IOException("no sector available");
             }
 
-            var dirBlock = new DirBlock
+            var dirBlock = new DirBlock(vol.FileSystemBlockSize)
             {
                 HeaderKey = nSect,
                 Name = name,
@@ -379,7 +379,7 @@
 
             var parent = await Disk.ReadEntryBlock(vol, pSect);
 
-            var hashValueO = GetHashValue(oldName, intl);
+            var hashValueO = GetHashValue(parent.HashTable.Length, oldName, intl);
 
             var result = await GetEntryBlock(vol, parent.HashTable, oldName, false);
             var nSect = result.NSect;
@@ -417,7 +417,7 @@
 
             var nParent = await Disk.ReadEntryBlock(vol, nPSect);
 
-            var hashValueN = GetHashValue(newName, intl);
+            var hashValueN = GetHashValue(nParent.HashTable.Length, newName, intl);
             var nSect2 = nParent.HashTable[hashValueN];
             /* no list */
             if (nSect2 == 0)
@@ -499,7 +499,7 @@
                     ent.Comment = string.Empty;
 
                     // write comment block to disk
-                    var commentBlockBytes = LongNameFileSystemCommentBlockWriter.Build(commentBlock, vol.BlockSize);
+                    var commentBlockBytes = LongNameFileSystemCommentBlockWriter.Build(commentBlock, vol.FileSystemBlockSize);
                     await Disk.WriteBlock(vol, ent.CommentBlock, commentBlockBytes);
                 }
                 else
@@ -513,7 +513,7 @@
                 }
             }
 
-            var blockBytes = EntryBlockBuilder.Build(ent, vol.BlockSize, vol.UseLnfs);
+            var blockBytes = EntryBlockBuilder.Build(ent, vol.FileSystemBlockSize, vol.UseLnfs);
             await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
@@ -540,7 +540,7 @@
             if (nSect2 == 0)
             {
                 var intl = vol.UseIntl || vol.UseDirCache;
-                var hashVal = GetHashValue(name, intl);
+                var hashVal = GetHashValue(entryBlock.HashTable.Length, name, intl);
                 parent.HashTable[hashVal] = entryBlock.NextSameHash;
                 await WriteEntryBlock(vol, pSect, parent);
             }
@@ -585,7 +585,7 @@
 
         public static bool IsEmpty(EntryBlock dirBlock)
         {
-            for (var i = 0; i < Constants.HT_SIZE; i++)
+            for (var i = 0; i < dirBlock.HashTable.Length; i++)
                 if (dirBlock.HashTable[i] != 0)
                     return false;
 

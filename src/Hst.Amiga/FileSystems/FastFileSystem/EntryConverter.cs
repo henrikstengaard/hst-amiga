@@ -36,46 +36,54 @@
 
         public static ProtectionBits GetProtectionBits(uint access)
         {
-            var protectionBits = ProtectionBits.None;
+            var protectionBits = ProtectionBits.Read | ProtectionBits.Write | ProtectionBits.Executable | ProtectionBits.Delete;
 
+            // add held resident flag, if bit is present
             if ((access & Constants.ACCMASK_H) == Constants.ACCMASK_H)
             {
                 protectionBits |= ProtectionBits.HeldResident;
             }
             
+            // add script flag, if bit is present
             if ((access & Constants.ACCMASK_S) == Constants.ACCMASK_S)
             {
                 protectionBits |= ProtectionBits.Script;
             }
             
+            // add pure flag, if bit is present
             if ((access & Constants.ACCMASK_P) == Constants.ACCMASK_P)
             {
                 protectionBits |= ProtectionBits.Pure;
             }
 
+            // add archive flag, if bit is present
             if ((access & Constants.ACCMASK_A) == Constants.ACCMASK_A)
             {
                 protectionBits |= ProtectionBits.Archive;
             }
 
+            // remove read flag, if bit is present
             if ((access & Constants.ACCMASK_R) == Constants.ACCMASK_R)
             {
-                protectionBits |= ProtectionBits.Read;
+                protectionBits &= ~ProtectionBits.Read;
             }
 
+            // remove write flag, if bit is present
             if ((access & Constants.ACCMASK_W) == Constants.ACCMASK_W)
             {
-                protectionBits |= ProtectionBits.Write;
+                protectionBits &= ~ProtectionBits.Write;
             }
 
+            // remove executable flag, if bit is present
             if ((access & Constants.ACCMASK_E) == Constants.ACCMASK_E)
             {
-                protectionBits |= ProtectionBits.Executable;
+                protectionBits &= ~ProtectionBits.Executable;
             }
             
+            // remove delete flag, if bit is present
             if ((access & Constants.ACCMASK_D) == Constants.ACCMASK_D)
             {
-                protectionBits |= ProtectionBits.Delete;
+                protectionBits &= ~ProtectionBits.Delete;
             }
             
             return protectionBits;
@@ -105,22 +113,22 @@
                 access |= Constants.ACCMASK_A;
             }
             
-            if (protectionBits.HasFlag(ProtectionBits.Read))
+            if (!protectionBits.HasFlag(ProtectionBits.Read))
             {
                 access |= Constants.ACCMASK_R;
             }
 
-            if (protectionBits.HasFlag(ProtectionBits.Write))
+            if (!protectionBits.HasFlag(ProtectionBits.Write))
             {
                 access |= Constants.ACCMASK_W;
             }
             
-            if (protectionBits.HasFlag(ProtectionBits.Executable))
+            if (!protectionBits.HasFlag(ProtectionBits.Executable))
             {
                 access |= Constants.ACCMASK_E;
             }
             
-            if (protectionBits.HasFlag(ProtectionBits.Delete))
+            if (!protectionBits.HasFlag(ProtectionBits.Delete))
             {
                 access |= Constants.ACCMASK_D;
             }

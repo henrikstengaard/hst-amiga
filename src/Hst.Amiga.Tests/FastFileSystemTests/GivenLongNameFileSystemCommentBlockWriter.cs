@@ -15,11 +15,13 @@ public class GivenLongNameFileSystemCommentBlockWriter
         Comment = "comment for entry"
     };
     
-    [Fact]
-    public void WhenWriteBlockAndReadPropertiesFromBytesThenPropertiesAreEqualToBlock()
+    [Theory]
+    [InlineData(512)]
+    [InlineData(1024)]
+    public void WhenWriteBlockAndReadPropertiesFromBytesThenPropertiesAreEqualToBlock(int blockSize)
     {
         // act - write long name file system comment block
-        var blockBytes = LongNameFileSystemCommentBlockWriter.Build(commentBlock, 512);
+        var blockBytes = LongNameFileSystemCommentBlockWriter.Build(commentBlock, blockSize);
 
         // act - read comment block properties from block bytes
         var ownKey = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
@@ -32,11 +34,13 @@ public class GivenLongNameFileSystemCommentBlockWriter
         Assert.Equal(commentBlock.Comment, comment);
     }
     
-    [Fact]
-    public void WhenWriteAndReadBlockThenBlockIsEqual()
+    [Theory]
+    [InlineData(512)]
+    [InlineData(1024)]
+    public void WhenWriteAndReadBlockThenBlockIsEqual(int blockSize)
     {
         // act - write long name file system comment block
-        var blockBytes = LongNameFileSystemCommentBlockWriter.Build(commentBlock, 512);
+        var blockBytes = LongNameFileSystemCommentBlockWriter.Build(commentBlock, blockSize);
 
         // act - read long name file system comment block
         var actualCommentBlock = LongNameFileSystemCommentBlockReader.Parse(blockBytes);

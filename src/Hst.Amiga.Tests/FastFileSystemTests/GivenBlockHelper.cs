@@ -29,7 +29,8 @@
                 FloppyDiskConstants.DoubleDensity.HighCyl,
                 FloppyDiskConstants.DoubleDensity.Heads,
                 FloppyDiskConstants.DoubleDensity.Sectors,
-                FloppyDiskConstants.BlockSize).ToList();
+                FloppyDiskConstants.BlockSize,
+                FloppyDiskConstants.FileSystemBlockSize).ToList();
 
             // assert - 1 bitmap block is created for a double density floppy disk
             Assert.Single(bitmapBlocks);
@@ -47,10 +48,10 @@
             var offsetsPerBitmapExtensionBlock = (blockSize - nextPointerSize) / pointerSize;
             var bitmapBlocksCount = offsetsPerBitmapExtensionBlock - 10;
             var bitmapBlocks = Enumerable.Range(1, bitmapBlocksCount)
-                .Select(_ => new BitmapBlock()).ToList();
+                .Select(_ => new BitmapBlock(blockSize)).ToList();
 
             var bitmapExtensionBlocks = BlockHelper
-                .CreateBitmapExtensionBlocks(bitmapBlocks, blockSize)
+                .CreateBitmapExtensionBlocks(bitmapBlocks, FloppyDiskConstants.FileSystemBlockSize)
                 .ToList();
 
             Assert.Single(bitmapExtensionBlocks);
@@ -68,10 +69,10 @@
             var offsetsPerBitmapExtensionBlock = (blockSize - nextPointerSize) / pointerSize;
             var bitmapBlocksCount = offsetsPerBitmapExtensionBlock + 10;
             var bitmapBlocks = Enumerable.Range(1, bitmapBlocksCount)
-                .Select(_ => new BitmapBlock()).ToList();
+                .Select(_ => new BitmapBlock(blockSize)).ToList();
 
             var bitmapExtensionBlocks = BlockHelper
-                .CreateBitmapExtensionBlocks(bitmapBlocks, blockSize)
+                .CreateBitmapExtensionBlocks(bitmapBlocks, FloppyDiskConstants.FileSystemBlockSize)
                 .ToList();
 
             Assert.NotEmpty(bitmapExtensionBlocks);
@@ -101,12 +102,12 @@
                 FloppyDiskConstants.DoubleDensity.HighCyl,
                 FloppyDiskConstants.DoubleDensity.Heads,
                 FloppyDiskConstants.DoubleDensity.Sectors,
-                FloppyDiskConstants.BlockSize).ToList();
-
-
+                FloppyDiskConstants.BlockSize,
+                FloppyDiskConstants.FileSystemBlockSize).ToList();
+            
             // act - update bitmaps
             BlockHelper.UpdateBitmaps(bitmapBlocks, bitmaps, FloppyDiskConstants.DoubleDensity.ReservedBlocks,
-                FloppyDiskConstants.BlockSize);
+                FloppyDiskConstants.FileSystemBlockSize);
 
             // assert - 1 bitmap block is created for a double density floppy disk
             Assert.Single(bitmapBlocks);

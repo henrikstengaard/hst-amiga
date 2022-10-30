@@ -121,7 +121,7 @@
                 throw new Exception("Invalid partition block checksum");
             }
 
-            var fileSystemBlockSize = sizeBlock * 4;
+            var fileSystemBlockSize = sizeBlock * SizeOf.ULong * sectors;
 
             return new PartitionBlock
             {

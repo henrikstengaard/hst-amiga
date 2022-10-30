@@ -53,7 +53,7 @@
                     throw new IOException("file already exists");
             }
 
-            var fileHdr = mode == FileMode.Write ? new FileHeaderBlock() : entry;
+            var fileHdr = mode == FileMode.Write ? new FileHeaderBlock(volume.FileSystemBlockSize) : entry;
 
             var eof = mode == FileMode.Write || mode == FileMode.Append;
 
@@ -116,7 +116,7 @@
                 header = entry.HeaderKey,
             };
             // adfFileRealSize( entry.ByteSize, vol.DataBlockSize, &(fileBlocks->nbData), &(fileBlocks->nbExtens) );
-            AdfFileRealSize(entry.ByteSize, vol.DataBlockSize, fileBlocks);
+            AdfFileRealSize(vol, entry.ByteSize, vol.DataBlockSize, fileBlocks);
 
             fileBlocks.data = new uint[fileBlocks.nbData];
             // fileBlocks->data=(SECTNUM*)malloc(fileBlocks->nbData * sizeof(SECTNUM));
@@ -136,7 +136,7 @@
             var m = 0;	
             /* in file header block */
             for(var i=0; i < entry.HighSeq; i++)
-                fileBlocks.data[n++] = entry.DataBlocks[Constants.MAX_DATABLK - 1 - i];
+                fileBlocks.data[n++] = entry.DataBlocks[vol.IndexSize - 1 - i];
 
             /* in file extension blocks */
             var nSect = entry.Extension;
@@ -145,7 +145,7 @@
                 fileBlocks.extens[m++] = nSect;
                 var extBlock = await Disk.ReadFileExtBlock(vol, nSect);
                 for(var i=0; i<extBlock.HighSeq; i++)
-                    fileBlocks.data[n++] = extBlock.Index[Constants.MAX_DATABLK - 1 - i];
+                    fileBlocks.data[n++] = extBlock.Index[vol.IndexSize - 1 - i];
                 nSect = extBlock.Extension;
             }
             if (fileBlocks.nbExtens + fileBlocks.nbData != n + m)
@@ -161,7 +161,7 @@
  * Compute number of datablocks and file extension blocks
  *
  */
-        public static uint AdfFileRealSize(uint size, uint blockSize, FileBlocks fileBlocks) // int32_t *dataN, int32_t *extN
+        public static uint AdfFileRealSize(Volume volume, uint size, uint blockSize, FileBlocks fileBlocks) // int32_t *dataN, int32_t *extN
         {
             // int32_t data, ext;
 
@@ -172,9 +172,9 @@
 
             /*--- number of header extension blocks ---*/
             var ext = 0U;
-            if (data > Constants.MAX_DATABLK) {
-                ext = (data - Constants.MAX_DATABLK) / Constants.MAX_DATABLK;
-                if ((data - Constants.MAX_DATABLK) % Constants.MAX_DATABLK != 0)
+            if (data > volume.IndexSize) {
+                ext = (data - volume.IndexSize) / volume.IndexSize;
+                if ((data - volume.IndexSize) % volume.IndexSize != 0)
                 {
                     ext++;
                 }

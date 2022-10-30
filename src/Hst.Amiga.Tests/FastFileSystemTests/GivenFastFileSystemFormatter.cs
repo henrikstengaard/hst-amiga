@@ -29,6 +29,7 @@
             const uint reservedBlocks = FloppyDiskConstants.DoubleDensity.ReservedBlocks;
             const uint surfaces = FloppyDiskConstants.DoubleDensity.Heads;
             const uint blocksPerTrack = FloppyDiskConstants.DoubleDensity.Sectors;
+            const uint blockSize = FloppyDiskConstants.BlockSize;
             const uint fileSystemBlockSize = FloppyDiskConstants.BlockSize;
 
             // arrange - create double density floppy disk
@@ -37,11 +38,11 @@
 
             // act - format first partition
             await FastFileSystemFormatter.Format(adfStream, lowCyl, highCyl, reservedBlocks,
-                surfaces, blocksPerTrack, fileSystemBlockSize, dos3DosType, "Workbench");
+                surfaces, blocksPerTrack, blockSize, fileSystemBlockSize, dos3DosType, "Workbench");
 
             // arrange - calculate root block offset
             var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(lowCyl, highCyl,
-                reservedBlocks, surfaces, blocksPerTrack);
+                reservedBlocks, surfaces, blocksPerTrack, FloppyDiskConstants.FileSystemBlockSize);
 
             // arrange - calculate partition start offset
             var blocksPerCylinder = surfaces * blocksPerTrack;
@@ -106,16 +107,18 @@
         }
 
         [Theory]
-        [InlineData("dos3_10mb.hdf", 1024 * 1024 * 10)]
-        [InlineData("dos3_100mb.hdf", 1024 * 1024 * 100)]
-        public async Task WhenFormattingHardDiskFileThenRootBlockAndBitmapBlocksAreCreated(string path, long diskSize)
+        [InlineData("dos3_10mb.hdf", 1024 * 1024 * 10, 512)]
+        [InlineData("dos3_10mb.hdf", 1024 * 1024 * 10, 1024)]
+        [InlineData("dos3_100mb.hdf", 1024 * 1024 * 100, 512)]
+        [InlineData("dos3_100mb.hdf", 1024 * 1024 * 100, 1024)]
+        public async Task WhenFormattingHardDiskFileThenRootBlockAndBitmapBlocksAreCreated(string path, long diskSize, int fileSystemBlockSize)
         {
             // arrange - create hdf file with 1 partition using DOS3 dos type 
             var rigidDiskBlock = await RigidDiskBlock
                 .Create(diskSize.ToUniversalSize())
                 .AddFileSystem(dos3DosType, Encoding.ASCII.GetBytes(
                     "$VER: FastFileSystem 1.0 (12/12/22) ")) // dummy fast file system used for testing
-                .AddPartition("DH0", bootable: true)
+                .AddPartition("DH0", bootable: true, fileSystemBlockSize: fileSystemBlockSize)
                 .WriteToFile(path);
 
             var partition = rigidDiskBlock.PartitionBlocks.First();
@@ -126,7 +129,7 @@
 
             // arrange - calculate root block offset
             var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(partition.LowCyl, partition.HighCyl,
-                partition.Reserved, partition.Surfaces, partition.BlocksPerTrack);
+                partition.Reserved, partition.Surfaces, partition.BlocksPerTrack, (uint)fileSystemBlockSize);
 
             // arrange - calculate partition start offset
             var blocksPerCylinder = rigidDiskBlock.Heads * rigidDiskBlock.Sectors;
@@ -171,7 +174,7 @@
 
             // arrange - read root bitmap blocks from stream
             var rootBitmapBlocks = (await ReadBitmapBlocks(hdfStream, partitionStartOffset,
-                rootBlock.BitmapBlockOffsets.Select(x => (uint)x),
+                rootBlock.BitmapBlockOffsets.Select(x => x),
                 (int)partition.FileSystemBlockSize)).ToList();
 
             // assert - first 25 bitmap block offsets in root block is after root block offset
@@ -238,20 +241,27 @@
             File.Delete(path);
         }
 
-        [Fact]
-        public async Task WhenFormatting1GbPartitionAfter30GbInHardDiskFileThenRootBlockAndBitmapBlocksAreCreated()
+        [Theory]
+        [InlineData(512)]
+        [InlineData(1024)]
+        public async Task WhenFormatting1GbPartitionAfter30GbInHardDiskFileThenRootBlockAndBitmapBlocksAreCreated(int fileSystemBlockSize)
         {
+            // arrange - block size
+            const uint blockSize = 512U;
+            
             // arrange - create rigid disk block with size 64gb
             var rigidDiskBlock = RigidDiskBlock.Create(64.GB());
 
             // arrange - create partition 1 with size 30gb
             var partitionBlock1 =
-                PartitionBlock.Create(rigidDiskBlock, DosTypeHelper.FormatDosType("DOS3"), "DH0", 30.GB());
+                PartitionBlock.Create(rigidDiskBlock, DosTypeHelper.FormatDosType("DOS3"), "DH0", 30.GB(), 
+                    fileSystemBlockSize: fileSystemBlockSize);
             rigidDiskBlock.PartitionBlocks = rigidDiskBlock.PartitionBlocks.Concat(new[] { partitionBlock1 }).ToList();
 
             // arrange - create partition 2 with size 1gb
             var partitionBlock2 =
-                PartitionBlock.Create(rigidDiskBlock, DosTypeHelper.FormatDosType("DOS3"), "DH0", 1.GB());
+                PartitionBlock.Create(rigidDiskBlock, DosTypeHelper.FormatDosType("DOS3"), "DH0", 1.GB(), 
+                    fileSystemBlockSize: fileSystemBlockSize);
             rigidDiskBlock.PartitionBlocks = rigidDiskBlock.PartitionBlocks.Concat(new[] { partitionBlock2 }).ToList();
 
             // act - format second partition using fast file system formatter formatter
@@ -264,7 +274,7 @@
 
             // assert - stream has block written at root block offset 
             var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(partitionBlock2.LowCyl, partitionBlock2.HighCyl,
-                partitionBlock2.Reserved, partitionBlock2.Surfaces, partitionBlock2.BlocksPerTrack);
+                partitionBlock2.Reserved, partitionBlock2.Surfaces, partitionBlock2.BlocksPerTrack, blockSize);
             Assert.True(stream.Blocks.ContainsKey(bootBlockOffset + (rootBlockOffset * 512)));
         }
 

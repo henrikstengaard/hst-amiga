@@ -8,6 +8,7 @@
     public class Volume
     {
         public int BlockSize { get; set; }
+        public int FileSystemBlockSize { get; set; }
         public Stream Stream { get; set; }
         public uint FirstBlock { get; set; }
         public uint LastBlock { get; set; }
@@ -16,9 +17,13 @@
         public uint Reserved { get; set; }
         public int DosType { get; set; }
         public uint DataBlockSize { get; set; }
+
+        /// <summary>
+        /// Size of hashtable and data blocks
+        /// </summary>
+        public uint IndexSize { get; set; }
         public uint RootBlockOffset { get; set; }
         public RootBlock RootBlock { get; set; }
-        public EntryBlock CurrentDirectory { get; set; }
         public bool Mounted { get; set; }
         public bool ReadOnly { get; set; }
         
@@ -35,6 +40,7 @@
         
         public bool IgnoreErrors { get; set; }
         public IList<string> Logs { get; set; }
+        public int OffsetsPerBitmapBlock { get; set; }
 
         public Volume()
         {

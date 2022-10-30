@@ -9,32 +9,32 @@
 
     public static class BlockHelper
     {
-        public static int CalculateOffsetsPerBitmapBlockCount(uint blockSize)
+        public static int CalculateOffsetsPerBitmapBlockCount(uint fileSystemBlockSize)
         {
             // calculate bitmaps per bitmap blocks count
-            return Convert.ToInt32((blockSize - SizeOf.Long) / SizeOf.Long);
+            return Convert.ToInt32((fileSystemBlockSize - SizeOf.Long) / SizeOf.Long);
         }
 
-        public static int CalculateBitmapsPerBitmapBlockCount(uint blockSize)
+        public static int CalculateBitmapsPerBitmapBlockCount(uint fileSystemBlockSize)
         {
             // calculate bitmaps per bitmap blocks count
-            return Convert.ToInt32(CalculateOffsetsPerBitmapBlockCount(blockSize) *
+            return Convert.ToInt32(CalculateOffsetsPerBitmapBlockCount(fileSystemBlockSize) *
                                    Constants.BitmapsPerULong);
         }
 
-        public static int CalculateBitmapBlockOffsetsPerBitmapExtensionBlock(uint blockSize)
+        public static int CalculateBitmapBlockOffsetsPerBitmapExtensionBlock(uint fileSystemBlockSize)
         {
-            return Convert.ToInt32((blockSize - SizeOf.Long) / SizeOf.Long);            
+            return Convert.ToInt32((fileSystemBlockSize - SizeOf.Long) / SizeOf.Long);            
         }
 
         public static IEnumerable<BitmapBlock> CreateBitmapBlocks(uint lowCyl, uint highCyl, uint heads,
-            uint blocksPerTrack, uint blockSize)
+            uint blocksPerTrack, uint blockSize, uint fileSystemBlockSize)
         {
             // calculate blocks count
             var cylinders = highCyl - lowCyl + 1;
-            var blocksCount = cylinders * heads * blocksPerTrack;
+            var blocksCount = cylinders * heads * blocksPerTrack / (fileSystemBlockSize / blockSize);
 
-            var bitmapsPerBitmapBlockCount = CalculateBitmapsPerBitmapBlockCount(blockSize);
+            var bitmapsPerBitmapBlockCount = CalculateBitmapsPerBitmapBlockCount(fileSystemBlockSize);
 
             for (var b = 0; b < blocksCount; b += bitmapsPerBitmapBlockCount)
             {
@@ -58,7 +58,7 @@
                     map.Add(uint.MaxValue);
                 }
                 
-                yield return new BitmapBlock
+                yield return new BitmapBlock((int)fileSystemBlockSize)
                 {
                     Map = map.ToArray()
                 };
@@ -66,11 +66,11 @@
         }
 
         public static IEnumerable<BitmapExtensionBlock> CreateBitmapExtensionBlocks(
-            IEnumerable<BitmapBlock> bitmapBlocks, uint blockSize)
+            IEnumerable<BitmapBlock> bitmapBlocks, uint fileSystemBlockSize)
         {
             // calculate pointers per bitmap extension block based on block size - next pointer
             var pointersPerBitmapExtensionBlock =
-                Convert.ToInt32((blockSize - SizeOf.Long) / SizeOf.Long);
+                Convert.ToInt32((fileSystemBlockSize - SizeOf.Long) / SizeOf.Long);
 
             // chunk bitmap blocks
             var bitmapBlockChunks = new List<BitmapExtensionBlock>();
@@ -84,10 +84,10 @@
         }
 
         public static IEnumerable<BitmapExtensionBlock> CreateBitmapExtensionBlocks(
-            IEnumerable<BitmapBlock> bitmapBlocks, uint blockSize, uint bitmapExtensionBlockOffset)
+            IEnumerable<BitmapBlock> bitmapBlocks, uint fileSystemBlockSize, uint bitmapExtensionBlockOffset)
         {
             // calculate number of offsets stored in bitmap extension block
-            var offsetsPerBitmapExtensionBlock = Convert.ToInt32((blockSize - 4) / 4);
+            var offsetsPerBitmapExtensionBlock = Convert.ToInt32((fileSystemBlockSize - 4) / 4);
             var currentBitmapExtensionBlockOffset = bitmapExtensionBlockOffset;
 
             var bitmapBlockChunks = new List<IEnumerable<BitmapBlock>>();
@@ -112,10 +112,10 @@
         }
 
         public static void UpdateBitmaps(IEnumerable<BitmapBlock> bitmapBlocks,
-            IDictionary<uint, bool> blocksFreeMap, uint reserved, uint blockSize)
+            IDictionary<uint, bool> blocksFreeMap, uint reserved, uint fileSystemBlockSize)
         {
             var bitmapBlocksList = bitmapBlocks.ToList();
-            var bitmapsPerBitmapBlockCount = CalculateBitmapsPerBitmapBlockCount(blockSize);
+            var bitmapsPerBitmapBlockCount = CalculateBitmapsPerBitmapBlockCount(fileSystemBlockSize);
 
             foreach (var entry in blocksFreeMap)
             {

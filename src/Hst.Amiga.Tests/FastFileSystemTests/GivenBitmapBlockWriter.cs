@@ -29,7 +29,8 @@
                 FloppyDiskConstants.DoubleDensity.HighCyl,
                 FloppyDiskConstants.DoubleDensity.ReservedBlocks,
                 FloppyDiskConstants.DoubleDensity.Heads,
-                FloppyDiskConstants.DoubleDensity.Sectors);
+                FloppyDiskConstants.DoubleDensity.Sectors,
+                FloppyDiskConstants.FileSystemBlockSize);
 
             // arrange - create bitmap block for blank formatted adf
             var bitmapBlockOffset = rootBlockOffset + 1;

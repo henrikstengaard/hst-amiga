@@ -20,12 +20,14 @@
         public uint Extension { get; set; }
         public int SecType { get; }
 
-        public FileExtBlock()
+        public FileExtBlock(int fileSystemBlockSize)
         {
+            var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)fileSystemBlockSize);
             Type = Constants.T_LIST;
             IndexSize = 0;
             FirstData = 0;
-            Index = new uint[Constants.MAX_DATABLK];
+            IndexSize = indexSize;
+            Index = new uint[indexSize];
             Info = 0;
             NextSameHash = 0;
             SecType = Constants.ST_FILE;

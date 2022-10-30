@@ -8,14 +8,14 @@
     {
         private static async Task<byte[]> ReadBlockBytes(Volume volume, uint sector)
         {
-            var blockOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
+            var blockOffset = volume.PartitionStartOffset + sector * volume.FileSystemBlockSize;
             volume.Stream.Seek(blockOffset, SeekOrigin.Begin);
-            return await Amiga.Disk.ReadBlock(volume.Stream, volume.BlockSize);
+            return await Amiga.Disk.ReadBlock(volume.Stream, volume.FileSystemBlockSize);
         }
 
         private static async Task WriteBlockBytes(Volume volume, uint sector, byte[] blockBytes)
         {
-            var blockOffset = volume.PartitionStartOffset + sector * volume.BlockSize;
+            var blockOffset = volume.PartitionStartOffset + sector * volume.FileSystemBlockSize;
             volume.Stream.Seek(blockOffset, SeekOrigin.Begin);
             await Amiga.Disk.WriteBlock(volume.Stream, blockBytes);
         }
@@ -28,7 +28,7 @@
         
         public static async Task WriteRootBlock(Volume volume, uint nSect, RootBlock root)
         {
-            var blockBytes = RootBlockBuilder.Build(root, volume.BlockSize);
+            var blockBytes = RootBlockBuilder.Build(root, volume.FileSystemBlockSize);
             await WriteBlock(volume, nSect, blockBytes);
         }
         
@@ -40,7 +40,7 @@
         
         public static async Task WriteBitmapBlock(Volume vol, uint nSect, BitmapBlock bitmapBlock)
         {
-            var blockBytes = BitmapBlockBuilder.Build(bitmapBlock, vol.BlockSize);
+            var blockBytes = BitmapBlockBuilder.Build(bitmapBlock, vol.FileSystemBlockSize);
             await WriteBlock(vol, nSect, blockBytes);
         }
 
@@ -90,7 +90,7 @@
         public static async Task WriteDataBlock(Volume volume, uint nSect, DataBlock dataBlock)
         {
             var blockBytes = volume.UseOfs
-                ? DataBlockBuilder.Build(dataBlock, volume.BlockSize)
+                ? DataBlockBuilder.Build(dataBlock, volume.FileSystemBlockSize)
                 : dataBlock.Data;
             await WriteBlock(volume, nSect, blockBytes);
         }        
@@ -105,7 +105,7 @@
                 throw new IOException("Header key not equal to sector");
             }
 
-            if (fileExtBlock.HighSeq > Constants.MAX_DATABLK)
+            if (fileExtBlock.HighSeq > volume.IndexSize)
             {
                 throw new IOException("High seq out of range");
             }
@@ -125,13 +125,13 @@
 
         public static async Task WriteFileHdrBlock(Volume vol, uint nSect, FileHeaderBlock fileHeaderBlock)
         {
-            var blockBytes = EntryBlockBuilder.Build(fileHeaderBlock, vol.BlockSize, vol.UseLnfs);
+            var blockBytes = EntryBlockBuilder.Build(fileHeaderBlock, vol.FileSystemBlockSize, vol.UseLnfs);
             await WriteBlock(vol, nSect, blockBytes);
         }
         
         public static async Task WriteFileExtBlock(Volume vol, uint nSect, FileExtBlock fileExtBlock)
         {
-            var blockBytes = FileExtBlockBuilder.Build(fileExtBlock, vol.BlockSize);
+            var blockBytes = FileExtBlockBuilder.Build(fileExtBlock, vol.FileSystemBlockSize);
             await WriteBlock(vol, nSect, blockBytes);
         }
         
@@ -152,7 +152,7 @@
         {
             dirCacheBlock.HeaderKey = nSect;
 
-            var blockBytes = DirCacheBlockBuilder.Build(dirCacheBlock, vol.BlockSize);
+            var blockBytes = DirCacheBlockBuilder.Build(dirCacheBlock, vol.FileSystemBlockSize);
             await WriteBlock(vol, nSect, blockBytes);
         }
         

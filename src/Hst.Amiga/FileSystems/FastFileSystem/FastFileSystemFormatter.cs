@@ -17,33 +17,33 @@
             string diskName)
         {
             await Format(stream, partitionBlock.LowCyl, partitionBlock.HighCyl, partitionBlock.Reserved,
-                partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.FileSystemBlockSize,
-                partitionBlock.DosType, diskName);
+                partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.BlockSize,
+                partitionBlock.FileSystemBlockSize, partitionBlock.DosType, diskName);
         }
 
         /// <summary>
         /// format disk with fast file system
         /// </summary>
         public static async Task Format(Stream stream, uint lowCyl, uint highCyl, uint reserved, uint surfaces,
-            uint blocksPerTrack, uint fileSystemBlockSize, byte[] dosType, string diskName)
+            uint blocksPerTrack, uint blockSize, uint fileSystemBlockSize, byte[] dosType, string diskName)
         {
             var rootBlockOffset =
                 OffsetHelper.CalculateRootBlockOffset(lowCyl, highCyl,
-                    reserved, surfaces, blocksPerTrack);
-            
+                    reserved, surfaces, blocksPerTrack, fileSystemBlockSize);
+
             // create root block
-            var rootBlock = new RootBlock
+            var rootBlock = new RootBlock((int)fileSystemBlockSize)
             {
                 BitmapBlocksOffset = rootBlockOffset + 1,
                 Name = diskName,
                 Extension = rootBlockOffset
             };
 
-            var bitmapBlocks = BlockHelper.CreateBitmapBlocks(lowCyl,
-                highCyl, surfaces, blocksPerTrack, 
-                fileSystemBlockSize).ToList();
+            var bitmapBlocks = BlockHelper.CreateBitmapBlocks(lowCyl, highCyl, surfaces, blocksPerTrack, 
+                blockSize, fileSystemBlockSize).ToList();
             var bitmapExtensionBlocks =
-                BlockHelper.CreateBitmapExtensionBlocks(bitmapBlocks.Skip(Constants.MaxBitmapBlockPointersInRootBlock).ToList(),
+                BlockHelper.CreateBitmapExtensionBlocks(
+                        bitmapBlocks.Skip(Constants.MaxBitmapBlockPointersInRootBlock).ToList(),
                         fileSystemBlockSize)
                     .ToList();
 
@@ -51,7 +51,7 @@
             rootBlock.BitmapExtensionBlocks = bitmapExtensionBlocks;
 
             OffsetHelper.SetRootBlockOffsets(rootBlock);
-            
+
             // create bitmap of blocks allocated by root block, bitmap blocks and bitmap extension blocks
             var bitmaps = new Dictionary<uint, bool>
             {
@@ -67,16 +67,16 @@
             {
                 bitmaps[bitmapExtensionBlock.Offset] = false;
             }
-            
+
             BlockHelper.UpdateBitmaps(bitmapBlocks, bitmaps, reserved, fileSystemBlockSize);
-            
+
             // calculate partition start offset
-            var partitionStartByteOffset = (long)lowCyl * surfaces * blocksPerTrack * fileSystemBlockSize;
+            var partitionStartByteOffset = (long)lowCyl * surfaces * blocksPerTrack * blockSize;
 
             // write dos type at partition start
             stream.Seek(partitionStartByteOffset, SeekOrigin.Begin);
             await stream.WriteBytes(dosType);
-            
+
             // build root block bytes
             var rootBlockBytes = RootBlockBuilder.Build(rootBlock, (int)fileSystemBlockSize);
 

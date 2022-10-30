@@ -9,7 +9,8 @@
         [Fact]
         public void WhenReadAsEntryBlockThenBlocksAreEqual()
         {
-            var dirBlock = new DirBlock
+            const int fileSystemBlockSize = 512;
+            var dirBlock = new DirBlock(fileSystemBlockSize)
             {
                 HeaderKey = 887,
                 HighSeq = 0,
@@ -20,7 +21,7 @@
                 Parent = 880,
             };
 
-            var dirBlockBytes = EntryBlockBuilder.Build(dirBlock, 512);
+            var dirBlockBytes = EntryBlockBuilder.Build(dirBlock, fileSystemBlockSize);
 
             System.IO.File.WriteAllBytes("dir-block.bin", dirBlockBytes);
             

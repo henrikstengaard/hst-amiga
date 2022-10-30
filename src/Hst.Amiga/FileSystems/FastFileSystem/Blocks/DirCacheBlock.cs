@@ -13,10 +13,10 @@
         public int Checksum { get; set; }
         public byte[] Records { get; set; }
 
-        public DirCacheBlock()
+        public DirCacheBlock(int fileSystemBlockSize)
         {
             Type = Constants.T_DIRC;
-            Records = new byte[488];
+            Records = new byte[fileSystemBlockSize - (SizeOf.ULong * 4) - (SizeOf.Long * 2)];
         }
     }
 }

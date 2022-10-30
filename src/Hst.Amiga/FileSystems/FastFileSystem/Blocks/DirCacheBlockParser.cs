@@ -26,10 +26,11 @@
                 throw new IOException("Invalid dir cache block checksum");
             }
 
-            var records = new byte[488];
-            Array.Copy(blockBytes, 0x18, records, 0, 488);
+            var maxRecordsSize = blockBytes.Length - (SizeOf.ULong * 4) - (SizeOf.Long * 2);
+            var records = new byte[maxRecordsSize];
+            Array.Copy(blockBytes, 0x18, records, 0, maxRecordsSize);
             
-            return new DirCacheBlock
+            return new DirCacheBlock(blockBytes.Length)
             {
                 BlockBytes = blockBytes,
                 HeaderKey = headerKey,

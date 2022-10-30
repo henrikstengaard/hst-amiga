@@ -20,7 +20,8 @@
             BigEndianConverter.ConvertUInt32ToBytes(dataBlock.NextData, blockBytes, 0x10);
             BigEndianConverter.ConvertInt32ToBytes(dataBlock.Checksum, blockBytes, 0x14);
             
-            Array.Copy(dataBlock.Data, 0, blockBytes, 0x18, Math.Min(dataBlock.DataSize, 488));
+            var maxDataSize = blockBytes.Length - (SizeOf.ULong * 4) - (SizeOf.Long * 2);
+            Array.Copy(dataBlock.Data, 0, blockBytes, 0x18, Math.Min(dataBlock.DataSize, maxDataSize));
             
             dataBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 20);
             dataBlock.BlockBytes = blockBytes;

@@ -113,7 +113,7 @@
                 }
 
                 /* create a new dir cache block */
-                var newDirCacheBlock = new DirCacheBlock
+                var newDirCacheBlock = new DirCacheBlock(vol.FileSystemBlockSize)
                 {
                     Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey,
                     RecordsNb = 0,
@@ -238,7 +238,7 @@
                 parent.Extension = nCache;
             }
 
-            var dirCacheBlock = new DirCacheBlock
+            var dirCacheBlock = new DirCacheBlock(vol.FileSystemBlockSize)
             {
                 Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey,
                 RecordsNb = 0,

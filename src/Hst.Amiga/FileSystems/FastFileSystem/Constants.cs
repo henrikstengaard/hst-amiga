@@ -30,10 +30,10 @@
         public const uint BM_VALID = uint.MaxValue; //-1;
         public const uint BM_INVALID = 0;
 
-        public const int INDEX_SIZE = 72;
-        public const int HT_SIZE = INDEX_SIZE;
+        //public const int INDEX_SIZE = 72;
+        //public const int HT_SIZE = INDEX_SIZE;
         public const int BM_SIZE = 25;
-        public const int MAX_DATABLK = INDEX_SIZE;
+        //public const int MAX_DATABLK = INDEX_SIZE;
 
         public const int MAXNAMELEN = 30;
         public const int LNFSMAXNAMELEN = 107;

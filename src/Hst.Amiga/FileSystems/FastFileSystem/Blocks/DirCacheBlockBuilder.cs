@@ -20,7 +20,8 @@
             BigEndianConverter.ConvertUInt32ToBytes(dirCacheBlock.NextDirC, blockBytes, 0x10);
             BigEndianConverter.ConvertInt32ToBytes(dirCacheBlock.Checksum, blockBytes, 0x14);
             
-            Array.Copy(dirCacheBlock.Records, 0, blockBytes, 0x18, 488);
+            var maxRecordsSize = blockBytes.Length - (SizeOf.ULong * 4) - (SizeOf.Long * 2);
+            Array.Copy(dirCacheBlock.Records, 0, blockBytes, 0x18, maxRecordsSize);
             
             dirCacheBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 0x14);
             dirCacheBlock.BlockBytes = blockBytes;

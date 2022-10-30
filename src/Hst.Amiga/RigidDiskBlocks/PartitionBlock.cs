@@ -37,7 +37,12 @@
         /// number of heads (surfaces) of drive
         /// </summary>
         public uint Surfaces { get; set; }
+        
+        /// <summary>
+        /// number of sectors file system blocks occupy (1 = 512, 2 = 1024 ...)
+        /// </summary>
         public uint Sectors { get; set; }
+        
         public uint BlocksPerTrack { get; set; }
         
         // DOS reserved blocks at start of partition, usually = 2 (minimum 1)
@@ -92,6 +97,7 @@
         public uint BootBlocks { get; set; }
         
         public long PartitionSize { get; set; }
+        public uint BlockSize { get; set; }
         public uint FileSystemBlockSize { get; set; }
         public bool Bootable => ((PartitionFlagsEnum)Flags).HasFlag(PartitionFlagsEnum.Bootable);
         public bool NoMount => ((PartitionFlagsEnum)Flags).HasFlag(PartitionFlagsEnum.NoMount);
@@ -119,11 +125,17 @@
             SizeBlock = 128; // block size 512 
             SizeOfVector = 16;
             Surfaces = 16; // heads
-            FileSystemBlockSize = SizeBlock * 4 * Sectors;
+            BlockSize = SizeBlock * SizeOf.ULong;
+            FileSystemBlockSize = SizeBlock * SizeOf.ULong * Sectors;
         }
 
-        public static PartitionBlock Create(RigidDiskBlock rigidDiskBlock, byte[] dosType, string driveName, long size = 0, bool bootable = false)
+        public static PartitionBlock Create(RigidDiskBlock rigidDiskBlock, byte[] dosType, string driveName, long size = 0, int fileSystemBlockSize = 512, bool bootable = false)
         {
+            if (fileSystemBlockSize % 512 != 0)
+            {
+                throw new ArgumentException("File system block size must be dividable by 512", nameof(fileSystemBlockSize));
+            }
+            
             var lastPartitionBlock = rigidDiskBlock.PartitionBlocks.LastOrDefault();
             var lowCyl = lastPartitionBlock == null ? rigidDiskBlock.LoCylinder : lastPartitionBlock.HighCyl + 1;
 
@@ -157,7 +169,10 @@
                 LowCyl = lowCyl,
                 HighCyl = highCyl,
                 BlocksPerTrack = rigidDiskBlock.Sectors,
-                Surfaces = rigidDiskBlock.Heads
+                Surfaces = rigidDiskBlock.Heads,
+                FileSystemBlockSize = (uint)fileSystemBlockSize,
+                Sectors = (uint)(fileSystemBlockSize / rigidDiskBlock.BlockSize),
+                SizeBlock = rigidDiskBlock.BlockSize / SizeOf.Long
             };
 
             return partitionBlock;

@@ -4,27 +4,30 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Extensions;
+using FileSystems.FastFileSystem;
 using FileSystems.FastFileSystem.Blocks;
 using Xunit;
 using File = System.IO.File;
 
 public class GivenLongNameFileSystemDirBlockReader
 {
-    [Fact]
-    public async Task WhenReadBlockWithNameAndCommentThenNameAndCommentAreEqual()
+    [Theory]
+    [InlineData("dos7_dir-block-1.bin")]
+    [InlineData("dos7_bs1024_dir-block-1.bin")]
+    public async Task WhenReadBlockWithNameAndCommentThenNameAndCommentAreEqual(string blockFilename)
     {
         // arrange - read long name file system dir block bytes
         var blockBytes =
-            await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems",
-                "dos7_dir-block-1.bin"));
+            await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems", blockFilename));
 
         // act - read long name file system dir block
         var longNameFileSystemDirBlock = LongNameFileSystemDirBlockReader.Read(blockBytes);
 
         // assert - long name file system file header block is equal
+        var expectedIndexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
         Assert.NotEqual(0U, longNameFileSystemDirBlock.HeaderKey);
         Assert.Equal(0U, longNameFileSystemDirBlock.HighSeq);
-        Assert.Equal(0U, longNameFileSystemDirBlock.DataSize);
+        Assert.Equal(expectedIndexSize, longNameFileSystemDirBlock.DataSize);
         Assert.Equal(0U, longNameFileSystemDirBlock.FirstData);
         Assert.Equal(0U, longNameFileSystemDirBlock.ByteSize);
         Assert.Equal("dir-comment1", longNameFileSystemDirBlock.Comment);
@@ -34,21 +37,23 @@ public class GivenLongNameFileSystemDirBlockReader
             longNameFileSystemDirBlock.Date.Trim(TimeSpan.TicksPerSecond));
     }
 
-    [Fact]
-    public async Task WhenReadBlockWithLongNameAndNoCommentThenNameIsEqual()
+    [Theory]
+    [InlineData("dos7_dir-block-2.bin")]
+    [InlineData("dos7_bs1024_dir-block-2.bin")]
+    public async Task WhenReadBlockWithLongNameAndNoCommentThenNameIsEqual(string blockFilename)
     {
         // arrange - read long name file system dir block bytes
         var blockBytes =
-            await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems",
-                "dos7_dir-block-2.bin"));
+            await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems", blockFilename));
 
         // act - read long name file system dir block
         var longNameFileSystemDirBlock = LongNameFileSystemDirBlockReader.Read(blockBytes);
-
+        
         // assert - long name file system file header block is equal
+        var expectedIndexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
         Assert.NotEqual(0U, longNameFileSystemDirBlock.HeaderKey);
         Assert.Equal(0U, longNameFileSystemDirBlock.HighSeq);
-        Assert.Equal(0U, longNameFileSystemDirBlock.DataSize);
+        Assert.Equal(expectedIndexSize, longNameFileSystemDirBlock.DataSize);
         Assert.Equal(0U, longNameFileSystemDirBlock.FirstData);
         Assert.Equal(0U, longNameFileSystemDirBlock.ByteSize);
         Assert.Equal(string.Empty, longNameFileSystemDirBlock.Comment);

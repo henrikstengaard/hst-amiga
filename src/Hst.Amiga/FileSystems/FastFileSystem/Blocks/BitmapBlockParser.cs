@@ -24,7 +24,7 @@
                 map.Add(entry);
             }
 
-            return new BitmapBlock
+            return new BitmapBlock(blockBytes.Length)
             {
                 Checksum = checksum,
                 BlockBytes = blockBytes,

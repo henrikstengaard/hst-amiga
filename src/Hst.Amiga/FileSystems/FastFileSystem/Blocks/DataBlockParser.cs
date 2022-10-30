@@ -21,9 +21,11 @@
             var nextData = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x10);
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
 
-            if (dataSize > 488)
+            var maxDataSize = blockBytes.Length - (SizeOf.ULong * 4) - (SizeOf.Long * 2);
+            
+            if (dataSize > maxDataSize)
             {
-                throw new IOException($"Invalid data block data size '{dataSize}'");
+                throw new IOException($"Invalid data block data size '{dataSize}' with max data size '{maxDataSize}'");
             }
             
             var calculatedChecksum = ChecksumHelper.CalculateChecksum(blockBytes, 0x14);
@@ -32,7 +34,7 @@
                 throw new IOException("Invalid data block checksum");
             }
 
-            var data = new byte[488];
+            var data = new byte[maxDataSize];
             Array.Copy(blockBytes, 0x18, data, 0, dataSize);
             
             return new DataBlock

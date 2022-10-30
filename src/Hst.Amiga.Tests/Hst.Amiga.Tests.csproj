@@ -91,6 +91,24 @@
       <None Update="TestData\FastFileSystems\dos7_dir-block-2.bin">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="TestData\FastFileSystems\dos7_bs1024_comment-block-1.bin">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos7_bs1024_comment-block-2.bin">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos7_bs1024_dir-block-1.bin">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos7_bs1024_dir-block-2.bin">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos7_bs1024_file-header-block-1.bin">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\FastFileSystems\dos7_bs1024_file-header-block-2.bin">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

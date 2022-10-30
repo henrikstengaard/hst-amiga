@@ -16,7 +16,8 @@
                 FloppyDiskConstants.DoubleDensity.HighCyl,
                 FloppyDiskConstants.DoubleDensity.ReservedBlocks,
                 FloppyDiskConstants.DoubleDensity.Heads,
-                FloppyDiskConstants.DoubleDensity.Sectors);
+                FloppyDiskConstants.DoubleDensity.Sectors,
+                FloppyDiskConstants.FileSystemBlockSize);
 
             Assert.Equal(880U, rootBlockOffset);
         }
@@ -25,11 +26,12 @@
         public void WhenCalculateRootBlockOffsetForPartitionOffsetMatch()
         {
             // arrange - partition geometry
-            var lowCyl = 2;
-            var highCyl = 17;
-            var reserved = 2;
-            var surfaces = 16;
-            var blocksPerTrack = 63;
+            const int lowCyl = 2;
+            const int highCyl = 17;
+            const int reserved = 2;
+            const int surfaces = 16;
+            const int blocksPerTrack = 63;
+            const uint fileSystemBlockSize = 512;
             
             // arrange - calculate expected root block offset
             var cylinders = highCyl - lowCyl + 1;
@@ -38,11 +40,12 @@
             
             // act - calculate root block offset for partition
             var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(
-                (uint)lowCyl,
-                (uint)highCyl,
-                (uint)reserved,
-                (uint)surfaces,
-                (uint)blocksPerTrack);
+                lowCyl,
+                highCyl,
+                reserved,
+                surfaces,
+                blocksPerTrack,
+                fileSystemBlockSize);
 
             // assert - root block offset matches expected root block offset
             Assert.Equal(expectedRootBlockOffset, rootBlockOffset);
@@ -51,16 +54,16 @@
         [Fact]
         public void WhenSetOffsetsForOneBitmapExtensionBlockThenOffsetsAreSetSequential()
         {
-            const int blockSize = 512;
+            const int fileSystemBlockSize = 512;
             const int offsetSize = 4;
             const uint bitmapExtensionBlockOffset = 100U;
-            var offsetsPerBitmapExtensionBlock = (blockSize - offsetSize) / offsetSize;
+            var offsetsPerBitmapExtensionBlock = (fileSystemBlockSize - offsetSize) / offsetSize;
             var bitmapBlocksCount = offsetsPerBitmapExtensionBlock - 10;
             var bitmapBlocks = Enumerable.Range(1, bitmapBlocksCount)
-                .Select(x => new BitmapBlock()).ToList();
+                .Select(x => new BitmapBlock(fileSystemBlockSize)).ToList();
             
             var bitmapExtensionBlocks = BlockHelper
-                .CreateBitmapExtensionBlocks(bitmapBlocks, blockSize)
+                .CreateBitmapExtensionBlocks(bitmapBlocks, fileSystemBlockSize)
                 .ToList();
 
             OffsetHelper.SetBitmapExtensionBlockOffsets(bitmapExtensionBlocks, bitmapExtensionBlockOffset);
@@ -82,18 +85,18 @@
         [Fact]
         public void WhenSetOffsetsForMultipleBitmapExtensionBlocksThenOffsetsAreSetSequential()
         {
-            const int blockSize = 512;
+            const int fileSystemBlockSize = 512;
             const int nextPointerSize = 4;
             const int pointerSize = 4;
             const uint bitmapExtensionBlockOffset = 100U;
             
-            var offsetsPerBitmapExtensionBlock = (blockSize - nextPointerSize) / pointerSize;
+            var offsetsPerBitmapExtensionBlock = (fileSystemBlockSize - nextPointerSize) / pointerSize;
             var bitmapBlocksCount = offsetsPerBitmapExtensionBlock + 10;
             var bitmapBlocks = Enumerable.Range(1, bitmapBlocksCount)
-                .Select(x => new BitmapBlock()).ToList();
+                .Select(x => new BitmapBlock(fileSystemBlockSize)).ToList();
             
             var bitmapExtensionBlocks = BlockHelper
-                .CreateBitmapExtensionBlocks(bitmapBlocks, blockSize, bitmapExtensionBlockOffset)
+                .CreateBitmapExtensionBlocks(bitmapBlocks, fileSystemBlockSize, bitmapExtensionBlockOffset)
                 .ToList();
 
             OffsetHelper.SetBitmapExtensionBlockOffsets(bitmapExtensionBlocks, bitmapExtensionBlockOffset);

@@ -45,11 +45,11 @@
         public uint Extension { get; set; } // 0x1f8
         public abstract int SecType { get;} // 0x1fc
 
-        protected EntryBlock()
+        protected EntryBlock(int fileSystemBlockSize)
         {
-            IndexSize = Constants.INDEX_SIZE; // HT_SIZE, MAX_DATABLK
-            Index = new uint[Constants.INDEX_SIZE];
-
+            var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)fileSystemBlockSize);
+            IndexSize = indexSize;
+            Index = new uint[indexSize];
             Comment = string.Empty;
             Name = string.Empty;
         }

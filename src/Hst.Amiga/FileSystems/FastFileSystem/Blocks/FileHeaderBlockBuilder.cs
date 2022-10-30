@@ -1,7 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
     using System;
-    using Amiga.Extensions;
     using Core.Converters;
 
     public static class FileHeaderBlockBuilder
@@ -24,6 +23,8 @@
                 Array.Copy(fileHeaderBlock.BlockBytes, 0, blockBytes, 0, blockSize);
             }
             
+            fileHeaderBlock.IndexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockSize);
+            
             BigEndianConverter.ConvertInt32ToBytes(fileHeaderBlock.Type, blockBytes, 0x0);
             BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.HeaderKey, blockBytes, 0x4);
             BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.HighSeq, blockBytes, 0x8);
@@ -31,25 +32,12 @@
             BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.FirstData, blockBytes, 0x10);
             BigEndianConverter.ConvertInt32ToBytes(fileHeaderBlock.Checksum, blockBytes, 0x14);
             
-            for (var i = 0; i < Constants.INDEX_SIZE; i++)
+            for (var i = 0; i < fileHeaderBlock.IndexSize; i++)
             {
                 BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.Index[i], blockBytes, 0x18 + (i * SizeOf.Long));
             }
             
-            BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.Access, blockBytes, 0x140);
-            BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.ByteSize, blockBytes, 0x144);
-            blockBytes.WriteStringWithLength(0x148, fileHeaderBlock.Comment, Constants.MAXCMMTLEN + 1);
-
-            DateHelper.WriteDate(blockBytes, 0x1a4, fileHeaderBlock.Date);
-            blockBytes.WriteStringWithLength(0x1b0, fileHeaderBlock.Name, Constants.MAXNAMELEN + 1);
-
-            BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.RealEntry, blockBytes, 0x1d4);
-            BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.NextLink, blockBytes, 0x1d8);
-
-            BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.NextSameHash, blockBytes, 0x1f0);
-            BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.Parent, blockBytes, 0x1f4);
-            BigEndianConverter.ConvertUInt32ToBytes(fileHeaderBlock.Extension, blockBytes, 0x1f8);
-            BigEndianConverter.ConvertInt32ToBytes(fileHeaderBlock.SecType, blockBytes, 0x1fc);
+            EntryBlockBuilder.WriteGenericEntryBlock(fileHeaderBlock, blockBytes);
             
             fileHeaderBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 20);
             fileHeaderBlock.BlockBytes = blockBytes;

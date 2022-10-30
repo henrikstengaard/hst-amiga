@@ -35,7 +35,7 @@
                 var hashtableSize = await blockStream.ReadBigEndianInt32();
                 var firstData = await blockStream.ReadBigEndianInt32();
 
-                if (type != 2 || headerKey != 0 || highSeq != 0 || hashtableSize != Constants.HT_SIZE || firstData != 0)
+                if (type != 2 || headerKey != 0 || highSeq != 0 || hashtableSize == 0 || firstData != 0)
                 {
                     continue;
                 }
@@ -178,14 +178,15 @@
         /// <param name="blocksPerTrack"></param>
         /// <param name="reserved"></param>
         /// <param name="blockSize"></param>
+        /// <param name="fileSystemBlockSize"></param>
         /// <param name="rootBlockOffset"></param>
         /// <returns></returns>
         public static async Task<Volume> Mount(Stream stream, uint lowCyl, uint highCyl, uint surfaces,
-            uint blocksPerTrack, uint reserved = 0, uint blockSize = 512, uint rootBlockOffset = 0)
+            uint blocksPerTrack, uint reserved = 0, uint blockSize = 512, uint fileSystemBlockSize = 512, uint rootBlockOffset = 0)
         {
             var cylinders = highCyl - lowCyl + 1;
             var blocksPerCylinder = surfaces * blocksPerTrack;
-            var blocks = cylinders * blocksPerCylinder;
+            var blocks = cylinders * blocksPerCylinder / (fileSystemBlockSize / blockSize);
             var partitionStartOffset = lowCyl * blocksPerCylinder * blockSize;
 
             // if (adfReadBootBlock(vol, &boot)!=RC_OK) {
@@ -201,19 +202,23 @@
             var useFfs = Macro.UseFfs(mode);
             var useDirCache = Macro.UseDirCache(mode);
             var useLnfs = Macro.UseLnfs(mode);
+            
+            var offsetsPerBitmapBlock = BlockHelper.CalculateOffsetsPerBitmapBlockCount(fileSystemBlockSize);
+            
+            var dataBlockSize = useFfs ? fileSystemBlockSize : fileSystemBlockSize - (SizeOf.ULong * 4) - (SizeOf.Long * 2);
 
-            var dataBlockSize = useFfs ? 512U : 488U;
-
+            var hashtableSize = CalculateHashtableSize(fileSystemBlockSize);
+            
             // calculate root block offset, if not set
             if (rootBlockOffset == 0)
             {
                 rootBlockOffset =
-                    OffsetHelper.CalculateRootBlockOffset(lowCyl, highCyl, reserved, surfaces, blocksPerTrack);
+                    OffsetHelper.CalculateRootBlockOffset(lowCyl, highCyl, reserved, surfaces, blocksPerTrack, fileSystemBlockSize);
             }
 
             // seek root block offset
-            stream.Seek(partitionStartOffset + (long)rootBlockOffset * blockSize, SeekOrigin.Begin);
-            var rootBlockBytes = await stream.ReadBytes((int)blockSize);
+            stream.Seek(partitionStartOffset + (long)rootBlockOffset * fileSystemBlockSize, SeekOrigin.Begin);
+            var rootBlockBytes = await stream.ReadBytes((int)fileSystemBlockSize);
 
             // parse root block bytes
             var rootBlock = RootBlockParser.Parse(rootBlockBytes);
@@ -223,6 +228,7 @@
                 PartitionStartOffset = (long)lowCyl * blocksPerCylinder * blockSize,
                 DosType = mode,
                 DataBlockSize = dataBlockSize,
+                IndexSize = hashtableSize,
                 UseOfs = useOfs,
                 UseIntl = useIntl,
                 UseFfs = useFfs,
@@ -234,8 +240,10 @@
                 Stream = stream,
                 Reserved = reserved,
                 BlockSize = (int)blockSize,
+                FileSystemBlockSize = (int)fileSystemBlockSize,
                 FirstBlock = 0,
                 LastBlock = blocks - 1,
+                OffsetsPerBitmapBlock = offsetsPerBitmapBlock,
                 Mounted = true
             };
 
@@ -247,6 +255,11 @@
         public static uint GetSector(Volume volume, EntryBlock entryBlock)
         {
             return entryBlock.SecType == Constants.ST_ROOT ? volume.RootBlockOffset : entryBlock.HeaderKey;
+        }
+
+        public static uint CalculateHashtableSize(uint fileSystemBlockSize)
+        {
+            return (fileSystemBlockSize - 0x18 - 0xc8) / SizeOf.ULong;
         }
     }
 }
