@@ -1,7 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
@@ -515,6 +514,7 @@
             uint anodeoffset, blockoffset;
             //UBYTE* data = NULL,  *dataptr;
             //var data = new List<byte>();
+            byte[] data;
             int dataptr = 0;
             // bool directwrite = false;
             anodechainnode chnode;
@@ -577,6 +577,7 @@
                 //     throw new IOException("ERROR_NO_FREE_STORE");
                 //     goto wtf_error;
                 // }
+                data = new byte[totalblocks << BLOCKSHIFT];
 
                 /* first blockpart */
                 if (blockoffset != 0)
@@ -591,11 +592,13 @@
 
                 /* copy all 'to be written' to databuffer */
                 //memcpy(dataptr + blockoffset, buffer, size);
+                Array.Copy(buffer, 0, data, dataptr, size);
             }
             else
             {
                 /* direct */
                 //dataptr = buffer;
+                data = buffer;
                 dataptr = 0;
                 //directwrite = true;
 
@@ -649,14 +652,14 @@
                 // UBYTE* writeptr;
                 // UBYTE* lastpart = NULL;
                 // UBYTE* writeptr;
-                var lastpart = 0;
+                byte[] lastpart = null;
 
                 if (blockstofill + anodeoffset >= chnode.an.clustersize)
                     t = chnode.an.clustersize - anodeoffset; /* t is # blocks to write now */
                 else
                     t = blockstofill;
 
-                var writeptr = dataptr;
+                byte[] writeptr = data;
                 // last write, writing to end of file and last block won't be completely filled?
                 // all this just to prevent out of bounds memory read access.
                 if (t == blockstofill && (bytestowrite & BLOCKSIZEMASK) != 0 && newfileoffset > oldfilesize)
@@ -669,7 +672,7 @@
                     }
                     else
                     {
-                        lastpart = (int)t << BLOCKSHIFT;
+                        lastpart = new byte[(int)t << BLOCKSHIFT];
                         // indirect write last block(s), including final partial block.
                         // if (!(lastpart = AllocBufmem(t << BLOCKSHIFT, g)))
                         // {
@@ -684,15 +687,14 @@
                         // else
                         // {
                         //memcpy(lastpart, dataptr, bytestowrite);
+                        Array.Copy(data, dataptr, lastpart, 0, bytestowrite);
                         writeptr = lastpart;
                         // }
                     }
                 }
 
                 // *error = DiskWrite(writeptr, t, chnode->an.blocknr + anodeoffset, g);
-                var writeBuffer = new byte[t * g.blocksize];
-                Array.Copy(buffer, writeptr, writeBuffer, 0, writeBuffer.Length);
-                if (!await RawWrite(g.stream, buffer, t, chnode.an.blocknr + anodeoffset, g))
+                if (await RawWrite(g.stream, writeptr, t, chnode.an.blocknr + anodeoffset, g))
                 {
                     blockstofill -= t;
                     dataptr += (int)(t << BLOCKSHIFT);
@@ -701,10 +703,11 @@
                     anodes.CorrectAnodeAC(chnode, anodeoffset, g);
                 }
 
-                if (lastpart != 0)
+                if (lastpart != null)
                 {
                     bytestowrite = 0;
                     //FreeBufmem(lastpart, g);
+                    lastpart = null;
                 }
             }
 

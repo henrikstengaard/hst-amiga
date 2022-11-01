@@ -17,7 +17,6 @@
             
             var headerKey = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
             var highSeq = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x8);
-            //var indexSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0xc); // hashtable & data blocks
             var firstData = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x10);
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
 

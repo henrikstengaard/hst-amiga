@@ -15,18 +15,18 @@
         /// <param name="lowCyl"></param>
         /// <param name="highCyl"></param>
         /// <param name="numBuffers"></param>
-        /// <param name="fileSystemBlockSize"></param>
+        /// <param name="blockSize"></param>
         /// <param name="mask"></param>
         /// <returns></returns>
         public static globaldata CreateGlobalData(uint sectors, uint blocksPerTrack, uint surfaces, 
-            uint lowCyl, uint highCyl, uint numBuffers, uint fileSystemBlockSize, uint mask)
+            uint lowCyl, uint highCyl, uint numBuffers, uint blockSize, uint mask)
         {
-            var blocksPerCylinder = sectors * blocksPerTrack * surfaces;
+            var blocksPerCylinder = blocksPerTrack * surfaces;
             
             return new globaldata
             {
                 NumBuffers = numBuffers,
-                blocksize = (uint)fileSystemBlockSize,
+                blocksize = blockSize,
                 TotalSectors = (highCyl - lowCyl + 1) * blocksPerCylinder,
                 firstblock = lowCyl * blocksPerCylinder,
                 lastblock = (highCyl + 1) * blocksPerCylinder - 1,

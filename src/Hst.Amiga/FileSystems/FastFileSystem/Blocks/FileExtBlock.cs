@@ -24,7 +24,6 @@
         {
             var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)fileSystemBlockSize);
             Type = Constants.T_LIST;
-            IndexSize = 0;
             FirstData = 0;
             IndexSize = indexSize;
             Index = new uint[indexSize];

@@ -10,14 +10,14 @@
         {
             return await Mount(stream, partitionBlock.Sectors, partitionBlock.BlocksPerTrack,
                 partitionBlock.Surfaces, partitionBlock.LowCyl, partitionBlock.HighCyl, partitionBlock.NumBuffer,
-                partitionBlock.FileSystemBlockSize, partitionBlock.Mask);
+                partitionBlock.BlockSize, partitionBlock.Mask);
         }
 
         public static async Task<globaldata> Mount(Stream stream, uint sectors, uint blocksPerTrack, uint surfaces, uint lowCyl,
-            uint highCyl, uint numBuffer, uint fileSystemBlockSize, uint mask)
+            uint highCyl, uint numBuffer, uint blockSize, uint mask)
         {
             var g = Init.CreateGlobalData(sectors, blocksPerTrack, surfaces, lowCyl, highCyl, numBuffer,
-                fileSystemBlockSize, mask);
+                blockSize, mask);
             g.stream = stream;
 
             Init.Initialize(g);

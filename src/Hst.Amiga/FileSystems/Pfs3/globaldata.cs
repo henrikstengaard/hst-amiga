@@ -17,6 +17,9 @@
         // // ULONG de_SizeBlock;	     /* in longwords: Physical disk block size */
         // public uint SizeBlock;
         
+        /// <summary>
+        /// Physical disk block size (512) 
+        /// </summary>
         public uint blocksize;                    /* g->dosenvec->de_SizeBlock << 2       */
         public ushort blockshift;                   /* 2 log van block size                 */
         public ushort fnsize;						/* filename size (18+)					*/
@@ -63,7 +66,7 @@
 
         public uint TotalSectors { get; set; }
         public bool SuperMode { get; set; }
-        
+
         public diskcache dc;                /* cache to make '196 byte mode' faster */
 
     }

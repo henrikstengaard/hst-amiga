@@ -7,15 +7,14 @@
     {
         public static byte[] Build(FileExtBlock fileExtBlock, int blockSize)
         {
-            fileExtBlock.IndexSize = 0;
-            fileExtBlock.FirstData = 0;
-            
             var blockBytes = new byte[blockSize];
             if (fileExtBlock.BlockBytes != null)
             {
                 Array.Copy(fileExtBlock.BlockBytes, 0, blockBytes, 0, blockSize);
             }
 
+            fileExtBlock.IndexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockSize);
+            
             BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.Type, blockBytes, 0x0);
             BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.HeaderKey, blockBytes, 0x4);
             BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.HighSeq, blockBytes, 0x8);

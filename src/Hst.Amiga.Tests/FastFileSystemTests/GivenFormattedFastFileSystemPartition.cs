@@ -214,6 +214,46 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
     }
     
     [Theory]
+    [InlineData(1000)]
+    [InlineData(5000)]
+    [InlineData(450000)]
+    public async Task WhenWriteDataLargerThanBlockSizeToNewFileThenWhenReadDataFromFileDataMatches(int fileSize)
+    {
+        // arrange - data to write
+        var data = new byte[fileSize];
+        for (var i = 0; i < fileSize; i++)
+        {
+            data[i] = (byte)(i % 255);
+        }
+        
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - write data
+        await using (var entryStream = await ffsVolume.OpenFile("New File", true))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+        await using (var entryStream = await ffsVolume.OpenFile("New File", false))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+        
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
+    }
+    
+    [Theory]
     [InlineData(DiskSize100Mb, 512)]
     [InlineData(DiskSize100Mb, 1024)]
     [InlineData(DiskSize4Gb, 512)]

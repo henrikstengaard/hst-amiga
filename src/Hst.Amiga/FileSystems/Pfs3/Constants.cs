@@ -179,7 +179,14 @@
         /// </summary>
         public const ushort IBLKID = 0x4942;
 
+        /// <summary>
+        /// (BM)
+        /// </summary>
         public const ushort BMBLKID = 0x424D;
+        
+        /// <summary>
+        /// (MI)
+        /// </summary>
         public const ushort BMIBLKID = 0x4D49;
 
         /// <summary>

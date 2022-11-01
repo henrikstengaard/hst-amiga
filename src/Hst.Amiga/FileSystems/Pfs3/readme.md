@@ -10,6 +10,10 @@ The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen 
 
 See [Blocks](Blocks) page for details about blocks used by PFS3.
 
+## Block size
+
+PFS3 ignores file system block size set on partition blocks in RDB. Internally PFS3 determines a variable block size for it's reserved area of the partition based on the size of the partition. The data area of the partition always use block size of 512 bytes.
+
 ## DOS types
 
 | DOS type | DOS type hex | Description                                                                                            |

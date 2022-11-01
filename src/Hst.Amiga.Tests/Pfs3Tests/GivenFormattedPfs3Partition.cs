@@ -158,6 +158,49 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(data.Length, dataRead.Length);
         Assert.Equal(data, dataRead);
     }
+
+    [Theory]
+    [InlineData(1000)]
+    [InlineData(5000)]
+    [InlineData(450000)]
+    public async Task WhenWriteDataLargerThanBlockSizeToNewFileThenWhenReadDataFromFileDataMatches(int fileSize)
+    {
+        // arrange - data to write
+        var data = new byte[fileSize];
+        for (var i = 0; i < fileSize; i++)
+        {
+            data[i] = (byte)(i % 255);
+        }
+        
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - create file in root directory
+        await pfs3Volume.CreateFile("New File");
+
+        // act - write data
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+        
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
+    }
     
     [Theory]
     [InlineData(DiskSize100Mb)]

@@ -203,7 +203,7 @@
                 posInDataBlk = 0;
             }
 
-            var dataPtr = currentData.Data;
+            //var dataPtr = currentData.Data;
 
             // if (Macro.isOFS(volume.DosType))
             // {
@@ -222,7 +222,7 @@
             {
                 var size = (int)Math.Min(n - bytesRead, blockSize - posInDataBlk);
 
-                Array.Copy(dataPtr, posInDataBlk, buffer, bufPtr, size);
+                Array.Copy(currentData.Data, posInDataBlk, buffer, bufPtr, size);
                 bufPtr += size;
                 pos += (uint)size;
                 bytesRead += size;
