@@ -1,4 +1,4 @@
-name: .NET
+name: Build and release
 
 on: [workflow_dispatch]
 
