@@ -3,6 +3,7 @@
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
+    using FileMode = FileMode;
 
     public static class File
     {
@@ -45,11 +46,11 @@
             }
 
             var entry = result.EntryBlock;
-            switch (write)
+            switch (mode)
             {
-                case false when Macro.hasR(entry.Access):
+                case FileMode.Read when Macro.hasR(entry.Access):
                     throw new IOException("access denied");
-                case true when nSect != uint.MaxValue:
+                case FileMode.Write when nSect != uint.MaxValue:
                     throw new IOException("file already exists");
             }
 

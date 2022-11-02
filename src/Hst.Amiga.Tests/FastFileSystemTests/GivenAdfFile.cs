@@ -71,8 +71,8 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - open entry stream
-            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, volume.RootBlockOffset, "test.txt",
-                FileSystems.FastFileSystem.FileMode.Read);
+            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, volume.RootBlockOffset,
+                "test.txt", FileSystems.FileMode.Read);
 
             // act - read entry stream
             var buffer = new byte[512];
@@ -105,7 +105,7 @@
 
             var entry = entries.FirstOrDefault(x => x.Name == "test.txt");
             Assert.NotNull(entry);
-            
+
             // act - open entry stream
             var entryStream = await FileSystems.FastFileSystem.File.Open(volume, entry);
 
@@ -142,8 +142,8 @@
             var volume = await FastFileSystemHelper.MountAdf(adfStream);
 
             // act - open entry stream
-            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, volume.RootBlockOffset, fileName,
-                FileSystems.FastFileSystem.FileMode.Write);
+            var entryStream = await FileSystems.FastFileSystem.File.Open(volume, volume.RootBlockOffset,
+                fileName, FileSystems.FileMode.Write);
 
             // act - write entry stream
             var buffer = Encoding.ASCII.GetBytes(fileContent);

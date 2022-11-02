@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Extensions;
 using FileSystems;
 using Xunit;
+using FileMode = FileSystems.FileMode;
 
 public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
 {
@@ -121,6 +122,58 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
     }
+
+    [Fact]
+    public async Task WhenOpenFileInWriteModeAndFileExistsThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create file in root directory
+        await ffsVolume.OpenFile("New File", FileMode.Write);
+
+        // assert - open same file for writing in root directory throws exception as file exists
+        await Assert.ThrowsAsync<IOException>(async () => await ffsVolume.OpenFile("New File", FileMode.Write));
+    }
+
+    [Fact]
+    public async Task WhenOpenFileInAppendModeAndFileExistsThenFileIsOpened()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - open file in root directory in write mode, creates new file
+        await ffsVolume.OpenFile("New File", FileMode.Write);
+
+        // act - open file in root directory in append mode
+        await ffsVolume.OpenFile("New File", FileMode.Append);
+
+        // act - list entries in root directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
+    }
+    
+    [Fact]
+    public async Task WhenOpenFileInReadModeAndFileDoesntExistsThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - open file in root directory in read mode, creates new file
+        await Assert.ThrowsAsync<IOException>(async () => await ffsVolume.OpenFile("New File", FileMode.Read));
+    }
     
     [Theory]
     [InlineData(DiskSize100Mb, 512)]
@@ -138,11 +191,8 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
 
-        // act - create file in root directory
-        //await ffsVolume.CreateFile("New File");
-
         // act - write data
-        await using (var entryStream = await ffsVolume.OpenFile("New File", true))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Write))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -150,7 +200,7 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         // act - read data
         int bytesRead;
         byte[] dataRead;
-        await using (var entryStream = await ffsVolume.OpenFile("New File", false))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Read))
         {
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
@@ -178,11 +228,8 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         // act - mount fast file system volume
         await using var ffsVolume = await MountVolume(stream);
 
-        // act - create file in root directory
-        //await ffsVolume.CreateFile("New File");
-
         // act - create file and write data
-        await using (var entryStream = await ffsVolume.OpenFile("New File", true))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Write))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -192,7 +239,7 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         byte[] dataRead;
         long seekPosition;
         long readPosition;
-        await using (var entryStream = await ffsVolume.OpenFile("New File", false))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Read))
         {
             seekPosition = entryStream.Seek(10, SeekOrigin.Begin);
             dataRead = new byte[10];
@@ -233,7 +280,7 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         await using var ffsVolume = await MountVolume(stream);
 
         // act - write data
-        await using (var entryStream = await ffsVolume.OpenFile("New File", true))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Write))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -241,7 +288,7 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         // act - read data
         int bytesRead;
         byte[] dataRead;
-        await using (var entryStream = await ffsVolume.OpenFile("New File", false))
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Read))
         {
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);

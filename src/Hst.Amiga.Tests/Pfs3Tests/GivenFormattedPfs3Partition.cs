@@ -8,6 +8,7 @@ using Extensions;
 using FileSystems;
 using FileSystems.Pfs3;
 using Xunit;
+using FileMode = FileSystems.FileMode;
 
 public class GivenFormattedPfs3Disk : Pfs3TestBase
 {
@@ -119,7 +120,66 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
     }
+    
+    [Fact]
+    public async Task WhenOpenFileInWriteModeAndFileExistsThenExceptionIsThrown()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
 
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - open file in root directory in write mode, creates new file
+        await pfs3Volume.OpenFile("New File", FileMode.Write);
+
+        // act - open file in root directory in write mode, overwrites file
+        await pfs3Volume.OpenFile("New File", FileMode.Write);
+        
+        // act - list entries in root directory
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
+    }
+
+    [Fact]
+    public async Task WhenOpenFileInAppendModeAndFileExistsThenFileIsOpened()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - open file in root directory in write mode, creates new file
+        await pfs3Volume.OpenFile("New File", FileMode.Write);
+
+        // act - open file in root directory in append mode
+        await pfs3Volume.OpenFile("New File", FileMode.Append);
+
+        // act - list entries in root directory
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
+    }
+    
+    [Fact]
+    public async Task WhenOpenFileInReadModeAndFileDoesntExistsThenExceptionIsThrown()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - open file in root directory in read mode, creates new file
+        await Assert.ThrowsAsync<IOException>(async () => await pfs3Volume.OpenFile("New File", FileMode.Read));
+    }
+    
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -139,7 +199,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         await pfs3Volume.CreateFile("New File");
 
         // act - write data
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Write))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -147,7 +207,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // act - read data
         int bytesRead;
         byte[] dataRead;
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Read))
         {
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
@@ -182,7 +242,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         await pfs3Volume.CreateFile("New File");
 
         // act - write data
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Write))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -190,7 +250,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // act - read data
         int bytesRead;
         byte[] dataRead;
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Read))
         {
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
@@ -221,7 +281,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         await pfs3Volume.CreateFile("New File");
 
         // act - write data
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", true))
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Write))
         {
             await entryStream.WriteAsync(data, 0, data.Length);
         }
@@ -231,7 +291,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         byte[] dataRead;
         long seekPosition;
         long readPosition;
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", false))
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Read))
         {
             seekPosition = entryStream.Seek(10, SeekOrigin.Begin);
             dataRead = new byte[10];

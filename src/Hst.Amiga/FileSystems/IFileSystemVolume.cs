@@ -45,14 +45,14 @@
         /// </summary>
         /// <param name="fileName"></param>
         Task CreateFile(string fileName);
-        
+
         /// <summary>
         /// Open file for reading or writing data
         /// </summary>
         /// <param name="fileName"></param>
-        /// <param name="write"></param>
+        /// <param name="mode"></param>
         /// <returns></returns>
-        Task<Stream> OpenFile(string fileName, bool write);
+        Task<Stream> OpenFile(string fileName, FileMode mode);
         
         /// <summary>
         /// Delete file or directory from current directory

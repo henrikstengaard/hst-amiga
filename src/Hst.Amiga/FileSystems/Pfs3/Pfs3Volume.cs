@@ -6,6 +6,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using RigidDiskBlocks;
+    using FileMode = FileMode;
 
     public class Pfs3Volume : IFileSystemVolume, IAsyncDisposable, IDisposable
     {
@@ -103,16 +104,24 @@
         /// Open file for reading or writing data
         /// </summary>
         /// <param name="fileName"></param>
-        /// <param name="write"></param>
+        /// <param name="mode"></param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, bool write)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode)
         {
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, fileName, g)).Any())
             {
-                throw new IOException("Not found");
+                // remaining parts of path is returned, not found
+                if (mode == FileMode.Read)
+                {
+                    throw new IOException("Not found");
+                }
+
+                // create new file
+                await Directory.NewFile(false, currentDirectory, fileName, objectInfo, g);
+                await Update.UpdateDisk(g);
             }
-            var fileEntry = await File.Open(objectInfo, write, g) as fileentry;
+            var fileEntry = await File.Open(objectInfo, mode == FileMode.Write || mode == FileMode.Append, g) as fileentry;
             
             File.MakeSharedFileEntriesAndClear(g);
             
@@ -182,7 +191,7 @@
         /// Set protection bits for file in current directory
         /// </summary>
         /// <param name="name"></param>
-        /// <param name="protection"></param>
+        /// <param name="protectionBits"></param>
         public async Task SetProtectionBits(string name, ProtectionBits protectionBits)
         {
             var objectInfo = currentDirectory.Clone();

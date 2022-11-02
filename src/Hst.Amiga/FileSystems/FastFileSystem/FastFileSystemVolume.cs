@@ -6,6 +6,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using RigidDiskBlocks;
+    using FileMode = FileMode;
 
     public class FastFileSystemVolume : IFileSystemVolume
     {
@@ -90,12 +91,11 @@
         /// Open file for reading or writing data
         /// </summary>
         /// <param name="fileName"></param>
-        /// <param name="write"></param>
+        /// <param name="mode"></param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, bool write)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode)
         {
-            return await File.Open(volume, currentDirectorySector, fileName,
-                write ? FileMode.Write : FileMode.Read);
+            return await File.Open(volume, currentDirectorySector, fileName, mode);
         }
 
         /// <summary>

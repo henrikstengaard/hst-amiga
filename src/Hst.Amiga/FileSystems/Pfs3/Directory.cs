@@ -391,6 +391,7 @@
                 AddExtraFields(destentry, extrafields);
                 await ChangeDirEntry(info, destentry, directory, info.file, g);
                 newfile.file = info.file;
+                newfile.volume.root = 1;
                 return;
             }
 
@@ -400,6 +401,7 @@
                 var entry = DirEntryReader.Read(entrybuffer, entryindex);
                 if (await AddDirectoryEntry(directory, entry, newfile.file, g))
                 {
+                    newfile.volume.root = 1;
                     return;
                 }
                 else

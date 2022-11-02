@@ -9,6 +9,7 @@
     using Blocks;
     using Core.Extensions;
     using Extensions;
+    using FileMode = FileMode;
 
     public static class FastFileSystemHelper
     {
