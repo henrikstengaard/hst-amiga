@@ -171,16 +171,47 @@
         }
 
         /// <summary>
-        /// Mount pfs3 volume in stream using partition block information
+        /// Mount partition fast file system volume from stream partition block
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="partitionBlock"></param>
         /// <returns></returns>
-        public static async Task<FastFileSystemVolume> Mount(Stream stream, PartitionBlock partitionBlock)
+        public static async Task<FastFileSystemVolume> MountPartition(Stream stream, PartitionBlock partitionBlock)
         {
-            var volume = await FastFileSystemHelper.Mount(stream, partitionBlock.LowCyl, partitionBlock.HighCyl,
+            return await Mount(stream, partitionBlock.LowCyl, partitionBlock.HighCyl,
                 partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved, partitionBlock.BlockSize,
                 partitionBlock.FileSystemBlockSize);
+        }
+
+        /// <summary>
+        /// Mount adf fast file system volume from stream
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns>Fast file system volume</returns>
+        public static async Task<FastFileSystemVolume> MountAdf(Stream stream)
+        {
+            var volume = await FastFileSystemHelper.MountAdf(stream);
+
+            return new FastFileSystemVolume(volume, volume.RootBlockOffset);
+        }
+
+        /// <summary>
+        /// Mount fast file system volume from stream
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="lowCyl"></param>
+        /// <param name="highCyl"></param>
+        /// <param name="surfaces"></param>
+        /// <param name="blocksPerTrack"></param>
+        /// <param name="reserved"></param>
+        /// <param name="blockSize"></param>
+        /// <param name="fileSystemBlockSize"></param>
+        /// <returns></returns>
+        public static async Task<FastFileSystemVolume> Mount(Stream stream, uint lowCyl, uint highCyl,
+            uint surfaces, uint blocksPerTrack, uint reserved, uint blockSize, uint fileSystemBlockSize)
+        {
+            var volume = await FastFileSystemHelper.Mount(stream, lowCyl, highCyl, surfaces, blocksPerTrack, reserved, blockSize,
+                fileSystemBlockSize);
 
             return new FastFileSystemVolume(volume, volume.RootBlockOffset);
         }

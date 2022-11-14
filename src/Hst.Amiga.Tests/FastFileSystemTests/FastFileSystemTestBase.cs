@@ -50,7 +50,7 @@
 
             var partitionBlock = rigidDiskBlock.PartitionBlocks.First();
 
-            return await FastFileSystemVolume.Mount(stream, partitionBlock);
+            return await FastFileSystemVolume.MountPartition(stream, partitionBlock);
         }
 
         protected readonly DateTime Date = new(2022, 2, 3, 14, 45, 33, DateTimeKind.Utc);
