@@ -64,7 +64,7 @@
             await blockStream.WriteBigEndianUInt32(partitionBlock
                 .MaxTransfer); // Max number of bytes to transfer at a time
             await blockStream.WriteBigEndianUInt32(partitionBlock.Mask); // Address Mask to block out certain memory
-            await blockStream.WriteBigEndianUInt32(partitionBlock.BootPriority); // Boot priority for autoboot
+            await blockStream.WriteBigEndianInt32(partitionBlock.BootPriority); // Boot priority for autoboot
             await blockStream.WriteBytes(partitionBlock.DosType); // # Dostype of the file system
             await blockStream.WriteBigEndianUInt32(partitionBlock.Baud); // Baud rate for serial handler
             await blockStream.WriteBigEndianUInt32(partitionBlock.Control); // Control word for handler/filesystem 

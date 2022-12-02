@@ -102,7 +102,7 @@
             var bufMemType = await blockStream.ReadBigEndianUInt32(); // Type of mem to allocate for buffers
             var maxTransfer = await blockStream.ReadBigEndianUInt32(); // Max number of bytes to transfer at a time
             var mask = await blockStream.ReadBigEndianUInt32(); // Address Mask to block out certain memory
-            var bootPriority = await blockStream.ReadBigEndianUInt32(); // Boot priority for autoboot
+            var bootPriority = await blockStream.ReadBigEndianInt32(); // Boot priority for autoboot
             var dosType = await blockStream.ReadBytes(4); // # Dostype of the file system
             var baud = await blockStream.ReadBigEndianUInt32(); // Baud rate for serial handler
             var control = await blockStream.ReadBigEndianUInt32(); // Control word for handler/filesystem 
