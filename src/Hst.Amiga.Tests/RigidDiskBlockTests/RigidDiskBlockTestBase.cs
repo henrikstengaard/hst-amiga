@@ -2,6 +2,7 @@
 {
     using System;
     using System.IO;
+    using System.Text;
     using System.Threading.Tasks;
     using RigidDiskBlocks;
 
@@ -10,6 +11,9 @@
         protected const int FileSystemVersion = 19;
         protected const int FileSystemRevision = 2;
         protected readonly byte[] Pds3DosType = new byte[] { 0x50, 0x44, 0x53, 0x3 };
+        protected readonly byte[] Dos3DosType = { 0x44, 0x4f, 0x53, 0x3 };
+        protected readonly byte[] FastFileSystemBytes = Encoding.ASCII.GetBytes(
+            "$VER: FastFileSystem 1.0 (12/12/22) "); // dummy fast file system used for testing
         
         protected RigidDiskBlock CreateRigidDiskBlock(long size)
         {

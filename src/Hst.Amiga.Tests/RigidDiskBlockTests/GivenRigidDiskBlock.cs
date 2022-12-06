@@ -2,6 +2,7 @@
 {
     using System;
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
     using Core.Extensions;
     using Extensions;
@@ -111,6 +112,71 @@
                     .AddFileSystem(Pds3DosType, pfs3FileSystemBytes)
                     .AddFileSystem(Pds3DosType, pfs3FileSystemBytes);
             });
+        }
+        
+        [Fact]
+        public async Task WhenUpdateBlockPointersThenRigidDiskBlockIsEqual()
+        {
+            var pfs3AioBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "RigidDiskBlocks", "pfs3aio"));
+            
+            // arrange: create rigid disk block with 2 file systems and 2 partitions
+            var rigidDiskBlock = RigidDiskBlock
+                .Create(10.MB().ToUniversalSize())
+                .AddFileSystem(Dos3DosType, FastFileSystemBytes) 
+                .AddFileSystem(Pds3DosType, pfs3AioBytes)
+                .AddPartition("DH0", 3.MB(), bootable: true)
+                .AddPartition("DH1");
+
+            // act: update block pointers
+            BlockHelper.UpdateBlockPointers(rigidDiskBlock);
+
+            var currentBlock = rigidDiskBlock.RdbBlockLo;
+
+            // assert: partition list is set to current block + 1
+            Assert.Equal(currentBlock + 1, rigidDiskBlock.PartitionList);
+
+            // assert: partition blocks
+            var partitionBlocks = rigidDiskBlock.PartitionBlocks.ToList();
+            for (var i = 0; i < partitionBlocks.Count; i++)
+            {
+                var partitionBlock = partitionBlocks[i];
+                currentBlock++;
+                
+                // assert: next partition block is set to current block + 1, if more than one partition block is present.
+                // otherwise next partition block is equal to end of blocks 
+                Assert.Equal(i < partitionBlocks.Count - 1 ? currentBlock + 1 : BlockIdentifiers.EndOfBlock, partitionBlock.NextPartitionBlock);
+            }
+
+            // assert: file system header list is set to current block +1
+            Assert.Equal(currentBlock + 1, rigidDiskBlock.FileSysHdrList);
+            
+            // assert: file system header blocks
+            var fileSystemHeaderBlocks = rigidDiskBlock.FileSystemHeaderBlocks.ToList();
+            for (var i = 0; i < fileSystemHeaderBlocks.Count; i++)
+            {
+                var fileSystemHeaderBlock = fileSystemHeaderBlocks[i];
+                var loadSegBlocks = fileSystemHeaderBlock.LoadSegBlocks.ToList();
+
+                currentBlock++;
+                
+                // assert: next file system header block is set to current block + 1, if more than one file system header block is present.
+                // otherwise next file system header block is equal to end of blocks 
+                Assert.Equal(i < fileSystemHeaderBlocks.Count - 1 ? currentBlock + 1 + loadSegBlocks.Count : BlockIdentifiers.EndOfBlock, fileSystemHeaderBlock.NextFileSysHeaderBlock);
+                
+                // assert: load seg block
+                Assert.Equal(currentBlock + 1, (uint)fileSystemHeaderBlock.SegListBlocks);
+                
+                // assert: load seg blocks
+                for (var j = 0; j < loadSegBlocks.Count; j++)
+                {
+                    var loadSegBlock = loadSegBlocks[j];
+                    currentBlock++;
+                
+                    // assert: next load seg block is set to current block + 1, if more than one load seg block is present.
+                    // otherwise next load seg block is equal to end of blocks 
+                    Assert.Equal(j < loadSegBlocks.Count - 1 ? (int)currentBlock + 1 : -1, loadSegBlock.NextLoadSegBlock);
+                }
+            }
         }
     }
 }

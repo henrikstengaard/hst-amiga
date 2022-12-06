@@ -48,95 +48,63 @@
 
             var partitionBlocks = rigidDiskBlock.PartitionBlocks.ToList();
 
-            var rigidDiskBlockIndex = rigidDiskBlock.RdbBlockLo;
-            var partitionBlockIndex = partitionBlocks.Count > 0 ? rigidDiskBlockIndex + 1 : BlockIdentifiers.EndOfBlock;
-
-            var partitionsChanged = rigidDiskBlock.PartitionList != partitionBlockIndex;
+            var partitionBlockIndex = partitionBlocks.Count > 0
+                ? highRsdkBlock + 1
+                : BlockIdentifiers.EndOfBlock;
 
             rigidDiskBlock.PartitionList = partitionBlockIndex;
 
             for (var p = 0; p < partitionBlocks.Count; p++)
             {
+                highRsdkBlock++;
                 var partitionBlock = partitionBlocks[p];
 
-                var nextPartitionBlock = p < partitionBlocks.Count - 1
-                    ? (uint)(partitionBlockIndex + p + 1)
+                partitionBlock.NextPartitionBlock = p < partitionBlocks.Count - 1
+                    ? highRsdkBlock + 1
                     : BlockIdentifiers.EndOfBlock;
-
-                if (partitionBlock.NextPartitionBlock != nextPartitionBlock)
-                {
-                    partitionsChanged = true;
-                }
-
-                partitionBlock.NextPartitionBlock = nextPartitionBlock;
-
-                if (partitionBlockIndex + p > highRsdkBlock)
-                {
-                    highRsdkBlock = (uint)(partitionBlockIndex + p);
-                }
-            }
-
-            if (partitionsChanged)
-            {
-                ResetFileSystemHeaderBlockPointers(rigidDiskBlock);
-                ResetBadBlockPointers(rigidDiskBlock);
             }
 
             var fileSystemHeaderBlocks = rigidDiskBlock.FileSystemHeaderBlocks.ToList();
-            var fileSystemHeaderBlockIndex =
-                fileSystemHeaderBlocks.Count > 0 ? highRsdkBlock + 1 : BlockIdentifiers.EndOfBlock;
-
-            var fileSystemHeaderChanged = rigidDiskBlock.FileSysHdrList != fileSystemHeaderBlockIndex;
-
-            if (fileSystemHeaderChanged)
-            {
-                ResetBadBlockPointers(rigidDiskBlock);
-            }
+            var fileSystemHeaderBlockIndex = fileSystemHeaderBlocks.Count > 0
+                ? highRsdkBlock + 1
+                : BlockIdentifiers.EndOfBlock;
 
             rigidDiskBlock.FileSysHdrList = fileSystemHeaderBlockIndex;
 
             for (var f = 0; f < fileSystemHeaderBlocks.Count; f++)
             {
+                highRsdkBlock++;
                 var fileSystemHeaderBlock = fileSystemHeaderBlocks[f];
                 var loadSegBlocks = fileSystemHeaderBlock.LoadSegBlocks.ToList();
 
                 fileSystemHeaderBlock.NextFileSysHeaderBlock = f < fileSystemHeaderBlocks.Count - 1
-                    ? (uint)(fileSystemHeaderBlockIndex + f + 1 + loadSegBlocks.Count)
+                    ? (uint)(highRsdkBlock + 1 + loadSegBlocks.Count)
                     : BlockIdentifiers.EndOfBlock;
-                fileSystemHeaderBlock.SegListBlocks = (int)(fileSystemHeaderBlockIndex + f + 1);
-
-                if (fileSystemHeaderBlockIndex + f + loadSegBlocks.Count > highRsdkBlock)
-                {
-                    highRsdkBlock = (uint)(fileSystemHeaderBlockIndex + f + loadSegBlocks.Count);
-                }
+                fileSystemHeaderBlock.SegListBlocks = (int)(highRsdkBlock + 1);
 
                 for (var l = 0; l < loadSegBlocks.Count; l++)
                 {
+                    highRsdkBlock++;
                     var loadSegBlock = loadSegBlocks[l];
 
                     loadSegBlock.NextLoadSegBlock = l < loadSegBlocks.Count - 1
-                        ? (int)(fileSystemHeaderBlockIndex + f + 2 + l)
+                        ? (int)(highRsdkBlock + 1)
                         : -1;
                 }
             }
 
             var badBlocks = rigidDiskBlock.BadBlocks.ToList();
-            var badBlockIndex = badBlocks.Count > 0 ? highRsdkBlock + 1 : BlockIdentifiers.EndOfBlock;
-            rigidDiskBlock.BadBlockList = badBlockIndex;
+            
+            rigidDiskBlock.BadBlockList = badBlocks.Count > 0 ? highRsdkBlock + 1 : BlockIdentifiers.EndOfBlock;
 
             for (var b = 0; b < badBlocks.Count; b++)
             {
+                highRsdkBlock++;
                 var badBlock = badBlocks[b];
 
                 badBlock.NextBadBlock = b < badBlocks.Count - 1
-                    ? (uint)(badBlockIndex + b + 1)
+                    ? highRsdkBlock + 1
                     : BlockIdentifiers.EndOfBlock;
-
-                // update highest used rdb block
-                if (badBlockIndex + b > highRsdkBlock)
-                {
-                    highRsdkBlock = (uint)(badBlockIndex + b);
-                }
             }
 
             // set highest used rdb block
