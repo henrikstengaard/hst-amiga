@@ -8,6 +8,7 @@
     <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Hst.Core" Version="0.2.24" />
+    <PackageReference Include="Hst.Core" Version="0.2.31" />
+    <PackageReference Include="Hst.Imaging" Version="0.2.31" />
   </ItemGroup>
 </Project>
