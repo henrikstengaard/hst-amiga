@@ -7,6 +7,11 @@
     {
         public static direntry Read(byte[] bytes, int offset)
         {
+            if (bytes[offset] == 0 || offset + 17 > bytes.Length)
+            {
+                return new direntry();
+            }
+            
             var nLength = bytes[offset + 17];
 
             var dirEntry = new direntry

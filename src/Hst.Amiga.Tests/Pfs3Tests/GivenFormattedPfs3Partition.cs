@@ -8,6 +8,8 @@ using Extensions;
 using FileSystems;
 using FileSystems.Pfs3;
 using Xunit;
+using Constants = FileSystems.Pfs3.Constants;
+using Directory = FileSystems.Pfs3.Directory;
 using FileMode = FileSystems.FileMode;
 
 public class GivenFormattedPfs3Disk : Pfs3TestBase
@@ -36,6 +38,32 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(1, entries.Count(x => x.Name == "New Dir" && x.Type == EntryType.Dir));
     }
 
+    [Fact]
+    public async Task WhenCreate50DirectoriesInRootDirectoryThenLastDirectoryExist()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk(DiskSize100Mb);
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+        
+        // act - create directories in root directory
+        for (var i = 1; i <= 50; i++)
+        {
+            await pfs3Volume.CreateDirectory($"New Dir{i}");
+        }
+
+        // act - search for last directory created in root directory
+        var objectInfo = new objectinfo();
+        var result = await Directory.SearchInDir(Constants.ANODE_ROOTDIR, "New Dir50", objectInfo, pfs3Volume.g);
+        
+        // assert - search returned true, directory exists
+        Assert.True(result);
+        
+        // assert - dir entry in object info is equal to last directory
+        Assert.Equal("New Dir50", objectInfo.file.direntry.Name);
+    }
+    
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]

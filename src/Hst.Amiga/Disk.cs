@@ -14,7 +14,7 @@
             {
                 throw new ArgumentException("Block size must be dividable by 512", nameof(blockSize));
             }
-            
+
             var blockBytes = new byte[blockSize];
             var bytesRead = await stream.ReadAsync(blockBytes, 0, blockBytes.Length);
 

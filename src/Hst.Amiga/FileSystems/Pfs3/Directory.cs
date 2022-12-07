@@ -900,6 +900,7 @@
                     {
                         dirblock = await LoadDirBlock(anode.blocknr + anodeoffset, g);
                         blk = dirblock.dirblock;
+                        entry = DirEntryReader.Read(blk.entries, 0);
                     }
                     else
                     {

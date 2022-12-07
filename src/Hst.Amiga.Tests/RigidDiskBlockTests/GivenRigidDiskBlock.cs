@@ -115,6 +115,27 @@
         }
         
         [Fact]
+        public void WhenCreatingLargeRigidDiskBlockThenDiskSizeIsCalculatedCorrectly()
+        {
+            var diskSize = 32.GB().ToSectorSize();
+            
+            // arrange - create rigid disk block of 32gb
+            var rigidDiskBlock = RigidDiskBlock.Create(diskSize);
+
+            // assert - heads and sectors are equal to default
+            Assert.Equal(16U, rigidDiskBlock.Heads);
+            Assert.Equal(63U, rigidDiskBlock.Sectors);
+
+            var cylinderSize = rigidDiskBlock.Heads * rigidDiskBlock.Sectors;
+            var cylinders = diskSize / (cylinderSize * 512);
+            
+            // assert - cylinders, blocks per cylinder and disk size are equal
+            Assert.Equal(cylinderSize, rigidDiskBlock.CylBlocks);
+            Assert.Equal(cylinders, rigidDiskBlock.Cylinders);
+            Assert.Equal(cylinderSize * cylinders * 512, rigidDiskBlock.DiskSize);
+        }
+
+        [Fact]
         public async Task WhenUpdateBlockPointersThenRigidDiskBlockIsEqual()
         {
             var pfs3AioBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "RigidDiskBlocks", "pfs3aio"));

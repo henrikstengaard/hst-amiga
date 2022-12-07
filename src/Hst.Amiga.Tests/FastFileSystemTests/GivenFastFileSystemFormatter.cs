@@ -18,6 +18,9 @@
 
     public class GivenFastFileSystemFormatter
     {
+        private const long DISK_SIZE_10_MB = 1024L * 1024 * 10; 
+        private const long DISK_SIZE_100_MB = 1024L * 1024 * 100; 
+        private const long DISK_SIZE_32_GB = 1024L * 1024 * 1024 * 32; 
         private readonly byte[] dos3DosType = { 0x44, 0x4f, 0x53, 0x3 };
 
         [Fact]
@@ -107,52 +110,56 @@
         }
 
         [Theory]
-        [InlineData("dos3_10mb.hdf", 1024 * 1024 * 10, 512)]
-        [InlineData("dos3_10mb.hdf", 1024 * 1024 * 10, 1024)]
-        [InlineData("dos3_100mb.hdf", 1024 * 1024 * 100, 512)]
-        [InlineData("dos3_100mb.hdf", 1024 * 1024 * 100, 1024)]
-        public async Task WhenFormattingHardDiskFileThenRootBlockAndBitmapBlocksAreCreated(string path, long diskSize, int fileSystemBlockSize)
+        [InlineData(DISK_SIZE_10_MB, 512)]
+        [InlineData(DISK_SIZE_10_MB, 1024)]
+        [InlineData(DISK_SIZE_100_MB, 512)]
+        [InlineData(DISK_SIZE_100_MB, 1024)]
+        [InlineData(DISK_SIZE_32_GB, 512)]
+        public async Task WhenFormattingHardDiskFileThenRootBlockAndBitmapBlocksAreCreated(long diskSize, int fileSystemBlockSize)
         {
+            // arrange: create stream for testing
+            var stream = new BlockMemoryStream();
+
             // arrange - create hdf file with 1 partition using DOS3 dos type 
-            var rigidDiskBlock = await RigidDiskBlock
-                .Create(diskSize.ToUniversalSize())
+            var rigidDiskBlock = RigidDiskBlock
+                .Create(diskSize)
                 .AddFileSystem(dos3DosType, Encoding.ASCII.GetBytes(
                     "$VER: FastFileSystem 1.0 (12/12/22) ")) // dummy fast file system used for testing
-                .AddPartition("DH0", bootable: true, fileSystemBlockSize: fileSystemBlockSize)
-                .WriteToFile(path);
+                .AddPartition("DH0", bootable: true, fileSystemBlockSize: fileSystemBlockSize);
 
+            // arrange: create stream and write rigid disk block
+            await RigidDiskBlockWriter.WriteBlock(rigidDiskBlock, stream);
+            
+            // act - format first partition using fast file system formatter
             var partition = rigidDiskBlock.PartitionBlocks.First();
-
-            // act - format first partition using fats file system formatter
-            await using var hdfStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-            await FastFileSystemFormatter.FormatPartition(hdfStream, partition, "Workbench");
+            await FastFileSystemFormatter.FormatPartition(stream, partition, "Workbench");
 
             // arrange - calculate root block offset
-            var rootBlockOffset = OffsetHelper.CalculateRootBlockOffset(partition.LowCyl, partition.HighCyl,
+            var rootBlockOffset = (long)OffsetHelper.CalculateRootBlockOffset(partition.LowCyl, partition.HighCyl,
                 partition.Reserved, partition.Surfaces, partition.BlocksPerTrack, (uint)fileSystemBlockSize);
 
             // arrange - calculate partition start offset
             var blocksPerCylinder = rigidDiskBlock.Heads * rigidDiskBlock.Sectors;
             var cylinderSize = blocksPerCylinder * rigidDiskBlock.BlockSize;
-            var partitionStartOffset = cylinderSize * partition.LowCyl;
+            var partitionStartOffset = (long)(cylinderSize * partition.LowCyl);
 
             // assert - dos type is present at partition start offset
-            hdfStream.Seek(partitionStartOffset, SeekOrigin.Begin);
-            var blockBytes = await Amiga.Disk.ReadBlock(hdfStream, (int)partition.FileSystemBlockSize);
+            stream.Seek(partitionStartOffset, SeekOrigin.Begin);
+            var blockBytes = await Amiga.Disk.ReadBlock(stream, (int)partition.FileSystemBlockSize);
             for (var i = 0; i < dos3DosType.Length; i++)
             {
                 Assert.Equal(dos3DosType[i], blockBytes[i]);
             }
 
             // assert - root block is present at root block offset and matches disk name
-            hdfStream.Seek(partitionStartOffset + rootBlockOffset * partition.FileSystemBlockSize, SeekOrigin.Begin);
-            var rootBlockBytes = await Amiga.Disk.ReadBlock(hdfStream, (int)partition.FileSystemBlockSize);
+            stream.Seek(partitionStartOffset + rootBlockOffset * partition.FileSystemBlockSize, SeekOrigin.Begin);
+            var rootBlockBytes = await Amiga.Disk.ReadBlock(stream, (int)partition.FileSystemBlockSize);
             var rootBlock = RootBlockParser.Parse(rootBlockBytes);
             Assert.Equal("Workbench", rootBlock.DiskName);
 
             // calculate number of blocks partition contains
             var cylinders = partition.HighCyl - partition.LowCyl + 1;
-            var blocks = (cylinderSize * cylinders) / partition.FileSystemBlockSize;
+            var blocks = ((long)cylinderSize * cylinders) / partition.FileSystemBlockSize;
 
             // calculate number of bitmaps each bitmap block represents
             var bitmapsPerBitmapBlockCount =
@@ -168,34 +175,28 @@
                     .FileSystemBlockSize);
 
             // arrange - calculate bitmap extension blocks count            
-            var bitmapExtensionBlocksCount = bitmapBlocksCount > 25
-                ? Convert.ToInt32(Math.Ceiling((bitmapBlocksCount - 25) / bitmapBlockOffsetsPerBitmapExtensionBlock))
+            var bitmapExtensionBlocksCount = bitmapBlocksCount > Constants.MaxBitmapBlockPointersInRootBlock
+                ? Convert.ToInt32(Math.Ceiling((bitmapBlocksCount - Constants.MaxBitmapBlockPointersInRootBlock) / bitmapBlockOffsetsPerBitmapExtensionBlock))
                 : 0;
 
             // arrange - read root bitmap blocks from stream
-            var rootBitmapBlocks = (await ReadBitmapBlocks(hdfStream, partitionStartOffset,
+            var rootBitmapBlocks = (await ReadBitmapBlocks(stream, partitionStartOffset,
                 rootBlock.BitmapBlockOffsets.Select(x => x),
                 (int)partition.FileSystemBlockSize)).ToList();
 
             // assert - first 25 bitmap block offsets in root block is after root block offset
-            for (var i = 0; i < bitmapBlocksCount && i < 25; i++)
+            for (var i = 0; i < bitmapBlocksCount && i < Constants.MaxBitmapBlockPointersInRootBlock; i++)
             {
                 Assert.Equal(rootBlock.BitmapBlockOffsets[i], rootBlockOffset + i + 1);
             }
 
             // arrange - read bitmap extension blocks from stream
-            var bitmapExtensionBlocks = (await ReadBitmapExtensionBlocks(hdfStream, partitionStartOffset,
+            var bitmapExtensionBlocks = (await ReadBitmapExtensionBlocks(stream, partitionStartOffset,
                 rootBlock.BitmapExtensionBlocksOffset, (int)partition.FileSystemBlockSize)).ToList();
 
             // assert - calculated bitmap extension blocks count is equal to bitmap extension blocks read
             Assert.Equal(bitmapExtensionBlocksCount, bitmapExtensionBlocks.Count);
-
-            // assert - first 25 bitmap block offsets in root block is after root block offset
-            for (var i = 0; i < bitmapBlocksCount && i < 25; i++)
-            {
-                Assert.Equal(rootBlock.BitmapBlockOffsets[i], rootBlockOffset + i + 1);
-            }
-
+            
             // arrange - concatenate root bitmap blocks and bitmap blocks from bitmap extension blocks
             var bitmapBlocks = rootBitmapBlocks.Concat(bitmapExtensionBlocks.SelectMany(x => x.BitmapBlocks)).ToList();
 
@@ -235,10 +236,6 @@
                 // assert - bitmap block map is equal to expected bitmap block map
                 Assert.Equal(expectedMapEntries, bitmapBlock.Map);
             }
-
-            // clean up
-            hdfStream.Close();
-            File.Delete(path);
         }
 
         [Theory]
@@ -291,7 +288,7 @@
                 }
 
                 // seek bitmap block offset in hdf stream
-                stream.Seek(partitionStartOffset + blockBitmapBlockOffset * blockSize,
+                stream.Seek(partitionStartOffset + (long)blockBitmapBlockOffset * blockSize,
                     SeekOrigin.Begin);
 
                 // read bitmap block from hdf stream
@@ -312,7 +309,7 @@
             while (bitmapExtensionBlocksOffset != 0)
             {
                 // seek bitmap extension block offset in stream
-                stream.Seek(partitionStartOffset + bitmapExtensionBlocksOffset * blockSize,
+                stream.Seek(partitionStartOffset + (long)bitmapExtensionBlocksOffset * blockSize,
                     SeekOrigin.Begin);
 
                 // read bitmap extension block from stream
