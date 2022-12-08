@@ -36,9 +36,9 @@
 
                 var entryBlock = await Disk.ReadEntryBlock(volume, hashTable[i]);
 
+                // convert entry block to entry and add to list
                 var entry = ConvertEntryBlockToEntry(entryBlock);
                 entry.Sector = hashTable[i];
-
                 entries.Add(entry);
 
                 if (recursive && entry.IsDirectory())
@@ -55,8 +55,10 @@
                 {
                     entryBlock = await Disk.ReadEntryBlock(volume, nextSector);
 
+                    // convert entry block to entry and add to list
                     entry = ConvertEntryBlockToEntry(entryBlock);
                     entry.Sector = nextSector;
+                    entries.Add(entry);
 
                     if (recursive && entry.IsDirectory())
                     {
@@ -710,6 +712,9 @@
                 };
             }
 
+            var entryBlock = await Disk.ReadEntryBlock(volume, sector);
+            sector = FastFileSystemHelper.GetSector(volume, entryBlock);
+            
             int i;
             for (i = 0; i < parts.Length; i++)
             {
@@ -717,6 +722,8 @@
 
                 var entry = (await ReadEntries(volume, sector)).FirstOrDefault(x =>
                     x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
+                // var entry = (await ReadEntries(volume, sector)).FirstOrDefault(x =>
+                //     x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
                 if (entry == null)
                 {
                     break;

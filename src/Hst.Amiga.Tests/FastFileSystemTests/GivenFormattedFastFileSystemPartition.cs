@@ -15,6 +15,28 @@ using FileMode = FileSystems.FileMode;
 public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
 {
     [Fact]
+    public async Task WhenCreate100FilesInRootDirectoryAndListEntriesThenFilesExists()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create 100 files in root directory
+        for (var i = 1; i <= 100; i++)
+        {
+            await ffsVolume.CreateFile($"New File{i}");
+        }
+        
+        // act - list entries in root directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        
+        // assert - entry is found, no parts not found
+        Assert.Equal(100, entries.Count);
+    }
+
+    [Fact]
     public async Task WhenCreateFindSubdirectoryThenSubDirectoryExists()
     {
         // arrange - create fast file system formatted disk
