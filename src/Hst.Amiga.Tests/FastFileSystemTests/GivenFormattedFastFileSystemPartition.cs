@@ -15,22 +15,6 @@ using FileMode = FileSystems.FileMode;
 public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
 {
     [Fact]
-    public async Task Read()
-    {
-        var stream = System.IO.File.OpenRead(@"D:\Temp\8gb_mini\8gb.hdf");
-
-        var rdb = await RigidDiskBlockReader.Read(stream);
-
-        var partition = rdb.PartitionBlocks.Skip(1).FirstOrDefault();
-
-        var volume = await FastFileSystemVolume.MountPartition(stream, partition);
-
-        await volume.ChangeDirectory("whdload/games");
-
-        var entries = (await volume.ListEntries()).ToList();
-    }
-
-    [Fact]
     public async Task WhenCreateFindSubdirectoryThenSubDirectoryExists()
     {
         // arrange - create fast file system formatted disk
