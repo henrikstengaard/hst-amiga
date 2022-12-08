@@ -6,11 +6,73 @@ using System.Linq;
 using System.Threading.Tasks;
 using Extensions;
 using FileSystems;
+using FileSystems.FastFileSystem;
+using RigidDiskBlocks;
 using Xunit;
+using Directory = FileSystems.FastFileSystem.Directory;
 using FileMode = FileSystems.FileMode;
 
 public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
 {
+    [Fact]
+    public async Task Read()
+    {
+        var stream = System.IO.File.OpenRead(@"D:\Temp\8gb_mini\8gb.hdf");
+
+        var rdb = await RigidDiskBlockReader.Read(stream);
+
+        var partition = rdb.PartitionBlocks.Skip(1).FirstOrDefault();
+
+        var volume = await FastFileSystemVolume.MountPartition(stream, partition);
+
+        await volume.ChangeDirectory("whdload/games");
+
+        var entries = (await volume.ListEntries()).ToList();
+    }
+
+    [Fact]
+    public async Task WhenCreateFindSubdirectoryThenSubDirectoryExists()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+
+        // arrange - read rigid disk block
+        var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+
+        // arrange - get first partition
+        var partition = rigidDiskBlock.PartitionBlocks.FirstOrDefault();
+        
+        // assert - partition is not null
+        Assert.NotNull(partition);
+
+        // arrange - mount volume
+        var volume = await FastFileSystemHelper.Mount(stream, partition.LowCyl, partition.HighCyl, partition.Surfaces,
+            partition.BlocksPerTrack,
+            partition.Reserved, partition.BlockSize, partition.FileSystemBlockSize);
+        
+        // arrange - create fast file system volume
+        await using var ffsVolume = new FastFileSystemVolume(volume, volume.RootBlockOffset);
+        
+        // arrange - create "New Dir" in root directory
+        await ffsVolume.CreateDirectory("New Dir");
+
+        // arrange - change directory to "New Dir", create "Sub Dir" directory
+        await ffsVolume.ChangeDirectory("New Dir");
+        await ffsVolume.CreateDirectory("Sub Dir");
+
+        // arrange - change directory to root directory
+        await ffsVolume.ChangeDirectory("/");
+
+        // act - find sub dir entry
+        var result = await Directory.FindEntry(volume.RootBlockOffset, "New Dir/Sub Dir", volume);
+        
+        // assert - entry is found, no parts not found
+        Assert.Empty(result.PartsNotFound);
+        
+        // assert - entry name is equal to sub dir
+        Assert.Equal("Sub Dir", result.Name);
+    }
+    
     [Theory]
     [InlineData(DiskSize100Mb, 512)]
     [InlineData(DiskSize100Mb, 1024)]

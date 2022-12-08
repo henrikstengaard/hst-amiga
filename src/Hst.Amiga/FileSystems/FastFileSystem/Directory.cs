@@ -710,15 +710,12 @@
                 };
             }
 
-            var entryBlock = await Disk.ReadEntryBlock(volume, sector);
-
             int i;
             for (i = 0; i < parts.Length; i++)
             {
                 var part = parts[i];
 
-                var entry = (await ReadEntries(volume,
-                    FastFileSystemHelper.GetSector(volume, entryBlock))).FirstOrDefault(x =>
+                var entry = (await ReadEntries(volume, sector)).FirstOrDefault(x =>
                     x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
                 if (entry == null)
                 {
