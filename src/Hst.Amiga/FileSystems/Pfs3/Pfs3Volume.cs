@@ -5,6 +5,7 @@
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
+    using Blocks;
     using RigidDiskBlocks;
     using FileMode = FileMode;
 
@@ -97,7 +98,39 @@
                 fileentry.ListEntry.type.flags.access = Constants.ET_FILEENTRY;
                 fileentry.ListEntry.filelock.fl_Access = Constants.ET_FILEENTRY;
             }
+
             g.currentvolume.fileentries.Clear();
+        }
+        
+        public void ClearCachedData()
+        {
+            foreach (var fileentry in g.currentvolume.fileentries)
+            {
+                fileentry.ListEntry.type.flags.access = Constants.ET_FILEENTRY;
+                fileentry.ListEntry.filelock.fl_Access = Constants.ET_FILEENTRY;
+            }
+
+            g.currentvolume.fileentries.Clear();
+            g.currentvolume.anodechainlist.Clear();
+            foreach (var anblk in g.currentvolume.anblks)
+            {
+                anblk.Clear();
+            }
+            foreach (var dirblk in g.currentvolume.dirblks)
+            {
+                dirblk.Clear();
+            }
+            g.currentvolume.bmblks.Clear();
+            g.currentvolume.bmindexblks.Clear();
+            g.currentvolume.deldirblks.Clear();
+            g.currentvolume.indexblks.Clear();
+            g.currentvolume.superblks.Clear();
+            
+
+            g.glob_lrudata.LRUarray = Array.Empty<LruCachedBlock>();
+            g.glob_lrudata.poolsize = 0;
+            g.glob_lrudata.LRUpool.Clear();
+            g.glob_lrudata.LRUqueue.Clear();
         }
 
         /// <summary>

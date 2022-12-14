@@ -92,6 +92,7 @@
                 // MinRemove(LRU_CHAIN(ddblk));
                 // MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(ddblk));
                 Macro.MinRemove(ddblk, g);
+                Macro.MinRemoveX(ddblk, g);
                 Macro.MinRemove(new LruCachedBlock(ddblk), g);
                 Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(ddblk));
                 // i.p.v. FreeLRU((struct cachedblock *)ddblk, g);
@@ -872,24 +873,26 @@
             anodeoffset = 0;
             dirblock = await LoadDirBlock(anode.blocknr, g);
             var blk = dirblock.dirblock;
-            var entry = DirEntryReader.Read(blk.entries, 0);
-            while (blk != null && !found && !eod) /* eod stands for end-of-dir */
+            direntry entry = null;
+            while (blk != null && blk.entries[0] != 0 && !found && !eod) /* eod stands for end-of-dir */
             {
                 // entry = (struct direntry *)(&dirblock->blk.entries);
 
                 /* scan block */
                 var entryIndex = 0;
-                while (entry.next != 0 && entryIndex + entry.next < blk.entries.Length)
+                do
                 {
+                    entry = DirEntryReader.Read(blk.entries, entryIndex);
                     found = intl_name == AmigaTextHelper.ToUpper(entry.Name, true);
-                    if (found)
+                    var hasMoreEntries = entryIndex + entry.next < blk.entries.Length &&
+                                      blk.entries[entryIndex + entry.next] != 0;
+                    if (found || !hasMoreEntries)
                     {
                         break;
                     }
 
-                    entry = DirEntryReader.Read(blk.entries, entryIndex);
                     entryIndex += entry.next;
-                }
+                } while (entryIndex < blk.entries.Length);
 
                 /* load next block */
                 if (!found)
@@ -1847,23 +1850,26 @@
             var dirblock = await LoadDirBlock(anode.blocknr, g);
             var blk = dirblock.dirblock;
 
-            while (!eod) /* eod stands for end-of-dir */
+            while (blk.entries[0] != 0 && !eod) /* eod stands for end-of-dir */
             {
                 /* scan block */
+                
                 var entryIndex = 0;
                 direntry entry;
                 do
                 {
                     entry = DirEntryReader.Read(blk.entries, entryIndex);
-
-                    if (entry.next != 0)
+                    dirEntries.Add(entry);
+                    var hasMoreEntries = entryIndex + entry.next < blk.entries.Length &&
+                                         blk.entries[entryIndex + entry.next] != 0;
+                    if (!hasMoreEntries)
                     {
-                        dirEntries.Add(entry);
+                        break;
                     }
 
                     entryIndex += entry.next;
-                } while (entry.next != 0 && entryIndex + entry.next < blk.entries.Length);
-
+                } while (entryIndex < blk.entries.Length);
+                
                 /* load next block */
                 var result = await anodes.NextBlock(anode, anodeoffset, g);
                 anodeoffset = result.Item2;

@@ -105,8 +105,8 @@
             {
                 //anode.next purely safety
                 await anodes.GetAnode(anode, anode.next, g);
-            } 
-            
+            }
+
             /* change it.. */
             if (anode.blocknr != oldblocknr)
             {
@@ -134,7 +134,7 @@
 
             blk.changeflag = true;
             temp = blk.ANodeBlock.seqnr;
-            indexblknr  = temp / andata.indexperblock;
+            indexblknr = temp / andata.indexperblock;
             indexoffset = temp % andata.indexperblock;
 
             /* this one should already be in the cache */
@@ -143,7 +143,7 @@
             {
                 throw new IOException("UpdateABLK, GetIndexBlock returned NULL!");
             }
-            
+
             // DBERR(if (!index) ErrorTrace(5,"UpdateABLK", "GetIndexBlock returned NULL!"));
 
             index.IndexBlock.index[indexoffset] = (int)newblocknr;
@@ -161,8 +161,8 @@
             if (g.SuperMode)
             {
                 temp = Init.divide(blk.IndexBlock.seqnr, andata.indexperblock);
-                var superblk = await anodes.GetSuperBlock ((ushort)temp /* & 0xffff */, g);
-                
+                var superblk = await anodes.GetSuperBlock((ushort)temp /* & 0xffff */, g);
+
                 // DBERR(if (!superblk) ErrorTrace(5,"UpdateIBLK", "GetSuperBlock returned NULL!"));
                 if (superblk == null)
                 {
@@ -199,7 +199,7 @@
             blk.changeflag = true;
             var bitmapBlk = bmb.BitmapBlock;
             temp = Init.divide(bitmapBlk.seqnr, andata.indexperblock);
-            var indexblock = await Allocation.GetBitmapIndex ((ushort)temp /* & 0xffff */, g);
+            var indexblock = await Allocation.GetBitmapIndex((ushort)temp /* & 0xffff */, g);
 
             // DBERR(if (!indexblock) ErrorTrace(5,"UpdateBMBLK", "GetBitmapIndex returned NULL!"));
             if (indexblock == null)
@@ -209,9 +209,9 @@
 
             var indexBlockBlk = indexblock.BitmapBlock;
             indexBlockBlk.bitmap[temp >> 16] = newblocknr;
-            await MakeBlockDirty(indexblock, g);   /* recursion !! */
+            await MakeBlockDirty(indexblock, g); /* recursion !! */
         }
-        
+
         public static void UpdateBMIBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
             // blk->changeflag = TRUE;
@@ -230,6 +230,7 @@
                 default:
                     throw new IOException($"Invalid index block '{blk.blk.GetType().Name}'");
             }
+
             blk.volume.rootblk.idx.large.bitmapindex[seqnr] = newblocknr;
             blk.volume.rootblockchangeflag = true;
         }
@@ -457,7 +458,8 @@
                 for (var node = Macro.HeadOf(volume.dirblks[i]); node != null; node = node.Next)
                 {
                     blk = node.Value;
-                    if (blk.dirblock != null && Macro.IsEmptyDBlk(blk, g) && !await IsFirstDBlk(blk, g) && !Cache.ISLOCKED(blk, g))
+                    if (blk.dirblock != null && Macro.IsEmptyDBlk(blk, g) && !await IsFirstDBlk(blk, g) &&
+                        !Cache.ISLOCKED(blk, g))
                     {
                         previous = await GetAnodeOfDBlk(blk, anode, g);
                         await anodes.RemoveFromAnodeChain(anode, previous, blk.dirblock.anodenr, g);
@@ -496,7 +498,8 @@
 
         public static bool IsFirstABlk(CachedBlock blk)
         {
-                // #define IsFirstABlk(blk) (blk->blk.seqnr == 0)
+            // #define IsFirstABlk(blk) (blk->blk.seqnr == 0)
+
             return blk.ANodeBlock.seqnr == 0;
         }
 
@@ -590,7 +593,13 @@
                 for (var node = Macro.HeadOf(volume.anblks[i]); node != null; node = node.Next)
                 {
                     blk = node.Value;
-                    if (blk.changeflag && !IsFirstABlk(blk) && IsEmptyABlk(blk, g) && !Cache.ISLOCKED(blk, g))
+
+                    if (blk.ANodeBlock == null)
+                    {
+                    }
+
+                    if (blk.changeflag && blk.ANodeBlock != null && !IsFirstABlk(blk) && IsEmptyABlk(blk, g) &&
+                        !Cache.ISLOCKED(blk, g))
                     {
                         var anodeblock = blk.ANodeBlock;
                         indexblknr = anodeblock.seqnr / andata.indexperblock;
@@ -633,7 +642,7 @@
             found = !found;
             return found; /* not found -> empty */
         }
-        
+
 /*
  * Empty block check
  */
@@ -645,7 +654,7 @@
             for (var node = Macro.HeadOf(volume.indexblks); node != null; node = node.Next)
             {
                 blk = node.Value;
-                if (blk.changeflag && !IsFirstIBlk(blk) && IsEmptyIBlk(blk,g) && !Cache.ISLOCKED(blk, g) )
+                if (blk.changeflag && !IsFirstIBlk(blk) && IsEmptyIBlk(blk, g) && !Cache.ISLOCKED(blk, g))
                 {
                     await UpdateIBLK(blk, 0, g);
                     Macro.MinRemove(blk, g);
@@ -664,7 +673,7 @@
             for (var node = Macro.HeadOf(volume.superblks); node != null; node = node.Next)
             {
                 blk = node.Value;
-                if (blk.changeflag && !IsFirstIBlk(blk) && IsEmptyIBlk(blk, g) && !Cache.ISLOCKED(blk, g) )
+                if (blk.changeflag && !IsFirstIBlk(blk) && IsEmptyIBlk(blk, g) && !Cache.ISLOCKED(blk, g))
                 {
                     UpdateSBLK(blk, 0, g);
                     Macro.MinRemove(blk, g);
@@ -674,7 +683,7 @@
                 }
             }
         }
-        
+
         public static bool IsEmptyIBlk(CachedBlock blk, globaldata g)
         {
             // ULONG *index, i;
@@ -682,7 +691,7 @@
             var andata = g.glob_anodedata;
 
             var index = blk.IndexBlock.index;
-            for(var i=0; i<andata.indexperblock; i++)
+            for (var i = 0; i < andata.indexperblock; i++)
             {
                 found = index[i] != 0;
                 if (found)

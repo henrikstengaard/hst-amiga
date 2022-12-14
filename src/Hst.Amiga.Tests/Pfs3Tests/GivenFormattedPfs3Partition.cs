@@ -39,7 +39,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    public async Task WhenCreate50DirectoriesInRootDirectoryThenLastDirectoryExist()
+    public async Task WhenCreateAndList100DirectoriesInRootDirectoryThenDirectoriesExist()
     {
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk(DiskSize100Mb);
@@ -47,23 +47,81 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // act - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
         
-        // act - create directories in root directory
-        for (var i = 1; i <= 50; i++)
+        // act - create 100 directories in root directory
+        var expectedEntries = Enumerable.Range(0, 100).Select(x => $"New Dir{x}").OrderBy(x => x)
+            .ToList();
+        for (var i = 0; i < 100; i++)
+        {
+            await pfs3Volume.CreateDirectory(expectedEntries[i]);
+        }
+
+        // assert - list entries contains directories in root directory
+        var entries = (await pfs3Volume.ListEntries())
+            .OrderBy(x => x.Name).ToList();
+        Assert.Equal(100, entries.Count);
+        Assert.Equal(100, entries.Count(x => x.Type == EntryType.Dir));
+        for (var i = 0; i < 100; i++)
+        {
+            Assert.Equal(expectedEntries[i], entries[i].Name);
+        }
+    }
+
+    [Fact]
+    public async Task WhenCreateAndList100FilesInRootDirectoryThenFilesExist()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk(DiskSize100Mb);
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+        
+        // act - create 100 files in root directory
+        var expectedEntries = Enumerable.Range(0, 100).Select(x => $"New File{x}").OrderBy(x => x)
+            .ToList();
+        for (var i = 0; i < 100; i++)
+        {
+            await pfs3Volume.CreateFile(expectedEntries[i]);
+        }
+
+        // assert - list entries contains files in root directory
+        var entries = (await pfs3Volume.ListEntries())
+            .OrderBy(x => x.Name).ToList();
+        Assert.Equal(100, entries.Count);
+        Assert.Equal(100, entries.Count(x => x.Type == EntryType.File));
+        for (var i = 0; i < 100; i++)
+        {
+            Assert.Equal(expectedEntries[i], entries[i].Name);
+        }
+    }
+    
+    [Fact]
+    public async Task WhenCreateAndSearchFor100DirectoriesInRootDirectoryThenDirectoriesAreFound()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk(DiskSize100Mb);
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+        
+        // act - create 100 directories in root directory
+        for (var i = 1; i <= 100; i++)
         {
             await pfs3Volume.CreateDirectory($"New Dir{i}");
         }
 
-        // act - search for last directory created in root directory
+        // act - search for directories created in root directory
         var objectInfo = new objectinfo();
-        var result = await Directory.SearchInDir(Constants.ANODE_ROOTDIR, "New Dir50", objectInfo, pfs3Volume.g);
-        
-        // assert - search returned true, directory exists
-        Assert.True(result);
-        
-        // assert - dir entry in object info is equal to last directory
-        Assert.Equal("New Dir50", objectInfo.file.direntry.Name);
+
+        for (var i = 1; i <= 100; i++)
+        {
+            // act - search for directory created in root directory
+            var result = await Directory.SearchInDir(Constants.ANODE_ROOTDIR, $"New Dir{i}", objectInfo, pfs3Volume.g);
+
+            // assert - search returned true, directory exists
+            Assert.True(result);
+        }
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -124,6 +182,13 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - "New Dir" directory contains directory created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "Sub Dir" && x.Type == EntryType.Dir));
+        
+        await pfs3Volume.ChangeDirectory("/");
+        await pfs3Volume.ChangeDirectory("New Dir");
+        await pfs3Volume.ChangeDirectory("Sub Dir");
+        entries = (await pfs3Volume.ListEntries()).ToList();
+        Assert.Empty(entries);
+        
     }
 
     [Theory]
