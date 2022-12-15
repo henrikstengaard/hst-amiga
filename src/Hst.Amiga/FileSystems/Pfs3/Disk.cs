@@ -808,7 +808,8 @@
             else
             {
                 // *error = RawRead(&g->dc.data[i<<BLOCKSHIFT], 1, blocknr, g);
-                g.dc.data = await RawRead(1, blocknr, g);
+                var data = await RawRead(1, blocknr, g); 
+                Array.Copy(data, 0, g.dc.data, i << Macro.BLOCKSHIFT(g), data.Length);
             }
 
             g.dc.roving = (ushort)((g.dc.roving + 1) & g.dc.mask);
@@ -824,8 +825,9 @@
             //     return NULL;
             // else
             // return &g->dc.data[i<<BLOCKSHIFT];
-            var buffer = new byte[Macro.BLOCKSIZE(g)];
-            Array.Copy(g.dc.data, i << (int)Macro.BLOCKSHIFT(g), buffer, 0, Macro.BLOCKSIZE(g));
+            var blockSize = Macro.BLOCKSIZE(g);
+            var buffer = new byte[blockSize];
+            Array.Copy(g.dc.data, i<<Macro.BLOCKSHIFT(g), buffer, 0, blockSize);
             return buffer;
         }
 

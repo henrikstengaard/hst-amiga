@@ -42,7 +42,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     public async Task WhenCreateAndList100DirectoriesInRootDirectoryThenDirectoriesExist()
     {
         // arrange - create pfs3 formatted disk
-        var stream = await CreatePfs3FormattedDisk(DiskSize100Mb);
+        var stream = await CreatePfs3FormattedDisk();
 
         // act - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
@@ -70,7 +70,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     public async Task WhenCreateAndList100FilesInRootDirectoryThenFilesExist()
     {
         // arrange - create pfs3 formatted disk
-        var stream = await CreatePfs3FormattedDisk(DiskSize100Mb);
+        var stream = await CreatePfs3FormattedDisk();
 
         // act - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
@@ -98,7 +98,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     public async Task WhenCreateAndSearchFor100DirectoriesInRootDirectoryThenDirectoriesAreFound()
     {
         // arrange - create pfs3 formatted disk
-        var stream = await CreatePfs3FormattedDisk(DiskSize100Mb);
+        var stream = await CreatePfs3FormattedDisk();
 
         // act - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
@@ -188,7 +188,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         await pfs3Volume.ChangeDirectory("Sub Dir");
         entries = (await pfs3Volume.ListEntries()).ToList();
         Assert.Empty(entries);
-        
     }
 
     [Theory]
@@ -312,6 +311,53 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(data, dataRead);
     }
 
+    [Theory]
+    [InlineData(DiskSize100Mb)]
+    [InlineData(DiskSize4Gb)]
+    [InlineData(DiskSize16Gb)]
+    public async Task WhenCreateWriteDataToNewFileAndOpenReadDataFromFile100TimesThenDataMatches(long diskSize)
+    {
+        // arrange - data to write
+        var data = new byte[4000];
+        for (var i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)(i % 256);
+        }
+        
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk(diskSize);
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+
+        for (var i = 0; i < 100; i++)
+        {
+            // act - create file in root directory
+            await pfs3Volume.CreateFile($"New File{i}");
+
+            // act - write data
+            await using (var entryStream = await pfs3Volume.OpenFile($"New File{i}", FileMode.Write))
+            {
+                await entryStream.WriteAsync(data, 0, data.Length);
+            }
+
+            await using (var entryStream = await pfs3Volume.OpenFile($"New File{i}", FileMode.Read))
+            {
+                dataRead = new byte[entryStream.Length];
+                bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+            }
+            
+            // assert - data read matches data written
+            Assert.Equal(data.Length, bytesRead);
+            Assert.Equal(data.Length, dataRead.Length);
+            Assert.Equal(data, dataRead);
+        }
+    }
+    
     [Theory]
     [InlineData(1000)]
     [InlineData(5000)]
