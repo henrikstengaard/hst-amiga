@@ -282,7 +282,7 @@
             anodeoffset = (uint)(newoffset >> g.blockshift);
             blockoffset = (uint)(newoffset & Macro.BLOCKSIZEMASK(g));
             file.currnode = file.anodechain.head;
-            anodes.CorrectAnodeAC(file.currnode, anodeoffset, g);
+            anodes.CorrectAnodeAC(file.currnode, ref anodeoffset, g);
             /* DiskSeek(anode.blocknr + anodeoffset, g); */
 
             file.anodeoffset = anodeoffset;
@@ -432,7 +432,7 @@
                 blockstoread -= t;
                 dataptr += (int)(t << BLOCKSHIFT);
                 anodeoffset += t;
-                anodes.CorrectAnodeAC(chnode, anodeoffset, g);
+                anodes.CorrectAnodeAC(chnode, ref anodeoffset, g);
                 // }
             }
 
@@ -461,7 +461,7 @@
             // {
             file.anodeoffset += fullblks;
             file.blockoffset = (file.blockoffset + size) & BLOCKSIZEMASK; // not bytesleft!!
-            anodes.CorrectAnodeAC(file.currnode, file.anodeoffset, g);
+            anodes.CorrectAnodeAC(file.currnode, ref file.anodeoffset, g);
             file.offset += size;
             return size;
             // }
@@ -556,7 +556,7 @@
              * because anodeoffset can be outside last block! (filepointer is
              * byte 0 new block
              */
-            anodes.CorrectAnodeAC(chnode, anodeoffset, g);
+            anodes.CorrectAnodeAC(chnode, ref anodeoffset, g);
 
             /* check mask */
             maskok = ((buffer.Length - blockoffset + BLOCKSIZE) & ~g.DosEnvec.de_Mask) != 0 ||
@@ -700,7 +700,7 @@
                     dataptr += (int)(t << BLOCKSHIFT);
                     bytestowrite -= t << BLOCKSHIFT;
                     anodeoffset += t;
-                    anodes.CorrectAnodeAC(chnode, anodeoffset, g);
+                    anodes.CorrectAnodeAC(chnode, ref anodeoffset, g);
                 }
 
                 if (lastpart != null)
@@ -735,7 +735,7 @@
             // {
             file.anodeoffset += (blockoffset + size) >> BLOCKSHIFT;
             file.blockoffset = (blockoffset + size) & BLOCKSIZEMASK;
-            anodes.CorrectAnodeAC(file.currnode, file.anodeoffset, g);
+            anodes.CorrectAnodeAC(file.currnode, ref file.anodeoffset, g);
             file.offset += size;
             Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, Math.Max(oldfilesize, file.offset), g);
             await Update.MakeBlockDirty(file.le.info.file.dirblock, g);
@@ -1063,7 +1063,7 @@
             anodeoffset = file.offset >> BLOCKSHIFT;
             blockoffset = file.offset & BLOCKSIZEMASK;
             file.currnode = file.anodechain.head;
-            anodes.CorrectAnodeAC(file.currnode, anodeoffset, g);
+            anodes.CorrectAnodeAC(file.currnode, ref anodeoffset, g);
 	
             file.anodeoffset  = anodeoffset;
             file.blockoffset  = blockoffset;
