@@ -90,6 +90,7 @@
         {
             const uint rootBlockOffset = 880U;
             const uint bitmapBlockOffset = 881U;
+            const uint reservedBlocks = FloppyDiskConstants.DoubleDensity.ReservedBlocks;
 
             var bitmaps = new Dictionary<uint, bool>
             {
@@ -113,13 +114,13 @@
             Assert.Single(bitmapBlocks);
 
             // assert - root block offset 880 is set 0 (used)
-            var mapEntry = Convert.ToInt32(Math.Floor((double)rootBlockOffset / Constants.BitmapsPerULong));
-            var blockOffset = (int)(rootBlockOffset % Constants.BitmapsPerULong);
+            var mapEntry = Convert.ToInt32(Math.Floor((double)(rootBlockOffset - reservedBlocks) / Constants.BitmapsPerULong));
+            var blockOffset = (int)((rootBlockOffset - reservedBlocks) % Constants.BitmapsPerULong);
             Assert.Equal(0U, bitmapBlocks[0].Map[mapEntry] & (1 << blockOffset));
 
             // assert - bitmap block offset 881 is set 0 (used)
-            mapEntry = Convert.ToInt32(Math.Floor((double)bitmapBlockOffset / Constants.BitmapsPerULong));
-            blockOffset = (int)(bitmapBlockOffset % Constants.BitmapsPerULong);
+            mapEntry = Convert.ToInt32(Math.Floor((double)(bitmapBlockOffset - reservedBlocks) / Constants.BitmapsPerULong));
+            blockOffset = (int)((bitmapBlockOffset - reservedBlocks) % Constants.BitmapsPerULong);
             Assert.Equal(0U, bitmapBlocks[0].Map[mapEntry] & (1 << blockOffset));
         }
     }

@@ -133,14 +133,14 @@
             {
                 return await Mount(stream, FloppyDiskConstants.DoubleDensity.LowCyl,
                     FloppyDiskConstants.DoubleDensity.HighCyl, FloppyDiskConstants.DoubleDensity.Heads,
-                    FloppyDiskConstants.DoubleDensity.Sectors);
+                    FloppyDiskConstants.DoubleDensity.Sectors, FloppyDiskConstants.DoubleDensity.ReservedBlocks);
             }
 
             if (adfSize == FloppyDiskConstants.HighDensity.Size)
             {
                 return await Mount(stream, FloppyDiskConstants.HighDensity.LowCyl,
                     FloppyDiskConstants.HighDensity.HighCyl, FloppyDiskConstants.HighDensity.Heads,
-                    FloppyDiskConstants.HighDensity.Sectors);
+                    FloppyDiskConstants.HighDensity.Sectors, FloppyDiskConstants.DoubleDensity.ReservedBlocks);
             }
 
             throw new IOException($"Invalid adf size '{adfSize}'");
@@ -183,7 +183,7 @@
         /// <param name="rootBlockOffset"></param>
         /// <returns></returns>
         public static async Task<Volume> Mount(Stream stream, uint lowCyl, uint highCyl, uint surfaces,
-            uint blocksPerTrack, uint reserved = 0, uint blockSize = 512, uint fileSystemBlockSize = 512, uint rootBlockOffset = 0)
+            uint blocksPerTrack, uint reserved = 2, uint blockSize = 512, uint fileSystemBlockSize = 512, uint rootBlockOffset = 0)
         {
             var cylinders = highCyl - lowCyl + 1;
             var blocksPerCylinder = surfaces * blocksPerTrack;

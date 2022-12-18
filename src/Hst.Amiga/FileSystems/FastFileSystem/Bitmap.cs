@@ -130,7 +130,7 @@
 
         public static void AdfSetBlockUsed(Volume vol, uint nSect)
         {
-            var sectOfMap = nSect - 2;
+            var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
             var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 
@@ -142,7 +142,7 @@
 
         public static bool AdfIsBlockFree(Volume vol, uint nSect)
         {
-            var sectOfMap = nSect - 2;
+            var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
             var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 
@@ -151,7 +151,7 @@
 
         public static void AdfSetBlockFree(Volume vol, uint nSect)
         {
-            var sectOfMap = nSect - 2;
+            var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
             var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 

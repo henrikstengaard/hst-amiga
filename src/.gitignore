@@ -7,6 +7,7 @@ logs/
 .env
 *.env
 .DS_Store
+packages/
 
 #Paket dependency manager
 .paket/
