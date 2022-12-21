@@ -23,7 +23,7 @@
         protected static readonly byte[] Dos3DosType = { 0x44, 0x4f, 0x53, 0x3 };
         protected static readonly byte[] Dos7DosType = { 0x44, 0x4f, 0x53, 0x7 };
 
-        private static readonly byte[] DummyFastFileSystemBytes = Encoding.ASCII.GetBytes(
+        protected static readonly byte[] DummyFastFileSystemBytes = Encoding.ASCII.GetBytes(
             "$VER: FastFileSystem 0.1 (01/01/22) ");
 
         protected async Task<BlockMemoryStream> CreateFastFileSystemFormattedDisk(long diskSize = 100 * 1024 * 1024,

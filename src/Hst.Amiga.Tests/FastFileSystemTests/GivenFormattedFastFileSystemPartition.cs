@@ -154,6 +154,44 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         // assert - entry name is equal to sub dir
         Assert.Equal("Sub Dir", result.Name);
     }
+
+    [Fact]
+    public async Task WhenFindExistingEntryThenEntryExists()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // arrange - create "New Dir" in root directory
+        await ffsVolume.CreateDirectory("New Dir");
+
+        // act - find entry
+        var entry = await ffsVolume.FindEntry("New Dir");
+        
+        // assert - entry exists and is equal
+        Assert.NotNull(entry);
+        Assert.Equal("New Dir", entry.Name);
+        Assert.Equal(EntryType.Dir, entry.Type);
+        Assert.Equal(0, entry.Size);
+    }
+
+    [Fact]
+    public async Task WhenFindNonExistingEntryThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // act - find entry
+        var entry = await ffsVolume.FindEntry("New Dir");
+        
+        // assert - entry is null, not found
+        Assert.Null(entry);
+    }
     
     [Theory]
     [InlineData(DiskSize100Mb, 512)]

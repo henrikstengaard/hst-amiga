@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Extensions;
 using FileSystems;
+using FileSystems.Exceptions;
 using FileSystems.Pfs3;
 using Xunit;
 using Constants = FileSystems.Pfs3.Constants;
@@ -14,6 +15,44 @@ using FileMode = FileSystems.FileMode;
 
 public class GivenFormattedPfs3Disk : Pfs3TestBase
 {
+    [Fact]
+    public async Task WhenFindExistingEntryThenEntryExists()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create "New Dir" in root directory
+        await pfs3Volume.CreateDirectory("New Dir");
+
+        // act - find entry
+        var entry = await pfs3Volume.FindEntry("New Dir");
+
+        // assert - entry exists and is equal
+        Assert.NotNull(entry);
+        Assert.Equal("New Dir", entry.Name);
+        Assert.Equal(EntryType.Dir, entry.Type);
+        Assert.Equal(0, entry.Size);
+    }
+
+    [Fact]
+    public async Task WhenFindNonExistingEntryThenExceptionIsThrown()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - find entry
+        var entry = await pfs3Volume.FindEntry("New Dir");
+
+        // assert - entry is null, not found
+        Assert.Null(entry);
+    }
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -28,7 +67,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - create "New Dir" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
         await Pfs3Helper.Unmount(pfs3Volume.g);
@@ -46,7 +85,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
-        
+
         // act - create 100 directories in root directory
         var expectedEntries = Enumerable.Range(0, 100).Select(x => $"New Dir{x}").OrderBy(x => x)
             .ToList();
@@ -74,7 +113,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
-        
+
         // act - create 100 files in root directory
         var expectedEntries = Enumerable.Range(0, 100).Select(x => $"New File{x}").OrderBy(x => x)
             .ToList();
@@ -93,7 +132,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             Assert.Equal(expectedEntries[i], entries[i].Name);
         }
     }
-    
+
     [Fact]
     public async Task WhenCreateAndSearchFor100DirectoriesInRootDirectoryThenDirectoriesAreFound()
     {
@@ -102,7 +141,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
-        
+
         // act - create 100 directories in root directory
         for (var i = 1; i <= 100; i++)
         {
@@ -133,7 +172,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
-        
+
         // act - create "New Dir1", "New Dir2", "New Dir3" in root directory
         await pfs3Volume.CreateDirectory("New Dir1");
         await pfs3Volume.CreateDirectory("New Dir2");
@@ -163,7 +202,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - create "New Dir1" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
-        
+
         // act - change directory to "New Dir", create "Sub Dir" directory
         await pfs3Volume.ChangeDirectory("New Dir");
         await pfs3Volume.CreateDirectory("Sub Dir");
@@ -175,14 +214,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - root directory contains directory created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New Dir" && x.Type == EntryType.Dir));
-        
+
         await pfs3Volume.ChangeDirectory("New Dir");
         entries = (await pfs3Volume.ListEntries()).ToList();
 
         // assert - "New Dir" directory contains directory created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "Sub Dir" && x.Type == EntryType.Dir));
-        
+
         await pfs3Volume.ChangeDirectory("/");
         await pfs3Volume.ChangeDirectory("New Dir");
         await pfs3Volume.ChangeDirectory("Sub Dir");
@@ -204,7 +243,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
 
@@ -212,7 +251,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
     }
-    
+
     [Fact]
     public async Task WhenOpenFileInWriteModeAndFileExistsThenExceptionIsThrown()
     {
@@ -227,10 +266,10 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - open file in root directory in write mode, overwrites file
         await pfs3Volume.OpenFile("New File", FileMode.Write);
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        
+
         // assert - root directory contains file created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
@@ -253,12 +292,12 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        
+
         // assert - root directory contains file created
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File" && x.Type == EntryType.File));
     }
-    
+
     [Fact]
     public async Task WhenOpenFileInReadModeAndFileDoesntExistsThenExceptionIsThrown()
     {
@@ -269,9 +308,10 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         await using var pfs3Volume = await MountVolume(stream);
 
         // act - open file in root directory in read mode, creates new file
-        await Assert.ThrowsAsync<IOException>(async () => await pfs3Volume.OpenFile("New File", FileMode.Read));
+        await Assert.ThrowsAsync<PathNotFoundException>(
+            async () => await pfs3Volume.OpenFile("New File", FileMode.Read));
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -280,7 +320,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
-        
+
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk(diskSize);
 
@@ -304,7 +344,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
         }
-        
+
         // assert - data read matches data written
         Assert.Equal(data.Length, bytesRead);
         Assert.Equal(data.Length, dataRead.Length);
@@ -323,7 +363,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         {
             data[i] = (byte)(i % 256);
         }
-        
+
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk(diskSize);
 
@@ -350,14 +390,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
                 dataRead = new byte[entryStream.Length];
                 bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
             }
-            
+
             // assert - data read matches data written
             Assert.Equal(data.Length, bytesRead);
             Assert.Equal(data.Length, dataRead.Length);
             Assert.Equal(data, dataRead);
         }
     }
-    
+
     [Theory]
     [InlineData(1000)]
     [InlineData(5000)]
@@ -370,7 +410,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         {
             data[i] = (byte)(i % 255);
         }
-        
+
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
 
@@ -394,13 +434,13 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
         }
-        
+
         // assert - data read matches data written
         Assert.Equal(data.Length, bytesRead);
         Assert.Equal(data.Length, dataRead.Length);
         Assert.Equal(data, dataRead);
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -409,7 +449,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     {
         // arrange - data to write
         var data = AmigaTextHelper.GetBytes("New file with some text.");
-        
+
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk(diskSize);
 
@@ -443,14 +483,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // assert - stream read of 10 bytes resulted in position is equal to 20
         Assert.Equal(20, readPosition);
-        
+
         // assert - 10 bytes of data read matches 10 bytes from data written
         Assert.Equal(10, bytesRead);
         var expectedDataRead = data.Skip(10).Take(10).ToArray();
         Assert.Equal(expectedDataRead.Length, dataRead.Length);
         Assert.Equal(expectedDataRead, dataRead);
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -468,14 +508,14 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - delete file from root directory
         await pfs3Volume.Delete("New File");
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
 
         // assert - root directory is empty
         Assert.Empty(entries);
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -494,7 +534,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - delete file from root directory
         await pfs3Volume.Delete("New File 1");
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
 
@@ -502,7 +542,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "New File 2" && x.Type == EntryType.File));
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -517,17 +557,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - create "New Dir" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
-        
+
         // act - delete directory from root directory
         await pfs3Volume.Delete("New Dir");
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
 
         // assert - root directory is empty
         Assert.Empty(entries);
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -545,7 +585,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - rename file in root directory
         await pfs3Volume.Rename("New File", "Renamed File");
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
 
@@ -553,7 +593,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Single(entries);
         Assert.Equal(1, entries.Count(x => x.Name == "Renamed File" && x.Type == EntryType.File));
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -568,13 +608,13 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - create "New Dir" in root directory
         await pfs3Volume.CreateDirectory("New Dir");
-        
+
         // act - create file in root directory
         await pfs3Volume.CreateFile("New File");
 
         // act - move file from root directory to subdirectory
         await pfs3Volume.Rename("New File", "New Dir/Moved File");
-        
+
         // act - mount pfs3 volume, list entries in root directory and unmount pfs3 volume
         var rootEntries = (await pfs3Volume.ListEntries()).ToList();
         await pfs3Volume.ChangeDirectory("New Dir");
@@ -583,12 +623,12 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - root directory contains directory
         Assert.Single(rootEntries);
         Assert.Equal(1, rootEntries.Count(x => x.Name == "New Dir" && x.Type == EntryType.Dir));
-        
+
         // assert - sub directory contains moved file
         Assert.Single(subDirEntries);
         Assert.Equal(1, subDirEntries.Count(x => x.Name == "Moved File" && x.Type == EntryType.File));
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -609,7 +649,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - set comment for file in root directory
         await pfs3Volume.SetComment("New File", comment);
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
 
@@ -619,7 +659,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.NotNull(dirEntry);
         Assert.Equal(comment, dirEntry.Comment);
     }
-    
+
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
@@ -627,8 +667,10 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     public async Task WhenSetProtectionBitsForFileInRootThenProtectionBitsAreChanged(long diskSize)
     {
         // arrange - protection bits to set
-        var protectionBits = ProtectionBits.Delete | ProtectionBits.Executable | ProtectionBits.Write | ProtectionBits.Read | ProtectionBits.HeldResident | ProtectionBits.Archive | ProtectionBits.Pure | ProtectionBits.Script;
-        
+        var protectionBits = ProtectionBits.Delete | ProtectionBits.Executable | ProtectionBits.Write |
+                             ProtectionBits.Read | ProtectionBits.HeldResident | ProtectionBits.Archive |
+                             ProtectionBits.Pure | ProtectionBits.Script;
+
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk(diskSize);
 
@@ -640,7 +682,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - set protection bits for file in root directory
         await pfs3Volume.SetProtectionBits("New File", protectionBits);
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
 
@@ -659,7 +701,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     {
         // arrange - date to set
         var date = DateTime.Now.AddDays(-10).Trim(TimeSpan.TicksPerSecond);
-        
+
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk(diskSize);
 
@@ -671,7 +713,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - set date for file in root directory
         await pfs3Volume.SetDate("New File", date);
-        
+
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
 

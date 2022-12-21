@@ -6,6 +6,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
+    using Exceptions;
     using Extensions;
 
     public static class Directory
@@ -79,7 +80,7 @@
         /// <param name="entryBlock"></param>
         /// <returns></returns>
         /// <exception cref="IOException"></exception>
-        private static Entry ConvertEntryBlockToEntry(EntryBlock entryBlock)
+        public static Entry ConvertEntryBlockToEntry(EntryBlock entryBlock)
         {
             var entry = new Entry
             {
@@ -212,11 +213,14 @@
         {
             /* -1 : do not use a specific, already allocated sector */
             var nSect = await CreateEntry(vol, parent, name, uint.MaxValue);
-            if (nSect == uint.MaxValue) throw new IOException("error nSect is -1");
+            if (nSect == uint.MaxValue)
+            {
+                throw new DiskFullException("No sector available");
+            }
 
             if (!(parent.SecType == Constants.ST_ROOT || parent.SecType == Constants.ST_DIR))
             {
-                throw new IOException($"Invalid secondary type '{parent.SecType}'");
+                throw new FileSystemException($"Invalid secondary type '{parent.SecType}'");
             }
 
             var entryBlock = new FileHeaderBlock(vol.FileSystemBlockSize)
@@ -252,7 +256,7 @@
         {
             if (!(dir.SecType == Constants.ST_ROOT || dir.SecType == Constants.ST_DIR))
             {
-                throw new IOException($"Invalid secondary type '{dir.SecType}'");
+                throw new FileSystemException($"Invalid secondary type '{dir.SecType}'");
             }
 
             var intl = vol.UseIntl || vol.UseDirCache;
@@ -271,7 +275,7 @@
                     newSect = Bitmap.AdfGet1FreeBlock(vol);
                     if (newSect == uint.MaxValue)
                     {
-                        throw new IOException("nSect==-1");
+                        throw new FileSystemException("No sector available");
                     }
                 }
 
@@ -297,7 +301,7 @@
                     var name3 = MyToUpper(updEntry.Name, intl);
                     if (name3 == name2)
                     {
-                        throw new IOException("entry already exists");
+                        throw new PathAlreadyExistsException($"Path '{updEntry.Name}' already exists");
                     }
                 }
 
@@ -312,13 +316,13 @@
                 newSect2 = Bitmap.AdfGet1FreeBlock(vol);
                 if (newSect2 == uint.MaxValue)
                 {
-                    throw new IOException("nSect==-1");
+                    throw new FileSystemException("No sector available");
                 }
             }
 
             if (!(updEntry.SecType == Constants.ST_DIR || updEntry.SecType == Constants.ST_FILE))
             {
-                throw new IOException($"Invalid secondary type '{updEntry.SecType}'");
+                throw new FileSystemException($"Invalid secondary type '{updEntry.SecType}'");
             }
 
             updEntry.NextSameHash = newSect2;
@@ -342,7 +346,7 @@
             var nSect = await CreateEntry(vol, parent, name, uint.MaxValue);
             if (nSect == uint.MaxValue)
             {
-                throw new IOException("no sector available");
+                throw new FileSystemException("No sector available");
             }
 
             var dirBlock = new DirBlock(vol.FileSystemBlockSize)
@@ -389,7 +393,7 @@
             var prevSect = result.NUpdSect ?? 0;
             if (nSect == uint.MaxValue)
             {
-                throw new IOException("existing entry not found");
+                throw new PathNotFoundException($"Path '{oldName}' not found");
             }
 
             /* change name and parent dir */
@@ -440,7 +444,7 @@
                         name3 = MyToUpper(previous.Name, intl);
                         if (name3 == name2)
                         {
-                            throw new IOException("entry already exists");
+                            throw new PathAlreadyExistsException($"Path '{previous.Name}' already exists");
                         }
                     }
 
@@ -449,7 +453,7 @@
 
                 if (!(previous.SecType == Constants.ST_DIR || previous.SecType == Constants.ST_FILE))
                 {
-                    throw new IOException("Invalid entry secType");
+                    throw new FileSystemException($"Invalid entry secType {previous.SecType}");
                 }
 
                 previous.NextSameHash = nSect;
@@ -529,13 +533,13 @@
             var nSect2 = result.NUpdSect ?? 0;
             if (nSect == uint.MaxValue)
             {
-                throw new IOException($"entry '{name}' not found");
+                throw new PathNotFoundException($"Path '{name}' not found");
             }
 
             /* if it is a directory, is it empty ? */
             if (entryBlock.SecType == Constants.ST_DIR && !IsEmpty(entryBlock))
             {
-                throw new IOException($"directory '{name}' not empty");
+                throw new DirectoryNotEmptyException($"Directory '{name}' is not empty");
             }
 
             /* in parent hashTable */
@@ -574,7 +578,7 @@
             }
             else
             {
-                throw new IOException($"secType {entryBlock.SecType} not supported");
+                throw new FileSystemException($"SecType {entryBlock.SecType} not supported");
             }
 
             if (vol.UseDirCache)
@@ -611,12 +615,12 @@
             var entryBlock = result.EntryBlock;
             if (nSect == uint.MaxValue)
             {
-                throw new IOException("entry not found");
+                throw new PathNotFoundException($"Path '{name}' not found");
             }
 
             if (!(entryBlock.SecType == Constants.ST_DIR || entryBlock.SecType == Constants.ST_FILE))
             {
-                throw new IOException("Invalid entry secType");
+                throw new FileSystemException($"Invalid entry secType '{entryBlock.SecType}'");
             }
 
             entryBlock.Date = date;
@@ -645,12 +649,12 @@
             var entryBlock = result.EntryBlock;
             if (nSect == uint.MaxValue)
             {
-                throw new IOException("entry not found");
+                throw new PathNotFoundException($"Path '{name}' not found");
             }
 
             if (!(entryBlock.SecType == Constants.ST_DIR || entryBlock.SecType == Constants.ST_FILE))
             {
-                throw new IOException("Invalid entry secType");
+                throw new FileSystemException($"Invalid entry secType '{entryBlock.SecType}'");
             }
 
             entryBlock.Access = access;
@@ -679,12 +683,12 @@
             var entryBlock = result.EntryBlock;
             if (nSect == uint.MaxValue)
             {
-                throw new IOException("entry not found");
+                throw new DiskFullException("No sector available");
             }
 
             if (!(entryBlock.SecType == Constants.ST_DIR || entryBlock.SecType == Constants.ST_FILE))
             {
-                throw new IOException("Invalid entry secType");
+                throw new FileSystemException($"Invalid entry secType '{entryBlock.SecType}'");
             }
 
             entryBlock.Comment = comment.Length > Constants.MAXCMMTLEN
@@ -722,8 +726,6 @@
 
                 var entry = (await ReadEntries(volume, sector)).FirstOrDefault(x =>
                     x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
-                // var entry = (await ReadEntries(volume, sector)).FirstOrDefault(x =>
-                //     x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
                 if (entry == null)
                 {
                     break;

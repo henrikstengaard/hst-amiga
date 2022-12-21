@@ -5,6 +5,7 @@
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
+    using Exceptions;
     using RigidDiskBlocks;
     using FileMode = FileMode;
 
@@ -49,6 +50,23 @@
                 .ToList();
         }
 
+        /// <summary>
+        /// Find entry in current directory
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public async Task<FileSystems.Entry> FindEntry(string name)
+        {
+            var findEntryResult = await Directory.FindEntry(currentDirectorySector, name, volume);
+            if (findEntryResult.PartsNotFound.Any())
+            {
+                return null;
+            }
+
+            var entryBlock = await Disk.ReadEntryBlock(volume, findEntryResult.Sector);
+            return EntryConverter.ToEntry(Directory.ConvertEntryBlockToEntry(entryBlock));
+        }
+
         public async Task ChangeDirectory(string path)
         {
             var isRootPath = path.StartsWith("/");
@@ -58,10 +76,9 @@
             }
 
             var findEntryResult = await Directory.FindEntry(currentDirectorySector, path, volume);
-
             if (findEntryResult.PartsNotFound.Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{path}' not found");
             }
 
             currentDirectorySector = findEntryResult.Sector;
@@ -119,7 +136,7 @@
 
             if (srcEntryResult.PartsNotFound.Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{oldName}' not found");
             }
 
             var destEntryResult = await Directory.FindEntry(currentDirectorySector, newName, volume);
@@ -127,15 +144,15 @@
 
             if (!partsNotFound.Any())
             {
-                throw new IOException("New name exists");
+                throw new PathAlreadyExistsException($"Path '{newName}' already exists");
             }
 
             if (partsNotFound.Count > 1)
             {
-                throw new IOException($"Directory '{partsNotFound[0]}' not found");
+                throw new PathNotFoundException($"Path '{partsNotFound[0]}' not found");
             }
 
-            await Directory.RenameEntry(volume, srcEntryResult.Sector, srcEntryResult.Name, destEntryResult.Sector, 
+            await Directory.RenameEntry(volume, srcEntryResult.Sector, srcEntryResult.Name, destEntryResult.Sector,
                 destEntryResult.Name);
         }
 
@@ -179,7 +196,8 @@
         public static async Task<FastFileSystemVolume> MountPartition(Stream stream, PartitionBlock partitionBlock)
         {
             return await Mount(stream, partitionBlock.LowCyl, partitionBlock.HighCyl,
-                partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved, partitionBlock.BlockSize,
+                partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved,
+                partitionBlock.BlockSize,
                 partitionBlock.FileSystemBlockSize);
         }
 
@@ -210,7 +228,8 @@
         public static async Task<FastFileSystemVolume> Mount(Stream stream, uint lowCyl, uint highCyl,
             uint surfaces, uint blocksPerTrack, uint reserved, uint blockSize, uint fileSystemBlockSize)
         {
-            var volume = await FastFileSystemHelper.Mount(stream, lowCyl, highCyl, surfaces, blocksPerTrack, reserved, blockSize,
+            var volume = await FastFileSystemHelper.Mount(stream, lowCyl, highCyl, surfaces, blocksPerTrack, reserved,
+                blockSize,
                 fileSystemBlockSize);
 
             return new FastFileSystemVolume(volume, volume.RootBlockOffset);

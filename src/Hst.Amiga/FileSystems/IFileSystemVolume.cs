@@ -29,6 +29,13 @@
         Task<IEnumerable<Entry>> ListEntries();
 
         /// <summary>
+        /// Find entry in current directory
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        Task<Entry> FindEntry(string name);
+        
+        /// <summary>
         /// Change current directory
         /// </summary>
         /// <param name="path">Relative or absolute path.</param>

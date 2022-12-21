@@ -6,6 +6,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
+    using Exceptions;
     using RigidDiskBlocks;
     using FileMode = FileMode;
 
@@ -54,6 +55,18 @@
         }
 
         /// <summary>
+        /// Find entry in current directory
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public async Task<Entry> FindEntry(string name)
+        {
+            var objectInfo = currentDirectory.Clone();
+            var found = await Directory.SearchInDir(dirNodeNr, name, objectInfo, g);
+            return found ? DirEntryConverter.ToEntry(objectInfo.file.direntry) : null;
+        }
+        
+        /// <summary>
         /// Change current directory
         /// </summary>
         /// <param name="path">Relative or absolute path.</param>
@@ -67,7 +80,7 @@
             
             if (!isRootPath && (await Directory.Find(currentDirectory, path, g)).Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{path}' not found");
             }
             
             dirNodeNr = Macro.IsRoot(currentDirectory) ? (uint)Macro.ANODE_ROOTDIR : currentDirectory.file.direntry.anode;
@@ -147,7 +160,7 @@
                 // remaining parts of path is returned, not found
                 if (mode == FileMode.Read)
                 {
-                    throw new IOException("Not found");
+                    throw new PathNotFoundException($"Path '{fileName}' not found");
                 }
 
                 // create new file
@@ -170,7 +183,7 @@
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.DeleteObject(objectInfo, g);
         }
@@ -186,7 +199,7 @@
             var srcInfo = currentDirectory.Clone();
             if ((await Directory.Find(srcInfo, oldName, g)).Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{oldName}' not found");
             }
 
             var destInfo = currentDirectory.Clone();
@@ -194,12 +207,12 @@
 
             if (remainingParts.Length == 0)
             {
-                throw new IOException("Exists");
+                throw new PathAlreadyExistsException($"Path '{newName}' already exists");
             }
 
             if (remainingParts.Length > 1)
             {
-                throw new IOException($"Directory '{remainingParts[0]}' not found");
+                throw new PathNotFoundException($"Path '{remainingParts[0]}' not found");
             }
             
             await Directory.RenameAndMove(currentDirectory, srcInfo, destInfo, remainingParts[0], g);
@@ -215,7 +228,7 @@
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.AddComment(objectInfo, comment, g);
         }
@@ -230,7 +243,7 @@
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.ProtectFile(objectInfo, DirEntryConverter.GetProtection(protectionBits), g);
         }
@@ -245,7 +258,7 @@
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.SetDate(objectInfo, date, g);
         }

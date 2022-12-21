@@ -5,6 +5,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
+    using Exceptions;
 
     public static class Bitmap
     {
@@ -101,17 +102,29 @@
                     i++;
                 }
 
-                if ((block + vol.FirstBlock) == vol.LastBlock)
+                if (block + vol.FirstBlock == vol.LastBlock)
+                {
                     block = 2;
+                }
                 else if (block == vol.RootBlockOffset - 1)
+                {
                     diskFull = true;
+                }
                 else
+                {
                     block++;
+                }
             }
 
-            if (!diskFull)
-                for (var j = 0; j < nbSect; j++)
-                    AdfSetBlockUsed(vol, sectList[j]);
+            if (diskFull)
+            {
+                throw new DiskFullException("Disk full");
+            }
+
+            for (var j = 0; j < nbSect; j++)
+            {
+                AdfSetBlockUsed(vol, sectList[j]);
+            }
 
             return i == nbSect ? sectList.ToArray() : Array.Empty<uint>();
         }

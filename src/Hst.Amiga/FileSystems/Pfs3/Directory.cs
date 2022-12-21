@@ -7,6 +7,7 @@
     using System.Threading.Tasks;
     using Blocks;
     using Core.Converters;
+    using Exceptions;
 
     public static class Directory
     {
@@ -545,7 +546,7 @@
             if (fileentry != null)
                 Lock.FreeListEntry(fileentry, g);
             //DB(Trace(1, "Newdir", "disk full"));
-            throw new IOException("disk full");
+            throw new DiskFullException("Disk full");
         }
 
 /*
