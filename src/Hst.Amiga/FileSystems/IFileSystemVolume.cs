@@ -46,26 +46,38 @@
         /// </summary>
         /// <param name="dirName"></param>
         Task CreateDirectory(string dirName);
-        
+
         /// <summary>
         /// Create file in current directory
         /// </summary>
         /// <param name="fileName"></param>
-        Task CreateFile(string fileName);
+        /// <param name="overwrite"></param>
+        /// <param name="ignoreProtectionBits"></param>
+        Task CreateFile(string fileName, bool overwrite, bool ignoreProtectionBits);
 
         /// <summary>
         /// Open file for reading or writing data
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="mode"></param>
+        /// <param name="ignoreProtectionBits"></param>
         /// <returns></returns>
-        Task<Stream> OpenFile(string fileName, FileMode mode);
+        Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits);
+
+        /// <summary>
+        /// Rename or move a file or directory
+        /// </summary>
+        /// <param name="oldName">Old name</param>
+        /// <param name="newName">New name</param>
+        /// <exception cref="IOException"></exception>
+        Task Rename(string oldName, string newName);
         
         /// <summary>
         /// Delete file or directory from current directory
         /// </summary>
         /// <param name="name"></param>
-        Task Delete(string name);
+        /// <param name="ignoreProtectionBits"></param>
+        Task Delete(string name, bool ignoreProtectionBits);
 
         /// <summary>
         /// Set comment for file in current directory
@@ -87,5 +99,11 @@
         /// <param name="name"></param>
         /// <param name="date"></param>
         Task SetDate(string name, DateTime date);
+
+        /// <summary>
+        /// Flush file system changes
+        /// </summary>
+        /// <returns></returns>
+        Task Flush();
     }
 }

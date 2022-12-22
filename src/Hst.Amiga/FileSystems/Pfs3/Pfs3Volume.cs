@@ -100,16 +100,19 @@
         /// Create file in current directory
         /// </summary>
         /// <param name="fileName"></param>
-        public async Task CreateFile(string fileName)
+        /// <param name="overwrite"></param>
+        /// <param name="ignoreProtectionBits"></param>
+        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
         {
-            var notUsed = new objectinfo();
-            await Directory.NewFile(false, currentDirectory, fileName, notUsed, g);
+            var objectInfo = currentDirectory.Clone();
+            var found = !(await Directory.Find(objectInfo, fileName, g)).Any();
+            await Directory.NewFile(found, currentDirectory, fileName, objectInfo, overwrite, ignoreProtectionBits, g);
             await Update.UpdateDisk(g);
 
-            foreach (var fileentry in g.currentvolume.fileentries)
+            foreach (var fileEntry in g.currentvolume.fileentries)
             {
-                fileentry.ListEntry.type.flags.access = Constants.ET_FILEENTRY;
-                fileentry.ListEntry.filelock.fl_Access = Constants.ET_FILEENTRY;
+                fileEntry.ListEntry.type.flags.access = Constants.ET_FILEENTRY;
+                fileEntry.ListEntry.filelock.fl_Access = Constants.ET_FILEENTRY;
             }
 
             g.currentvolume.fileentries.Clear();
@@ -151,8 +154,9 @@
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="mode"></param>
+        /// <param name="ignoreProtectionBits"></param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, FileMode mode)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits = false)
         {
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, fileName, g)).Any())
@@ -164,9 +168,18 @@
                 }
 
                 // create new file
-                await Directory.NewFile(false, currentDirectory, fileName, objectInfo, g);
+                await Directory.NewFile(false, currentDirectory, fileName, objectInfo, true, ignoreProtectionBits, g);
                 await Update.UpdateDisk(g);
             }
+
+            var hasReadProtectionBit =
+                (objectInfo.file.direntry.protection & Constants.FIBF_READ) == 0;
+
+            if (!ignoreProtectionBits && !hasReadProtectionBit)
+            {
+                throw new FileSystemException($"File '{fileName}' does not have read protection bits set");
+            }
+            
             var fileEntry = await File.Open(objectInfo, mode == FileMode.Write || mode == FileMode.Append, g) as fileentry;
             
             File.MakeSharedFileEntriesAndClear(g);
@@ -178,14 +191,15 @@
         /// Delete file or directory from current directory
         /// </summary>
         /// <param name="name"></param>
-        public async Task Delete(string name)
+        /// <param name="ignoreProtectionBits"></param>
+        public async Task Delete(string name, bool ignoreProtectionBits = false)
         {
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
-            await Directory.DeleteObject(objectInfo, g);
+            await Directory.DeleteObject(objectInfo, ignoreProtectionBits, g);
         }
 
         /// <summary>
@@ -277,6 +291,15 @@
             var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
             
             return new Pfs3Volume(g, root, dirNodeNr);
+        }
+
+        /// <summary>
+        /// Flush file system changes
+        /// </summary>
+        /// <returns></returns>
+        public async Task Flush()
+        {
+            await Pfs3Helper.Unmount(g);
         }
 
         public void Dispose()

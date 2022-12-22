@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Extensions;
 using FileSystems;
+using FileSystems.Exceptions;
 using FileSystems.FastFileSystem;
 using RigidDiskBlocks;
 using Xunit;
@@ -318,7 +319,7 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         await ffsVolume.OpenFile("New File", FileMode.Write);
 
         // assert - open same file for writing in root directory throws exception as file exists
-        await Assert.ThrowsAsync<IOException>(async () => await ffsVolume.OpenFile("New File", FileMode.Write));
+        await Assert.ThrowsAsync<PathAlreadyExistsException>(async () => await ffsVolume.OpenFile("New File", FileMode.Write));
     }
 
     [Fact]
@@ -354,7 +355,105 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         await using var ffsVolume = await MountVolume(stream);
 
         // act - open file in root directory in read mode, creates new file
-        await Assert.ThrowsAsync<IOException>(async () => await ffsVolume.OpenFile("New File", FileMode.Read));
+        await Assert.ThrowsAsync<PathNotFoundException>(async () => await ffsVolume.OpenFile("New File", FileMode.Read));
+    }
+    
+    [Fact]
+    public async Task WhenCreateAndOverwriteFileWithSmallerOneThenLessBytesAreFree()
+    {
+        // arrange - data to write
+        var data = new byte[10000];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        var freeBytesAtStart = ffsVolume.Free;
+        
+        // act - create file
+        await ffsVolume.CreateFile("New File");
+        
+        // act - write data
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+        
+        // assert - free bytes after writing 1st time is smaller than at start
+        var freeBytesAfter1StFile = ffsVolume.Free;
+        Assert.True(freeBytesAfter1StFile < freeBytesAtStart);
+
+        // arrange - data to write
+        data = new byte[1000];
+        Array.Fill<byte>(data, 1);
+        
+        // act - create file and overwrite existing
+        await ffsVolume.CreateFile("New File", true);
+
+        // act - write data
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+
+        // assert - free bytes after writing 2nd time is larger 1st time (overwritten file is smaller)
+        var freeBytesAfter2NdFile = ffsVolume.Free;
+        Assert.True(freeBytesAfter2NdFile > freeBytesAfter1StFile);
+        
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Read))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+        
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
+    }
+    
+    [Fact]
+    public async Task WhenOpenFileWithoutReadBitThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - create file
+        await ffsVolume.CreateFile("New File");
+
+        // arrange - file only has delete protection bit set
+        await ffsVolume.SetProtectionBits("New File", ProtectionBits.Delete);
+        
+        // act - open file in read mode then exception is thrown
+        await Assert.ThrowsAsync<FileSystemException>(async () => await ffsVolume.OpenFile("New File", FileMode.Read));
+    }
+
+    [Fact]
+    public async Task WhenOpenFileWithoutReadBitAndIgnoreProtectionBitsThenFileOpened()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - create file
+        await ffsVolume.CreateFile("New File");
+
+        // arrange - file only has delete protection bit set
+        await ffsVolume.SetProtectionBits("New File", ProtectionBits.Delete);
+        
+        // act - open file in read mode then exception is thrown
+        await using var entryStream = await ffsVolume.OpenFile("New File", FileMode.Read, ignoreProtectionBits: true);
     }
     
     [Theory]

@@ -97,9 +97,12 @@
         /// Create file in current directory
         /// </summary>
         /// <param name="fileName"></param>
-        public async Task CreateFile(string fileName)
+        /// <param name="overwrite"></param>
+        /// <param name="ignoreProtectionBits"></param>
+        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
         {
-            using (var _ = await File.Open(volume, currentDirectorySector, fileName, FileMode.Write))
+            using (var _ = await File.Open(volume, currentDirectorySector, fileName, FileMode.Write, overwrite,
+                       ignoreProtectionBits))
             {
             }
         }
@@ -109,19 +112,21 @@
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="mode"></param>
+        /// <param name="ignoreProtectionBits"></param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, FileMode mode)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits = false)
         {
-            return await File.Open(volume, currentDirectorySector, fileName, mode);
+            return await File.Open(volume, currentDirectorySector, fileName, mode, false, ignoreProtectionBits);
         }
 
         /// <summary>
         /// Delete file or directory from current directory
         /// </summary>
         /// <param name="name"></param>
-        public async Task Delete(string name)
+        /// <param name="ignoreProtectionBits"></param>
+        public async Task Delete(string name, bool ignoreProtectionBits = false)
         {
-            await Directory.RemoveEntry(volume, currentDirectorySector, name);
+            await Directory.RemoveEntry(volume, currentDirectorySector, name, ignoreProtectionBits);
         }
 
         /// <summary>
@@ -185,6 +190,15 @@
         public async Task SetDate(string name, DateTime date)
         {
             await Directory.SetEntryDate(volume, currentDirectorySector, name, date);
+        }
+
+        /// <summary>
+        /// Flush file system changes
+        /// </summary>
+        /// <returns></returns>
+        public Task Flush()
+        {
+            return Task.CompletedTask;
         }
 
         /// <summary>

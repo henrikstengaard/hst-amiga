@@ -117,10 +117,10 @@
             await InitAnodes(volume, formatting, g);
             InitAllocation(volume, g);
 
-            // if (!formatting)
-            // {
-            //     await DoPostponed(volume, g);
-            // }
+            if (!formatting)
+            {
+                await DoPostponed(volume, g);
+            }
         }
 
         public static async Task InitAnodes(volumedata volume, bool formatting, globaldata g)

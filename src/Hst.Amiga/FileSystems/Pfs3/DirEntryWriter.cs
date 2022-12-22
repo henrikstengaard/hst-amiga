@@ -15,7 +15,7 @@
             DateHelper.WriteDate(dirEntry.CreationDate, data, offset + 10);
             data[offset + 16] = dirEntry.protection;
             data[offset + 17] = dirEntry.nlength;
-            var nameBytes = AmigaTextHelper.GetBytes(dirEntry.Name);
+            var nameBytes = AmigaTextHelper.GetBytes(dirEntry.Name ?? string.Empty);
             Array.Copy(nameBytes, 0, data, offset + 18, nameBytes.Length);
 
             if (!string.IsNullOrEmpty(dirEntry.comment))

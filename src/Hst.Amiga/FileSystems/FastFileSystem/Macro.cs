@@ -45,6 +45,12 @@
         public static bool hasD(uint c) => (c & Constants.ACCMASK_D) != 0;
         public static bool hasE(uint c) => (c & Constants.ACCMASK_E) != 0;
         public static bool hasW(uint c) => (c&Constants.ACCMASK_W) != 0;
+        
+        /// <summary>
+        /// check if entry access has read flag set
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns>True if read flag is not set</returns>
         public static bool hasR(uint c) => (c&Constants.ACCMASK_R) != 0;
         public static bool hasA(uint c) => (c&Constants.ACCMASK_A) != 0;
         public static bool hasP(uint c) => (c&Constants.ACCMASK_P) != 0;

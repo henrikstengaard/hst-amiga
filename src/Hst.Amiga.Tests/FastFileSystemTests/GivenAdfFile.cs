@@ -319,7 +319,7 @@
 
             // act - remote entry from root block
             var entryName = entry.Name;
-            await FileSystems.FastFileSystem.Directory.RemoveEntry(volume, volume.RootBlockOffset, entryName);
+            await FileSystems.FastFileSystem.Directory.RemoveEntry(volume, volume.RootBlockOffset, entryName, true);
 
             // act - read entries recursively from root block
             entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlockOffset, true))

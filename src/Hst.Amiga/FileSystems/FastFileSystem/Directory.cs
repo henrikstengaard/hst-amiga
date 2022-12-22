@@ -523,7 +523,7 @@
             await Disk.WriteBlock(vol, nSect, blockBytes);
         }
 
-        public static async Task RemoveEntry(Volume vol, uint pSect, string name)
+        public static async Task RemoveEntry(Volume vol, uint pSect, string name, bool ignoreProtectionBits)
         {
             var parent = await Disk.ReadEntryBlock(vol, pSect);
 
@@ -536,6 +536,11 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
 
+            if (!ignoreProtectionBits && Macro.hasD(result.EntryBlock.Access))
+            {
+                throw new FileSystemException($"File '{name}' does not have delete protection bits set");
+            }
+            
             /* if it is a directory, is it empty ? */
             if (entryBlock.SecType == Constants.ST_DIR && !IsEmpty(entryBlock))
             {

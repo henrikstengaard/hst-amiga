@@ -312,6 +312,111 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             async () => await pfs3Volume.OpenFile("New File", FileMode.Read));
     }
 
+    [Fact]
+    public async Task WhenCreateAndOverwriteFileWithSmallerOneThenLessBytesAreFree()
+    {
+        // arrange - data to write
+        var data = new byte[10000];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+        
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - get free bytes for comparison
+        var freeBytesAtStart = pfs3Volume.Free;
+        
+        // act - create file
+        await pfs3Volume.CreateFile("New File");
+        
+        // act - write data
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+
+        // arrange - flush changes
+        await pfs3Volume.Flush();
+
+        // assert - free bytes after writing 1st time is smaller than at start
+        var freeBytesAfter1StFile = pfs3Volume.Free;
+        Assert.True(freeBytesAfter1StFile < freeBytesAtStart);
+
+        // arrange - data to write
+        data = new byte[1000];
+        Array.Fill<byte>(data, 1);
+
+        // act - create file and overwrite existing
+        await pfs3Volume.CreateFile("New File", true);
+
+        // act - write data
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+
+        // arrange - flush changes
+        await pfs3Volume.Flush();
+
+        // assert - free bytes after writing 2nd time is larger 1st time (overwritten file is smaller)
+        var freeBytesAfter2NdFile = pfs3Volume.Free;
+        Assert.True(freeBytesAfter2NdFile > freeBytesAfter1StFile);
+        
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Read))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+        
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
+    }
+    
+    [Fact]
+    public async Task WhenOpenFileWithoutReadBitThenExceptionIsThrown()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+        
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create file
+        await pfs3Volume.CreateFile("New File");
+
+        // arrange - file only has delete protection bit set
+        await pfs3Volume.SetProtectionBits("New File", ProtectionBits.Delete);
+        
+        // act - open file in read mode then exception is thrown
+        await Assert.ThrowsAsync<FileSystemException>(async () => await pfs3Volume.OpenFile("New File", FileMode.Read));
+    }
+
+    [Fact]
+    public async Task WhenOpenFileWithoutReadBitAndIgnoreProtectionBitsThenFileOpened()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+        
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create file
+        await pfs3Volume.CreateFile("New File");
+
+        // arrange - file only has delete protection bit set
+        await pfs3Volume.SetProtectionBits("New File", ProtectionBits.Delete);
+        
+        // act - open file in read mode then exception is thrown
+        await using var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Read, ignoreProtectionBits: true);
+    }
+    
     [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
