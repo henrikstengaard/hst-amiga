@@ -36,7 +36,8 @@
                 volume.Logs.Add($"ERROR: File \"{name}\" not found.");
             }
 
-            if (write && overwrite)
+            // remove entry, if write, overwrite and entry exists
+            if (write && overwrite && nSect != uint.MaxValue)
             {
                 await Directory.RemoveEntry(volume, parentSector, name, ignoreProtectionBits);
                 parent = await Disk.ReadEntryBlock(volume, parentSector);
