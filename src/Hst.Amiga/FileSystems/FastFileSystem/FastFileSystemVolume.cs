@@ -179,7 +179,7 @@
         public async Task SetProtectionBits(string name, ProtectionBits protectionBits)
         {
             await Directory.SetEntryAccess(volume, currentDirectorySector, name,
-                EntryConverter.GetAccess(protectionBits));
+                ProtectionBitsConverter.ToProtectionValue(protectionBits));
         }
 
         /// <summary>

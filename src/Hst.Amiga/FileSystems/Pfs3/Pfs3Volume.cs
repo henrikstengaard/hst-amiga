@@ -259,7 +259,7 @@
             {
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
-            await Directory.ProtectFile(objectInfo, DirEntryConverter.GetProtection(protectionBits), g);
+            await Directory.ProtectFile(objectInfo, ProtectionBitsConverter.ToProtectionValue(protectionBits), g);
         }
 
         /// <summary>
