@@ -25,6 +25,7 @@
         {
             base.Dispose(disposing);
             File.Close(fileEntry, g).GetAwaiter().GetResult();
+            Update.UpdateDisk(g).GetAwaiter().GetResult();
         }
 
         public override void Flush()
@@ -64,7 +65,7 @@
 
         public override void SetLength(long value)
         {
-            throw new System.NotImplementedException();
+            throw new System.NotSupportedException("Entry stream doesn't support set length");
         }
 
         public override void Write(byte[] buffer, int offset, int count)

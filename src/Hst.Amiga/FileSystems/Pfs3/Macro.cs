@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
 
@@ -145,20 +146,6 @@ BPTR
         public static bool IsDeldir(CachedBlock blk) => blk.blk.id == Constants.DELDIRID;
         public static bool IsSuperBlock(CachedBlock blk) => blk.blk.id == Constants.SBLKID;
 
-        /// <summary>
-        /// remove node from any list it's added to. Amiga MinList exec
-        /// </summary>
-        /// <param name="node"></param>
-        /// <param name="g"></param>
-        public static void MinRemove(LruCachedBlock node, globaldata g)
-        {
-            // #define MinRemove(node) Remove((struct Node *)node)
-            // remove() removes the node from any list it' added to
-            
-            g.glob_lrudata.LRUpool.Remove(node);
-            g.glob_lrudata.LRUqueue.Remove(node);
-        }
-
         public static void MinRemove(IEntry node, globaldata g)
         {
             var volume = g.currentvolume;
@@ -168,43 +155,48 @@ BPTR
         public static void MinRemove(CachedBlock node, globaldata g)
         {
             // #define MinRemove(node) Remove((struct Node *)node)
-            // remove() removes the node from any list it' added to
-            
-            // var volume = g.currentvolume;
-            // for (var i = 0; i < volume.anblks.Length; i++)
-            // {
-            //     volume.anblks[i].Remove(node);
-            // }
-            // for (var i = 0; i < volume.dirblks.Length; i++)
-            // {
-            //     volume.dirblks[i].Remove(node);
-            // }
-            // volume.indexblks.Remove(node);
-            // volume.bmblks.Remove(node);
-            // volume.superblks.Remove(node);
-            // volume.deldirblks.Remove(node);
-            // volume.bmindexblks.Remove(node);
-        }
+            // remove() removes the node from any list it' added to (Amiga MinList exec)
 
-        public static void MinRemoveX(CachedBlock node, globaldata g)
-        {
-            // #define MinRemove(node) Remove((struct Node *)node)
-            // remove() removes the node from any list it' added to
-            
             var volume = g.currentvolume;
             for (var i = 0; i < volume.anblks.Length; i++)
             {
                 volume.anblks[i].Remove(node);
             }
+
             for (var i = 0; i < volume.dirblks.Length; i++)
             {
                 volume.dirblks[i].Remove(node);
             }
+
             volume.indexblks.Remove(node);
             volume.bmblks.Remove(node);
             volume.superblks.Remove(node);
             volume.deldirblks.Remove(node);
             volume.bmindexblks.Remove(node);
+        }
+
+        /// <summary>
+        /// Remove cached block from lru lists containing it
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="g"></param>
+        public static void MinRemoveLru(LruCachedBlock node, globaldata g)
+        {
+            g.glob_lrudata.LRUpool.Remove(node);
+            g.glob_lrudata.LRUqueue.Remove(node);
+        }
+
+        public static void MinRemoveLru(CachedBlock node, globaldata g)
+        {
+            foreach (var lruCachedBlock in g.glob_lrudata.LRUpool.Where(x => x.cblk == node).ToList())
+            {
+                g.glob_lrudata.LRUpool.Remove(lruCachedBlock);
+            }
+            
+            foreach (var lruCachedBlock in g.glob_lrudata.LRUqueue.Where(x => x.cblk == node).ToList())
+            {
+                g.glob_lrudata.LRUqueue.Remove(lruCachedBlock);
+            }
         }
         
         /// <summary>

@@ -828,4 +828,49 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.NotNull(dirEntry);
         Assert.Equal(date, dirEntry.Date);
     }
+    
+    [Fact]
+    public async Task WhenCreateFileAndWriteDataIn2ChunksThenDataMatches()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create file in root directory
+        await pfs3Volume.CreateFile("New File", true, true);
+        
+        // arrange - create data to write
+        var data = BlockTestHelper.CreateBlockBytes(1024);
+        var dataStream = new MemoryStream(data);
+        
+        // act - write data to file in chunks of 512 bytes
+        int bytesRead;
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Write))
+        {
+            var buffer = new byte[512];
+            do
+            {
+                bytesRead = await dataStream.ReadAsync(buffer, 0, buffer.Length);
+                await entryStream.WriteAsync(buffer, 0, bytesRead);
+            } while (bytesRead == buffer.Length);
+        }
+
+        // act - set date for file in root directory
+        await pfs3Volume.SetDate("New File", DateTime.Now);
+
+        // act - read data from file
+        byte[] dataRead;
+        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Read))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
+    }
 }

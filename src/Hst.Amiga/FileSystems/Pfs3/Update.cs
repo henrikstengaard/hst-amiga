@@ -207,32 +207,31 @@
                 throw new IOException("UpdateBMBLK, GetBitmapIndex returned NULL!");
             }
 
-            var indexBlockBlk = indexblock.BitmapBlock;
-            indexBlockBlk.bitmap[temp >> 16] = newblocknr;
+            var indexBlockBlk = indexblock.IndexBlock;
+            indexBlockBlk.index[temp >> 16] = (int)newblocknr;
             await MakeBlockDirty(indexblock, g); /* recursion !! */
         }
 
-        public static void UpdateBMIBLK(CachedBlock blk, uint newblocknr, globaldata g)
+        public static async Task UpdateBMIBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
-            // blk->changeflag = TRUE;
-            // blk->volume->rootblk->idx.large.bitmapindex[((struct cindexblock *)blk)->blk.seqnr] = newblocknr;
-            // blk->volume->rootblockchangeflag = TRUE;
+            var bmb = blk;
+            uint temp;
+            var andata = g.glob_anodedata;
+
             blk.changeflag = true;
-            var seqnr = 0U;
-            switch (blk.blk)
+            var bitmapBlk = bmb.BitmapBlock;
+            temp = Init.divide(bitmapBlk.seqnr, andata.indexperblock);
+            var indexblock = await Allocation.GetBitmapIndex((ushort)temp /* & 0xffff */, g);
+
+            // DBERR(if (!indexblock) ErrorTrace(5,"UpdateBMBLK", "GetBitmapIndex returned NULL!"));
+            if (indexblock == null)
             {
-                case BitmapBlock bitmapBlock:
-                    seqnr = bitmapBlock.seqnr;
-                    break;
-                case indexblock indexBlock:
-                    seqnr = indexBlock.seqnr;
-                    break;
-                default:
-                    throw new IOException($"Invalid index block '{blk.blk.GetType().Name}'");
+                throw new IOException("UpdateBMIBLK, GetBitmapIndex returned NULL!");
             }
 
-            blk.volume.rootblk.idx.large.bitmapindex[seqnr] = newblocknr;
-            blk.volume.rootblockchangeflag = true;
+            var indexBlockBlk = indexblock.IndexBlock;
+            indexBlockBlk.index[temp >> 16] = (int)newblocknr;
+            await MakeBlockDirty(indexblock, g); /* recursion !! */
         }
 
 // #if VERSION23

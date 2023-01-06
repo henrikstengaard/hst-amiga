@@ -92,9 +92,7 @@
                 Lru.FlushBlock(ddblk, g);
                 // MinRemove(LRU_CHAIN(ddblk));
                 // MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(ddblk));
-                Macro.MinRemove(ddblk, g);
-                Macro.MinRemoveX(ddblk, g);
-                Macro.MinRemove(new LruCachedBlock(ddblk), g);
+                Macro.MinRemoveLru(ddblk, g);
                 Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(ddblk));
                 // i.p.v. FreeLRU((struct cachedblock *)ddblk, g);
             }
@@ -369,7 +367,7 @@
                 if (info.file.direntry.type != Constants.ST_ROLLOVERFILE)
                 {
                     /* Change directory entry */
-                    SetDEFileSize(info.file.dirblock.dirblock, info.file.direntry, 0, g);
+                    info.file.direntry = SetDEFileSize(info.file.dirblock.dirblock, info.file.direntry, 0, g);
                     info.file.direntry.type = Constants.ST_FILE;
                     await Update.MakeBlockDirty(info.file.dirblock, g);
 
@@ -1988,7 +1986,15 @@
 #endif
         }
 
-        public static void SetDEFileSize(dirblock dirBlock, direntry direntry, uint size, globaldata g)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dirBlock"></param>
+        /// <param name="direntry"></param>
+        /// <param name="size"></param>
+        /// <param name="g"></param>
+        /// <returns>Updated direntry</returns>
+        public static direntry SetDEFileSize(dirblock dirBlock, direntry direntry, uint size, globaldata g)
         {
             var de = DirEntryReader.Read(dirBlock.entries, direntry.Offset);
             if (!g.largefile)
@@ -2006,6 +2012,7 @@
 	}
 #endif
             DirEntryWriter.Write(dirBlock.entries, de.Offset, de);
+            return de;
         }
 
 /* Change a directoryentry. Covers all reference changing too

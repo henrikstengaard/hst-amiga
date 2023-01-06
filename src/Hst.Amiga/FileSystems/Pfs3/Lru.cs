@@ -63,7 +63,7 @@
         public static void MakeLRU(CachedBlock blk, globaldata g)
         {
             // MinRemove(LRU_CHAIN(blk));
-            Macro.MinRemove(blk, g);
+            Macro.MinRemoveLru(blk, g);
 
             // MinAddHead(g.glob_lrudata.LRUqueue, LRU_CHAIN(blk));
             Macro.MinAddHead(g.glob_lrudata.LRUqueue, new LruCachedBlock(blk));
@@ -73,7 +73,7 @@
         {
             //MinRemove(LRU_CHAIN(blk));                          \
             //memset(blk, 0, SIZEOF_CACHEDBLOCK);              \
-            Macro.MinRemove(blk, g);
+            Macro.MinRemoveLru(blk, g);
             ClearBlock(blk);
 
             //MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(blk));            \
@@ -155,6 +155,7 @@
                     while (j >= 0)
                     {
                         // FreeVec(nlru[j + g->glob_lrudata.poolsize]);
+                        nlru[j + g.glob_lrudata.poolsize] = null;
                         j--;
                     }
 
@@ -195,8 +196,7 @@
 
             // MinRemove(lrunode);
             // MinAddHead(&g->glob_lrudata.LRUqueue, lrunode);
-            Macro.MinRemove(lrunode.Value, g);
-            Macro.MinRemoveX(lrunode.Value.cblk, g);
+            Macro.MinRemoveLru(lrunode.Value, g);
             Macro.MinAddHead(g.glob_lrudata.LRUqueue, lrunode.Value);
 
             // DB(Trace(1, "AllocLRU", "Allocated block %lx\n", &lrunode->cblk));
@@ -270,7 +270,6 @@
             /* remove block from blockqueue */
             // MinRemove(block);
             Macro.MinRemove(block, g);
-            Macro.MinRemove(new LruCachedBlock(block), g);
 
             /* decouple references */
             if (Macro.IsDirBlock(block))
@@ -327,6 +326,7 @@
 
         private static void ClearBlock(CachedBlock cachedBlock)
         {
+            // return;
             cachedBlock.blocknr = 0;
             cachedBlock.changeflag = false;
             cachedBlock.oldblocknr = 0;

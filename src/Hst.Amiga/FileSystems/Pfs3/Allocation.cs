@@ -25,8 +25,12 @@
             indexblnr = seqnr / andata.indexperblock;
             indexoffset = seqnr % andata.indexperblock;
             if ((indexblock = await GetBitmapIndex((ushort)indexblnr, g)) == null)
+            {
                 if ((indexblock = await NewBitmapIndexBlock((ushort)indexblnr, g)) == null)
+                {
                     return null;
+                }
+            }
 
             oldlock = indexblock.used;
             Cache.LOCK(indexblock, g);
@@ -183,11 +187,6 @@
             for (var node = Macro.HeadOf(volume.bmindexblks); node != null; node = node.Next)
             {
                 indexblk = node.Value;
-                if (indexblk.blk is BitmapBlock bitmapBlock && bitmapBlock.seqnr == nr)
-                {
-                    Lru.MakeLRU(indexblk, g);
-                    return indexblk;
-                }
                 if (indexblk.blk is indexblock indexBlock && indexBlock.seqnr == nr)
                 {
                     Lru.MakeLRU(indexblk, g);
@@ -205,7 +204,7 @@
 
             // DB(Trace(10,"GetBitmapIndex", "seqnr = %ld blocknr = %lx\n", nr, blocknr));
             IBlock blk;
-            if ((blk = await Disk.RawRead<BitmapBlock>(g.currentvolume.rescluster, blocknr, g)) == null)
+            if ((blk = await Disk.RawRead<indexblock>(g.currentvolume.rescluster, blocknr, g)) == null)
             {
                 Lru.FreeLRU(indexblk, g);
                 return null;
@@ -315,27 +314,12 @@
                 return null;
 
             /* get blocknr */
-            switch (indexblock.blk)
-            {
-                case BitmapBlock bitmapBlock:
-                    if ((blocknr = bitmapBlock.bitmap[temp >> 16]) == 0 || (bmb = await Lru.AllocLRU(g)) == null)
-                    {
-                        return null;
-                    }
-                    break;
-                case indexblock indexBlock:
-                    if ((blocknr = (uint)indexBlock.index[temp >> 16]) == 0 || (bmb = await Lru.AllocLRU(g)) == null)
-                    {
-                        return null;
-                    }
-                    break;
-            }
-
-            if (bmb == null)
+            var indexBlockBlk = indexblock.IndexBlock;
+            if ((blocknr = (uint)indexBlockBlk.index[temp >> 16]) == 0 || (bmb = await Lru.AllocLRU(g)) == null)
             {
                 return null;
             }
-            
+
             // DB(Trace(10,"GetBitmapBlock", "seqnr = %ld blocknr = %lx\n", seqnr, blocknr));
 
             /* read it */
@@ -654,12 +638,12 @@
             {
                 /* scan all bitmapblocks */
                 bitmap = await GetBitmapBlock(bmseqnr, g);
+                var bitmapBlk = bitmap.blk as BitmapBlock;
                 oldlocknr = bitmap.used;
 
                 /* find all empty fields */
                 while (bmoffset < alloc_data.longsperbmb)
                 {
-                    var bitmapBlk = bitmap.BitmapBlock;
                     field = bitmapBlk.bitmap[bmoffset];
                     if (field != 0)
                     {
@@ -719,9 +703,8 @@
                                         chnode.an.clustersize = 0;
                                         chnode.an.next = 0;
                                     }
-
                                     
-                                    bitmapBlk.bitmap[bmoffset] &= (~j); /* remove block from freelist */
+                                    bitmapBlk.bitmap[bmoffset] &= ~j; /* remove block from freelist */
                                     chnode.an.clustersize++; /* to file  	  	  */
                                     await Update.MakeBlockDirty(bitmap, g);
 
@@ -745,7 +728,7 @@
                                             if (g.RootBlock.ReservedFree <= Constants.RESFREE_THRESHOLD)
                                             {
 // #if VERSION23
-                                                Directory.SetDEFileSize(ref_.dirblock.dirblock, ref_.direntry, oldfilesize, g);
+                                                ref_.direntry = Directory.SetDEFileSize(ref_.dirblock.dirblock, ref_.direntry, oldfilesize, g);
                                                 await Update.MakeBlockDirty (ref_.dirblock, g);
 // #endif
                                                 await FreeBlocksAC(achain, blocksdone, freeblocktype.freeanodes, g);

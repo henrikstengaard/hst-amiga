@@ -547,7 +547,7 @@
                 t = newblocksinfile - oldblocksinfile;
                 if (!await Allocation.AllocateBlocksAC(file.anodechain, t, file.le.info.file, g))
                 {
-                    Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, oldfilesize, g);
+                    file.le.info.file.direntry = Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, oldfilesize, g);
                     throw new IOException("ERROR_DISK_FULL");
                 }
             }
@@ -737,7 +737,7 @@
             file.blockoffset = (blockoffset + size) & BLOCKSIZEMASK;
             anodes.CorrectAnodeAC(file.currnode, ref file.anodeoffset, g);
             file.offset += size;
-            Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, Math.Max(oldfilesize, file.offset), g);
+            file.le.info.file.direntry = Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, Math.Max(oldfilesize, file.offset), g);
             await Update.MakeBlockDirty(file.le.info.file.dirblock, g);
             return size;
             // }
