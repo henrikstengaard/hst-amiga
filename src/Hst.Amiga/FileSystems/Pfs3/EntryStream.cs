@@ -14,18 +14,23 @@
     {
         private readonly fileentry fileEntry;
         private readonly globaldata g;
+        private bool dataWritten;
 
         public EntryStream(fileentry fileEntry, globaldata g)
         {
             this.fileEntry = fileEntry;
             this.g = g;
+            this.dataWritten = false;
         }
 
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
             File.Close(fileEntry, g).GetAwaiter().GetResult();
-            Update.UpdateDisk(g).GetAwaiter().GetResult();
+            if (this.dataWritten)
+            {
+                Update.UpdateDisk(g).GetAwaiter().GetResult();
+            }
         }
 
         public override void Flush()
@@ -70,11 +75,13 @@
 
         public override void Write(byte[] buffer, int offset, int count)
         {
+            this.dataWritten = true;
             Directory.WriteToObject(fileEntry, buffer, (uint)count, g).GetAwaiter().GetResult();
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
+            this.dataWritten = true;
             await Directory.WriteToObject(fileEntry, buffer, (uint)count, g);
         }
 
