@@ -97,9 +97,15 @@
             await MakeBitmap(g);
 
             uint i;
+            uint? prev = null;
             do
             {
                 i = await anodes.AllocAnode(0, g);
+                if (prev.HasValue && prev.Value == i)
+                {
+                    throw new IOException("Format failed: Alloc node 0");
+                }
+                prev = i;
             } while (i < Constants.ANODE_ROOTDIR - 1);
 
             await MakeRootDir(g);
