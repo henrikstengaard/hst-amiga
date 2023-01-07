@@ -4,8 +4,8 @@ on: [workflow_dispatch]
 
 jobs:
   build:
-    timeout-minutes: 15
-    runs-on: windows-latest
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
@@ -15,7 +15,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 7.0.x
 
     - name: Update package version
       shell: pwsh
