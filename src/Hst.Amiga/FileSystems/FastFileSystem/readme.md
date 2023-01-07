@@ -22,8 +22,8 @@ FFS can be set to following dostypes:
 | DOS\3   | 0x444F5303  | Fast file system + International mode (FFS-INTL)           | 31                  | International mode for FFS (FFS-INTL). This was the most commonly used FFS mode. (All higher dostypes have international mode always enabled).                                          |
 | DOS\4   | 0x444F5304  | International mode + Dir cache (OFS-DC)                    | 31                  | Directory Cache (OFS-DC) mode enables a primitive cache by creating dedicated directory lists instead of reading the linked directory/file entries that can be scattered over the disk. |
 | DOS\5   | 0x444F5305  | Fast file system + International mode + Dir cache (FFS-DC) | 31                  | Both dircache modes were not backwards compatible with earlier versions of FFS.                                                                                                         |
-| DOS\6   | 0x444F5306  | Old file system + Long Filename (OFS-LNFS)                 | 107                 | Long filenames for OFS (OFS-LNFS). Requires AmigaOS 3.1.4+, FastFileSystem v46+ and Workbench prefs maximum filename length set to 101.                                                 |
-| DOS\7   | 0x444F5307  | Fast file system + Long Filename (FFS-LNFS)                | 107                 | Long filenames for FFS (FFS-LNFS). Requires AmigaOS 3.1.4+, FastFileSystem v46+ and Workbench prefs maximum filename length set to 101.                                                 |
+| DOS\6   | 0x444F5306  | Old file system + Long Filename (OFS-LNFS)                 | 106                 | Long filenames for OFS (OFS-LNFS). Requires AmigaOS 3.1.4+, FastFileSystem v46+ and Workbench prefs maximum filename length set to 101.                                                 |
+| DOS\7   | 0x444F5307  | Fast file system + Long Filename (FFS-LNFS)                | 106                 | Long filenames for FFS (FFS-LNFS). Requires AmigaOS 3.1.4+, FastFileSystem v46+ and Workbench prefs maximum filename length set to 101.                                                 |
 
 ## Usage
 
