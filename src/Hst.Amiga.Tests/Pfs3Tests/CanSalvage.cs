@@ -6,18 +6,14 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Core.Converters;
-using Core.Extensions;
-using FileSystems.FastFileSystem;
 using FileSystems.Pfs3;
 using FileSystems.Pfs3.Blocks;
-using RigidDiskBlocks;
 using Xunit;
 using Constants = FileSystems.Pfs3.Constants;
-using Directory = FileSystems.Pfs3.Directory;
-using Disk = FileSystems.FastFileSystem.Disk;
 using FileMode = System.IO.FileMode;
 using Volume = FileSystems.Pfs3.Volume;
 
+[Trait("Category", "PFS3")]
 public class CanSalvage
 {
     public class Block
@@ -27,7 +23,7 @@ public class CanSalvage
         public ushort Id { get; set; }
     }
     
-    [Fact(Skip = "Experimental pfs3 salvage test")]
+    [Fact]
     public async Task Salvage()
     {
         await using var stream = System.IO.File.Open(@"d:\hst-imager\dh2.hdf", FileMode.Open, FileAccess.ReadWrite);

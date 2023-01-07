@@ -9,6 +9,7 @@ using FileSystems.Pfs3;
 using RigidDiskBlocks;
 using Xunit;
 
+[Trait("Category", "PFS3")]
 public class GivenPfs3Formatter
 {
     private readonly byte[] pfs3DosType = { 0x50, 0x44, 0x53, 0x3 };

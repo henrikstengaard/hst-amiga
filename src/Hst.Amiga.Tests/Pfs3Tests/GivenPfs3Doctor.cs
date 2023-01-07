@@ -7,6 +7,7 @@ using FileSystems.Pfs3.Doctor;
 using RigidDiskBlocks;
 using Xunit;
 
+[Trait("Category", "PFS3")]
 public class GivenPfs3Doctor : Pfs3TestBase
 {
     [Fact(Skip = "WIP")]

@@ -13,6 +13,7 @@ using Constants = FileSystems.Pfs3.Constants;
 using Directory = FileSystems.Pfs3.Directory;
 using FileMode = FileSystems.FileMode;
 
+[Trait("Category", "PFS3")]
 public class GivenFormattedPfs3Disk : Pfs3TestBase
 {
     [Fact]
