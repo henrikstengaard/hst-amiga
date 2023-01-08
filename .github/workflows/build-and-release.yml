@@ -34,11 +34,11 @@ jobs:
     - name: Test
       run: dotnet test ./src/Hst.Amiga.sln --configuration Release --no-build --verbosity normal --filter Category!=PFS3
       
-#    - name: Pack
-#      run: dotnet pack ./src/Hst.Amiga.sln --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:PackageVersion=${{ env.PACKAGE_VERSION }} -p:ProjectUrl=https://github.com/${{ github.repository }} -p:RepositoryUrl=https://github.com/${{ github.repository }}
+    - name: Pack
+      run: dotnet pack ./src/Hst.Amiga.sln --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:PackageVersion=${{ env.PACKAGE_VERSION }} -p:ProjectUrl=https://github.com/${{ github.repository }} -p:RepositoryUrl=https://github.com/${{ github.repository }}
       
-#    - name: Push
-#      run: |
-#        dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.repository_owner }} --password ${{ github.token }} --store-password-in-clear-text
-#        dotnet nuget push **/bin/Release/*.nupkg --source "github" --skip-duplicate --api-key ${{ secrets.GITHUB_TOKEN }}
-#        dotnet nuget push **/bin/Release/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key ${{ secrets.NUGET_ORG_API_KEY }}
+    - name: Push
+      run: |
+        dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.repository_owner }} --password ${{ github.token }} --store-password-in-clear-text
+        dotnet nuget push **/bin/Release/*.nupkg --source "github" --skip-duplicate --api-key ${{ secrets.GITHUB_TOKEN }}
+        dotnet nuget push **/bin/Release/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key ${{ secrets.NUGET_ORG_API_KEY }}

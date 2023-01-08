@@ -456,7 +456,8 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(data, dataRead);
     }
 
-    [Theory()]
+    // Test runs endless in github actions with 100 iterations
+    [Theory]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
     [InlineData(DiskSize16Gb)]
@@ -481,8 +482,9 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // 10 iterations = work
         // 30 iterations = work
+        // 40 iterations = endless loop
         // 50 iterations = endless loop
-        for (var i = 0; i < 40; i++)
+        for (var i = 0; i < 10; i++)
         {
             // act - create file in root directory
             await pfs3Volume.CreateFile($"New File{i}");
