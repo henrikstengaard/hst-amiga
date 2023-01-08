@@ -456,7 +456,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(data, dataRead);
     }
 
-    [Theory(Skip = "Runs endlessly in github actions")]
+    [Theory()]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
     [InlineData(DiskSize16Gb)]
@@ -479,7 +479,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         int bytesRead;
         byte[] dataRead;
 
-        for (var i = 0; i < 100; i++)
+        for (var i = 0; i < 1; i++)
         {
             // act - create file in root directory
             await pfs3Volume.CreateFile($"New File{i}");
