@@ -328,19 +328,19 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - data to write
         var data = new byte[10000];
         Array.Fill<byte>(data, 1);
-        
+
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
-        
+
         // arrange - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
 
         // arrange - get free bytes for comparison
         var freeBytesAtStart = pfs3Volume.Free;
-        
+
         // act - create file
         await pfs3Volume.CreateFile("New File");
-        
+
         // act - write data
         await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Append))
         {
@@ -373,7 +373,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - free bytes after writing 2nd time is larger 1st time (overwritten file is smaller)
         var freeBytesAfter2NdFile = pfs3Volume.Free;
         Assert.True(freeBytesAfter2NdFile > freeBytesAfter1StFile);
-        
+
         // act - read data
         int bytesRead;
         byte[] dataRead;
@@ -382,20 +382,20 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             dataRead = new byte[entryStream.Length];
             bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
         }
-        
+
         // assert - data read matches data written
         Assert.Equal(data.Length, bytesRead);
         Assert.Equal(data.Length, dataRead.Length);
         Assert.Equal(data, dataRead);
     }
-    
+
     [Fact]
     [Trait("Category", "PFS3")]
     public async Task WhenOpenFileWithoutReadBitThenExceptionIsThrown()
     {
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
-        
+
         // arrange - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
 
@@ -404,7 +404,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // arrange - file only has delete protection bit set
         await pfs3Volume.SetProtectionBits("New File", ProtectionBits.Delete);
-        
+
         // act - open file in read mode then exception is thrown
         await Assert.ThrowsAsync<FileSystemException>(async () => await pfs3Volume.OpenFile("New File", FileMode.Read));
     }
@@ -415,7 +415,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     {
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
-        
+
         // arrange - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
 
@@ -424,11 +424,11 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // arrange - file only has delete protection bit set
         await pfs3Volume.SetProtectionBits("New File", ProtectionBits.Delete);
-        
+
         // act - open file in read mode then exception is thrown
         await using var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Read, ignoreProtectionBits: true);
     }
-    
+
     [Theory]
     [Trait("Category", "PFS3")]
     [InlineData(DiskSize100Mb)]
@@ -852,10 +852,9 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.NotNull(dirEntry);
         Assert.Equal(date, dirEntry.Date);
     }
-    
+
     [Fact]
-    [Trait("Category", "PFS3")]
-    public async Task WhenCreateFileAndWriteDataIn2ChunksThenDataMatches()
+    public async Task WhenCreate2FilesIn2DirsWithProtectionBitsAndDateSetThenEntriesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
@@ -863,39 +862,108 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // arrange - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
 
-        // arrange - create file in root directory
-        await pfs3Volume.CreateFile("New File", true, true);
-        
-        // arrange - create data to write
-        var data = BlockTestHelper.CreateBlockBytes(1024);
-        var dataStream = new MemoryStream(data);
-        
-        // act - write data to file in chunks of 512 bytes
+        // act - create file 1 in root directory
+        await pfs3Volume.CreateFile("File1", true, true);
+
+        // act - write file 1 data
+        var file1Data = BlockTestHelper.CreateBlockBytes(900);
+        await using (var entryStream = await pfs3Volume.OpenFile("File1", FileMode.Write))
+        {
+            await entryStream.WriteAsync(file1Data, 0, file1Data.Length);
+        }
+
+        // act - set new file 1 protection bits
+        var file1ProtectionBits = ProtectionBits.Read | ProtectionBits.Write;
+        await pfs3Volume.SetProtectionBits("File1", file1ProtectionBits);
+
+        // act - set new file 1 date
+        var file1Date = DateTime.Now.AddDays(-5).Trim(TimeSpan.TicksPerSecond);
+        await pfs3Volume.SetDate("File1", file1Date);
+
+        // act - change to root directory
+        await pfs3Volume.ChangeDirectory("/");
+
+        // act - create dir sub-directory
+        await pfs3Volume.CreateDirectory("Dir");
+
+        // act - change to dir sub-directory
+        await pfs3Volume.ChangeDirectory("Dir");
+
+        // act - create file 2 in dir sub-directory
+        await pfs3Volume.CreateFile("File2", true, true);
+
+        // act - write file 2 data in chunks of 512 bytes
+        var file2Data = BlockTestHelper.CreateBlockBytes(1024);
+        var file2DataStream = new MemoryStream(file2Data);
         int bytesRead;
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Write))
+        await using (var entryStream = await pfs3Volume.OpenFile("File2", FileMode.Write))
         {
             var buffer = new byte[512];
             do
             {
-                bytesRead = await dataStream.ReadAsync(buffer, 0, buffer.Length);
+                bytesRead = await file2DataStream.ReadAsync(buffer, 0, buffer.Length);
                 await entryStream.WriteAsync(buffer, 0, bytesRead);
             } while (bytesRead == buffer.Length);
         }
 
-        // act - set date for file in root directory
-        await pfs3Volume.SetDate("New File", DateTime.Now);
+        // act - set new file 2 protection bits
+        var file2ProtectionBits = ProtectionBits.Read | ProtectionBits.Delete;
+        await pfs3Volume.SetProtectionBits("File2", file2ProtectionBits);
 
-        // act - read data from file
-        byte[] dataRead;
-        await using (var entryStream = await pfs3Volume.OpenFile("New File", FileMode.Read))
+        // act - set new file 2 date
+        var file2Date = DateTime.Now.AddDays(-3).Trim(TimeSpan.TicksPerSecond);
+        await pfs3Volume.SetDate("File2", file2Date);
+
+        // act - change to root directory
+        await pfs3Volume.ChangeDirectory("/");
+
+        // act - list entries in root directory
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+
+        // assert - root directory contains file 1 and dir entries
+        Assert.Equal(2, entries.Count);
+        var file1Entry = entries.FirstOrDefault(x => x.Name == "File1" && x.Type == EntryType.File);
+        Assert.NotNull(file1Entry);
+        Assert.Equal(file1Date, file1Entry.Date);
+        Assert.Equal(file1ProtectionBits, file1Entry.ProtectionBits);
+        var dirEntry = entries.FirstOrDefault(x => x.Name == "Dir" && x.Type == EntryType.Dir);
+        Assert.NotNull(dirEntry);
+
+        // assert - data read from file 1 matches
+        byte[] actualFile1Data;
+        await using (var entryStream = await pfs3Volume.OpenFile("File1", FileMode.Read))
         {
-            dataRead = new byte[entryStream.Length];
-            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+            actualFile1Data = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(actualFile1Data, 0, actualFile1Data.Length);
         }
 
-        // assert - data read matches data written
-        Assert.Equal(data.Length, bytesRead);
-        Assert.Equal(data.Length, dataRead.Length);
-        Assert.Equal(data, dataRead);
+        Assert.Equal(file1Data.Length, bytesRead);
+        Assert.Equal(file1Data.Length, actualFile1Data.Length);
+        Assert.Equal(file1Data, actualFile1Data);
+
+        // act - change to dir sub-directory
+        await pfs3Volume.ChangeDirectory("Dir");
+
+        // act - list entries in root directory
+        entries = (await pfs3Volume.ListEntries()).ToList();
+
+        // assert - root directory contains file 2 entry
+        Assert.Single(entries);
+        var file2Entry = entries.FirstOrDefault(x => x.Name == "File2" && x.Type == EntryType.File);
+        Assert.NotNull(file2Entry);
+        Assert.Equal(file2Date, file2Entry.Date);
+        Assert.Equal(file2ProtectionBits, file2Entry.ProtectionBits);
+
+        // assert - data read from file 2 matches
+        byte[] actualFile2Data;
+        await using (var entryStream = await pfs3Volume.OpenFile("File2", FileMode.Read))
+        {
+            actualFile2Data = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(actualFile2Data, 0, actualFile2Data.Length);
+        }
+
+        Assert.Equal(file2Data.Length, bytesRead);
+        Assert.Equal(file2Data.Length, actualFile2Data.Length);
+        Assert.Equal(file2Data, actualFile2Data);
     }
 }

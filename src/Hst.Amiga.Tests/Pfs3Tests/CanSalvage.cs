@@ -13,7 +13,6 @@ using Constants = FileSystems.Pfs3.Constants;
 using FileMode = System.IO.FileMode;
 using Volume = FileSystems.Pfs3.Volume;
 
-[Trait("Category", "PFS3")]
 public class CanSalvage
 {
     public class Block
@@ -23,7 +22,7 @@ public class CanSalvage
         public ushort Id { get; set; }
     }
     
-    [Fact]
+    [Fact(Skip = "Manual test for internal testing")]
     public async Task Salvage()
     {
         await using var stream = System.IO.File.Open(@"d:\hst-imager\dh2.hdf", FileMode.Open, FileAccess.ReadWrite);

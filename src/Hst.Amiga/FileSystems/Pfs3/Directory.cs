@@ -835,6 +835,7 @@
 
             parentfi.file.direntry = de;
             parentfi.file.dirblock = dirblock;
+            parentfi.volume.root = de.anode != Constants.ANODE_ROOTDIR ? 1U : 0U;
             Macro.Lock(dirblock, g);
             return true;
         }
@@ -2096,6 +2097,7 @@
             var fromDirBlock = from.file.dirblock.dirblock;
             mover.file.direntry = Macro.FIRSTENTRY(fromDirBlock);
             mover.file.dirblock = from.file.dirblock;
+            mover.volume.root = mover.file.direntry.anode != Constants.ANODE_ROOTDIR ? 1U : 0U;
             spaceneeded = to.next - from.file.direntry.next;
             if (spaceneeded <= 0)
             {

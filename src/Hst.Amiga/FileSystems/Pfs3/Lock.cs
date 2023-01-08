@@ -275,6 +275,8 @@
 
             result.file.dirblock = dirblock;
             result.file.direntry = de;
+            result.volume.root = de.anode != Constants.ANODE_ROOTDIR ? 1U : 0U;
+
             Macro.Lock(dirblock, g);
             return true;
         }
