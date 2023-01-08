@@ -410,7 +410,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    [Trait("Category", "PFS3")]
     public async Task WhenOpenFileWithoutReadBitAndIgnoreProtectionBitsThenFileOpened()
     {
         // arrange - create pfs3 formatted disk
@@ -430,7 +429,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Theory]
-    [Trait("Category", "PFS3")]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
     [InlineData(DiskSize16Gb)]
@@ -470,7 +468,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Theory]
-    [Trait("Category", "PFS3")]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
     [InlineData(DiskSize16Gb)]
