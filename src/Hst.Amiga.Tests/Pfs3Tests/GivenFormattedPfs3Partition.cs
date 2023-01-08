@@ -78,7 +78,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    [Trait("Category", "PFS3")]
     public async Task WhenCreateAndList100DirectoriesInRootDirectoryThenDirectoriesExist()
     {
         // arrange - create pfs3 formatted disk
@@ -107,7 +106,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    [Trait("Category", "PFS3")]
     public async Task WhenCreateAndList100FilesInRootDirectoryThenFilesExist()
     {
         // arrange - create pfs3 formatted disk
@@ -136,7 +134,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    [Trait("Category", "PFS3")]
     public async Task WhenCreateAndSearchFor100DirectoriesInRootDirectoryThenDirectoriesAreFound()
     {
         // arrange - create pfs3 formatted disk
