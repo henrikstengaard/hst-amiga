@@ -479,7 +479,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         int bytesRead;
         byte[] dataRead;
 
-        for (var i = 0; i < 10; i++)
+        for (var i = 0; i < 50; i++)
         {
             // act - create file in root directory
             await pfs3Volume.CreateFile($"New File{i}");
