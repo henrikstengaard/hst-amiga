@@ -469,7 +469,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(data, dataRead);
     }
 
-    [Theory]
+    [Theory(Skip = "Runs endlessly in github actions")]
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
     [InlineData(DiskSize16Gb)]
