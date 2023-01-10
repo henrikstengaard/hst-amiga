@@ -1,6 +1,17 @@
 ﻿# Blocks
 
-Following sections describes blocks used by PFS3.
+PFS3 uses following block types:
+
+| Hex id | String id | Type                 |
+|--------|-----------|----------------------|
+| 0x4442 | DB        | Dir block            |
+| 0x4142 | AB        | Anode block          |
+| 0x4942 | IB        | Index block          |
+| 0x424D | BM        | Bitmap block         |
+| 0x4D49 | MI        | Bitmap index block   |
+| 0x4558 | EX        | Root block extension |
+| 0x4444 | DD        | Deldir block         |
+| 0x5342 | SB        | Super block          |
 
 ## Reserved blocks
 

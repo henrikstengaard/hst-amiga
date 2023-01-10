@@ -629,7 +629,7 @@
             /* initialize it */
             ddblk.volume = volume;
             ddblk.blocknr = blocknr;
-            ddblk.used = 1;
+            ddblk.used = 0;
             ddblk.changeflag = false;
 
             /* add to cache and return */

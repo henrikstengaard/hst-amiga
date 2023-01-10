@@ -212,26 +212,38 @@
             await MakeBlockDirty(indexblock, g); /* recursion !! */
         }
 
-        public static async Task UpdateBMIBLK(CachedBlock blk, uint newblocknr, globaldata g)
+        public static void UpdateBMIBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
-            var bmb = blk;
-            uint temp;
-            var andata = g.glob_anodedata;
+            // HST FIX:
+            // Following original pfs3aio code is commented out as it causes bitmap block nr to be overwritten with an index block nr
+            // where the index block contains block nr of bitmap block and will get overwritten with block nr of the index block.
+            // It also seems like a raw copy and paste of UpdateBMBLK method
+            // --------------------------------------------------------------
+            // var bmb = blk;
+            // uint temp;
+            // var andata = g.glob_anodedata;
+            //
+            // blk.changeflag = true;
+            // var bitmapBlk = bmb.BitmapBlock;
+            // temp = Init.divide(bitmapBlk.seqnr, andata.indexperblock);
+            // var indexblock = await Allocation.GetBitmapIndex((ushort)temp /* & 0xffff */, g);
+            //
+            // // DBERR(if (!indexblock) ErrorTrace(5,"UpdateBMBLK", "GetBitmapIndex returned NULL!"));
+            // if (indexblock == null)
+            // {
+            //     throw new IOException("UpdateBMIBLK, GetBitmapIndex returned NULL!");
+            // }
+            //
+            // var indexBlockBlk = indexblock.IndexBlock;
+            // indexBlockBlk.index[temp >> 16] = (int)newblocknr;
+            // await MakeBlockDirty(indexblock, g); /* recursion !! */
 
+            var seqnr = 0U;
             blk.changeflag = true;
-            var bitmapBlk = bmb.BitmapBlock;
-            temp = Init.divide(bitmapBlk.seqnr, andata.indexperblock);
-            var indexblock = await Allocation.GetBitmapIndex((ushort)temp /* & 0xffff */, g);
-
-            // DBERR(if (!indexblock) ErrorTrace(5,"UpdateBMBLK", "GetBitmapIndex returned NULL!"));
-            if (indexblock == null)
-            {
-                throw new IOException("UpdateBMIBLK, GetBitmapIndex returned NULL!");
-            }
-
-            var indexBlockBlk = indexblock.IndexBlock;
-            indexBlockBlk.index[temp >> 16] = (int)newblocknr;
-            await MakeBlockDirty(indexblock, g); /* recursion !! */
+            var indexBlockBlk = blk.IndexBlock;
+            seqnr = indexBlockBlk.seqnr;
+            blk.volume.rootblk.idx.large.bitmapindex[seqnr] = newblocknr;
+            blk.volume.rootblockchangeflag = true;            
         }
 
 // #if VERSION23
@@ -592,11 +604,6 @@
                 for (var node = Macro.HeadOf(volume.anblks[i]); node != null; node = node.Next)
                 {
                     blk = node.Value;
-
-                    if (blk.ANodeBlock == null)
-                    {
-                    }
-
                     if (blk.changeflag && blk.ANodeBlock != null && !IsFirstABlk(blk) && IsEmptyABlk(blk, g) &&
                         !Cache.ISLOCKED(blk, g))
                     {

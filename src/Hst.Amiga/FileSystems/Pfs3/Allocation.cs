@@ -638,12 +638,12 @@
             {
                 /* scan all bitmapblocks */
                 bitmap = await GetBitmapBlock(bmseqnr, g);
-                var bitmapBlk = bitmap.blk as BitmapBlock;
                 oldlocknr = bitmap.used;
 
                 /* find all empty fields */
                 while (bmoffset < alloc_data.longsperbmb)
                 {
+                    var bitmapBlk = bitmap.BitmapBlock;
                     field = bitmapBlk.bitmap[bmoffset];
                     if (field != 0)
                     {
