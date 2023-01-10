@@ -214,35 +214,11 @@
 
         public static void UpdateBMIBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
-            // HST FIX:
-            // Following original pfs3aio code is commented out as it causes bitmap block nr to be overwritten with an index block nr
-            // where the index block contains block nr of bitmap block and will get overwritten with block nr of the index block.
-            // It also seems like a raw copy and paste of UpdateBMBLK method
-            // --------------------------------------------------------------
-            // var bmb = blk;
-            // uint temp;
-            // var andata = g.glob_anodedata;
-            //
-            // blk.changeflag = true;
-            // var bitmapBlk = bmb.BitmapBlock;
-            // temp = Init.divide(bitmapBlk.seqnr, andata.indexperblock);
-            // var indexblock = await Allocation.GetBitmapIndex((ushort)temp /* & 0xffff */, g);
-            //
-            // // DBERR(if (!indexblock) ErrorTrace(5,"UpdateBMBLK", "GetBitmapIndex returned NULL!"));
-            // if (indexblock == null)
-            // {
-            //     throw new IOException("UpdateBMIBLK, GetBitmapIndex returned NULL!");
-            // }
-            //
-            // var indexBlockBlk = indexblock.IndexBlock;
-            // indexBlockBlk.index[temp >> 16] = (int)newblocknr;
-            // await MakeBlockDirty(indexblock, g); /* recursion !! */
-
-            var seqnr = 0U;
+            // blk->changeflag = TRUE;
+            // blk->volume->rootblk->idx.large.bitmapindex[((struct cindexblock *)blk)->blk.seqnr] = newblocknr;
+            // blk->volume->rootblockchangeflag = TRUE;
             blk.changeflag = true;
-            var indexBlockBlk = blk.IndexBlock;
-            seqnr = indexBlockBlk.seqnr;
-            blk.volume.rootblk.idx.large.bitmapindex[seqnr] = newblocknr;
+            blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr] = newblocknr;
             blk.volume.rootblockchangeflag = true;            
         }
 
