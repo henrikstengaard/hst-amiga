@@ -674,7 +674,7 @@
                     var bitmapBlk = bitmap.BitmapBlock;
                     if (bitmapBlk == null)
                     {
-                        throw new IOException($"Allocation: Cached block nr {bitmap.blocknr} in allocate returns null as bitmap block, type is '{(bitmap.blk == null ? "null" : bitmap.blk.GetType().Name)}', bitmap blocks in cache '{string.Join(", ", bitmapBlocksInCache)}'");
+                        throw new IOException($"Allocation: Cached block nr {bitmap.blocknr} in allocate returns null as bitmap block, type is '{(bitmap.blk == null ? "null" : bitmap.blk.GetType().Name)}'");
                     }
                     field = bitmapBlk.bitmap[bmoffset];
                     if (field != 0)
