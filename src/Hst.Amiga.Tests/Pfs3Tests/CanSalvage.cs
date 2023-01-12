@@ -253,7 +253,7 @@ public class CanSalvage
                     file = new fileinfo
                     {
                         direntry = dirEntry,
-                        dirblock = new CachedBlock(g)
+                        dirblock = new CachedBlock()
                         {
                             blk = dirBlock.Value
                         }

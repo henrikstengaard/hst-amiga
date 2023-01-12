@@ -2157,7 +2157,7 @@
         public static async Task<bool> MoveToPrevious(objectinfo de, direntry to, fileinfo result, globaldata g)
         {
             direntry dest;
-            CachedBlock prevblock = new CachedBlock(g); // cdirblock
+            CachedBlock prevblock = new CachedBlock(); // cdirblock
             canode anode = new canode();
             int removedlen;
             uint prev;

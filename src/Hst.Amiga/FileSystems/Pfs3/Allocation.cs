@@ -1,6 +1,8 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
     using System;
+    using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
 
@@ -113,6 +115,9 @@
             int i, j;
 
             // ENTER("AllocReservedBlock");
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: AllocReservedBlock Enter");
+#endif
 
             /* Check if allocation possible 
              * (really necessary?)
@@ -141,6 +146,9 @@
                                 g.RootBlock.ReservedFree--;
                                 alloc_data.res_roving = (uint)(32 * i + (31 - j));
                                 // DB(Trace(10,"AllocReservedBlock","allocated %ld\n", blocknr));
+#if DEBUG
+                                Pfs3Logger.Instance.Debug($"Allocation: AllocReservedBlock, allocated block nr = {blocknr}");
+#endif
                                 return blocknr;
                             }
                         }
@@ -153,12 +161,16 @@
             if (alloc_data.res_roving != 0)
             {
                 alloc_data.res_roving = 0;
-                return AllocReservedBlock(g);
+                blocknr = AllocReservedBlock(g);
             }
             else
-                return 0;
+                blocknr = 0;
 
             // EXIT("AllocReservedBlock");
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: AllocReservedBlock Exit, block nr = {blocknr}");
+#endif
+            return blocknr;
         }
 
         public static void FreeReservedBlock(uint blocknr, globaldata g)
@@ -203,6 +215,10 @@
             }
 
             // DB(Trace(10,"GetBitmapIndex", "seqnr = %ld blocknr = %lx\n", nr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: GetBitmapIndex seqnr = {nr}, blocknr = {blocknr}");
+#endif
+            
             IBlock blk;
             if ((blk = await Disk.RawRead<indexblock>(g.currentvolume.rescluster, blocknr, g)) == null)
             {
@@ -321,7 +337,9 @@
             }
 
             // DB(Trace(10,"GetBitmapBlock", "seqnr = %ld blocknr = %lx\n", seqnr, blocknr));
-
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: GetBitmapBlock seqnr = {seqnr}, blocknr = {blocknr}");
+#endif
             /* read it */
             bmb.blk = await Disk.RawRead<BitmapBlock>(g.currentvolume.rescluster, blocknr, g);
             if (bmb.blk == null)
@@ -566,8 +584,10 @@
             var alloc_data = g.glob_allocdata;
             bool extend = false, updateroving = true;
 
-
             //ENTER("AllocateBlocksAC");
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: AllocateBlocksAC Enter");
+#endif
 
             /* Check if allocation possible */
             if (alloc_data.alloc_available < size)
@@ -607,6 +627,10 @@
                 bmoffset = (ushort)(nr % alloc_data.longsperbmb);
                 bitmap = await GetBitmapBlock(bmseqnr, g);
                 var bitmapBlk = bitmap.BitmapBlock;
+                if (bitmapBlk == null)
+                {
+                    throw new IOException($"Allocation: Cached block nr {bitmap.blocknr} in chnode allocate returns null as bitmap block, type is '{(bitmap.blk == null ? "null" : bitmap.blk.GetType().Name)}'");
+                }
                 field = bitmapBlk.bitmap[bmoffset];
 
                 /* block directly behind file free ? */
@@ -639,11 +663,19 @@
                 /* scan all bitmapblocks */
                 bitmap = await GetBitmapBlock(bmseqnr, g);
                 oldlocknr = bitmap.used;
-
+                
                 /* find all empty fields */
                 while (bmoffset < alloc_data.longsperbmb)
                 {
+#if DEBUG
+                    var bitmapBlocksInCache = g.currentvolume.bmblks.Select(x => x.blocknr).ToList();
+                    Pfs3Logger.Instance.Debug($"Allocation: AllocateBlocksAC scan bitmap block nr {bitmap.blocknr} ({bitmap.GetHashCode()}), size = {size}, bmseqnr = {bmseqnr}, bmoffset = {bmoffset}, bitmap blocks in cache '{string.Join(", ", bitmapBlocksInCache)}'");
+#endif
                     var bitmapBlk = bitmap.BitmapBlock;
+                    if (bitmapBlk == null)
+                    {
+                        throw new IOException($"Allocation: Cached block nr {bitmap.blocknr} in allocate returns null as bitmap block, type is '{(bitmap.blk == null ? "null" : bitmap.blk.GetType().Name)}', bitmap blocks in cache '{string.Join(", ", bitmapBlocksInCache)}'");
+                    }
                     field = bitmapBlk.bitmap[bmoffset];
                     if (field != 0)
                     {
@@ -665,6 +697,8 @@
                                 /* take block */
                                 else
                                 {
+                                    Macro.Lock(bitmap, g);
+
                                     /* uninitialized anode */
                                     if (chnode.an.blocknr == UInt32.MaxValue) // = -1
                                     {
@@ -676,8 +710,6 @@
                                     else if (chnode.an.blocknr + chnode.an.clustersize != blocknr)
                                     {
                                         uint anodenr;
-
-                                        Macro.Lock(bitmap, g);
 
                                         chnode.next = new anodechainnode();
 //                                         if (!(chnode.next = AllocMemP(anodechainnode), g)))
@@ -722,6 +754,13 @@
                                             /* make state valid and update disk */
                                             await Update.MakeBlockDirty(ref_.dirblock, g);
                                             await anodes.SaveAnode(chnode.an, chnode.an.nr, g);
+                                            if (bitmap.BitmapBlock == null)
+                                            {
+                                                // error cached bitmap block overwritten with anodeblock
+                                                // as alloclru returns not locked bitmapblock and reuses
+                                                // it for anodeblock
+                                                throw new IOException("Bitmap block is null");
+                                            }
                                             await Update.UpdateDisk(g);
 
                                             /* abort if running out of reserved blocks */
@@ -786,6 +825,9 @@
             }
 
             //EXIT("AllocateBlocksAC");
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: AllocateBlocksAC Exit");
+#endif
             return true;
         }
     }

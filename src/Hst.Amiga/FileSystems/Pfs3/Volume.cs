@@ -71,7 +71,7 @@
             /* load rootblock extension (if it is present) */
             if (rootblock.Extension > 0 && rootblock.Options.HasFlag(RootBlock.DiskOptionsEnum.MODE_EXTENSION))
             {
-                var rext = new CachedBlock(g);
+                var rext = new CachedBlock();
 
                 // rext = AllocBufmemR(sizeof(struct cachedblock) +rootblock->reserved_blksize, g);
                 // memset(rext, 0, sizeof(struct cachedblock) +rootblock->reserved_blksize);

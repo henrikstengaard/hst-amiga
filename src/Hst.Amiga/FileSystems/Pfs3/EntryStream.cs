@@ -29,7 +29,7 @@
             File.Close(fileEntry, g).GetAwaiter().GetResult();
             if (this.dataWritten)
             {
-                Update.UpdateDisk(g).GetAwaiter().GetResult();
+                Disk.UpdateDataCache(g).GetAwaiter().GetResult();
             }
         }
 
@@ -99,7 +99,6 @@
 #if NET6_0
         public override async ValueTask DisposeAsync()
         {
-            await File.Close(fileEntry, g);
             await base.DisposeAsync();
         }
 #endif

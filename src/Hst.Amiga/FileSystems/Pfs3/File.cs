@@ -8,6 +8,10 @@
     {
         public static async Task<IEntry> Open(objectinfo filefi, bool write, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"File: Open '{filefi.file.direntry.Name}'");
+#endif
+            
             if (Macro.IsSoftLink(filefi))
             {
                 throw new IOException("ERROR_IS_SOFT_LINK");
@@ -57,6 +61,9 @@
         
         public static async Task Close(fileentry fe, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"File: Close '{fe.ListEntry.info.file.direntry.Name}'");
+#endif
             // SIPTR error;
             // fileentry_t *fe = (fileentry_t *)pkt->dp_Arg1;
 

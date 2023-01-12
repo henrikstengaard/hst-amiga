@@ -41,7 +41,7 @@
             g.locknr = 1;
 
             g.glob_lrudata.LRUarray = Enumerable.Range(1, (int)g.glob_lrudata.poolsize)
-                    .Select(_ => new LruCachedBlock(new CachedBlock(g))).ToArray();
+                    .Select(_ => new LruCachedBlock(new CachedBlock())).ToArray();
         }
 
         public static CachedBlock CheckCache(LinkedList<CachedBlock>[] list, ushort mask, uint blocknr, globaldata g)
@@ -62,6 +62,9 @@
 
         public static void MakeLRU(CachedBlock blk, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: MakeLRU cached block nr {blk.blocknr}, block type '{(blk.blk == null ? "null" : blk.blk.GetType().Name)}'");
+#endif
             // MinRemove(LRU_CHAIN(blk));
             Macro.MinRemoveLru(blk, g);
 
@@ -71,10 +74,13 @@
 
         public static void FreeLRU(CachedBlock blk, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: FreeLRU cached block nr {blk.blocknr}, block type '{(blk.blk == null ? "null" : blk.blk.GetType().Name)}'");
+#endif
             //MinRemove(LRU_CHAIN(blk));                          \
             //memset(blk, 0, SIZEOF_CACHEDBLOCK);              \
             Macro.MinRemoveLru(blk, g);
-            ClearBlock(blk);
+            ClearBlock(blk, g);
 
             //MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(blk));            \
             Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(blk));
@@ -93,6 +99,9 @@
             int j;
 
             //ENTER("AllocLRU");
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Lru: AllocLRU Enter");
+#endif
 
             if (g.glob_lrudata.LRUarray == null)
                 return default;
@@ -113,6 +122,10 @@
                     if (Cache.ISLOCKED(lrunode.Value.cblk, g))
                         continue;
 
+#if DEBUG
+                    Pfs3Logger.Instance.Debug($"Lru: AllocLRU Reuse not locked cached block nr {lrunode.Value.cblk.blocknr}, block type '{(lrunode.Value.cblk.blk == null ? "null" : lrunode.Value.cblk.blk.GetType().Name)}'");
+#endif
+                    
                     if (lrunode.Value.cblk.changeflag)
                     {
                         //DB(Trace(1, "AllocLRU", "ResToBeFreed %lx\n", &lrunode->cblk));
@@ -148,7 +161,7 @@
                     break;
                 // nlru[j + g->glob_lrudata.poolsize] = AllocVec((sizeof(struct lru_cachedblock) +SIZEOF_RESBLOCK)
                 //     , g->dosenvec->de_BufMemType | MEMF_CLEAR);
-                nlru[j + g.glob_lrudata.poolsize] = new LruCachedBlock(new CachedBlock(g));
+                nlru[j + g.glob_lrudata.poolsize] = new LruCachedBlock(new CachedBlock());
 
                 if (nlru[j + g.glob_lrudata.poolsize] == null)
                 {
@@ -196,10 +209,13 @@
 
             // MinRemove(lrunode);
             // MinAddHead(&g->glob_lrudata.LRUqueue, lrunode);
-            Macro.MinRemoveLru(lrunode.Value, g);
+            Macro.MinRemoveLru(lrunode.Value.cblk, g);
             Macro.MinAddHead(g.glob_lrudata.LRUqueue, lrunode.Value);
 
             // DB(Trace(1, "AllocLRU", "Allocated block %lx\n", &lrunode->cblk));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: AllocLRU Allocated block nr {lrunode.Value.cblk.blocknr} ({lrunode.Value.cblk.GetHashCode()})");
+#endif
 
             //  LOCK(&lrunode->cblk);
             Cache.LOCK(lrunode.Value.cblk, g);
@@ -266,6 +282,9 @@
             // lockentry_t *le;
             //
             // DB(Trace(10,"FlushBlock","Flushing block %lx\n", block->blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: FlushBlock block nr {block.blocknr}, block type '{(block.blk == null ? "null" : block.blk.GetType().Name)}' ");
+#endif
 
             /* remove block from blockqueue */
             // MinRemove(block);
@@ -321,12 +340,14 @@
 
             /* wipe memory */
             //memset(block, 0, SIZEOF_CACHEDBLOCK);
-            ClearBlock(block);
+            ClearBlock(block, g);
         }
 
-        private static void ClearBlock(CachedBlock cachedBlock)
+        private static void ClearBlock(CachedBlock cachedBlock, globaldata g)
         {
-            // return;
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: ClearBlock block nr {cachedBlock.blocknr}");
+#endif
             cachedBlock.blocknr = 0;
             cachedBlock.changeflag = false;
             cachedBlock.oldblocknr = 0;
@@ -374,6 +395,9 @@
         public static async Task UpdateLE(listentry le, globaldata g)
         {
             //DB(Trace(1,"UpdateLE","Listentry %lx\n", le));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: UpdateLE '{le.info.file.direntry.Name}'");
+#endif
 
             /* don't update volumeentries or deldirs!! */
 // #if DELDIR

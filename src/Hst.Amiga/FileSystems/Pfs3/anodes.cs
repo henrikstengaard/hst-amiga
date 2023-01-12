@@ -969,8 +969,7 @@
 
             if (chain.next != null)
             {
-                throw new NotImplementedException();
-                //Macro.MinRemove(chain, g); // remove from any list
+                Macro.MinRemove(chain, g); // remove from any list
             }
             //
             // FreeMemP (chain, g);

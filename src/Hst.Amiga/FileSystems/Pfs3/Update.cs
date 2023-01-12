@@ -20,6 +20,9 @@
  */
         public static async Task<bool> MakeBlockDirty(CachedBlock blk, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Update: MakeBlockDirty, block nr = {blk.blocknr}, block type '{(blk.blk == null ? "null" : blk.blk.GetType().Name)}'");
+#endif
             uint blocknr;
             ushort oldlock;
 
@@ -93,6 +96,9 @@
 
         public static async Task UpdateDBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Update: UpdateDBLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
             CachedBlock dblk = blk;
             canode anode = new canode();
             uint oldblocknr = dblk.oldblocknr;
@@ -110,10 +116,13 @@
             /* change it.. */
             if (anode.blocknr != oldblocknr)
             {
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Update: UpdateDBLK, anode.blocknr = {anode.blocknr}, dblk.blocknr = {dblk.blocknr}");
+#endif
                 // DB(Trace(4, "UpdateDBLK", "anode.blocknr=%ld, dblk->blocknr=%ld\n",
                 //     anode.blocknr, dblk->blocknr));
                 // ErrorMsg (AFS_ERROR_CACHE_INCONSISTENCY, NULL, g);
-                
+                throw new IOException("AFS_ERROR_CACHE_INCONSISTENCY");
             }
 
             /* This must happen AFTER anode correction, because Update() could be called,
@@ -146,6 +155,14 @@
 
             // DBERR(if (!index) ErrorTrace(5,"UpdateABLK", "GetIndexBlock returned NULL!"));
 
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Update: UpdateABLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
+            if (index.IndexBlock.index[indexoffset] != blk.oldblocknr)
+            {
+                throw new IOException($"Update anode block at index offset {indexoffset} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {index.IndexBlock.index[indexoffset]}");                
+            }
+            
             index.IndexBlock.index[indexoffset] = (int)newblocknr;
             await MakeBlockDirty(index, g);
             Macro.ReHash(blk, g.currentvolume.anblks, Constants.HASHM_ANODE, g);
@@ -169,11 +186,25 @@
                     throw new IOException("UpdateIBLK, GetSuperBlock returned NULL!");
                 }
 
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Update: UpdateIBLK, SuperMode, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
+                if (superblk.IndexBlock.index[temp >> 16] != blk.oldblocknr)
+                {
+                    throw new IOException($"Update index block in super block at index offset {temp >> 16} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {superblk.IndexBlock.index[temp >> 16]}");                
+                }
                 superblk.IndexBlock.index[temp >> 16] = (int)newblocknr;
                 await MakeBlockDirty(superblk, g);
             }
             else
             {
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Update: UpdateIBLK, small, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
+                if (blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr] != blk.oldblocknr)
+                {
+                    throw new IOException($"Update index block in small at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr]}");                
+                }
                 blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr] = newblocknr;
                 blk.volume.rootblockchangeflag = true;
             }
@@ -186,6 +217,13 @@
             // blk->volume->rblkextension->blk.superindex[((struct cindexblock *)blk)->blk.seqnr] = newblocknr;
             blk.changeflag = true;
             blk.volume.rblkextension.changeflag = true;
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Update: UpdateSBLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
+            if (blk.volume.rblkextension.rblkextension.superindex[blk.IndexBlock.seqnr] != blk.oldblocknr)
+            {
+                throw new IOException($"Update super block at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rblkextension.rblkextension.superindex[blk.IndexBlock.seqnr]}");                
+            }
             blk.volume.rblkextension.rblkextension.superindex[blk.IndexBlock.seqnr] = newblocknr;
         }
 
@@ -207,7 +245,14 @@
                 throw new IOException("UpdateBMBLK, GetBitmapIndex returned NULL!");
             }
 
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Update: UpdateBMBLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
             var indexBlockBlk = indexblock.IndexBlock;
+            if (indexBlockBlk.index[temp >> 16] != blk.oldblocknr)
+            {
+                throw new IOException($"Update bitmap block at index offset {temp >> 16} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {indexBlockBlk.index[temp >> 16]}");                
+            }
             indexBlockBlk.index[temp >> 16] = (int)newblocknr;
             await MakeBlockDirty(indexblock, g); /* recursion !! */
         }
@@ -218,6 +263,13 @@
             // blk->volume->rootblk->idx.large.bitmapindex[((struct cindexblock *)blk)->blk.seqnr] = newblocknr;
             // blk->volume->rootblockchangeflag = TRUE;
             blk.changeflag = true;
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Update: UpdateBMIBLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
+            if (blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr] != blk.oldblocknr)
+            {
+                throw new IOException($"Update bitmap index block at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr]}");                
+            }
             blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr] = newblocknr;
             blk.volume.rootblockchangeflag = true;            
         }
@@ -229,6 +281,13 @@
             // blk->volume->rootblk->extension = newblocknr;
             // blk->volume->rootblockchangeflag = TRUE;
             blk.changeflag = true;
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Update: UpdateRBlkExtension, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
+            if (blk.volume.rootblk.Extension != blk.oldblocknr)
+            {
+                throw new IOException($"Update root extension block doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.Extension}");                
+            }
             blk.volume.rootblk.Extension = newblocknr;
             blk.volume.rootblockchangeflag = true;
         }
@@ -240,6 +299,13 @@
             // blk->volume->rblkextension->blk.deldir[((struct cdeldirblock *)blk)->blk.seqnr] = newblocknr;
             // MakeBlockDirty((struct cachedblock *)blk->volume->rblkextension, g);
             blk.changeflag = true;
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Update: UpdateDELDIR, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+#endif
+            if (blk.volume.rblkextension.rblkextension.deldir[blk.deldirblock.seqnr] != blk.oldblocknr)
+            {
+                throw new IOException($"Update deldir block at index offset {blk.deldirblock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rblkextension.rblkextension.deldir[blk.deldirblock.seqnr]}");                
+            }
             blk.volume.rblkextension.rblkextension.deldir[blk.deldirblock.seqnr] = newblocknr;
             await MakeBlockDirty(blk.volume.rblkextension, g);
         }
@@ -274,6 +340,9 @@
 
         public static async Task<bool> UpdateDisk(globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Update: UpdateDisk");
+#endif
             // struct DateStamp time;
             var volume = g.currentvolume;
             var alloc_data = g.glob_allocdata;

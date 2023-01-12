@@ -18,6 +18,9 @@
         /// <exception cref="Exception"></exception>
         public static async Task FormatPartition(Stream stream, PartitionBlock partitionBlock, string diskName)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Pfs3Formatter: Formatting partition cylinders {partitionBlock.LowCyl} - {partitionBlock.HighCyl} with disk name '{diskName}'");
+#endif
             if (!stream.CanWrite)
             {
                 throw new IOException("Failed to format partition: Stream is not writable");
@@ -127,6 +130,9 @@
             g.currentvolume = null;
             //
             // return DOSTRUE;
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Pfs3Formatter: Formatting done");
+#endif
         }
 
 /*
@@ -276,7 +282,7 @@
             // return FALSE;
             //memset (rext, 0, sizeof(struct cachedblock) + rbl->reserved_blksize);
 
-            var rext = new CachedBlock(g)
+            var rext = new CachedBlock()
             {
                 volume = g.currentvolume,
                 blocknr = (uint)rootBlock.Extension,

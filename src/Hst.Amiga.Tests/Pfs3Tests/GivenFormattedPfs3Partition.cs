@@ -834,7 +834,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(date, dirEntry.Date);
     }
 
-    [Fact(Skip = "Endless loop?")]
+    [Fact]
     public async Task WhenCreate2FilesIn2DirsWithProtectionBitsAndDateSetThenEntriesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
@@ -874,12 +874,12 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         await pfs3Volume.CreateFile("File2", true, true);
 
         // act - write file 2 data in chunks of 512 bytes
-        var file2Data = BlockTestHelper.CreateBlockBytes(1024);
+        var file2Data = BlockTestHelper.CreateBlockBytes(100000); // File2 size 983040 did also trigger the issue, but takes longer time 
         var file2DataStream = new MemoryStream(file2Data);
         int bytesRead;
-        await using (var entryStream = await pfs3Volume.OpenFile("File2", FileMode.Write))
+        await using (var entryStream = await pfs3Volume.OpenFile("File2", FileMode.Append))
         {
-            var buffer = new byte[512];
+            var buffer = new byte[4096];
             do
             {
                 bytesRead = await file2DataStream.ReadAsync(buffer, 0, buffer.Length);

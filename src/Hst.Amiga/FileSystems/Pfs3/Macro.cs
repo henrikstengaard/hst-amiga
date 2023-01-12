@@ -151,9 +151,17 @@ BPTR
             var volume = g.currentvolume;
             volume.fileentries.Remove(node);
         }
+        
+        public static void MinRemove(anodechain anodechain, globaldata g)
+        {
+            g.currentvolume.anodechainlist.Remove(anodechain);
+        }
 
         public static void MinRemove(CachedBlock node, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Macro: MinRemove CachedBlock block nr {node.blocknr} ({node.GetHashCode()})");
+#endif
             // #define MinRemove(node) Remove((struct Node *)node)
             // remove() removes the node from any list it' added to (Amiga MinList exec)
 
@@ -180,14 +188,11 @@ BPTR
         /// </summary>
         /// <param name="node"></param>
         /// <param name="g"></param>
-        public static void MinRemoveLru(LruCachedBlock node, globaldata g)
-        {
-            g.glob_lrudata.LRUpool.Remove(node);
-            g.glob_lrudata.LRUqueue.Remove(node);
-        }
-
         public static void MinRemoveLru(CachedBlock node, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Macro: MinRemoveLru CachedBlock block nr {node.blocknr} ({node.GetHashCode()})");
+#endif
             foreach (var lruCachedBlock in g.glob_lrudata.LRUpool.Where(x => x.cblk == node).ToList())
             {
                 g.glob_lrudata.LRUpool.Remove(lruCachedBlock);

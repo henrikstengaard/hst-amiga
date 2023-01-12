@@ -27,6 +27,10 @@
 
         public static async Task<byte[]> RawRead(uint blocks, uint blocknr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: Raw read bytes from block nr {blocknr} with size of {blocks} blocks");
+#endif
+            
             if (blocknr == UInt32.MaxValue) // blocknr of uninitialised anode
             {
                 return default;
@@ -60,6 +64,10 @@
 
         public static async Task<IBlock> RawRead<T>(uint blocks, uint blocknr, globaldata g) where T : IBlock
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: Raw read block type '{typeof(T).Name}' from block nr {blocknr} with size of {blocks} blocks");
+#endif
+
             var buffer = await RawRead(blocks, blocknr, g);
 
             var type = typeof(T);
@@ -104,6 +112,9 @@
         public static async Task<bool> RawWrite(Stream stream, byte[] buffer, int offset, uint blocks, uint blocknr,
             globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: Raw write bytes to block nr {blocknr} with size of {blocks} blocks");
+#endif
             // RawReadWrite_DS(TRUE, buffer, blocks, blocknr, g);
 
             if (blocknr == UInt32.MaxValue) // blocknr of uninitialised anode
@@ -147,6 +158,10 @@
 
         public static async Task<bool> RawWrite(Stream stream, IBlock block, uint blocks, uint blocknr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: Raw write block type '{block.GetType().Name}' to block nr {blocknr} with size of {blocks} blocks");
+#endif
+
             byte[] buffer;
             switch (block)
             {
@@ -229,6 +244,9 @@
             deldirentry delfile = null;
 
             // DB(Trace(1,"SeekInFile","offset = %ld mode=%ld\n",offset,mode));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: SeekInFile, offset = {offset}, mode = {mode}");
+#endif
             if (Macro.IsDelFile(file.le.info))
             {
                 if ((delfile = await Directory.GetDeldirEntryQuick(file.le.info.delfile.slotnr, g)) == null)
@@ -327,8 +345,11 @@
             // #if DELDIR
             deldirentry dde;
             // #endif
-
+            
             //DB(Trace(1,"ReadFromFile","size = %lx offset = %lx\n",size,file->offset));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: ReadFromFile, size = {size}, offset = {file.offset}");
+#endif
             CheckAccess.CheckReadAccess(file, g);
 
             /* correct size and check if zero */
@@ -521,6 +542,9 @@
             int slotnr;
 
             //DB(Trace(1,"WriteToFile","size = %lx offset=%lx, file=%lx\n",size,file->offset,file));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: WriteToFile, size = {size}, offset = {file.offset}");
+#endif
             /* initialization values */
             chnode = file.currnode;
             anodeoffset = file.anodeoffset;
@@ -847,6 +871,9 @@
             int end, virtualoffset, virtualend, t;
 
             //DB(Trace(1,"ReadFromRollover","size = %lx offset = %lx\n",size,file->offset));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: ReadFromRollover, size = {size}, offset = {file.offset}");
+#endif
             if (size == 0)
             {
                 return 0;
@@ -921,6 +948,9 @@
             bool extend = false;
 
             //DB(Trace(1,"WriteToRollover","size = %lx offset=%lx, file=%lx\n",size,file->offset,file));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: WriteToRollover, size = {size}, offset = {file.offset}");
+#endif
             Directory.GetExtraFields(direntry_m, extrafields);
             end = (int)(file.offset + size);
 
@@ -1020,6 +1050,9 @@
             uint anodeoffset, blockoffset;
 
             //DB(Trace(1,"SeekInRollover","offset = %ld mode=%ld\n",offset,mode));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: SeekInRollover, offset = {offset}, mode = {mode}");
+#endif
             Directory.GetExtraFields(direntry_m, extrafields);
 
             /* do the seeking */
