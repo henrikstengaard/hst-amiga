@@ -809,7 +809,7 @@
                 if (dirblock != null)
                 {
                     blk = dirblock.dirblock;
-                    var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+                    var maxDirEntries = CalculateMaxDirEntries(blk);
                     var dirEntriesNo = 0;
                     de = Macro.FIRSTENTRY(blk);
                     eob = false;
@@ -855,14 +855,33 @@
             Macro.Lock(dirblock, g);
             return true;
         }
+        
+        /// <summary>
+        /// Calculates max number of dir entries a dir block can store
+        /// </summary>
+        /// <param name="dirblock"></param>
+        /// <returns></returns>
+        private static int CalculateMaxDirEntries(dirblock dirblock)
+        {
+            return dirblock == null ? 0 : (dirblock.entries.Length / SizeOf.DirEntry.Struct) + 5;
+        }
 
+        /// <summary>
+        /// Check if dir entry no has exceeded max number of dir entries
+        /// </summary>
+        /// <param name="blocknr"></param>
+        /// <param name="dirblock"></param>
+        /// <param name="dirEntriesNo"></param>
+        /// <param name="maxDirEntries"></param>
+        /// <param name="offset"></param>
+        /// <exception cref="IOException"></exception>
         private static void CheckReadDirEntryError(uint blocknr, dirblock dirblock, int dirEntriesNo, int maxDirEntries, int offset)
         {
             if (dirEntriesNo < maxDirEntries)
             {
                 return;
             }
-            throw new IOException($"Read dir entry at offset {offset} exceeded max dir entries {maxDirEntries}");
+            throw new IOException($"Read dir entry at offset {offset} exceeded max dir entries {maxDirEntries} for dirblock block nr {blocknr}");
         }
 
 /* SearchInDir
@@ -905,7 +924,7 @@
             anodeoffset = 0;
             dirblock = await LoadDirBlock(anode.blocknr, g);
             var blk = dirblock.dirblock;
-            var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+            var maxDirEntries = CalculateMaxDirEntries(blk);
             direntry entry = null;
             while (blk != null && blk.entries[0] != 0 && !found && !eod) /* eod stands for end-of-dir */
             {
@@ -1022,7 +1041,7 @@
                 entry = DirEntryReader.Read(blk.entries, 0);
 
                 /* goto end of dirblock; i = aantal gebruikte bytes */
-                var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+                var maxDirEntries = CalculateMaxDirEntries(blk);
                 var dirEntriesNo = 0;
                 for (i = 0; entry.next > 0; entry = DirEntryReader.Read(blk.entries, i))
                 {
@@ -1912,7 +1931,7 @@
             anodeoffset = 0;
             var dirblock = await LoadDirBlock(anode.blocknr, g);
             var blk = dirblock.dirblock;
-            var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+            var maxDirEntries = CalculateMaxDirEntries(blk);
             
             while (blk.entries[0] != 0 && !eod) /* eod stands for end-of-dir */
             {
@@ -2197,7 +2216,7 @@
 
             /* goto end of dirblock */
             var blk = blok.dirblock;
-            var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+            var maxDirEntries = CalculateMaxDirEntries(blk);
             var dirEntriesNo = 0;
             entry = Macro.FIRSTENTRY(blk);
             for (i = 0; entry.next != 0; entry = Macro.NEXTENTRY(blk, entry))
