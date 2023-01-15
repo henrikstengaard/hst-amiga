@@ -19,7 +19,11 @@ Super mode uses super blocks.
 
 Experimental feature has been added as part of PFS3AIO.
 
-## T
+## Blocks
+
+PFS3 reads and writes sectors via block numbers, so block number 0 is the same as sector 0, which would be the first block/sector of the PFS3 partition. A block has always size of 512 bytes, so reserved blocks of e.g. size 1024 will use 2 blocks of disk space. 
+
+Root anode is always block no. 5
 
 Reserved block number:
 - 0: Boot block
