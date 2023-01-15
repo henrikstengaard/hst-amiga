@@ -456,13 +456,11 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(data, dataRead);
     }
 
-    // Test runs endless in github actions with 100 iterations
-    [Theory]
-    [InlineData(DiskSize100Mb)]
-    [InlineData(DiskSize4Gb)]
-    [InlineData(DiskSize16Gb)]
-    public async Task WhenCreateWriteDataToNewFileAndOpenReadDataFromFile100TimesThenDataMatches(long diskSize)
+    [Fact]
+    public async Task WhenCreate100FilesWriteDataAndSetCommentThenFilesExistAndDataMatches()
     {
+        // creating 2 or more file and setting comment for each file triggers calls to rename within dir
+        
         // arrange - data to write
         var data = new byte[4000];
         for (var i = 0; i < data.Length; i++)
@@ -471,20 +469,16 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         }
 
         // arrange - create pfs3 formatted disk
-        var stream = await CreatePfs3FormattedDisk(diskSize);
-
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await MountVolume(stream);
+        var stream = await CreatePfs3FormattedDisk();
 
         // act - read data
         int bytesRead;
         byte[] dataRead;
 
-        // 10 iterations = work
-        // 30 iterations = work
-        // 40 iterations = endless loop
-        // 50 iterations = endless loop
-        for (var i = 0; i < 10; i++)
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+        
+        for (var i = 0; i < 100; i++)
         {
             // act - create file in root directory
             await pfs3Volume.CreateFile($"New File{i}");
@@ -495,6 +489,20 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
                 await entryStream.WriteAsync(data, 0, data.Length);
             }
 
+            // act - create file in root directory
+            await pfs3Volume.SetComment($"New File{i}", $"Comment{i}");
+        }
+            
+        // act - list entries
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+            
+        for (var i = 0; i < 100; i++)
+        {
+            var entry = entries.FirstOrDefault(x => x.Name == $"New File{i}");
+            Assert.Equal($"New File{i}", entry?.Name ?? string.Empty);
+            Assert.NotNull(entry);
+            Assert.Equal($"Comment{i}", entry.Comment);
+                
             await using (var entryStream = await pfs3Volume.OpenFile($"New File{i}", FileMode.Read))
             {
                 dataRead = new byte[entryStream.Length];
@@ -946,5 +954,81 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Equal(file2Data.Length, bytesRead);
         Assert.Equal(file2Data.Length, actualFile2Data.Length);
         Assert.Equal(file2Data, actualFile2Data);
+    }
+    
+    [Fact]
+    public async Task WhenOverwriteExistingFileInDirectoryWith10FilesThenEntryMatchesOverwrittenData()
+    {
+        // arrange - data to write
+        var initialData = BlockTestHelper.CreateBlockBytes(1200);
+        var overwrittenData = AmigaTextHelper.GetBytes("Only Amiga makes it possible");
+
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - mount pfs3 volume
+        using (var pfs3Volume = await MountVolume(stream))
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                // act - create file in root directory
+                await pfs3Volume.CreateFile($"New File{i}");
+
+                // act - write data
+                await using (var entryStream = await pfs3Volume.OpenFile($"New File{i}", FileMode.Write))
+                {
+                    await entryStream.WriteAsync(initialData, 0, initialData.Length);
+                }
+            }
+        }
+        
+        // act - mount pfs3 volume
+        using (var pfs3Volume = await MountVolume(stream))
+        {
+            // act - create file in root directory
+            await pfs3Volume.CreateFile("New File8", true, true);
+
+            // act - list entries in root directory
+            var entries = (await pfs3Volume.ListEntries()).ToList();
+            
+            Assert.Equal(10, entries.Count);
+            
+            // act - write file 1 data
+            await using (var entryStream = await pfs3Volume.OpenFile("New File8", FileMode.Write))
+            {
+                await entryStream.WriteAsync(overwrittenData, 0, overwrittenData.Length);
+            }
+        }
+
+        using (var pfs3Volume = await MountVolume(stream))
+        {
+            // act - list entries in root directory
+            var entries = (await pfs3Volume.ListEntries()).ToList();
+
+            Assert.Equal(10, entries.Count);
+
+            // assert - new file 0-9 exists and matches initial data in size
+            Entry entry;
+            for (var i = 0; i < 10; i++)
+            {
+                // skip new file 8, asserted separately below
+                if (i == 8)
+                {
+                    continue;
+                }
+                
+                // assert - file exists and matches initial data
+                entry = entries.FirstOrDefault(x => x.Name == $"New File{i}" && x.Type == EntryType.File);
+                Assert.Equal($"New File{i}", entry?.Name ?? string.Empty);
+                Assert.NotNull(entry);
+                Assert.Equal(initialData.Length, entry.Size);
+            }
+            
+            // assert - file exists and matches initial data
+            entry = entries.FirstOrDefault(x => x.Name == $"New File8" && x.Type == EntryType.File);
+            Assert.Equal($"New File8", entry?.Name ?? string.Empty);
+            Assert.NotNull(entry);
+            Assert.Equal(overwrittenData.Length, entry.Size);
+        }
     }
 }

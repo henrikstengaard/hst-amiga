@@ -17,6 +17,9 @@
          */
         public static async Task<CachedBlock> GetIndexBlock(ushort nr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetIndexBlock, seqnr = {nr}");
+#endif
             uint blocknr, temp;
             CachedBlock indexblk;
             CachedBlock superblk;
@@ -67,6 +70,9 @@
             }
 
             //DBERR(ErrorTrace(10,"GetIndexBlock","seqnr = %lu blocknr = %lu\n", nr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetIndexBlock, seqnr = {nr}, block nr {blocknr}");
+#endif
 
             // if (RawRead ((UBYTE*)&indexblk->blk, RESCLUSTER, blocknr, g) != 0) {
             //     FreeLRU ((struct cachedblock *)indexblk);
@@ -107,6 +113,9 @@
 
         public static async Task<CachedBlock> GetSuperBlock(ushort nr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetSuperBlock, seqnr = {nr}");
+#endif
             uint blocknr;
             CachedBlock superblk;
             var volume = g.currentvolume;
@@ -152,6 +161,9 @@
             }
 
             // DBERR(ErrorTrace(10,"GetSuperBlock","seqnr = %lu blocknr = %lu\n", nr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetSuperBlock, seqnr = {nr}, block nr = {blocknr}");
+#endif
 
             // if (RawRead ((UBYTE*)&superblk->blk, RESCLUSTER, blocknr, g) != 0) {
             //     DBERR(ErrorTrace(1, "GetSuperBlock", "ERR: read error. %lu %lu\n", nr, blocknr));
@@ -430,6 +442,9 @@
  */
         public static async Task<uint> AllocAnode(uint connect, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: AllocAnode, connect = {connect}");
+#endif
             int i, j, k = 0;
             CachedBlock ablock = null;
             anode[] anodes = null;
@@ -543,6 +558,9 @@
 */
         public static async Task<CachedBlock> big_GetAnodeBlock(ushort seqnr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetAnodeBlock, seqnr = {seqnr}");
+#endif
             uint blocknr;
             uint temp;
             CachedBlock ablock;
@@ -579,6 +597,9 @@
             }
 
             // DBERR(ErrorTrace(10,"GetAnodeBlock", "seqnr = %lu blocknr = %lu\n", seqnr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetAnodeBlock, seqnr = {seqnr}, blocknr = {blocknr}");
+#endif
 
             /* read it */
             IBlock blk;

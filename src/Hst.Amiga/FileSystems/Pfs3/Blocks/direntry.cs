@@ -46,6 +46,25 @@
             get => fsize;
             set => fsize = value;
         }
+        
         public DateTime CreationDate { get; set; }
+
+        public direntry()
+        {
+            Name = string.Empty;
+            comment = string.Empty;
+        }
+
+        public int EntrySize(globaldata g)
+        {
+            // entrysize = ((sizeof(struct direntry) + strlen(name)) & 0xfffe);
+            var entrysize = (SizeOf.DirEntry.Struct + Name.Length + comment.Length) & 0xfffe;
+            if (g.dirextension)
+            {
+                entrysize += 2;
+            }
+
+            return entrysize;
+        }
     }
 }

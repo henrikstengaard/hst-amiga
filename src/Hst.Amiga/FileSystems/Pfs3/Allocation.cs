@@ -697,8 +697,11 @@
                                 /* take block */
                                 else
                                 {
+                                    // CHANGE: Moved lock of bitmap block from check block connect to
+                                    // ensure it's locked before possible allocating and saving anode
+                                    // If bitmap block not locked it will get replaced with an anode block
                                     Macro.Lock(bitmap, g);
-
+                                    
                                     /* uninitialized anode */
                                     if (chnode.an.blocknr == UInt32.MaxValue) // = -1
                                     {
@@ -712,6 +715,7 @@
                                         uint anodenr;
 
                                         chnode.next = new anodechainnode();
+                                        // CHANGE: Commented out as allocate memory is not an issue with c# as in c
 //                                         if (!(chnode.next = AllocMemP(anodechainnode), g)))
 //                                         {
 // // #if VERSION23

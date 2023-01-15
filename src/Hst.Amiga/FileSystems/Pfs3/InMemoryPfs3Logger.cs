@@ -2,9 +2,8 @@
 {
     using System;
     using System.Collections.Generic;
-    using Microsoft.Extensions.Logging;
 
-    public class InMemoryPfs3Logger : ILogger<Pfs3Logger>
+    public class InMemoryPfs3Logger : IPfs3Logger
     {
         public readonly IList<string> Messages;
 
@@ -13,17 +12,29 @@
             Messages = new List<string>();
         }
     
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        public void Debug(string message)
         {
-            Messages.Add($"[{eventId.Id,2}: {logLevel,-12}] {formatter(state, exception)}");
+            Messages.Add($"[DGB] {message}");
         }
 
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public IDisposable BeginScope<TState>(TState state)
+        public void Information(string message)
         {
-            return null;
+            Messages.Add($"[INF] {message}");
+        }
+
+        public void Warning(string message)
+        {
+            Messages.Add($"[WRN] {message}");
+        }
+
+        public void Error(string message)
+        {
+            Messages.Add($"[ERR] {message}");
+        }
+
+        public void Error(Exception exception, string message)
+        {
+            Messages.Add($"[ERR] {message}: {exception}");
         }
     }    
 }
-

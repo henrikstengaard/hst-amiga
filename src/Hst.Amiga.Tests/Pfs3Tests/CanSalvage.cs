@@ -226,7 +226,7 @@ public class CanSalvage
 
         foreach (var dirBlock in dirBlocks.Where(x => x.Value.parent == anodenr))
         {
-            var dirEntries = ReadDirEntries(dirBlock.Value).OrderBy(x => x.Name).ToList();
+            var dirEntries = ReadDirEntries(dirBlock.Value, g).OrderBy(x => x.Name).ToList();
 
             foreach (var dirEntry in dirEntries)
             {
@@ -315,7 +315,7 @@ public class CanSalvage
         
     }
 
-    private IEnumerable<direntry> ReadDirEntries(dirblock dirBlock)
+    private IEnumerable<direntry> ReadDirEntries(dirblock dirBlock, globaldata g)
     {
         var dirEntryIndex = 0;
         direntry dirEntry;

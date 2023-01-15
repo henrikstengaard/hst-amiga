@@ -358,6 +358,9 @@
             g.dirty = true;
         }
         
+/* checks if disk is changed. If so calls NewVolume()
+** NB: new volume might be NOVOLUME or NOTAFDSDISK
+*/
         public static async Task UpdateCurrentDisk(globaldata g)
         {
             await NewVolume(false, g);
@@ -376,6 +379,9 @@
             //     return;
 
             // ENTER("NewVolume");
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Volume: NewVolume Enter");
+#endif
             Disk.FlushDataCache(g);
 
             /* newstate <=> there is a PFS disk present */
@@ -419,6 +425,9 @@
 
             // UpdateAndMotorOff(g);
             //EXIT("NewVolume");
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Volume: NewVolume Exit");
+#endif
         }
         
 /* pre:

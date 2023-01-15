@@ -307,8 +307,7 @@
                         le.le.dirblocknr = block.blocknr;
 
                         // le->le.dirblockoffset = (UBYTE *)le->le.info.file.direntry - (UBYTE *)block;
-                        // TODO: How to do calculate dirblockoffset in C#
-                        // le.le.dirblockoffset = le.le.info.file.direntry - block;
+                        le.le.dirblockoffset = (uint)le.le.info.file.direntry.Offset;
 // #if DELDIR
                         le.le.info.deldir.special = Constants.SPECIAL_FLUSHED; /* flushed reference */
 // #else
@@ -322,8 +321,7 @@
                     {
                         le.nextdirblocknr = block.blocknr;
                         // le->nextdirblockoffset = (UBYTE *)le->nextentry.direntry - (UBYTE *)block;
-                        // TODO: How to do calculate dirblockoffset in C#
-                        // le.nextdirblockoffset = le.nextentry.direntry - block;
+                        le.nextdirblockoffset = (uint)le.nextentry.direntry.Offset;
 // #if DELDIR
 // le->nextentry.direntry = (struct direntry *)SPECIAL_FLUSHED;
                         le.nextentry.direntry = new direntry

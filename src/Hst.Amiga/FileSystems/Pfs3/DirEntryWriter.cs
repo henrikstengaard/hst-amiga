@@ -33,6 +33,9 @@
                 // dirext = (UWORD *)((UBYTE *)(direntry) + offset);
                 // direntry.next = offset + 2 * j + 2;
             }
+
+            // update offset in entries for later use
+            dirEntry.Offset = offset;
         }
     }
 }

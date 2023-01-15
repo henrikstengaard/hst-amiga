@@ -56,7 +56,7 @@
         //public static int NEXTENTRY(direntry de) => ((struct direntry*)((UBYTE*)(de) + (de)->next))
         public static direntry NEXTENTRY(dirblock blk, direntry de)
         {
-            return DirEntryReader.Read(blk.entries, de.next);
+            return DirEntryReader.Read(blk.entries, de.Offset + de.next);
         }         
         public static int DB_HEADSPACE(globaldata g) => SizeOf.DirBlock.Struct(g);
         public static int DB_ENTRYSPACE(globaldata g) => SizeOf.DirBlock.Entries(g);

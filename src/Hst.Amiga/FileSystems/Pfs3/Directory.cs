@@ -387,8 +387,12 @@
 
                 /* Clear direntry extrafields */
                 //destentry = (struct direntry *)entrybuffer;
-                destentry = DirEntryReader.Read(entrybuffer, entryindex);
+                //destentry = DirEntryReader.Read(entrybuffer, entryindex);
                 //memcpy(destentry, info.file.direntry, info.file.direntry.next);
+                // NOTE: The 3 previous out commented lines makes new destentry using blank entrybuffer,
+                // then copies data from info.file.direntry to destentry.
+                // This is replaced by just reading info.file.direntry as destentry.
+                destentry = DirEntryReader.Read(info.file.dirblock.dirblock.entries, info.file.direntry.Offset);
                 destentry.ExtraFields = new extrafields();
                 GetExtraFields(info.file.direntry, extrafields);
                 extrafields.virtualsize = extrafields.rollpointer = 0;
@@ -680,6 +684,8 @@
                 blk.entries[destofblok + i] = blk.entries[startofblok + i];
             }
 
+            info.file.direntry = DirEntryReader.Read(blk.entries, info.file.direntry.Offset);
+            
             /* makes info invalid!! */
             if (info.file.direntry.next != 0)
             {
@@ -751,6 +757,9 @@
  */
         public static async Task<bool> GetParent(objectinfo childfi, objectinfo parentfi, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Directory: GetParent Enter");
+#endif
             canode anode = new canode();
             CachedBlock dirblock = null;
             direntry de = null;
@@ -800,18 +809,25 @@
                 if (dirblock != null)
                 {
                     blk = dirblock.dirblock;
+                    var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+                    var dirEntriesNo = 0;
                     de = Macro.FIRSTENTRY(blk);
                     eob = false;
 
-                    while (!found && !eob)
+                    do
                     {
                         found = de.anode == childanodenr;
-                        eob = de.next == 0;
-                        if (!found && !eob)
+                        if (found)
                         {
-                            de = Macro.NEXTENTRY(blk, de);
+                            break;
                         }
-                    }
+                        eob = de.next == 0;
+
+                        dirEntriesNo++;
+                        CheckReadDirEntryError(anode.blocknr + anodeoffset, blk, dirEntriesNo, maxDirEntries, -1);
+                        
+                        de = Macro.NEXTENTRY(blk, de);
+                    } while (!eob);
 
                     if (!found)
                     {
@@ -840,6 +856,15 @@
             return true;
         }
 
+        private static void CheckReadDirEntryError(uint blocknr, dirblock dirblock, int dirEntriesNo, int maxDirEntries, int offset)
+        {
+            if (dirEntriesNo < maxDirEntries)
+            {
+                return;
+            }
+            throw new IOException($"Read dir entry at offset {offset} exceeded max dir entries {maxDirEntries}");
+        }
+
 /* SearchInDir
  *
  * Search an object in a directory and return the fileinfo
@@ -853,6 +878,9 @@
  */
         public static async Task<bool> SearchInDir(uint dirnodenr, string objectname, objectinfo info, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Directory: SearchInDir Enter");
+#endif
             canode anode = new canode();
             CachedBlock dirblock;
             //direntry entry = null;
@@ -877,24 +905,37 @@
             anodeoffset = 0;
             dirblock = await LoadDirBlock(anode.blocknr, g);
             var blk = dirblock.dirblock;
+            var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
             direntry entry = null;
             while (blk != null && blk.entries[0] != 0 && !found && !eod) /* eod stands for end-of-dir */
             {
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Directory: SearchInDir cached block nr {dirblock.blocknr}, block type '{(dirblock.blk == null ? "null" : dirblock.blk.GetType().Name)}', found = {found}, eod = {eod}");
+#endif
+                
                 // entry = (struct direntry *)(&dirblock->blk.entries);
 
                 /* scan block */
                 var entryIndex = 0;
+                var dirEntriesNo = 0;
                 do
                 {
+#if DEBUG
+                    Pfs3Logger.Instance.Debug($"Directory: SearchInDir entryIndex = {entryIndex}, found = {found}, eod = {eod}");
+#endif
                     entry = DirEntryReader.Read(blk.entries, entryIndex);
+                    if (entry.next == 0)
+                    {
+                        break;
+                    }
                     found = intl_name == AmigaTextHelper.ToUpper(entry.Name, true);
-                    var hasMoreEntries = entryIndex + entry.next < blk.entries.Length &&
-                                      blk.entries[entryIndex + entry.next] != 0;
-                    if (found || !hasMoreEntries)
+                    if (found)
                     {
                         break;
                     }
 
+                    dirEntriesNo++;
+                    CheckReadDirEntryError(dirblock.blocknr, blk, dirEntriesNo, maxDirEntries, entryIndex);
                     entryIndex += entry.next;
                 } while (entryIndex < blk.entries.Length);
 
@@ -954,6 +995,9 @@
         public static async Task<bool> AddDirectoryEntry(objectinfo dir, direntry newentry, fileinfo newinfo,
             globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Directory: AddDirectoryEntry");
+#endif
             canode anode = new canode();
             uint anodeoffset = 0, diranodenr;
             CachedBlock blok = null;
@@ -978,8 +1022,14 @@
                 entry = DirEntryReader.Read(blk.entries, 0);
 
                 /* goto end of dirblock; i = aantal gebruikte bytes */
+                var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+                var dirEntriesNo = 0;
                 for (i = 0; entry.next > 0; entry = DirEntryReader.Read(blk.entries, i))
+                {
+                    dirEntriesNo++;
+                    CheckReadDirEntryError(blok.blocknr, blk, dirEntriesNo, maxDirEntries, i);
                     i += entry.next;
+                }
 
                 /* does it fit in this block? (keep space for trailing 0) */
                 if (i + newentry.next + 1 < Macro.DB_ENTRYSPACE(g))
@@ -1264,12 +1314,12 @@
 
             direntry.next = (byte)entrysize;
             direntry.type = (sbyte)type;
-            // direntry->fsize        = 0;
+            direntry.fsize = 0;
             direntry.CreationDate = DateTime.Now;
             // direntry.creationday = (UWORD)time.ds_Days;
             // direntry.creationminute = (UWORD)time.ds_Minute;
             // direntry.creationtick = (UWORD)time.ds_Tick;
-            // direntry->protection  = 0x00;    // RWED
+            direntry.protection  = 0x00;    // RWED
             direntry.nlength = (byte)name.Length;
 
             // the trailing 0 of strcpy() creates the empty comment!
@@ -1299,6 +1349,9 @@
             var volume = g.currentvolume;
 
             //DB(Trace(1, "LoadDirBlock", "loading block %lx\n", blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Directory: LoadDirBlock Enter, loading block {blocknr}");
+#endif
             // -I- check if already in cache
             if ((dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, blocknr, g)) == null)
             {
@@ -1339,6 +1392,9 @@
             }
 
             // EXIT("LoadDirBlock");
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Directory: LoadDirBlock Exit");
+#endif
             return dirblk;
         }
 
@@ -1538,10 +1594,13 @@
             return parts.Skip(i).ToArray();
         }
 
-        public static async Task<objectinfo> GetRoot(globaldata g)
+        public static Task<objectinfo> GetRoot(globaldata g)
         {
-            await Volume.UpdateCurrentDisk(g);
-            return new objectinfo
+            // CHANGE: Commented out UpdateCurrentDisk as this is only need when used on an Amiga
+            // changing from one partition to another.
+            // await Volume.UpdateCurrentDisk(g);
+            
+            return Task.FromResult(new objectinfo
             {
                 deldir = new deldirinfo
                 {
@@ -1557,7 +1616,7 @@
                 // file = new fileinfo
                 // {
                 // }
-            };
+            });
         }
 
 /* pre: - path <> 0 and volume or directory
@@ -1853,24 +1912,25 @@
             anodeoffset = 0;
             var dirblock = await LoadDirBlock(anode.blocknr, g);
             var blk = dirblock.dirblock;
-
+            var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+            
             while (blk.entries[0] != 0 && !eod) /* eod stands for end-of-dir */
             {
                 /* scan block */
                 
+                var dirEntriesNo = 0;
                 var entryIndex = 0;
                 direntry entry;
                 do
                 {
                     entry = DirEntryReader.Read(blk.entries, entryIndex);
-                    dirEntries.Add(entry);
-                    var hasMoreEntries = entryIndex + entry.next < blk.entries.Length &&
-                                         blk.entries[entryIndex + entry.next] != 0;
-                    if (!hasMoreEntries)
+                    if (entry.next == 0)
                     {
                         break;
                     }
-
+                    dirEntries.Add(entry);
+                    dirEntriesNo++;
+                    CheckReadDirEntryError(dirblock.blocknr, blk, dirEntriesNo, maxDirEntries, entryIndex);
                     entryIndex += entry.next;
                 } while (entryIndex < blk.entries.Length);
                 
@@ -2107,7 +2167,7 @@
             {
                 /* make space in block
                  */
-                while (CheckFit(from.file.dirblock, spaceneeded, g) != null &&
+                while (CheckFit(from.file.dirblock, spaceneeded, g) == null &&
                        from.file.direntry.Offset != mover.file.direntry.Offset)
                 {
                     // from.direntry = (struct direntry *)((UBYTE*)from.direntry - mover.direntry->next);
@@ -2137,9 +2197,15 @@
 
             /* goto end of dirblock */
             var blk = blok.dirblock;
+            var maxDirEntries = blk == null ? 0 : (blk.entries.Length / 17) + 5;
+            var dirEntriesNo = 0;
             entry = Macro.FIRSTENTRY(blk);
             for (i = 0; entry.next != 0; entry = Macro.NEXTENTRY(blk, entry))
+            {
+                dirEntriesNo++;
+                CheckReadDirEntryError(blok.blocknr, blk, dirEntriesNo, maxDirEntries, i);
                 i += entry.next;
+            }
 
             if (needed + i + 1 <= Macro.DB_ENTRYSPACE(g))
                 return entry;
@@ -2238,8 +2304,11 @@
                 var newBlockBlk = newblock.dirblock;
                 dest = Macro.FIRSTENTRY(newBlockBlk);
                 // memcpy(dest, to, to->next);
-                // *(UBYTE*)NEXTENTRY(dest) = 0; /* end of dirblock */
                 DirEntryWriter.Write(newBlockBlk.entries, dest.Offset, to);
+                // update dest with to, replicates behavior of changing pointers
+                dest = to;
+                // *(UBYTE*)NEXTENTRY(dest) = 0; /* end of dirblock */
+                newBlockBlk.entries[dest.Offset + dest.next] = 0;
                 BigEndianConverter.ConvertUInt16ToBytes(0, newBlockBlk.entries,
                     dest.Offset + to.next); /* end of dirblock */
                 result.direntry = dest;
@@ -2282,7 +2351,7 @@
             start = from.file.direntry.Offset + from.file.direntry.next;
             //end = (UBYTE *)&(from.dirblock->blk) + g.RootBlock.ReservedBlksize;
             end = SizeOf.DirBlock.Entries(g);
-            movelen = (diff > 0) ? (end - dest) : (end - start);
+            movelen = diff > 0 ? end - dest : end - start;
             // memmove(dest, start, movelen);
             var dirBlock = from.file.dirblock.dirblock;
             for (var i = 0; i < movelen; i++)
@@ -2295,7 +2364,7 @@
             DirEntryWriter.Write(dirBlock.entries, from.file.direntry.Offset, to);
 
             /* fill in result and make block dirty */
-            result.direntry = from.file.direntry;
+            result.direntry = to;
             result.dirblock = from.file.dirblock;
             await Update.MakeBlockDirty(from.file.dirblock, g);
 

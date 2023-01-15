@@ -93,7 +93,6 @@
         public async Task CreateDirectory(string dirName)
         {
             await Directory.NewDir(currentDirectory, dirName, g);
-            await Update.UpdateDisk(g);
         }
 
         /// <summary>
@@ -107,7 +106,6 @@
             var objectInfo = currentDirectory.Clone();
             var found = !(await Directory.Find(objectInfo, fileName, g)).Any();
             await Directory.NewFile(found, currentDirectory, fileName, objectInfo, overwrite, ignoreProtectionBits, g);
-            await Update.UpdateDisk(g);
 
             foreach (var fileEntry in g.currentvolume.fileentries)
             {
@@ -169,7 +167,6 @@
 
                 // create new file
                 await Directory.NewFile(false, currentDirectory, fileName, objectInfo, true, ignoreProtectionBits, g);
-                await Update.UpdateDisk(g);
             }
 
             var hasReadProtectionBit =
