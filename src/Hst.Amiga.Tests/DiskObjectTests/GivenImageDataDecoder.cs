@@ -1,7 +1,8 @@
 ﻿namespace HstWbInstaller.Core.Tests.InfoTests
 {
+    using Hst.Amiga.DataTypes.DiskObjects;
+    using Hst.Amiga.Tests.DiskObjectTests;
     using Hst.Imaging;
-    using IO.Info;
     using Xunit;
 
     public class GivenImageDataDecoder : InfoTestBase

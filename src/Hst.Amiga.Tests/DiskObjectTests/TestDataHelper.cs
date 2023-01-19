@@ -1,10 +1,9 @@
-﻿namespace HstWbInstaller.Core.Tests.InfoTests
+﻿namespace Hst.Amiga.Tests.DiskObjectTests
 {
     using System;
-    using System.Collections.Generic;
     using System.Linq;
+    using Hst.Amiga.DataTypes.DiskObjects;
     using Hst.Imaging;
-    using IO.Info;
 
     public static class TestDataHelper
     {
@@ -64,7 +63,7 @@
                 }
             }
 
-            return new Image(width, height, 32, false, Color.Transparent, palette, pixelData);
+            return new Image(width, height, 32, false, Color.Transparent, new Palette(), pixelData);
         }
 
         public static ImageData CreateImageData()

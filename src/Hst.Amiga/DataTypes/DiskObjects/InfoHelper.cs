@@ -1,10 +1,9 @@
-﻿namespace HstWbInstaller.Core.IO.Info
+﻿namespace Hst.Amiga.DataTypes.DiskObjects
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
     using Hst.Amiga;
-    using Hst.Imaging;
 
     public static class InfoHelper
     {

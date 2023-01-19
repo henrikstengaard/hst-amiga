@@ -4,7 +4,7 @@
     using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
-    using IO.Info;
+    using Hst.Amiga.DataTypes.DiskObjects;
     using Xunit;
 
     public class GivenDiskObjectReader

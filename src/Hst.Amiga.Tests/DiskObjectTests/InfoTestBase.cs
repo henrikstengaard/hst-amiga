@@ -1,8 +1,9 @@
-﻿namespace HstWbInstaller.Core.Tests.InfoTests
+﻿namespace Hst.Amiga.Tests.DiskObjectTests
 {
     using System;
-    using Hst.Imaging;
-    using IO.Info;
+    using System.Linq;
+    using DataTypes.DiskObjects;
+    using Imaging;
     using Xunit;
 
     public abstract class InfoTestBase
@@ -12,8 +13,27 @@
             Assert.Equal(source.Width, destination.Width);
             Assert.Equal(source.Height, destination.Height);
 
+            // assert palette, if both source and destination is 8 bpp or less and has colors in palette
+            if (source.BitsPerPixel <= 8 && destination.BitsPerPixel <= 8 && 
+                source.Palette.Colors.Count > 0 && destination.Palette.Colors.Count > 0)
+            {
+                for (var i = 0; i < Math.Min(source.Palette.Colors.Count, destination.Palette.Colors.Count); i++)
+                {
+                    Assert.Equal(source.Palette.Colors[i].R, destination.Palette.Colors[i].R);
+                    Assert.Equal(source.Palette.Colors[i].G, destination.Palette.Colors[i].G);
+                    Assert.Equal(source.Palette.Colors[i].B, destination.Palette.Colors[i].B);
+
+                    if (source.BitsPerPixel == 32 && source.BitsPerPixel == destination.BitsPerPixel)
+                    {
+                        Assert.Equal(source.Palette.Colors[i].A, destination.Palette.Colors[i].A);
+                    }
+                }
+            }
+            
             var sourcePixelIterator = new ImagePixelDataIterator(source);
             var destPixelIterator = new ImagePixelDataIterator(destination);
+
+            var t = source.PixelData.SequenceEqual(destination.PixelData);
             
             for (int y = 0; y < source.Height; y++)
             {
@@ -28,54 +48,13 @@
                     Assert.Equal(sourcePixel.R, destPixel.R);
                     Assert.Equal(sourcePixel.G, destPixel.G);
                     Assert.Equal(sourcePixel.B, destPixel.B);
-                    Assert.Equal(sourcePixel.A, destPixel.A);
+                    
+                    if (source.BitsPerPixel == 32 && source.BitsPerPixel == destination.BitsPerPixel)
+                    {
+                        Assert.Equal(sourcePixel.A, destPixel.A);
+                    }
                 }
             }
         }
-        
-        // protected static void AssertEqual(BitmapImage source, NewIcon destination)
-        // {
-        //     Assert.Equal(source.Width, destination.Width);
-        //     Assert.Equal(source.Height, destination.Height);
-        //
-        //     for (var i = 0; i < Math.Min(source.Palette.Length, destination.Palette.Length); i++)
-        //     {
-        //         var sourceColor = source.Palette[i];
-        //         var destinationColor = destination.Palette[i];
-        //         
-        //         Assert.Equal(sourceColor.R, destinationColor[0]);
-        //         Assert.Equal(sourceColor.G, destinationColor[1]);
-        //         Assert.Equal(sourceColor.B, destinationColor[2]);
-        //     }
-        //     
-        //     for (var y = 0; y < source.Height; y++)
-        //     {
-        //         for (var x = 0; x < source.Width; x++)
-        //         {
-        //             var sourcePixel = source.GetPixel(x, y);
-        //             var destinationColor = destination.ImagePixels[destination.Width * y + x];
-        //             
-        //             Assert.Equal(sourcePixel.PaletteColor, destinationColor);
-        //         }
-        //     }
-        // }
-        //
-        // protected static void AssertEqual(Image<Rgba32> source, NewIcon destination)
-        // {
-        //     Assert.Equal(source.Width, destination.Width);
-        //     Assert.Equal(source.Height, destination.Height);
-        //
-        //     for (int y = 0; y < source.Height; y++)
-        //     {
-        //         for (int x = 0; x < source.Width; x++)
-        //         {
-        //             var destinationColor = destination.ImagePixels[destination.Width * y + x];
-        //             var color = destination.Palette[destinationColor];
-        //             Assert.Equal(source[x, y].R, color[0]);
-        //             Assert.Equal(source[x, y].G, color[1]);
-        //             Assert.Equal(source[x, y].B, color[2]);
-        //         }
-        //     }
-        // }
     }
 }

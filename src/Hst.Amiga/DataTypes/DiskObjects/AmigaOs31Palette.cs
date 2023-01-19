@@ -1,6 +1,6 @@
-﻿namespace HstWbInstaller.Core.IO.Info
+﻿namespace Hst.Amiga.DataTypes.DiskObjects
 {
-    using Hst.Imaging;
+    using Imaging;
 
     public static class AmigaOs31Palette
     {

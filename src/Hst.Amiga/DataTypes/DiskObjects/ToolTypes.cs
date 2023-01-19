@@ -1,4 +1,4 @@
-﻿namespace HstWbInstaller.Core.IO.Info
+﻿namespace Hst.Amiga.DataTypes.DiskObjects
 {
     using System.Collections.Generic;
 
