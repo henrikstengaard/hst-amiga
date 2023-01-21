@@ -1,9 +1,8 @@
-﻿namespace HstWbInstaller.Core.Tests.InfoTests
+﻿namespace Hst.Amiga.Tests.DiskObjectTests
 {
     using System;
-    using Hst.Amiga.DataTypes.DiskObjects;
-    using Hst.Amiga.Tests.DiskObjectTests;
-    using Hst.Imaging;
+    using DataTypes.DiskObjects;
+    using Imaging;
     using Xunit;
 
     public class GivenImageDataEncoder
@@ -30,8 +29,7 @@
             pixelData[(width * 1) + 1] = 3;
             
             // arrange - load image from pixel data
-            var image = new Image(width, height, 8, false, Color.Transparent, palette,
-                pixelData);
+            var image = new Image(width, height, 8, palette, pixelData);
             
             // act - encode image
             var imageData = ImageDataEncoder.Encode(image, depth);
@@ -81,8 +79,7 @@
             pixelData[(width * 1) + 1] = 3;
             
             // arrange - load image from pixel data
-            var image = new Image(width, height, 8, false, Color.Transparent, palette,
-                pixelData);
+            var image = new Image(width, height, 8, palette, pixelData);
             
             // act - encode image
             var imageData = ImageDataEncoder.Encode(image, depth);

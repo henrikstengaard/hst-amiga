@@ -39,6 +39,12 @@
             var imageToolTypes =
                 textDatas.Where(x => x.Size >= 4 && Encoding.ASCII.GetString(x.Data, 0, 4) == $"IM{imageNumber}=")
                     .ToList();
+
+            if (!imageToolTypes.Any())
+            {
+                newIconData = Array.Empty<byte>();
+                return;
+            }
             
             // build new icon data by cutting off "IM?=" and appending to data array
             newIconData = new byte[imageToolTypes.Sum(x => x.Size - 4)];
@@ -94,6 +100,11 @@
         public NewIcon Decode(int imageNumber)
         {
             GetNewIconData(imageNumber);
+            
+            if (newIconData.Length == 0)
+            {
+                return null;
+            }
 // ----
             var decoded = new List<byte>();
 
@@ -102,7 +113,7 @@
             var bitmap_start_pos = 0;
 
             var trns_code = newIconData[0];
-            var has_trns = trns_code == 'B';
+            var has_trns = trns_code == 'B'; // B = transparent, C = not transparent
             var width_code = newIconData[1];
             var height_code = newIconData[2];
 
@@ -180,7 +191,13 @@
                 colors.Add(new Color(decoded[offset], decoded[offset + 1], decoded[offset + 2], (byte)(p == 0 && has_trns ? 0 : 255)));
             }
 
-            var palette = new Palette(colors, has_trns);
+            newIcon.Palette = colors.ToArray();
+            
+            // var palette = new Palette(colors);
+            // if (has_trns)
+            // {
+            //     palette.TransparentColor = 0;
+            // }
 
             // create image pixels
             var pixelData = new byte[newIcon.Width * newIcon.Height];
@@ -206,8 +223,8 @@
                 }
             }
 
-            newIcon.Image = new Image(newIcon.Width, newIcon.Height, 8, has_trns,
-                palette.Colors[palette.TransparentColor], palette, pixelData);
+            newIcon.Data = pixelData;
+            // newIcon.Image = new Image(newIcon.Width, newIcon.Height, 8, palette, pixelData);
 
             return newIcon;
         }

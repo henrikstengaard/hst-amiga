@@ -91,7 +91,7 @@
                 ty++;
             }
 
-            return new Image(imageData.Width, imageData.Height, 8, true, Color.Transparent, palette, imageRgbaData);
+            return new Image(imageData.Width, imageData.Height, 8, palette, imageRgbaData);
         }
     }
 }

@@ -6,7 +6,7 @@
     using Imaging.Bitmaps;
     using Xunit;
 
-    public class GivenNewIconToolTypesDecoder : InfoTestBase
+    public class GivenNewIconToolTypesDecoder : DiskObjectsTestBase
     {
         [Fact]
         public async Task WhenDecodingNewIconForFirstImageThenImageMatches()
@@ -18,7 +18,7 @@
 
             // arrange - read bitmap image
             await using var imageStream = File.OpenRead(expectedBitmapImagePath);
-            var bitmapImage = BitmapReader.Read(imageStream);
+            var image = BitmapReader.Read(imageStream);
 
             // arrange - read disk object with new icon
             var diskObject = await DiskObjectReader.Read(File.OpenRead(newIconPath));
@@ -27,10 +27,11 @@
             var decoder = new NewIconToolTypesDecoder(diskObject.ToolTypes.TextDatas);
 
             // act - decode image number 1
-            var newIcon = decoder.Decode(imageNumber);
+            var decodedNewIcon = decoder.Decode(imageNumber);
 
             // assert - bitmap image is equal to new icon image
-            AssertEqual(bitmapImage, newIcon.Image);
+            var decodedImage = NewIconConverter.ToImage(decodedNewIcon);
+            AssertEqual(image, decodedImage);
         }
 
         [Fact]
@@ -43,7 +44,7 @@
 
             // arrange - read bitmap image
             await using var imageStream = File.OpenRead(expectedBitmapImagePath);
-            var bitmapImage = BitmapReader.Read(imageStream);
+            var image = BitmapReader.Read(imageStream);
 
             // arrange - read disk object with new icon
             var diskObject = await DiskObjectReader.Read(File.OpenRead(newIconPath));
@@ -52,10 +53,11 @@
             var decoder = new NewIconToolTypesDecoder(diskObject.ToolTypes.TextDatas);
 
             // act - decode image number 2
-            var newIcon = decoder.Decode(imageNumber);
+            var decodedNewIcon = decoder.Decode(imageNumber);
 
             // assert - bitmap image is equal to new icon image
-            AssertEqual(bitmapImage, newIcon.Image);
+            var decodedImage = NewIconConverter.ToImage(decodedNewIcon);
+            AssertEqual(image, decodedImage);
         }
     }
 }

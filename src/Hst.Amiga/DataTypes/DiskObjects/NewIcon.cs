@@ -8,8 +8,8 @@
         public int Width { get; set; }
         public int Height { get; set; }
         public int Depth { get; set; }
-        public Image Image { get; set; }
-        // public byte[][] Palette { get; set; }
-        // public byte[] ImagePixels { get; set; }
+        //public Image Image { get; set; }
+        public Color[] Palette { get; set; }
+        public byte[] Data { get; set; }
     }
 }

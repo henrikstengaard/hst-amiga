@@ -3,7 +3,6 @@
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Threading.Tasks;
     using DataTypes.DiskObjects;
     using DataTypes.DiskObjects.Errors;
     using Xunit;
@@ -90,7 +89,7 @@
         }
 
         [Fact]
-        public async Task WhenCreatingNewIconDiskObjectThenValidateNewIconReturnsSuccess()
+        public void WhenCreatingNewIconDiskObjectThenValidateNewIconReturnsSuccess()
         {
             var firstImageNumber = 1;
             var firstImagePath = Path.Combine("TestData", "DiskObjects", "bubble_bobble1.png");
@@ -102,8 +101,8 @@
             var secondImage = Imaging.Pngcs.PngReader.Read(File.OpenRead(secondImagePath));
 
             // arrange - encode first and second images to new icon images
-            var firstNewIcon = NewIconEncoder.Encode(firstImage);
-            var secondNewIcon = NewIconEncoder.Encode(secondImage);
+            var firstNewIcon = NewIconConverter.ToNewIcon(firstImage);
+            var secondNewIcon = NewIconConverter.ToNewIcon(secondImage);
 
             // arrange - create dummy planar icon
             var defaultImage = TestDataHelper.CreateFirstImage();
@@ -130,7 +129,7 @@
         }
 
         [Fact]
-        public async Task WhenCreatingNewIconDiskObjectWithoutNormalPlanarImageThenValidateNewIconReturnsError()
+        public void WhenCreatingNewIconDiskObjectWithoutNormalPlanarImageThenValidateNewIconReturnsError()
         {
             var firstImageNumber = 1;
             var firstImagePath = Path.Combine("TestData", "DiskObjects", "bubble_bobble1.png");
@@ -142,8 +141,8 @@
             var secondImage = Imaging.Pngcs.PngReader.Read(File.OpenRead(secondImagePath));
 
             // arrange - encode first and second images to new icon images
-            var firstNewIcon = NewIconEncoder.Encode(firstImage);
-            var secondNewIcon = NewIconEncoder.Encode(secondImage);
+            var firstNewIcon = NewIconConverter.ToNewIcon(firstImage);
+            var secondNewIcon = NewIconConverter.ToNewIcon(secondImage);
 
             // arrange - create new project disk object icon
             var floppyDiskObject = InfoHelper.CreateProjectInfo();
@@ -165,7 +164,7 @@
         }
 
         [Fact]
-        public async Task WhenCreatingNewIconDiskObjectWithoutFirstImageThenValidateNewIconReturnsError()
+        public void WhenCreatingNewIconDiskObjectWithoutFirstImageThenValidateNewIconReturnsError()
         {
             var secondImageNumber = 2;
             var secondImagePath = Path.Combine("TestData", "DiskObjects", "bubble_bobble2.png");
@@ -174,7 +173,7 @@
             var secondImage = Imaging.Pngcs.PngReader.Read(File.OpenRead(secondImagePath));
 
             // arrange - encode second image to new icon image
-            var secondNewIcon = NewIconEncoder.Encode(secondImage);
+            var secondNewIcon = NewIconConverter.ToNewIcon(secondImage);
 
             // arrange - create dummy planar icon
             var defaultImage = TestDataHelper.CreateFirstImage();

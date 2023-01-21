@@ -1,10 +1,10 @@
-﻿namespace HstWbInstaller.Core.Tests.InfoTests
+﻿namespace Hst.Amiga.Tests.DiskObjectTests
 {
     using System.IO;
     using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
-    using Hst.Amiga.DataTypes.DiskObjects;
+    using DataTypes.DiskObjects;
     using Xunit;
 
     public class GivenDiskObjectReader

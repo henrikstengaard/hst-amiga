@@ -11,7 +11,7 @@
     </ItemGroup>
     
     <ItemGroup>
-      <PackageReference Include="Hst.Core" Version="0.4.42" />
+      <PackageReference Include="Hst.Core" Version="0.4.44" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.1" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.3" />
       <PackageReference Include="Serilog" Version="2.12.0" />

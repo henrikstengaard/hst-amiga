@@ -2,8 +2,8 @@
 {
     using System;
     using System.Linq;
-    using Hst.Amiga.DataTypes.DiskObjects;
-    using Hst.Imaging;
+    using DataTypes.DiskObjects;
+    using Imaging;
 
     public static class TestDataHelper
     {
@@ -63,7 +63,7 @@
                 }
             }
 
-            return new Image(width, height, 32, false, Color.Transparent, new Palette(), pixelData);
+            return new Image(width, height, 32, new Palette(), pixelData);
         }
 
         public static ImageData CreateImageData()

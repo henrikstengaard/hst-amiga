@@ -6,7 +6,7 @@
     using Imaging;
     using Xunit;
 
-    public abstract class InfoTestBase
+    public abstract class DiskObjectsTestBase
     {
         protected static void AssertEqual(Image source, Image destination)
         {

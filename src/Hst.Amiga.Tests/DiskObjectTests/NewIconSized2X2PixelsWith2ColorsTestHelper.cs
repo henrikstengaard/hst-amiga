@@ -19,16 +19,16 @@
             Width = Width,
             Height = Height,
             Depth = Depth,
-            Image = new Image(Width, Height, Depth, false, Color.Transparent, 
-                new Palette(new []
-                {
-                    new Color(255, 0, 0), // red
-                    new Color(0, 255, 0), // green
-                }), new byte[]
+            Palette = new []
+            {
+                new Color(255, 0, 0), // red
+                new Color(0, 255, 0), // green
+            },
+            Data = new byte[]
             {
                 0, 1,
                 1, 0
-            }),
+            },
             Transparent = Transparent
         };
         

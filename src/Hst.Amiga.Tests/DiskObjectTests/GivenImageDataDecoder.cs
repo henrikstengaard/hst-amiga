@@ -1,11 +1,10 @@
-﻿namespace HstWbInstaller.Core.Tests.InfoTests
+﻿namespace Hst.Amiga.Tests.DiskObjectTests
 {
-    using Hst.Amiga.DataTypes.DiskObjects;
-    using Hst.Amiga.Tests.DiskObjectTests;
-    using Hst.Imaging;
+    using DataTypes.DiskObjects;
+    using Imaging;
     using Xunit;
 
-    public class GivenImageDataDecoder : InfoTestBase
+    public class GivenImageDataDecoder : DiskObjectsTestBase
     {
         [Fact]
         public void WhenDecodeImageDataWith2DifferentColorsUsedThenRgbaPixelDataMatchesPixelSet()
@@ -32,8 +31,7 @@
             pixelData[(width * 1) + 1] = 3;
 
             // arrange - load image from pixel data
-            var expectedImage = new Image(width, height, 8, false, Color.Transparent,
-                palette, pixelData);
+            var expectedImage = new Image(width, height, 8, palette, pixelData);
 
             // arrange - create image data
             var imageData = new ImageData
@@ -81,8 +79,7 @@
             pixelData[(width * 1) + 1] = 3;
 
             // arrange - load image from pixel data
-            var expectedImage = new Image(width, height, 8, false, Color.Transparent,
-                palette, pixelData);
+            var expectedImage = new Image(width, height, 8, palette, pixelData);
 
             // arrange - create image data
             // note all pixels in image data are set to 0 resulting in color 0

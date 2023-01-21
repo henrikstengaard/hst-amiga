@@ -39,30 +39,29 @@
             const int width = 8;
             const int height = 8;
             const int depth = 2;
-            var colors = (int)Math.Pow(depth, 2);
             var newIcon = new NewIcon
             {
                 Width = width,
                 Height = height,
                 Depth = depth,
-                Image = new Image(width, height, colors, false, Color.Transparent, 
-                    new Palette(new []
-                    {
-                        new Color(170, 170, 170, 255),
-                        new Color(0, 0, 0, 255),
-                        new Color(255, 255, 255, 255),
-                        new Color(102, 136, 187, 255),
-                    }), new byte[]
-                    {
-                        0, 0, 0, 0, 1, 1, 1, 1,
-                        0, 0, 0, 0, 1, 1, 1, 1,
-                        0, 0, 0, 0, 1, 1, 1, 1,
-                        0, 0, 0, 0, 1, 1, 1, 1,
-                        2, 2, 2, 2, 3, 3, 3, 3,
-                        2, 2, 2, 2, 3, 3, 3, 3,
-                        2, 2, 2, 2, 3, 3, 3, 3,
-                        2, 2, 2, 2, 3, 3, 3, 3
-                    }),
+                Palette = new []
+                {
+                    new Color(170, 170, 170),
+                    new Color(0, 0, 0),
+                    new Color(255, 255, 255),
+                    new Color(102, 136, 187),
+                },
+                Data = new byte[]
+                {
+                    0, 0, 0, 0, 1, 1, 1, 1,
+                    0, 0, 0, 0, 1, 1, 1, 1,
+                    0, 0, 0, 0, 1, 1, 1, 1,
+                    0, 0, 0, 0, 1, 1, 1, 1,
+                    2, 2, 2, 2, 3, 3, 3, 3,
+                    2, 2, 2, 2, 3, 3, 3, 3,
+                    2, 2, 2, 2, 3, 3, 3, 3,
+                    2, 2, 2, 2, 3, 3, 3, 3
+                }
             };
 
             // arrange - load iconverter created newicon info

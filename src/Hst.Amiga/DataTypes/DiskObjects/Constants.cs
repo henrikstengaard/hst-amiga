@@ -18,6 +18,7 @@
 
         public static class NewIcon
         {
+            public const int MaxNewIconColors = 255;
             public const int MAX_TEXTDATA_LENGTH = 127;
             public const string Header = "*** DON'T EDIT THE FOLLOWING LINES!! ***";
         }

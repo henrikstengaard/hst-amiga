@@ -17,12 +17,12 @@
             encoder.Add((byte)(0x21 + newIcon.Height));
             
             // write number of palette colors
-            var colors = newIcon.Image.Palette.Colors.Count;
+            var colors = newIcon.Palette.Length;
             encoder.Add((byte)(0x21 + (colors >> 6)));
             encoder.Add((byte)(0x21 + (colors & 0x3f)));
 
             // encode palette
-            foreach (var color in newIcon.Image.Palette.Colors)
+            foreach (var color in newIcon.Palette)
             {
                 encoder.Encode((byte)color.R);
                 encoder.Encode((byte)color.G);
@@ -36,11 +36,11 @@
             encoder.SetBitsPerValue(newIcon.Depth);
             
             var offset = 0;
-            for (var y = 0; y < newIcon.Image.Height; y++)
+            for (var y = 0; y < newIcon.Height; y++)
             {
-                for (var x = 0; x < newIcon.Image.Width; x++)
+                for (var x = 0; x < newIcon.Width; x++)
                 {
-                    encoder.Encode(newIcon.Image.PixelData[offset++]);
+                    encoder.Encode(newIcon.Data[offset++]);
                 }
             }
             
