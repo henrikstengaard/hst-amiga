@@ -5,6 +5,7 @@
     using System.Linq;
     using DataTypes.DiskObjects;
     using DataTypes.DiskObjects.Errors;
+    using DataTypes.DiskObjects.NewIcons;
     using Xunit;
 
     public class GivenNewIconHelper
@@ -15,7 +16,7 @@
             var imageNumber = 1;
             var newIcon = NewIconSized2X2PixelsWith2ColorsTestHelper.NewIcon;
 
-            var diskObject = InfoHelper.CreateDiskInfo();
+            var diskObject = DiskObjectHelper.CreateDiskInfo();
             NewIconHelper.SetNewIconImage(diskObject, imageNumber, newIcon);
 
             var textDatas = diskObject.ToolTypes.TextDatas.ToList();
@@ -46,7 +47,7 @@
             const int secondImageNumber = 2;
             var newIcon = NewIconSized2X2PixelsWith2ColorsTestHelper.NewIcon;
 
-            var diskObject = InfoHelper.CreateDiskInfo();
+            var diskObject = DiskObjectHelper.CreateDiskInfo();
             NewIconHelper.SetNewIconImage(diskObject, firstImageNumber, newIcon);
             NewIconHelper.SetNewIconImage(diskObject, secondImageNumber, newIcon);
 
@@ -108,10 +109,10 @@
             var defaultImage = TestDataHelper.CreateFirstImage();
 
             // arrange - create new project disk object icon
-            var floppyDiskObject = InfoHelper.CreateProjectInfo();
+            var floppyDiskObject = DiskObjectHelper.CreateProjectInfo();
 
             // arrange - set normal/first image
-            InfoHelper.SetFirstImage(floppyDiskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
+            DiskObjectHelper.SetFirstImage(floppyDiskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
 
             // arrange - set first and second new icon images
             NewIconHelper.SetNewIconImage(floppyDiskObject, firstImageNumber, firstNewIcon);
@@ -145,7 +146,7 @@
             var secondNewIcon = NewIconConverter.ToNewIcon(secondImage);
 
             // arrange - create new project disk object icon
-            var floppyDiskObject = InfoHelper.CreateProjectInfo();
+            var floppyDiskObject = DiskObjectHelper.CreateProjectInfo();
 
             // arrange - set first and second new icon images
             NewIconHelper.SetNewIconImage(floppyDiskObject, firstImageNumber, firstNewIcon);
@@ -179,13 +180,13 @@
             var defaultImage = TestDataHelper.CreateFirstImage();
 
             // arrange - create new project disk object icon
-            var floppyDiskObject = InfoHelper.CreateProjectInfo();
+            var floppyDiskObject = DiskObjectHelper.CreateProjectInfo();
 
             // arrange - set second new icon image
             NewIconHelper.SetNewIconImage(floppyDiskObject, secondImageNumber, secondNewIcon);
 
             // arrange - set normal/first image
-            InfoHelper.SetFirstImage(floppyDiskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
+            DiskObjectHelper.SetFirstImage(floppyDiskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
 
             // act - validate new icon
             var result = NewIconHelper.ValidateNewIcon(floppyDiskObject);
@@ -206,10 +207,10 @@
             var defaultImage = TestDataHelper.CreateFirstImage();
 
             // arrange - create new project disk object icon
-            var floppyDiskObject = InfoHelper.CreateProjectInfo();
+            var floppyDiskObject = DiskObjectHelper.CreateProjectInfo();
 
             // arrange - set normal/first image
-            InfoHelper.SetFirstImage(floppyDiskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
+            DiskObjectHelper.SetFirstImage(floppyDiskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
 
             // act - validate new icon
             var result = NewIconHelper.ValidateNewIcon(floppyDiskObject);
@@ -230,15 +231,15 @@
             var defaultImage = TestDataHelper.CreateFirstImage();
 
             // arrange - create new project disk object icon
-            var diskObject = InfoHelper.CreateProjectInfo();
+            var diskObject = DiskObjectHelper.CreateProjectInfo();
 
             // arrange - set normal/first image
-            InfoHelper.SetFirstImage(diskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
+            DiskObjectHelper.SetFirstImage(diskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
 
             // arrange - add empty and new icon header text datas
             diskObject.ToolTypes = new ToolTypes
             {
-                TextDatas = new[] { InfoHelper.CreateTextData(""), InfoHelper.CreateTextData(Constants.NewIcon.Header) }
+                TextDatas = new[] { DiskObjectHelper.CreateTextData(""), DiskObjectHelper.CreateTextData(Constants.NewIcon.Header) }
             };
 
             // act - validate new icon
@@ -260,20 +261,20 @@
             var defaultImage = TestDataHelper.CreateFirstImage();
 
             // arrange - create new project disk object icon
-            var diskObject = InfoHelper.CreateProjectInfo();
+            var diskObject = DiskObjectHelper.CreateProjectInfo();
 
             // arrange - set normal/first image
-            InfoHelper.SetFirstImage(diskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
+            DiskObjectHelper.SetFirstImage(diskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
 
             // arrange - add new icon space, new icon header, new icon image 1 tool types and only 1 new icon image 2 tool type
             diskObject.ToolTypes = new ToolTypes
             {
                 TextDatas = new[]
                     {
-                        InfoHelper.CreateTextData(" "), InfoHelper.CreateTextData(Constants.NewIcon.Header),
-                    }.Concat(Enumerable.Range(1, 2).Select(_ => InfoHelper.CreateTextData("IM1=")))
-                    .Concat(Enumerable.Range(1, 1).Select(_ => InfoHelper.CreateTextData("IM2=")))
-                    .Concat(Enumerable.Range(1, 1).Select(_ => InfoHelper.CreateTextData("IM1=")))
+                        DiskObjectHelper.CreateTextData(" "), DiskObjectHelper.CreateTextData(Constants.NewIcon.Header),
+                    }.Concat(Enumerable.Range(1, 2).Select(_ => DiskObjectHelper.CreateTextData("IM1=")))
+                    .Concat(Enumerable.Range(1, 1).Select(_ => DiskObjectHelper.CreateTextData("IM2=")))
+                    .Concat(Enumerable.Range(1, 1).Select(_ => DiskObjectHelper.CreateTextData("IM1=")))
             };
 
             // act - validate new icon
@@ -295,19 +296,19 @@
             var defaultImage = TestDataHelper.CreateFirstImage();
 
             // arrange - create new project disk object icon
-            var diskObject = InfoHelper.CreateProjectInfo();
+            var diskObject = DiskObjectHelper.CreateProjectInfo();
 
             // arrange - set normal/first image
-            InfoHelper.SetFirstImage(diskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
+            DiskObjectHelper.SetFirstImage(diskObject, ImageDataEncoder.Encode(defaultImage, TestDataHelper.Depth));
 
             // arrange - add new icon space, new icon header, new icon image 1 tool types and only 1 new icon image 2 tool type
             diskObject.ToolTypes = new ToolTypes
             {
                 TextDatas = new[]
                     {
-                        InfoHelper.CreateTextData(" "), InfoHelper.CreateTextData(Constants.NewIcon.Header),
-                    }.Concat(Enumerable.Range(1, 2).Select(_ => InfoHelper.CreateTextData("IM1=")))
-                    .Concat(Enumerable.Range(1, 1).Select(_ => InfoHelper.CreateTextData("IM2=")))
+                        DiskObjectHelper.CreateTextData(" "), DiskObjectHelper.CreateTextData(Constants.NewIcon.Header),
+                    }.Concat(Enumerable.Range(1, 2).Select(_ => DiskObjectHelper.CreateTextData("IM1=")))
+                    .Concat(Enumerable.Range(1, 1).Select(_ => DiskObjectHelper.CreateTextData("IM2=")))
             };
 
             // act - validate new icon

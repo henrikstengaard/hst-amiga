@@ -1,4 +1,4 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.ColorIcons
 {
     public class FaceChunk
     {

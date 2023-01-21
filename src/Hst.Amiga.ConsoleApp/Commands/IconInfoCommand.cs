@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core;
 using DataTypes.DiskObjects;
+using DataTypes.DiskObjects.ColorIcons;
+using DataTypes.DiskObjects.NewIcons;
 using Microsoft.Extensions.Logging;
 
 public class IconInfoCommand : CommandBase

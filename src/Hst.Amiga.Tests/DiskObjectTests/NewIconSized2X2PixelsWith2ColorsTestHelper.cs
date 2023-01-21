@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.Text;
     using DataTypes.DiskObjects;
+    using DataTypes.DiskObjects.NewIcons;
     using Imaging;
 
     public static class NewIconSized2X2PixelsWith2ColorsTestHelper

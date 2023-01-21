@@ -1,4 +1,4 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.ColorIcons
 {
     // using Color = Images.Bitmap.Color;
     // using Image = SixLabors.ImageSharp.Image;

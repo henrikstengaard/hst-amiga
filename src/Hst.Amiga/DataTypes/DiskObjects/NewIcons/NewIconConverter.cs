@@ -1,9 +1,9 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.NewIcons
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using Imaging;
+    using Hst.Imaging;
 
     public static class NewIconConverter
     {
@@ -49,7 +49,7 @@
             {
                 Width = (short)image.Width,
                 Height = (short)image.Height,
-                Depth = InfoHelper.CalculateDepth(image.Palette.Colors.Count),
+                Depth = DiskObjectHelper.CalculateDepth(image.Palette.Colors.Count),
                 Palette = colors,
                 Data = pixelData,
                 Transparent = image.Palette.IsTransparent
@@ -112,7 +112,7 @@
             {
                 Width = (short)image.Width,
                 Height = (short)image.Height,
-                Depth = InfoHelper.CalculateDepth(image.Palette.Colors.Count),
+                Depth = DiskObjectHelper.CalculateDepth(image.Palette.Colors.Count),
                 Palette = colorsArray,
                 Data = pixelData,
                 Transparent = image.Palette.IsTransparent

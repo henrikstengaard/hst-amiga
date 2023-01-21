@@ -1,10 +1,10 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.NewIcons
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Text;
-    using Imaging;
+    using Hst.Imaging;
 
     public class NewIconToolTypesDecoder
     {
@@ -179,7 +179,7 @@
                 Transparent = has_trns,
                 Width = width_code - 0x21,
                 Height = height_code - 0x21,
-                Depth = InfoHelper.CalculateDepth(ncolors)
+                Depth = DiskObjectHelper.CalculateDepth(ncolors)
             };
 
             var offset = 0;

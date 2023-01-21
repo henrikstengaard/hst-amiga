@@ -3,9 +3,9 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using Hst.Amiga;
+    using Amiga;
 
-    public static class InfoHelper
+    public static class DiskObjectHelper
     {
         public static DiskObject CreateInfo()
         {
@@ -92,12 +92,6 @@
             return diskObject;
         }
 
-        // public static void SetFirstImage(DiskObject diskObject, byte[][] palette, Image image, int depth = 3)
-        // {
-        //     var imageData = ImageDataEncoder.Encode(image, palette, depth);
-        //     SetFirstImage(diskObject, imageData);            
-        // }
-
         public static void SetFirstImage(DiskObject diskObject, ImageData imageData)
         {
             diskObject.Gadget.Width = imageData.Width;
@@ -106,12 +100,6 @@
             diskObject.FirstImageData = imageData;
         }
         
-        // public static void SetSecondImage(DiskObject diskObject, byte[][] palette, Image image, int depth = 3)
-        // {
-        //     var imageData = ImageDataEncoder.Encode(image, palette, depth);
-        //     SetSecondImage(diskObject, imageData);
-        // }
-
         public static void SetSecondImage(DiskObject diskObject, ImageData imageData)
         {
             diskObject.Gadget.SelectRenderPointer = 1;
@@ -161,7 +149,12 @@
 
         public static int CalculateDepth(int colors)
         {
-            return (int)Math.Ceiling(Math.Log(colors) / Math.Log(2));
+            return Convert.ToInt32(Math.Ceiling(Math.Log(colors) / Math.Log(2)));
+        }
+        
+        public static int CalculateColors(int depth)
+        {
+            return Convert.ToInt32(Math.Pow(2, depth));
         }
     }
 }

@@ -1,6 +1,6 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.NewIcons
 {
-    using Imaging;
+    using Hst.Imaging;
 
     public class NewIcon
     {

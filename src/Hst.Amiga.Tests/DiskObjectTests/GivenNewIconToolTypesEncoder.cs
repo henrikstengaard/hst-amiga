@@ -1,11 +1,11 @@
 ﻿namespace Hst.Amiga.Tests.DiskObjectTests
 {
-    using System;
     using System.IO;
     using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
     using DataTypes.DiskObjects;
+    using DataTypes.DiskObjects.NewIcons;
     using Imaging;
     using Xunit;
 

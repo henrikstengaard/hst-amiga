@@ -1,9 +1,9 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.NewIcons
 {
     using System.Collections.Generic;
     using System.Linq;
-    using Core;
-    using Errors;
+    using Hst.Amiga.DataTypes.DiskObjects.Errors;
+    using Hst.Core;
 
     public static class NewIconHelper
     {
@@ -45,8 +45,8 @@
             // add new icon header, if no new icons are present in disk object
             if (!hasNewIcons)
             {
-                textDatas.Add(InfoHelper.CreateTextData(" "));
-                newIconHeaderTextData = InfoHelper.CreateTextData(Constants.NewIcon.Header);
+                textDatas.Add(DiskObjectHelper.CreateTextData(" "));
+                newIconHeaderTextData = DiskObjectHelper.CreateTextData(Constants.NewIcon.Header);
                 textDatas.Add(newIconHeaderTextData);
             }
             

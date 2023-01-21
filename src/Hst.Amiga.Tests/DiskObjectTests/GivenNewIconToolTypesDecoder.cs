@@ -3,6 +3,7 @@
     using System.IO;
     using System.Threading.Tasks;
     using DataTypes.DiskObjects;
+    using DataTypes.DiskObjects.NewIcons;
     using Imaging.Bitmaps;
     using Xunit;
 

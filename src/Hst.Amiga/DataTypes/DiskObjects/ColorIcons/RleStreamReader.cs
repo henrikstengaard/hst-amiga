@@ -1,4 +1,4 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.ColorIcons
 {
     using System;
     using System.IO;

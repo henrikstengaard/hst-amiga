@@ -1,4 +1,4 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.NewIcons
 {
     using System.Collections.Generic;
     using System.Text;

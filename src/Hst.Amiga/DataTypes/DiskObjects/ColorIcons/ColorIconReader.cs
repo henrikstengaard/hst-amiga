@@ -1,11 +1,11 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.ColorIcons
 {
     using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
-    using Core.Extensions;
+    using Hst.Core.Extensions;
     using Imaging;
 
     public static class ColorIconReader

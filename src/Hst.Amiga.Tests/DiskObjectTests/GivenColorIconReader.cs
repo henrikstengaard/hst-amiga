@@ -3,6 +3,7 @@
     using System.IO;
     using System.Threading.Tasks;
     using DataTypes.DiskObjects;
+    using DataTypes.DiskObjects.ColorIcons;
     using Imaging.Pngcs;
     using Xunit;
 

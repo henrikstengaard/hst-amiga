@@ -136,7 +136,7 @@
             // assert - tool types tool is present and contains 3 strings
             Assert.NotNull(diskObject.ToolTypes);
             Assert.Equal(3, diskObject.ToolTypes.TextDatas.Count());
-            var toolTypesStrings = InfoHelper.ConvertToolTypesToStrings(diskObject.ToolTypes).ToList();
+            var toolTypesStrings = DiskObjectHelper.ConvertToolTypesToStrings(diskObject.ToolTypes).ToList();
             Assert.Equal("(SCREENSHOT=WIDTHxHEIGHT)", toolTypesStrings[0]);
             Assert.Equal("NOGUIGFX", toolTypesStrings[1]);
             Assert.Equal("(FILTERUSEENTER)", toolTypesStrings[2]);

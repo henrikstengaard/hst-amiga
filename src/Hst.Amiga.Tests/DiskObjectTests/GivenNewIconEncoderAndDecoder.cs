@@ -3,7 +3,7 @@
     using System;
     using System.IO;
     using System.Linq;
-    using DataTypes.DiskObjects;
+    using DataTypes.DiskObjects.NewIcons;
     using Xunit;
 
     public class GivenNewIconEncoderAndDecoder : DiskObjectsTestBase
