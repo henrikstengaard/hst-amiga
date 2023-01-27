@@ -39,6 +39,9 @@
         public byte pad;              /* make size even                   */
         public string comment;
         
+        /// <summary>
+        /// dir entry extra fields, null if dir entry doesn't have extra fields
+        /// </summary>
         public extrafields ExtraFields { get; set; }
 
         public uint Size
@@ -55,15 +58,14 @@
             comment = string.Empty;
         }
 
-        public int EntrySize(globaldata g)
+        public static int EntrySize(string name, string comment, globaldata g)
         {
             // entrysize = ((sizeof(struct direntry) + strlen(name)) & 0xfffe);
-            var entrysize = (SizeOf.DirEntry.Struct + Name.Length + comment.Length) & 0xfffe;
+            var entrysize = (SizeOf.DirEntry.Struct + name.Length + comment.Length) & 0xfffe;
             if (g.dirextension)
             {
                 entrysize += 2;
             }
-
             return entrysize;
         }
     }

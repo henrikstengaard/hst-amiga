@@ -865,7 +865,6 @@
             var direntry_m = file.le.info.file.direntry;
             var filesize_m = Directory.GetDEFileSize(file.le.info.file.direntry, g);
 
-            extrafields extrafields = new extrafields();
             uint read = 0;
             int q; // quantity
             int end, virtualoffset, virtualend, t;
@@ -879,7 +878,8 @@
                 return 0;
             }
 
-            Directory.GetExtraFields(direntry_m, extrafields);
+            var dirBlock = file.le.info.file.dirblock.dirblock;
+            var extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
 
             /* limit access to end of file */
             virtualoffset = (int)(file.offset - extrafields.rollpointer);
@@ -937,7 +937,7 @@
             var direntry_m = file.le.info.file.direntry;
             var filesize_m = Directory.GetDEFileSize(file.le.info.file.direntry, g);
 
-            extrafields extrafields = new extrafields();
+            extrafields extrafields;
             direntry destentry;
             objectinfo directory = new objectinfo();
             fileinfo fi = new fileinfo();
@@ -951,7 +951,8 @@
 #if DEBUG
             Pfs3Logger.Instance.Debug($"Disk: WriteToRollover, size = {size}, offset = {file.offset}");
 #endif
-            Directory.GetExtraFields(direntry_m, extrafields);
+            var dirBlock = file.le.info.file.dirblock.dirblock;
+            extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
             end = (int)(file.offset + size);
 
             /* new virtual size */
@@ -999,7 +1000,7 @@
             //destentry = (struct direntry *)entrybuffer;
             destentry = direntry_m;
             //memcpy(destentry, direntry_m, direntry_m->next);
-            Directory.AddExtraFields(destentry, extrafields);
+            Directory.AddExtraFields(dirBlock.entries, destentry, extrafields);
 
             /* commit changes */
             if (!await Directory.GetParent(file.le.info, directory, g))
@@ -1053,7 +1054,8 @@
 #if DEBUG
             Pfs3Logger.Instance.Debug($"Disk: SeekInRollover, offset = {offset}, mode = {mode}");
 #endif
-            Directory.GetExtraFields(direntry_m, extrafields);
+            var dirBlock = file.le.info.file.dirblock.dirblock;
+            extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
 
             /* do the seeking */
             oldvirtualoffset = (int)(file.offset - extrafields.rollpointer);

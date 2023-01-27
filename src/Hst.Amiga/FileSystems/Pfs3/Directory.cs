@@ -313,7 +313,8 @@
                 {
                     canode linknode = new canode();
 
-                    GetExtraFields(info.file.direntry, extrafields);
+                    var dirBlock = info.file.dirblock.dirblock;
+                    extrafields = GetExtraFields(dirBlock.entries, info.file.direntry);
                     anodenr = extrafields.link;
                     await anodes.GetAnode(linknode, info.file.direntry.anode, g);
                     if (!await Lock.FetchObject(linknode.clustersize, anodenr, info, g))
@@ -393,10 +394,9 @@
                 // then copies data from info.file.direntry to destentry.
                 // This is replaced by just reading info.file.direntry as destentry.
                 destentry = DirEntryReader.Read(info.file.dirblock.dirblock.entries, info.file.direntry.Offset);
-                destentry.ExtraFields = new extrafields();
-                GetExtraFields(info.file.direntry, extrafields);
+                extrafields = GetExtraFields(info.file.dirblock.dirblock.entries, info.file.direntry);
                 extrafields.virtualsize = extrafields.rollpointer = 0;
-                AddExtraFields(destentry, extrafields);
+                AddExtraFields(info.file.dirblock.dirblock.entries, destentry, extrafields);
                 await ChangeDirEntry(info, destentry, directory, info.file, g);
                 newfile.file = info.file;
                 newfile.volume.root = 1;
@@ -679,10 +679,10 @@
 
             // moves bytes from startofblok to destofblok
             var blk = info.file.dirblock.dirblock;
-            for (var i = 0; i < endofblok - startofblok; i++)
-            {
-                blk.entries[destofblok + i] = blk.entries[startofblok + i];
-            }
+            var movelen = endofblok - startofblok;
+            var temp = new byte[movelen];
+            Array.Copy(blk.entries, startofblok, temp, 0, movelen);
+            Array.Copy(temp, 0, blk.entries, destofblok, movelen);
 
             info.file.direntry = DirEntryReader.Read(blk.entries, info.file.direntry.Offset);
             
@@ -1306,10 +1306,9 @@
             //DateTime time;
             //MUFS(struct extrafields extrafields);
 
-            var entrysize = (SizeOf.DirEntry.Struct + name.Length) & 0xfffe;
             // entrysize = ((sizeof(struct direntry) + strlen(name)) & 0xfffe);
-            if (g.dirextension)
-                entrysize += 2;
+            // if (g.dirextension)
+            //     entrysize += 2;
             // var direntry = (struct direntry *)entrybuffer;
             // memset(direntry, 0, entrysize);
             var direntry = new direntry();
@@ -1331,7 +1330,7 @@
                 return false;
             }
 
-            direntry.next = (byte)entrysize;
+            direntry.next = (byte)direntry.EntrySize(name, string.Empty, g);
             direntry.type = (sbyte)type;
             direntry.fsize = 0;
             direntry.CreationDate = DateTime.Now;
@@ -1420,18 +1419,14 @@
 /*
  * GetExtraFields (normal file only)
  */
-        public static void GetExtraFields(direntry direntry, extrafields extrafields)
+        public static extrafields GetExtraFields(byte[] entries, direntry direntry)
         {
-            // UWORD *extra = (UWORD *)extrafields;
-            // UWORD *fields = (UWORD *)(((UBYTE *)direntry) + direntry->next);
-            // ushort flags, i;
-            //
-            // flags = *(--fields);
-            // for (i = 0; i < sizeof(struct extrafields) / 2; i++, flags >>= 1)
-            // *(extra++) = (flags & 1) ? *(--fields) : 0;
-
+            var extrafields = DirEntryReader.ReadExtraFields(entries, direntry.Offset, direntry);
+            
             /* patch protection lower 8 bits */
             extrafields.prot |= direntry.protection;
+
+            return extrafields;
         }
 
         public static uint GetDDFileSize(deldirentry dde, globaldata g)
@@ -1684,7 +1679,8 @@
                 extrafields extrafields = new extrafields();
                 canode linknode = new canode();
 
-                GetExtraFields(path.file.direntry, extrafields);
+                var dirBlock = path.file.dirblock.dirblock;
+                extrafields = GetExtraFields(dirBlock.entries, path.file.direntry);
                 await anodes.GetAnode(linknode, path.file.direntry.anode, g);
                 if (!await Lock.FetchObject(linknode.clustersize, extrafields.link, path, g))
                     return false;
@@ -2118,47 +2114,11 @@
                 await RenameAcrossDirs(from, to, destdir, result, g);
         }
 
-        public static void AddExtraFields(direntry direntry, extrafields extra)
+        public static void AddExtraFields(byte[] entries, direntry direntry, extrafields extra)
         {
             direntry.ExtraFields = extra;
-
-            // ushort offset, dirext;
-            // ushort[] array = new ushort[16];
-            // ushort i = 0, j = 0;
-            // ushort flags = 0, orvalue;
-            // UWORD *fields = (UWORD *)extra;
-            //
-            // /* patch protection lower 8 bits */
-            extra.prot &= 0xffffff00;
-            // offset = (ushort)(SizeOf.DirEntry.Struct + (direntry.nlength) + (Macro.COMMENT(direntry) & 0xfffe));
-            // dirext = (UWORD *)((UBYTE *)(direntry) + offset);
-            //
-            // orvalue = 1;
-            // /* fill packed field array */
-            // for (i = 0; i < SizeOf.ExtraFields.Struct / 2; i++)
-            // {
-            //     if (*fields)
-            //     {
-            //         array[j++] = *fields++;
-            //         flags |= orvalue;
-            //     }
-            //     else
-            //     {
-            //         fields++;
-            //     }
-            //
-            //     orvalue <<= 1;
-            // }
-            //
-            // /* add fields to direntry */
-            // i = j;
-            // while (i)
-            //     *dirext++ = array[--i];
-            // *dirext++ = flags;
-            //
-            // direntry.next = offset + 2 * j + 2;
+            DirEntryWriter.WriteExtraFields(entries, direntry.Offset, direntry);
         }
-
 
 /*
  * Rename file within dir
@@ -2371,13 +2331,13 @@
             //end = (UBYTE *)&(from.dirblock->blk) + g.RootBlock.ReservedBlksize;
             end = SizeOf.DirBlock.Entries(g);
             movelen = diff > 0 ? end - dest : end - start;
+
             // memmove(dest, start, movelen);
             var dirBlock = from.file.dirblock.dirblock;
-            for (var i = 0; i < movelen; i++)
-            {
-                dirBlock.entries[dest + i] = dirBlock.entries[start + i];
-            }
-
+            var temp = new byte[movelen];
+            Array.Copy(dirBlock.entries, start, temp, 0, movelen);
+            Array.Copy(temp, 0, dirBlock.entries, dest, movelen);
+            
             /* fill in new entry */
             // memcpy((UBYTE *)from.direntry, to, to.next);
             DirEntryWriter.Write(dirBlock.entries, from.file.direntry.Offset, to);
@@ -2483,7 +2443,7 @@
 /*
  * Updates size field of links
  */
-        public static async Task UpdateLinks(direntry object_, globaldata g)
+        public static async Task UpdateLinks(byte[] entries, direntry object_, globaldata g)
         {
             canode linklist = new canode();
             objectinfo loi = new objectinfo();
@@ -2491,7 +2451,7 @@
             uint linknr;
 
             //ENTER("UpdateLinks");
-            GetExtraFields(object_, extrafields);
+            extrafields = GetExtraFields(entries, object_);
             linknr = extrafields.link;
             while (linknr != 0)
             {
@@ -2702,14 +2662,16 @@
 
             /* get node to remove */
             await anodes.GetAnode(linknode, link.file.direntry.anode, g);
-            GetExtraFields(link.file.direntry, extrafields);
+            var linkDirBlock = link.file.dirblock.dirblock;
+            extrafields = GetExtraFields(linkDirBlock.entries, link.file.direntry);
 
             /* delete old entry */
             await ChangeDirEntry(link, null, null, null, g);
 
             /* get object */
             await Lock.FetchObject(linknode.clustersize, extrafields.link, object_, g);
-            GetExtraFields(object_.file.direntry, extrafields);
+            var objectDirBlock = object_.file.dirblock.dirblock;
+            extrafields = GetExtraFields(objectDirBlock.entries, object_.file.direntry);
 
             /* if the object lists our link as the first link, redirect it to the next one */
             if (extrafields.link == linknode.nr)
@@ -2718,7 +2680,7 @@
                 //memcpy(entrybuffer, object_.file.direntry, object_.file.direntry->next);
                 DirEntryWriter.Write(entrybuffer, 0, object_.file.direntry);
                 //AddExtraFields(entrybuffer, extrafields);
-                AddExtraFields(object_.file.direntry, extrafields);
+                AddExtraFields(entrybuffer, object_.file.direntry, extrafields);
                 if (!await GetParent(object_, directory, g))
                 {
                     throw new IOException("ERROR_DISK_NOT_VALIDATED");
@@ -2753,7 +2715,7 @@
  */
         public static async Task<bool> RemapLinks(objectinfo object_, globaldata g)
         {
-            extrafields extrafields = new extrafields();
+            extrafields extrafields;
             canode linknode = new canode();
             objectinfo link = new objectinfo();
             objectinfo directory = new objectinfo();
@@ -2762,7 +2724,8 @@
 
             //ENTER("RemapLinks");
             /* get head of linklist */
-            GetExtraFields(object_.file.direntry, extrafields);
+            var dirBlock = object_.file.dirblock.dirblock;
+            extrafields = GetExtraFields(dirBlock.entries, object_.file.direntry);
             if (extrafields.link == 0)
             {
                 return false;
@@ -2781,13 +2744,14 @@
             //destentry = (struct direntry *)entrybuffer;
             //memcpy(destentry, link.file.direntry, link.file.direntry.next);
             destentry = link.file.direntry;
-            GetExtraFields(link.file.direntry, extrafields);
+            var linkDirBlock = link.file.dirblock.dirblock;
+            extrafields = GetExtraFields(linkDirBlock.entries, link.file.direntry);
             destentry.type = object_.file.direntry.type; // is this necessary?
             destentry.fsize = object_.file.direntry.fsize; // is this necessary?
             destentry.anode = object_.file.direntry.anode; // is this necessary?
 
             extrafields.link = linknode.next;
-            AddExtraFields(destentry, extrafields);
+            AddExtraFields(linkDirBlock.entries, destentry, extrafields);
 
             DirEntryWriter.Write(entrybuffer, 0, destentry);
 
@@ -2807,21 +2771,21 @@
             /* object directory has changed; update link chain
              * new directory is the old chain head was in: linknode.linkdir (== linknode.blocknr)
              */
-            await UpdateLinkDir(link.file.direntry, linknode.blocknr, g);
+            await UpdateLinkDir(linkDirBlock.entries, link.file.direntry, linknode.blocknr, g);
             return true;
         }
 
 /*
  * Update linklist to reflect new directory of linked to object
  */
-        public static async Task UpdateLinkDir(direntry object_, uint newdiran, globaldata g)
+        public static async Task UpdateLinkDir(byte[] entries, direntry object_, uint newdiran, globaldata g)
         {
             canode linklist = new canode();
             extrafields extrafields = new extrafields();
             uint linknr;
 
             //ENTER("UpdateLinkDir");
-            GetExtraFields(object_, extrafields);
+            extrafields = GetExtraFields(entries, object_);
             linknr = extrafields.link;
             while (linknr != 0)
             {
@@ -2961,14 +2925,15 @@
             // memcpy(destcomment, srccomment, *srccomment + 1);
 
             /* copy fields */
-            srcfieldoffset =
-                (short)((SizeOf.DirEntry.Struct + srcdirentry.nlength + srcdirentry.comment.Length) & 0xfffe);
+            srcfieldoffset = (short)((SizeOf.DirEntry.Struct + srcdirentry.nlength + srcdirentry.comment.Length) & 0xfffe);
             destfieldoffset = (short)((SizeOf.DirEntry.Struct + destname.Length + srcdirentry.comment.Length) & 0xfffe);
             fieldsize = (byte)(srcdirentry.next - srcfieldoffset);
-            //    if (g.dirextension)
-            //    {
-            //        //memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)srcdirentry + srcfieldoffset, fieldsize);
-            //    }
+            
+            if (g.dirextension)
+            {
+                destentry.ExtraFields = srcdirentry.ExtraFields;
+                //memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)srcdirentry + srcfieldoffset, fieldsize);
+            }
 
             /* set size */
             if (g.dirextension)
@@ -2987,7 +2952,8 @@
              */
             if (destanodenr != srcanodenr)
             {
-                await MoveLink(destentry, destanodenr, g);
+                var dirBlock = destinfo.file.dirblock.dirblock;
+                await MoveLink(dirBlock.entries, destentry, destanodenr, g);
                 //PFSDoNotify (&destinfo.file, TRUE, g);
             }
             // else
@@ -3044,14 +3010,14 @@
  * Update linklist to reflect moved node
  * (is supercopy of UpdateLinkDir)
  */
-        public static async Task MoveLink(direntry object_, uint newdiran, globaldata g)
+        public static async Task MoveLink(byte[] entries, direntry object_, uint newdiran, globaldata g)
         {
             canode linklist = new canode();
             extrafields extrafields = new extrafields();
             uint linknr;
 
             //ENTER("MoveLink");
-            GetExtraFields(object_, extrafields);
+            extrafields = GetExtraFields(entries, object_);
 
             /* check if is link or linked to */
             if ((linknr = extrafields.link) == 0)
@@ -3147,14 +3113,18 @@
             srcfieldoffset = (short)((SizeOf.DirEntry.Struct + sourceentry.nlength + sourceentry.comment.Length) & 0xfffe);
             destfieldoffset = (short)((SizeOf.DirEntry.Struct + sourceentry.nlength + comment.Length) & 0xfffe);
             fieldsize = (short)(sourceentry.next - srcfieldoffset);
-            // if (g.dirextension)
-            //     memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)sourceentry + srcfieldoffset, fieldsize);
 
             /* set size */
             if (g.dirextension)
                 destentry.next = (byte)(destfieldoffset + fieldsize);
             else
                 destentry.next = (byte)destfieldoffset;
+            
+            if (g.dirextension)
+            {
+                // memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)sourceentry + srcfieldoffset, fieldsize);
+                destentry.ExtraFields = sourceentry.ExtraFields;
+            }
 
             /* remove old directoryentry and add new */
             if (!await GetParent(info, directory, g))
@@ -3238,9 +3208,10 @@
                 //memcpy(destentry, sourceentry, sourceentry->next);
 
                 /* set new extrafields */
-                GetExtraFields(sourceentry, extrafields);
+                var dirBlock = file.file.dirblock.dirblock;
+                extrafields = GetExtraFields(dirBlock.entries, sourceentry);
                 extrafields.prot = protection;
-                AddExtraFields(destentry, extrafields);
+                AddExtraFields(dirBlock.entries, destentry, extrafields);
 
                 /* commit changes */
                 if (!await GetParent(file, directory, g))

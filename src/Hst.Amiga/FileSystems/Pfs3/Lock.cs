@@ -89,7 +89,8 @@
                  * 'anode == objectid'. This objectid can be found in
                  * the extrafields
                  */
-                Directory.GetExtraFields(info.file.direntry, extrafields);
+                var dirBlock = info.file.dirblock.dirblock;
+                extrafields = Directory.GetExtraFields(dirBlock.entries, info.file.direntry);
                 await anodes.GetAnode(linknode, info.file.direntry.anode, g);
                 if (!await FetchObject(linknode.clustersize, extrafields.link, newinfo, g))
                 {
@@ -177,7 +178,8 @@
                     /* check for rollover files */
                     if (Macro.IsRollover(newinfo))
                     {
-                        Directory.GetExtraFields(newinfo.file.direntry, extrafields);
+                        var dirBlock = newinfo.file.dirblock.dirblock;
+                        extrafields = Directory.GetExtraFields(dirBlock.entries, newinfo.file.direntry);
                         await Disk.SeekInFile(fileentry, (int)extrafields.rollpointer, Constants.OFFSET_BEGINNING, g);
                     }
 

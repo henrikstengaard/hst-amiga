@@ -80,7 +80,8 @@
                 var size = Directory.GetDEFileSize(fe.le.info.file.direntry, g);
                 if (fe.originalsize != size)
                 {
-                    await Directory.UpdateLinks(fe.le.info.file.direntry, g);
+                    var dirBlock = fe.le.info.file.dirblock.dirblock;
+                    await Directory.UpdateLinks(dirBlock.entries, fe.le.info.file.direntry, g);
                 }
 
                 //PFSDoNotify(&fe->le.info.file, TRUE, g);

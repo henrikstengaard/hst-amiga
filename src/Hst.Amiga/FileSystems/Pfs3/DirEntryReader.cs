@@ -46,5 +46,55 @@
             
             return dirEntry;
         }
+
+        public static extrafields ReadExtraFields(byte[] entries, int offset, direntry direntry)
+        {
+            // UWORD *extra = (UWORD *)extrafields;
+            // UWORD *fields = (UWORD *)(((UBYTE *)direntry) + direntry->next);
+            // ushort flags, i;
+            //
+            // flags = *(--fields);
+            // for (i = 0; i < sizeof(struct extrafields) / 2; i++, flags >>= 1)
+            // *(extra++) = (flags & 1) ? *(--fields) : 0;
+
+            var extras = new ushort[SizeOf.ExtraFields.Struct / 2];
+            var fields = direntry.Offset + direntry.next;
+            fields -= 2;
+            var flags = BigEndianConverter.ConvertBytesToUInt16(entries, fields);
+            for (var i = 0; i < SizeOf.ExtraFields.Struct / 2; i++, flags >>= 1)
+            {
+                if ((flags & 1) == 0)
+                {
+                    extras[i] = 0;
+                    continue;
+                }
+                fields -= 2;
+                var extra = BigEndianConverter.ConvertBytesToUInt16(entries, fields);
+                extras[i] = extra;
+            }
+
+            var extraFields = ConvertToExtraFields(extras);
+            
+            return extraFields;
+        }
+        
+        /// <summary>
+        /// Replicate c behavior of reading array of ushorts memory area as a extra fields struct. "UWORD *extra = (UWORD *)extrafields" and "*(extra++) = (flags & 1) ? *(--fields) : 0"
+        /// </summary>
+        /// <param name="extras"></param>
+        /// <returns></returns>
+        private static extrafields ConvertToExtraFields(ushort[] extras)
+        {
+            return new extrafields
+            {
+                link = ((uint)extras[0] << 16) | extras[1],
+                uid = extras[2],
+                gid = extras[3],
+                prot = ((uint)extras[4] << 16) | extras[5],
+                virtualsize = ((uint)extras[6] << 16) | extras[7],
+                rollpointer = ((uint)extras[8] << 16) | extras[9],
+                fsizex = extras[10],
+            };
+        }
     }
 }

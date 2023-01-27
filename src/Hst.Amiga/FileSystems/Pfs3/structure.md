@@ -56,3 +56,15 @@ anode rootdir = block no. 5;
 dirblock
 - direntry -> anode block
 
+
+## Notes
+
+PFS3 uses own packets in `void NormalCommands(struct DosPacket *action, globaldata *g)`
+- ACTION_KILL_EMPTY
+- ACTION_REMOVE_DIRENTRY
+- ACTION_CREATE_ROLLOVER
+- ACTION_SET_ROLLOVER
+- ACTION_SET_DELDIR
+- ACTION_SET_FNSIZE
+
+How are these handled?
