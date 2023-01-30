@@ -24,22 +24,22 @@ public class GivenDirBlockReader
 
         var dirBlock = await DirBlockReader.Parse(blockBytes, g);
 
-        var dirEntries = new List<direntry>();
+        // var dirEntries = new List<direntry>();
 
-        var offset = 0;
-        direntry dirEntry;
-        do
-        {
-            dirEntry = DirEntryReader.Read(dirBlock.entries, offset);
+        // var offset = 0;
+        // direntry dirEntry;
+        // do
+        // {
+        //     dirEntry = DirEntryReader.Read(dirBlock.entries, offset);
+        //
+        //     if (dirEntry.next > 0)
+        //     {
+        //         dirEntries.Add(dirEntry);
+        //     }
+        //
+        //     offset += dirEntry.next;
+        // } while (dirEntry.next > 0);
 
-            if (dirEntry.next > 0)
-            {
-                dirEntries.Add(dirEntry);
-            }
-
-            offset += dirEntry.next;
-        } while (dirEntry.next > 0);
-
-        Assert.Equal(2, dirEntries.Count);
+        Assert.Equal(2, dirBlock.DirEntries.Count);
     }
 }

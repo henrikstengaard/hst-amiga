@@ -72,8 +72,11 @@
                 throw new ArgumentNullException(nameof(fe));
             }
 
+            
             if (fe.checknotify)
             {
+                Cache.ClearSearchInDirCache(fe.le.dirblocknr, g);
+
                 Volume.CheckVolume(fe.le.volume, true, g);
                 await Lru.UpdateLE(fe.le, g);
                 await Directory.Touch(fe.le.info, g);
@@ -81,7 +84,7 @@
                 if (fe.originalsize != size)
                 {
                     var dirBlock = fe.le.info.file.dirblock.dirblock;
-                    await Directory.UpdateLinks(dirBlock.entries, fe.le.info.file.direntry, g);
+                    await Directory.UpdateLinks(fe.le.info.file.direntry, g);
                 }
 
                 //PFSDoNotify(&fe->le.info.file, TRUE, g);

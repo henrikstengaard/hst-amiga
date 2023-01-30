@@ -153,11 +153,13 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         for (var i = 1; i <= 100; i++)
         {
+            var name = $"New Dir{i}";
+            
             // act - search for directory created in root directory
-            var result = await Directory.SearchInDir(Constants.ANODE_ROOTDIR, $"New Dir{i}", objectInfo, pfs3Volume.g);
+            var result = await Directory.SearchInDir(Constants.ANODE_ROOTDIR, name, objectInfo, pfs3Volume.g);
 
             // assert - search returned true, directory exists
-            Assert.True(result);
+            Assert.Equal(name, result ? name : string.Empty);
         }
     }
 

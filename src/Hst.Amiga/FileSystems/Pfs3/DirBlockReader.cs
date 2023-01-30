@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
+    using System.Collections.Generic;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
@@ -29,7 +30,31 @@
             }
 
             var entries = await blockStream.ReadBytes(SizeOf.DirBlock.Entries(g));
+            
+            var maxDirEntries = (SizeOf.DirBlock.Entries(g) / SizeOf.DirEntry.Struct) + 5;
+            var entryIndex = 0;
+            var dirEntriesNo = 0;
+            var dirEntries = new List<direntry>(maxDirEntries);
+            var position = 0;
+            do
+            {
+                var entry = DirEntryReader.Read(entries, entryIndex, g);
+                if (entry.Next == 0)
+                {
+                    break;
+                }
 
+                entry.Position = position++;
+                
+                dirEntries.Add(entry);
+                dirEntriesNo++;
+                if (dirEntriesNo >= maxDirEntries)
+                {
+                    throw new IOException($"Read entries from dir block exceeded max entries, possibly corrupt dir block");
+                }
+                entryIndex += entry.Next;
+            } while (entryIndex < entries.Length);
+            
             return new dirblock(g)
             {
                 id = id,
@@ -37,7 +62,7 @@
                 datestamp = datestamp,
                 anodenr = anodenr,
                 parent = parent,
-                entries = entries
+                DirEntries = dirEntries
             };
         }
     }

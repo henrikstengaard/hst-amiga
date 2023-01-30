@@ -307,7 +307,7 @@
                         le.le.dirblocknr = block.blocknr;
 
                         // le->le.dirblockoffset = (UBYTE *)le->le.info.file.direntry - (UBYTE *)block;
-                        le.le.dirblockoffset = (uint)le.le.info.file.direntry.Offset;
+                        le.le.dirblockoffset = (uint)le.le.info.file.direntry.Position;
 // #if DELDIR
                         le.le.info.deldir.special = Constants.SPECIAL_FLUSHED; /* flushed reference */
 // #else
@@ -321,13 +321,10 @@
                     {
                         le.nextdirblocknr = block.blocknr;
                         // le->nextdirblockoffset = (UBYTE *)le->nextentry.direntry - (UBYTE *)block;
-                        le.nextdirblockoffset = (uint)le.nextentry.direntry.Offset;
+                        le.nextdirblockoffset = (uint)le.nextentry.direntry.Position;
 // #if DELDIR
 // le->nextentry.direntry = (struct direntry *)SPECIAL_FLUSHED;
-                        le.nextentry.direntry = new direntry
-                        {
-                            next = Constants.SPECIAL_FLUSHED
-                        };
+                        le.nextentry.direntry = new direntry(Constants.SPECIAL_FLUSHED);
 // #else
 //                         le.Value.le.nextentry.direntry = NULL;
 // #endif
@@ -372,7 +369,7 @@
                 if (le.le.info.file.dirblock == null && le.le.dirblocknr == blocknr)
                 {
                     le.le.info.file.dirblock = blk;
-                    le.le.info.file.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.le.dirblockoffset);
+                    le.le.info.file.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.le.dirblockoffset, g);
                     le.le.dirblocknr = le.le.dirblockoffset = 0;
                 }
 
@@ -380,7 +377,7 @@
                 if (le.le.type.flags.dir != 0 && le.nextdirblocknr == blocknr)
                 {
                     le.nextentry.dirblock = blk;
-                    le.nextentry.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.nextdirblockoffset);
+                    le.nextentry.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.nextdirblockoffset, g);
                     le.nextdirblocknr = le.nextdirblockoffset = 0;
                 }
             }

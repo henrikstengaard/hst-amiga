@@ -10,14 +10,14 @@
     {
         public static bool IsSameOI(objectinfo oi1, objectinfo oi2)
         {
-            return oi1.file.direntry.Offset == oi2.file.direntry.Offset && 
+            return oi1.file.direntry.Position == oi2.file.direntry.Position && 
                    oi1.file.dirblock.blocknr == oi2.file.dirblock.blocknr;
         }
         
         public static void MarkDataDirty(int i, globaldata g) => g.dc.ref_[i].dirty = true;
             
         // comment: de is struct direntry *
-        public static int COMMENT(direntry de) => de.startofname + de.nlength;
+        public static int COMMENT(direntry de) => de.startofname + de.Name.Length;
         
         public static bool IsRoot(objectinfo oi) => oi == null || oi.volume.root == 0;
         public static bool IsRootA(objectinfo oi) => oi.volume.root == 0;
@@ -50,15 +50,15 @@
         /// </summary>
         /// <param name="blok"></param>
         /// <returns></returns>
-        public static direntry FIRSTENTRY(dirblock blk) => DirEntryReader.Read(blk.entries, 0);
+        // public static direntry FIRSTENTRY(dirblock blk) => DirEntryReader.Read(blk.entries, 0);
 
         /* get next directory entry */
         //public static int NEXTENTRY(direntry de) => ((struct direntry*)((UBYTE*)(de) + (de)->next))
-        public static direntry NEXTENTRY(dirblock blk, direntry de)
-        {
-            return DirEntryReader.Read(blk.entries, de.Offset + de.next);
-        }         
-        public static int DB_HEADSPACE(globaldata g) => SizeOf.DirBlock.Struct(g);
+        // public static direntry NEXTENTRY(dirblock blk, direntry de)
+        // {
+        //     return DirEntryReader.Read(blk.entries, de.Offset + de.next);
+        // }         
+        // public static int DB_HEADSPACE(globaldata g) => SizeOf.DirBlock.Struct(g);
         public static int DB_ENTRYSPACE(globaldata g) => SizeOf.DirBlock.Entries(g);
         
         //public static int GetAnodeBlock(uint a, uint b, globaldata g) => anodes.big_GetAnodeBlock() (g.getanodeblock)(a, b);
@@ -281,7 +281,8 @@ BPTR
         {
             // #define FIRSTENTRY(blok) ((struct direntry*)((blok)->blk.entries))
             // #define IsEmptyDBlk(blk) (FIRSTENTRY(blk)->next == 0)
-            return FIRSTENTRY(blk.dirblock).next == 0;
+            //return FIRSTENTRY(blk.dirblock).next == 0;
+            return blk.dirblock.DirEntries.Count == 0;
         }
         
         public static bool IsUpdateNeeded(int rtbf_threshold, globaldata g)

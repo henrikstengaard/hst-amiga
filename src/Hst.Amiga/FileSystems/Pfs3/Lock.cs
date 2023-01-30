@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
 
@@ -89,8 +90,9 @@
                  * 'anode == objectid'. This objectid can be found in
                  * the extrafields
                  */
-                var dirBlock = info.file.dirblock.dirblock;
-                extrafields = Directory.GetExtraFields(dirBlock.entries, info.file.direntry);
+                // var dirBlock = info.file.dirblock.dirblock;
+                // extrafields = Directory.GetExtraFields(dirBlock.entries, info.file.direntry);
+                extrafields = info.file.direntry.ExtraFields;
                 await anodes.GetAnode(linknode, info.file.direntry.anode, g);
                 if (!await FetchObject(linknode.clustersize, extrafields.link, newinfo, g))
                 {
@@ -178,8 +180,9 @@
                     /* check for rollover files */
                     if (Macro.IsRollover(newinfo))
                     {
-                        var dirBlock = newinfo.file.dirblock.dirblock;
-                        extrafields = Directory.GetExtraFields(dirBlock.entries, newinfo.file.direntry);
+                        // var dirBlock = newinfo.file.dirblock.dirblock;
+                        // extrafields = Directory.GetExtraFields(dirBlock.entries, newinfo.file.direntry);
+                        extrafields = newinfo.file.direntry.ExtraFields;
                         await Disk.SeekInFile(fileentry, (int)extrafields.rollpointer, Constants.OFFSET_BEGINNING, g);
                     }
 
@@ -252,14 +255,16 @@
                 if (dirblock != null)
                 {
                     var blk = dirblock.dirblock;
-                    de = Macro.FIRSTENTRY(blk);
-                    while (de.next > 0)
-                    {
-                        if (!(found = de.anode == target))
-                            de = Macro.NEXTENTRY(blk, de);
-                        else
-                            break;
-                    }
+                    de = blk.DirEntries.FirstOrDefault(x => x.anode == target);
+                    found = de != null;
+                    // de = Macro.FIRSTENTRY(blk);
+                    // while (de.next > 0)
+                    // {
+                    //     if (!(found = de.anode == target))
+                    //         de = Macro.NEXTENTRY(blk, de);
+                    //     else
+                    //         break;
+                    // }
 
                     if (!found)
                     {

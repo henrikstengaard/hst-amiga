@@ -226,7 +226,8 @@ public class CanSalvage
 
         foreach (var dirBlock in dirBlocks.Where(x => x.Value.parent == anodenr))
         {
-            var dirEntries = ReadDirEntries(dirBlock.Value, g).OrderBy(x => x.Name).ToList();
+            //var dirEntries = ReadDirEntries(dirBlock.Value, g).OrderBy(x => x.Name).ToList();
+            var dirEntries = dirBlock.Value.DirEntries;
 
             foreach (var dirEntry in dirEntries)
             {
@@ -315,19 +316,19 @@ public class CanSalvage
         
     }
 
-    private IEnumerable<direntry> ReadDirEntries(dirblock dirBlock, globaldata g)
-    {
-        var dirEntryIndex = 0;
-        direntry dirEntry;
-        do
-        {
-            dirEntry = DirEntryReader.Read(dirBlock.entries, dirEntryIndex);
-            if (dirEntry.next != 0)
-            {
-                yield return dirEntry;
-            }
-
-            dirEntryIndex += dirEntry.next;
-        } while (dirEntry.next != 0 && dirEntryIndex + dirEntry.next < dirBlock.entries.Length);
-    }
+    // private IEnumerable<direntry> ReadDirEntries(dirblock dirBlock, globaldata g)
+    // {
+    //     var dirEntryIndex = 0;
+    //     direntry dirEntry;
+    //     do
+    //     {
+    //         dirEntry = DirEntryReader.Read(dirBlock.entries, dirEntryIndex);
+    //         if (dirEntry.next != 0)
+    //         {
+    //             yield return dirEntry;
+    //         }
+    //
+    //         dirEntryIndex += dirEntry.next;
+    //     } while (dirEntry.next != 0 && dirEntryIndex + dirEntry.next < dirBlock.entries.Length);
+    // }
 }

@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
+    using System.Collections.Generic;
     using System.IO;
     using Blocks;
 
@@ -62,6 +63,7 @@
             glob_anodedata = new anode_data_s();
             glob_allocdata = new allocation_data_s();
             dc = new diskcache();
+            SearchInDirCache = new Dictionary<uint, SearchInDirCacheItem>();
         }
 
         public uint TotalSectors { get; set; }
@@ -69,5 +71,21 @@
 
         public diskcache dc;                /* cache to make '196 byte mode' faster */
 
+
+        public readonly IDictionary<uint, SearchInDirCacheItem> SearchInDirCache;
+    }
+
+    public class SearchInDirCacheItem
+    {
+        public readonly uint dirnodenr;
+        public readonly CachedBlock DirBlock;
+        public readonly IDictionary<string, direntry> DirEntriesCache;
+
+        public SearchInDirCacheItem(uint dirnodenr, CachedBlock dirBlock)
+        {
+            this.dirnodenr = dirnodenr;
+            DirBlock = dirBlock;
+            DirEntriesCache = new Dictionary<string, direntry>();
+        }
     }
 }

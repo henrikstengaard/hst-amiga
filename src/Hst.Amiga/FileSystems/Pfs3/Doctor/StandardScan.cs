@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3.Doctor
 {
+    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
@@ -88,47 +89,44 @@
                 var blk = dirBlock.dirblock;
                 var dirEntries = new List<direntry>();
                 direntry dirEntry;
+                var entries = new byte[blk.BlockBytes.Length - 20]; // offset 20 in dirblock is start of entries
+                Array.Copy(blk.BlockBytes, 20, entries, 0, entries.Length);
                 var offset = 0;
                 do
                 {
-                    dirEntry = DirEntryReader.Read(blk.entries, offset);
-                    if (dirEntry.next == 0)
+                    dirEntry = DirEntryReader.Read(entries, offset, g);
+                    if (dirEntry.Next == 0)
                     {
                         break;
                     }
                     
                     dirEntries.Add(dirEntry);
-                    offset += dirEntry.next;
-                } while (offset + dirEntry.next < blk.entries.Length);
+                    offset += dirEntry.Next;
+                } while (offset + dirEntry.Next < entries.Length);
 
                 foreach (var de in dirEntries)
                 {
                     // if (de->next & 1)
-                    if ((de.next & 1) != 0)
+                    if ((de.Next & 1) != 0)
                     {
                         throw new IOException("Odd directory entry length");
                     }
                     
                     // if (de->nlength + offsetof(struct direntry, nlength) > de->next)
-                    if (de.nlength + de.startofname > de.next)
+                    if (de.Name.Length + de.startofname > de.Next)
                     {
                         throw new IOException("Invalid filename");
                     }
                     
                     // if (de->nlength > volume.fnsize)
-                    if (de.nlength > g.fnsize)
+                    if (de.Name.Length > g.fnsize)
                     {
                         throw new IOException("Filename too long");
                     }
 
-                    if (de.Offset + de.startofname + de.nlength >= blk.entries.Length)
-                    {
-                        
-                    }
-                    
                     // if (*FILENOTE(de) + de->nlength + offsetof(struct direntry, nlength) > de->next)
-                    var fileNoteLength = blk.entries[de.Offset + de.nlength + de.startofname];
-                    if (de.startofname + de.nlength + fileNoteLength > de.next)
+                    // var fileNoteLength = entries[de.Offset + de.Name.Length + de.startofname];
+                    if (de.startofname + de.Name.Length + de.comment.Length > de.Next)
                     {
                         throw new IOException("Invalid filenote");
                     }
