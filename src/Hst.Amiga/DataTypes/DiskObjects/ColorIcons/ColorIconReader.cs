@@ -63,6 +63,9 @@
             {
                 Width = faceChunk.Width,
                 Height = faceChunk.Height,
+                Flags = faceChunk.Flags,
+                Aspect = faceChunk.Aspect,
+                MaxPalBytes = faceChunk.MaxPalBytes,
                 Images = colorIconImages.ToArray()
             };
         }
