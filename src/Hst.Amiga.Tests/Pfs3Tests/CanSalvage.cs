@@ -204,7 +204,7 @@ public class CanSalvage
 
         foreach (var block in blocks.Where(x => x.Value.Id == Constants.DBLKID))
         {
-            dirBlocks[block.Key] = await DirBlockReader.Parse(block.Value.Bytes, g);
+            dirBlocks[block.Key] = DirBlockReader.Parse(block.Value.Bytes, g);
         }
 
         var anodeBlocks = new Dictionary<uint, anodeblock>();

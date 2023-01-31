@@ -461,8 +461,14 @@
                 /* update root (MUST be done last) */
                 if (g.updateok)
                 {
-                    var buffer = await RootBlockWriter.BuildBlock(volume.rootblk);
-                    await Disk.RawWrite(g.stream, buffer, volume.rootblk.RblkCluster, (uint)Constants.ROOTBLOCK, g);
+                    var rootBlockBytes = RootBlockWriter.BuildBlock(volume.rootblk, g);
+                    volume.rootblk.BlockBytes = rootBlockBytes;
+                    await Disk.RawWrite(g.stream, rootBlockBytes, 1, (uint)Constants.ROOTBLOCK, g);
+                    
+                    var reservedBitmapBlockBytes = BitmapBlockWriter.BuildBlock(volume.rootblk.ReservedBitmapBlock, g);
+                    volume.rootblk.ReservedBitmapBlock.BlockBytes = reservedBitmapBlockBytes;
+                    await Disk.RawWrite(g.stream, reservedBitmapBlockBytes, (uint)(volume.rootblk.RblkCluster - 1), (uint)Constants.ROOTBLOCK + 1, g);
+
                     volume.rootblk.Datestamp++;
                     volume.rootblockchangeflag = false;
 

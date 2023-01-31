@@ -1,49 +1,49 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    using System.IO;
-    using System.Threading.Tasks;
+    using System;
     using Blocks;
-    using Core.Extensions;
-    using Extensions;
+    using Core.Converters;
 
     public static class RootBlockWriter
     {
-        public static async Task<byte[]> BuildBlock(RootBlock rootBlock)
+        public static byte[] BuildBlock(RootBlock rootBlock, globaldata g)
         {
-            var blockStream = rootBlock.BlockBytes == null || rootBlock.BlockBytes.Length == 0 ?
-                new MemoryStream() : new MemoryStream(rootBlock.BlockBytes);
-            
-            await blockStream.WriteBigEndianInt32(rootBlock.DiskType); // 0
-            await blockStream.WriteBigEndianUInt32((uint)rootBlock.Options); // 4
-            await blockStream.WriteBigEndianUInt32(rootBlock.Datestamp); // 8
-            await DateHelper.WriteDate(blockStream, rootBlock.CreationDate); // 12
-            await blockStream.WriteBigEndianUInt16(rootBlock.Protection); // 18
-            blockStream.WriteByte((byte)(rootBlock.DiskName.Length > 31 ? 31 : rootBlock.DiskName.Length)); // 20
-            await blockStream.WriteString(rootBlock.DiskName, 31); // 21
-            await blockStream.WriteBigEndianUInt32(rootBlock.LastReserved); // 52
-            await blockStream.WriteBigEndianUInt32(rootBlock.FirstReserved); // 56
-            await blockStream.WriteBigEndianUInt32(rootBlock.ReservedFree); // 60
-            await blockStream.WriteBigEndianUInt16(rootBlock.ReservedBlksize); // 64
-            await blockStream.WriteBigEndianUInt16(rootBlock.RblkCluster); // 66
-            await blockStream.WriteBigEndianUInt32(rootBlock.BlocksFree); // 68
-            await blockStream.WriteBigEndianUInt32(rootBlock.AlwaysFree); // 72
-            await blockStream.WriteBigEndianUInt32(rootBlock.RovingPtr); // 76
-            await blockStream.WriteBigEndianUInt32(rootBlock.DelDir); // 80
-            await blockStream.WriteBigEndianUInt32(rootBlock.DiskSize); // 84
-            await blockStream.WriteBigEndianUInt32(rootBlock.Extension); // 88
-            await blockStream.WriteBigEndianUInt32(0); // not used, 92
-
-            foreach (var t in rootBlock.idx.union)
+            var blockBytes = new byte[512];
+            if (rootBlock.BlockBytes != null)
             {
-                await blockStream.WriteBigEndianUInt32(t);
+                Array.Copy(rootBlock.BlockBytes, 0, blockBytes, 0, 512);
             }
 
-            if (rootBlock.ReservedBitmapBlock != null)
-            {
-                await blockStream.WriteBytes(await BitmapBlockWriter.BuildBlock(rootBlock.ReservedBitmapBlock));
-            }
+            BigEndianConverter.ConvertInt32ToBytes(rootBlock.DiskType, blockBytes, 0); // 0
+            BigEndianConverter.ConvertUInt32ToBytes((uint)rootBlock.Options, blockBytes, 4); // 0
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.Datestamp, blockBytes, 8); // 8
+            DateHelper.WriteDate(rootBlock.CreationDate, blockBytes, 0xc); // 12
+            BigEndianConverter.ConvertUInt16ToBytes(rootBlock.Protection, blockBytes, 0x12); // 18
+
+            var diskNameBytes = AmigaTextHelper.GetBytes(rootBlock.DiskName.Length > 31 ? rootBlock.DiskName.Substring(0, 31) : rootBlock.DiskName);
+            blockBytes[0x14] = (byte)diskNameBytes.Length;// 20
+            Array.Copy(diskNameBytes, 0, blockBytes, 0x15, diskNameBytes.Length);// 21
             
-            var blockBytes = blockStream.ToArray();
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.LastReserved, blockBytes, 0x34); // 52
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.FirstReserved, blockBytes, 0x38); // 56
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.ReservedFree, blockBytes, 0x3c); // 60
+            BigEndianConverter.ConvertUInt16ToBytes(rootBlock.ReservedBlksize, blockBytes, 0x40); // 64
+            BigEndianConverter.ConvertUInt16ToBytes(rootBlock.RblkCluster, blockBytes, 0x42); // 66
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.BlocksFree, blockBytes, 0x44); // 68
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.AlwaysFree, blockBytes, 0x48); // 72
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.RovingPtr, blockBytes, 0x4c); // 76
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.DelDir, blockBytes, 0x50); // 80
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.DiskSize, blockBytes, 0x54); // 84
+            BigEndianConverter.ConvertUInt32ToBytes(rootBlock.Extension, blockBytes, 0x58); // 88
+            BigEndianConverter.ConvertUInt32ToBytes(0, blockBytes, 0x5c); // 92, not used
+            
+            var offset = 0x60;
+            foreach (var index in rootBlock.idx.union)
+            {
+                BigEndianConverter.ConvertUInt32ToBytes(index, blockBytes, offset);
+                offset += Amiga.SizeOf.ULong;
+            }
+
             return blockBytes;            
         }
     }

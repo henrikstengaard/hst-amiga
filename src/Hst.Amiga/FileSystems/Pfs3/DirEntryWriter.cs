@@ -16,22 +16,20 @@
             data[offset + 16] = dirEntry.protection;
             data[offset + 17] = (byte)dirEntry.Name.Length;
             var nameBytes = AmigaTextHelper.GetBytes(dirEntry.Name);
-            Array.Copy(nameBytes, 0, data, offset + 18, nameBytes.Length);
+            Array.Copy(nameBytes, 0, data, offset + direntry.StartOfName + 1, nameBytes.Length);
 
+            var commentBytes = AmigaTextHelper.GetBytes(dirEntry.comment ?? string.Empty);
+            var commentOffset = offset + direntry.StartOfName + 1 + dirEntry.Name.Length;
+            data[commentOffset] = (byte)dirEntry.comment.Length;
             if (!string.IsNullOrEmpty(dirEntry.comment))
             {
-                var commentBytes = AmigaTextHelper.GetBytes(dirEntry.comment);
-                data[offset + 18 + nameBytes.Length] = (byte)dirEntry.comment.Length;
-                Array.Copy(commentBytes, 0, data, offset + 18 + nameBytes.Length + 1, commentBytes.Length);
+                Array.Copy(commentBytes, 0, data, commentOffset + 1, commentBytes.Length);
             }
 
             if (g.dirextension)
             {
                 WriteExtraFields(data, offset, dirEntry);
             }
-            
-            // update offset in entries for later use
-            // dirEntry.Offset = offset;
         }
 
         private static void WriteExtraFields(byte[] data, int offset, direntry dirEntry)

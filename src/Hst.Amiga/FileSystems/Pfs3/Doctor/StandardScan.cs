@@ -68,7 +68,7 @@
                             currentBlockNr++;
                         }
 
-                        var dirBlock = await DirBlockReader.Parse(buffer, g);
+                        var dirBlock = DirBlockReader.Parse(buffer, g);
                         dirBlocks.Add(new CachedBlock
                         {
                             blocknr = blockNr ?? uint.MaxValue,
@@ -113,7 +113,7 @@
                     }
                     
                     // if (de->nlength + offsetof(struct direntry, nlength) > de->next)
-                    if (de.Name.Length + de.startofname > de.Next)
+                    if (de.Name.Length + direntry.StartOfName > de.Next)
                     {
                         throw new IOException("Invalid filename");
                     }
@@ -126,7 +126,7 @@
 
                     // if (*FILENOTE(de) + de->nlength + offsetof(struct direntry, nlength) > de->next)
                     // var fileNoteLength = entries[de.Offset + de.Name.Length + de.startofname];
-                    if (de.startofname + de.Name.Length + de.comment.Length > de.Next)
+                    if (direntry.StartOfName + de.Name.Length + de.comment.Length > de.Next)
                     {
                         throw new IOException("Invalid filenote");
                     }

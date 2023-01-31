@@ -23,30 +23,40 @@
                 return new direntry();
             }
 
-            // throw error, if offset + next is outside of bounds
+            if (next < SizeOf.DirEntry.Struct)
+            {
+                throw new IOException($"Dir entry at offset {offset} with next {next} is smaller than struct size {SizeOf.DirEntry.Struct}");
+            }
+
             if (offset + next >= bytes.Length)
             {
-                throw new IOException($"Dir entry at offset {offset} has next {next} exceeding entries size {bytes.Length}");
+                throw new IOException($"Dir entry at offset {offset} with next {next} exceeds max {bytes.Length}");
             }
             
-            var nameLength = bytes[offset + 17];
+            var nameLength = bytes[offset + direntry.StartOfName];
             var dirEntry = new direntry(next)
             {
                 type = (sbyte)bytes[offset + 1],
                 anode = BigEndianConverter.ConvertBytesToUInt32(bytes, offset + 2),
                 fsize = BigEndianConverter.ConvertBytesToUInt32(bytes, offset + 6),
                 CreationDate = DateHelper.ReadDate(bytes, offset + 10),
-                protection = bytes[offset + 16],
-                Name = nameLength == 0 ? string.Empty : AmigaTextHelper.GetString(bytes, offset + 18, nameLength),
-                startofname = 18,
-                pad = 0
+                protection = bytes[offset + 16]
             };
 
-            if (dirEntry.startofname + nameLength < next)
+            dirEntry.Name = nameLength == 0
+                ? string.Empty
+                : AmigaTextHelper.GetString(bytes, offset + direntry.StartOfName + 1, nameLength);
+            
+            //if (direntry.StartOfName + nameLength < next - (g.dirextension ? 2 : 0))
+            //{
+            var commentOffset = offset + direntry.StartOfName + 1 + nameLength;
+            var commentLength = bytes[commentOffset];
+            if (commentLength > 0)
             {
-                var commentLength = bytes[offset + dirEntry.startofname + nameLength];
-                dirEntry.comment = AmigaTextHelper.GetString(bytes, offset + dirEntry.startofname + nameLength + 1, commentLength);
+                dirEntry.comment = AmigaTextHelper.GetString(bytes, commentOffset + 1, commentLength);
+                
             }
+            //}
 
             if (g.dirextension)
             {

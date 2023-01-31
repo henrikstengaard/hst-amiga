@@ -78,7 +78,7 @@
 
             if (type == typeof(dirblock))
             {
-                return await DirBlockReader.Parse(buffer, g);
+                return DirBlockReader.Parse(buffer, g);
             }
 
             if (type == typeof(indexblock))
@@ -88,7 +88,7 @@
 
             if (type == typeof(BitmapBlock))
             {
-                return await BitmapBlockReader.Parse(buffer, (int)g.glob_allocdata.longsperbmb);
+                return BitmapBlockReader.Parse(buffer, (int)g.glob_allocdata.longsperbmb);
             }
 
             if (type == typeof(deldirblock))
@@ -144,15 +144,6 @@
                 
             }
 
-            
-            //
-            // // zero fill, if write length is larger than buffer
-            // if (offset + writeLength > buffer.Length)
-            // {
-            //     var zeroFill = new byte[offset + writeLength - buffer.Length];
-            //     await stream.WriteAsync(zeroFill, 0, zeroFill.Length);
-            // }
-            
             return true;
         }
 
@@ -169,13 +160,13 @@
                     buffer = await AnodeBlockWriter.BuildBlock(anodeBlock);
                     break;
                 case dirblock dirBlock:
-                    buffer = await DirBlockWriter.BuildBlock(dirBlock, g);
+                    buffer = DirBlockWriter.BuildBlock(dirBlock, g);
                     break;
                 case indexblock indexBlock:
                     buffer = await IndexBlockWriter.BuildBlock(indexBlock);
                     break;
                 case BitmapBlock bitmapBlock:
-                    buffer = await BitmapBlockWriter.BuildBlock(bitmapBlock);
+                    buffer = BitmapBlockWriter.BuildBlock(bitmapBlock, g);
                     break;
                 case deldirblock deldirblock:
                     buffer = await DelDirBlockWriter.BuildBlock(deldirblock);

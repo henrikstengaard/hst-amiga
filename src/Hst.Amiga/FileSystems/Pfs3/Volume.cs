@@ -241,7 +241,7 @@
         {
             // read boot block
             var blockBytes = await Disk.RawRead(1, Constants.BOOTBLOCK1, g);
-            var rootBlock = await RootBlockReader.Parse(blockBytes);
+            var rootBlock = RootBlockReader.Parse(blockBytes);
 
             if (!(rootBlock.DiskType == Constants.ID_PFS_DISK || rootBlock.DiskType == Constants.ID_PFS2_DISK))
             {
@@ -252,7 +252,7 @@
 
             // read root block
             blockBytes = await Disk.RawRead(1, Constants.ROOTBLOCK, g);
-            rootBlock = await RootBlockReader.Parse(blockBytes);
+            rootBlock = RootBlockReader.Parse(blockBytes);
             
             // read reserved bitmap blocks
             var numReserved = Pfs3Formatter.CalcNumReserved(g, rootBlock.ReservedBlksize);
@@ -261,7 +261,7 @@
             var bytesPerBlock = (ushort)g.blocksize;
             var resCluster = (ushort)(rootBlock.ReservedBlksize / bytesPerBlock);            
             blockBytes = await Disk.RawRead((uint)reservedBitmapBlockCount * resCluster, Constants.ROOTBLOCK + 1, g);
-            rootBlock.ReservedBitmapBlock = await BitmapBlockReader.Parse(blockBytes, (int)(numReserved / 32 + 1));
+            rootBlock.ReservedBitmapBlock = BitmapBlockReader.Parse(blockBytes, (int)(numReserved / 32 + 1));
             
             /* check size and read all rootblock blocks */
             // 17.10: with 1024 byte blocks rblsize can be 1!

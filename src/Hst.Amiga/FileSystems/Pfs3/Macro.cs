@@ -17,7 +17,7 @@
         public static void MarkDataDirty(int i, globaldata g) => g.dc.ref_[i].dirty = true;
             
         // comment: de is struct direntry *
-        public static int COMMENT(direntry de) => de.startofname + de.Name.Length;
+        //public static int COMMENT(direntry de) => de.startofname + de.Name.Length;
         
         public static bool IsRoot(objectinfo oi) => oi == null || oi.volume.root == 0;
         public static bool IsRootA(objectinfo oi) => oi.volume.root == 0;

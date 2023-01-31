@@ -1,51 +1,42 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
+    using System;
     using System.IO;
-    using System.Threading.Tasks;
     using Blocks;
-    using Core.Extensions;
+    using Core.Converters;
 
     public static class DirBlockWriter
     {
-        public static async Task<byte[]> BuildBlock(dirblock dirblock, globaldata g)
+        public static byte[] BuildBlock(dirblock dirBlock, globaldata g)
         {
-            var blockStream = dirblock.BlockBytes == null || dirblock.BlockBytes.Length == 0 ?
-                new MemoryStream() : new MemoryStream(dirblock.BlockBytes);
-                
-            await blockStream.WriteBigEndianUInt16(dirblock.id);
-            await blockStream.WriteBigEndianUInt16(dirblock.not_used_1);
-            await blockStream.WriteBigEndianUInt32(dirblock.datestamp);
-            
-            // not_used_2
-            for (var i = 0; i < 2; i++)
+            var blockBytes = new byte[g.RootBlock.ReservedBlksize];
+            if (dirBlock.BlockBytes != null)
             {
-                await blockStream.WriteBigEndianUInt16(0);
+                Array.Copy(dirBlock.BlockBytes, 0, blockBytes, 0, g.RootBlock.ReservedBlksize);
             }
             
-            await blockStream.WriteBigEndianUInt32(dirblock.anodenr);
-            await blockStream.WriteBigEndianUInt32(dirblock.parent);
-
-            var entriesSize = SizeOf.DirBlock.Entries(g);
+            BigEndianConverter.ConvertUInt16ToBytes(Constants.DBLKID, blockBytes, 0); // 0
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 2); // 2, not used 1
+            BigEndianConverter.ConvertUInt32ToBytes(dirBlock.datestamp, blockBytes, 4); // 4
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 8); // 8, not used 2
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 0xa); // 10, not used 3
+            BigEndianConverter.ConvertUInt32ToBytes(dirBlock.anodenr, blockBytes, 0xc); // 12
+            BigEndianConverter.ConvertUInt32ToBytes(dirBlock.parent, blockBytes, 0x10); // 16
+            
             var maxDirEntries = (SizeOf.DirBlock.Entries(g) / SizeOf.DirEntry.Struct) + 5;
 
-            var entries = new byte[entriesSize];
-
             var dirEntriesNo = 0;
-            var offset = 0;
-            foreach (var dirEntry in dirblock.DirEntries)
+            var offset = 0x14;
+            foreach (var dirEntry in dirBlock.DirEntries)
             {
                 var next = direntry.EntrySize(dirEntry, g);
-                // if (dirEntry.next == 0)
-                // {
-                //     throw new IOException("Dir entry has next 0");
-                // }
 
-                if (offset + next >= entriesSize)
+                if (offset + next >= g.RootBlock.ReservedBlksize)
                 {
-                    throw new IOException($"Dir entry at offset {offset} with next {next} exceeds size of entries {entriesSize}");
+                    throw new IOException($"Dir entry at offset {offset} with next {next} exceeds block size {g.RootBlock.ReservedBlksize}");
                 }
                 
-                DirEntryWriter.Write(entries, offset, next, dirEntry, g);
+                DirEntryWriter.Write(blockBytes, offset, next, dirEntry, g);
                 offset += next;
                 
                 dirEntriesNo++;
@@ -55,10 +46,7 @@
                 }
             }
             
-            await blockStream.WriteBytes(entries);
-                
-            var blockBytes = blockStream.ToArray();
-            dirblock.BlockBytes = blockBytes;
+            dirBlock.BlockBytes = blockBytes;
 
             return blockBytes;
         }
