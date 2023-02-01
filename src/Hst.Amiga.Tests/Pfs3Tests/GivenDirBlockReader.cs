@@ -36,14 +36,9 @@ public class GivenDirBlockReader
         // arrange - write file dir entry
         var dirEntryName = "File";
         var date = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var dirEntrySize = (byte)direntry.EntrySize(dirEntryName, string.Empty, new extrafields(), g);
-        var dirEntry = new direntry(dirEntrySize)
-        {
-            type = Constants.ST_FILE,
-            Name = dirEntryName,
-            CreationDate = date
-        };
-        DirEntryWriter.Write(blockBytes, 0x14, dirEntrySize, dirEntry, g);
+        var dirEntry = new direntry(0, Constants.ST_FILE, 0, 0, 0, date, dirEntryName, string.Empty, new extrafields(),
+            g);
+        DirEntryWriter.Write(blockBytes, 0x14, dirEntry.Next, dirEntry, g);
         
         // act - parse dir block bytes
         var dirBlock = DirBlockReader.Parse(blockBytes, g);

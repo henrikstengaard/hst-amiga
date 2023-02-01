@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
     using System;
+    using System.Collections.Generic;
     using Blocks;
     using Core.Converters;
 
@@ -39,42 +40,38 @@
             // UWORD flags = 0, orvalue;
             // UWORD *fields = (UWORD *)extra;
             
-            /* patch protection lower 8 bits */
-            dirEntry.ExtraFields.prot &= 0xffffff00;
-            
             ushort flags = 0;
-            var fields = 0;
-            var array = extrafields.ConvertToUShortArray(dirEntry.ExtraFields);
+            var fieldsIndex = 0;
+            var fieldsArray = extrafields.ConvertToUShortArray(dirEntry.ExtraFields);
+            var array = new List<ushort>();
 
             // offset = (sizeof(struct direntry) + (direntry->nlength) + *COMMENT(direntry)) & 0xfffe;
             // dirext = (UWORD *)((UBYTE *)(direntry) + (UBYTE)offset);
-            var commentLength = dirEntry.comment.Length > 0 ? dirEntry.comment.Length + 1 : 0;
-            var extraFieldsOffset = (SizeOf.DirEntry.Struct + dirEntry.Name.Length + commentLength) & 0xfffe;
+            var extraFieldsOffset = (SizeOf.DirEntry.Struct + dirEntry.Name.Length + dirEntry.comment.Length) & 0xfffe;
             var dirext = extraFieldsOffset;
             
             ushort orvalue = 1;
             // /* fill packed field array */
             int i;
-            var j = 0;
             for (i = 0; i < SizeOf.ExtraFields.Struct / 2; i++)
             {
-                if (array[fields] != 0)
+                if (fieldsArray[fieldsIndex] != 0)
                 {
                     //array[j++] = *fields++;
-                    fields++;
-                    j++;
+                    array.Add(fieldsArray[fieldsIndex]);
+                    fieldsIndex++;
                     flags |= orvalue;
                 }
                 else
                 {
-                    fields++;
+                    fieldsIndex++;
                 }
             
                 orvalue <<= 1;
             }
 
             // /* add fields to direntry */
-            i = j;
+            i = array.Count;
             while (i > 0)
             {
                 //     *dirext++ = array[--i];
@@ -82,7 +79,7 @@
                 dirext += 2; // 2 bytes increase for ushort/uword
             }
             // *dirext++ = flags;
-            data[offset + dirext] = (byte)flags;
+            BigEndianConverter.ConvertUInt16ToBytes(flags, data, offset + dirext);
 
             // direntry.next = offset + 2 * j + 2;
             //dirEntry.next = (byte)(extraFieldsOffset + 2 * j + 2);

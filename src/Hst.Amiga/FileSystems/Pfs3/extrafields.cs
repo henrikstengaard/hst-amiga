@@ -19,42 +19,100 @@
 };
 
      */
+        public extrafields(uint link, ushort uid, ushort gid, uint prot, uint virtualsize, uint rollpointer, ushort fsizex)
+        {
+            this.link = link;
+            this.uid = uid;
+            this.gid = gid;
+            this.prot = prot & 0xffffff00; /* patch protection lower 8 bits */
+            this.virtualsize = virtualsize;
+            this.rollpointer = rollpointer;
+            this.fsizex = fsizex;
+            this.ExtraFieldsSize = CalculateSize(this);
+        }
+
+        public extrafields() : this(0U, 0, 0, 0U, 0U, 0U, 0)
+        {
+        }
+
         /// <summary>
         /// link anodenr
         /// </summary>
-        public uint link { get; set; }
+        public uint link { get; private set; }
 
         /// <summary>
         /// user id
         /// </summary>
-        public ushort uid { get; set; }
-        
+        public readonly ushort uid;
+
         /// <summary>
         /// group id
         /// </summary>
-        public ushort gid { get; set; }
-        
+        public readonly ushort gid;
+
         /// <summary>
         /// byte 1-3 of protection
         /// </summary>
-        public uint prot { get; set; }
-        
+        public uint prot { get; private set; }
+
         /// <summary>
         /// virtual rollover filesize in bytes (as shown by Examine())
         /// </summary>
-        public uint virtualsize { get; set; }
-        
+        public uint virtualsize { get; private set; }
+
         /// <summary>
         /// current start of file AND end of file pointer
         /// </summary>
-        public uint rollpointer { get; set; }
-        
+        public uint rollpointer { get; private set; }
+
         /// <summary>
         /// extended bits 32-47 of direntry.fsize (large file support)
         /// </summary>
-        public ushort fsizex { get; set; }
+        public readonly ushort fsizex;
+
+        public int ExtraFieldsSize { get; private set; }
+
+        public void SetLink(uint link)
+        {
+            var updateSize = this.link != link; 
+            this.link = link;
+            if (updateSize)
+            {
+                this.ExtraFieldsSize = CalculateSize(this);                
+            }
+        }
+
+        public void SetProtection(uint protection)
+        {
+            var updateSize = this.prot != protection; 
+            this.prot = protection;
+            if (updateSize)
+            {
+                this.ExtraFieldsSize = CalculateSize(this);                
+            }
+        }
         
-        public static int ExtraFieldsSize(extrafields extraFields)
+        public void SetVirtualSize(uint virtualSize)
+        {
+            var updateSize = this.virtualsize != virtualSize; 
+            this.virtualsize = virtualSize;
+            if (updateSize)
+            {
+                this.ExtraFieldsSize = CalculateSize(this);                
+            }
+        }
+
+        public void SetRollPointer(uint rollPointer)
+        {
+            var updateSize = this.rollpointer != rollPointer; 
+            this.rollpointer = rollPointer;
+            if (updateSize)
+            {
+                this.ExtraFieldsSize = CalculateSize(this);                
+            }
+        }
+        
+        private static int CalculateSize(extrafields extraFields)
         {
             // size of extra fields is 2, if all properties are 0
             if (extraFields.link == 0 && extraFields.uid == 0 && extraFields.gid == 0 && extraFields.prot == 0 &&
@@ -127,16 +185,15 @@
         /// <returns></returns>
         public static extrafields ConvertToExtraFields(ushort[] extras)
         {
-            return new extrafields
-            {
-                link = ((uint)extras[0] << 16) | extras[1],
-                uid = extras[2],
-                gid = extras[3],
-                prot = ((uint)extras[4] << 16) | extras[5],
-                virtualsize = ((uint)extras[6] << 16) | extras[7],
-                rollpointer = ((uint)extras[8] << 16) | extras[9],
-                fsizex = extras[10],
-            };
+            var link = ((uint)extras[0] << 16) | extras[1];
+            var uid = extras[2];
+            var gid = extras[3];
+            var prot = ((uint)extras[4] << 16) | extras[5];
+            var virtualSize = ((uint)extras[6] << 16) | extras[7];
+            var rollpointer = ((uint)extras[8] << 16) | extras[9];
+            var fsizex = extras[10];
+            
+            return new extrafields(link, uid, gid, prot, virtualSize, rollpointer, fsizex);
         }
     }
 }

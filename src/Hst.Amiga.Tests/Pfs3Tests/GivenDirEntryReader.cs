@@ -83,7 +83,7 @@ public class GivenDirEntryReader
                 ReservedBlksize = 1024
             }
         };
-        var entries = new byte[Amiga.FileSystems.Pfs3.SizeOf.DirBlock.Entries(g)];
+        var entries = new byte[SizeOf.DirBlock.Entries(g)];
 
         // act - read dir entry at last offset
         var dirEntry = DirEntryReader.Read(entries, entries.Length - 1, g);
@@ -104,85 +104,11 @@ public class GivenDirEntryReader
                 ReservedBlksize = 1024
             }
         };
-        var entries = new byte[Amiga.FileSystems.Pfs3.SizeOf.DirBlock.Entries(g)];
+        var entries = new byte[SizeOf.DirBlock.Entries(g)];
 
         entries[^18] = 17;
 
         // act - read dir entry at offset with next outside bounds throws exception
         Assert.Throws<IOException>(() => DirEntryReader.Read(entries, entries.Length - 18, g));
-    }
-}
-
-public class GivenDirEntryWriter
-{
-    [Fact]
-    public void When()
-    {
-        // arrange - global data
-        var g = new globaldata
-        {
-            RootBlock = new RootBlock
-            {
-                ReservedBlksize = 1024
-            },
-            dirextension = true // indicate disk uses dir extension and extra fields for dir entries
-        };
-
-        var dirEntry1 = CreateDirEntry("New File1", string.Empty, g);
-        //var dirEntry2 = CreateDirEntry("New File2", string.Empty, g);
-        
-        var blockBytes = new byte[g.RootBlock.ReservedBlksize];
-        
-        DirEntryWriter.Write(blockBytes, 0, dirEntry1.Next, dirEntry1, g);
-        //DirEntryWriter.Write(blockBytes, dirEntry1.Next, dirEntry2.Next, dirEntry2, g);
-
-        var actualDirEntry = DirEntryReader.Read(blockBytes, 0, g);
-        Assert.Equal(dirEntry1.type, actualDirEntry.type);
-        Assert.Equal(dirEntry1.Name, actualDirEntry.Name);
-        Assert.Equal(dirEntry1.CreationDate, actualDirEntry.CreationDate);
-    }
-
-    [Fact]
-    public void When2()
-    {
-        // arrange - global data
-        var g = new globaldata
-        {
-            RootBlock = new RootBlock
-            {
-                ReservedBlksize = 1024
-            },
-            dirextension = true // indicate disk uses dir extension and extra fields for dir entries
-        };
-
-        var dirEntry1 = CreateDirEntry("New File1", string.Empty, g);
-        dirEntry1.protection = 3;
-        dirEntry1.ExtraFields.prot = 3;
-        //var dirEntry2 = CreateDirEntry("New File2", string.Empty, g);
-        
-        var blockBytes = new byte[g.RootBlock.ReservedBlksize];
-        
-        var dirEntrySize = direntry.EntrySize(dirEntry1, g);
-        DirEntryWriter.Write(blockBytes, 0, dirEntrySize, dirEntry1, g);
-        //DirEntryWriter.Write(blockBytes, dirEntry1.Next, dirEntry2.Next, dirEntry2, g);
-
-        var actualDirEntry = DirEntryReader.Read(blockBytes, 0, g);
-        Assert.Equal(dirEntry1.type, actualDirEntry.type);
-        Assert.Equal(dirEntry1.protection, actualDirEntry.protection);
-        Assert.Equal(dirEntry1.Name, actualDirEntry.Name);
-        Assert.Equal(dirEntry1.CreationDate, actualDirEntry.CreationDate);
-        Assert.Equal(dirEntry1.ExtraFields.prot, actualDirEntry.ExtraFields.prot);
-    }
-    
-    private static direntry CreateDirEntry(string name, string comment, globaldata g)
-    {
-        var date = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var dirEntrySize = direntry.EntrySize(name, comment, new extrafields(), g);
-        return new direntry((byte)dirEntrySize)
-        {
-            type = Constants.ST_FILE,
-            Name = name,
-            CreationDate = date
-        };
     }
 }

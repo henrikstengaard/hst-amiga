@@ -958,7 +958,7 @@
             virtualend = (int)(virtualoffset + size);
             if (virtualend >= extrafields.virtualsize)
             {
-                extrafields.virtualsize = (uint)Math.Min(filesize_m - 1, virtualend);
+                extrafields.SetVirtualSize((uint)Math.Min(filesize_m - 1, virtualend));
                 extend = true;
             }
 
@@ -989,11 +989,13 @@
 
             /* change rollpointer etc */
             if (extend && extrafields.virtualsize == filesize_m - 1)
-                extrafields.rollpointer = (uint)(end + 1); /* byte PAST eof is offset 0 */
+            {
+                extrafields.SetRollPointer((uint)(end + 1)); /* byte PAST eof is offset 0 */
+            }
             //destentry = (struct direntry *)entrybuffer;
             destentry = direntry_m;
             //memcpy(destentry, direntry_m, direntry_m->next);
-            destentry.ExtraFields = extrafields;
+            destentry.SetExtraFields(extrafields, g);
             // Directory.AddExtraFields(dirBlock.entries, destentry, extrafields);
 
             /* commit changes */

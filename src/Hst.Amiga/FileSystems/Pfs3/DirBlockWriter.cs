@@ -29,7 +29,7 @@
             var offset = 0x14;
             foreach (var dirEntry in dirBlock.DirEntries)
             {
-                var next = direntry.EntrySize(dirEntry, g);
+                var next = dirEntry.Next;
 
                 if (offset + next >= g.RootBlock.ReservedBlksize)
                 {

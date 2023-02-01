@@ -23,67 +23,142 @@
         /// offset in dirblock entries
         /// </summary>
         //public int Offset { get; set; }
+        
         /// <summary>
         /// Position of dir entry in dir block
         /// </summary>
         public int Position { get; set; }
         
-        public readonly byte Next;             /* sizeof direntry                  */
-        public sbyte type;             /* dir, file, link etc              */
-        public uint anode;            /* anode number                     */
-        public uint fsize { get; set; }           /* sizeof file                      */
-
-        // public ushort creationday;      /* days since Jan. 1, 1978 (like ADOS; WORD instead of LONG) */
-        // public ushort creationminute;   /* minutes past modnight            */
-        // public ushort creationtick;     /* ticks past minute                */
-        public byte protection;       /* protection bits (like DOS)       */
-        //public byte nlength;          /* lenght of filename               */
-        public string Name { get; set; }
-        public static readonly byte StartOfName = 17;      /* filename, followed by filenote length & filenote */
-        //public byte pad;              /* make size even                   */
-        public string comment;
+        /// <summary>
+        /// Size of dir entry
+        /// </summary>
+        public byte Next { get; private set; }
         
+        /// <summary>
+        /// Type of dir entry: dir, file, link etc
+        /// </summary>
+        public sbyte type { get; private set; }
+
+        /// <summary>
+        /// anode number
+        /// </summary>
+        public uint anode { get; private set; }
+        
+        /// <summary>
+        /// sizeof file
+        /// </summary>
+        public uint fsize { get; private set; }
+
+        /// <summary>
+        /// Creation date of dir entry
+        /// </summary>
+        public DateTime CreationDate { get; private set; }
+        
+        /// <summary>
+        /// protection bits (0 = RWED)
+        /// </summary>
+        public byte protection { get; private set; }
+
+        public string Name { get; private set; }
+
+        /// <summary>
+        /// Start of name offset in dir entry struct
+        /// </summary>
+        public static readonly byte StartOfName = 17;
+
+        public string comment { get; private set; }
+
         /// <summary>
         /// dir entry extra fields, null if dir entry doesn't have extra fields
         /// </summary>
-        public extrafields ExtraFields { get; set; }
+        public extrafields ExtraFields { get; private set; }
 
-        public uint Size
-        {
-            get => fsize;
-            set => fsize = value;
-        }
+        public uint Size => fsize;
         
-        public DateTime CreationDate { get; set; }
 
-        public direntry()
+        public direntry(byte next, sbyte type, uint anode, uint fsize, byte protection, DateTime date, string name,
+            string comment, extrafields extraFields, globaldata g)
         {
             Position = -1;
-            Name = string.Empty;
-            comment = string.Empty;
-            ExtraFields = new extrafields();
+            this.type = type;
+            this.anode = anode;
+            this.fsize = fsize;
+            this.protection = protection;
+            this.CreationDate = date;
+            Name = name;
+            this.comment = comment;
+            ExtraFields = extraFields;
+            Next = next == 0 ? (byte)CalculateSize(name, comment, extraFields, g) : next;
         }
 
-        public direntry(byte next) : this()
+        public void SetType(sbyte type)
         {
-            this.Next = next;
+            this.type = type;
         }
         
-        public static int EntrySize(string name, string comment, extrafields extraFields, globaldata g)
+        public void SetAnode(uint anode)
+        {
+            this.anode = anode;
+        }
+        
+        public void SetFSize(uint fSize)
+        {
+            this.fsize = fSize;
+        }
+
+        public void SetDate(DateTime date)
+        {
+            this.CreationDate = date;
+        }
+
+        public void SetProtection(byte prot)
+        {
+            this.protection = prot;
+        }
+        
+        public void SetExtraFields(extrafields extraFields, globaldata g)
+        {
+            var updateSize = this.ExtraFields.ExtraFieldsSize != extraFields.ExtraFieldsSize;
+            this.ExtraFields = extraFields;
+            if (updateSize)
+            {
+                Next = (byte)CalculateSize(Name, comment, extraFields, g);
+            }
+        }
+        
+        public direntry() : this(0)// : this(0, 0, 0, 0, 0, DateTime.Now, string.Empty, string.Empty, new extrafields(), g)
+        {
+        }
+
+        public direntry(byte next)
+        {
+            Position = -1;
+            this.type = type;
+            this.anode = anode;
+            this.fsize = fsize;
+            this.protection = protection;
+            this.CreationDate = DateTime.Now;
+            Name = string.Empty;
+            this.comment = string.Empty;
+            ExtraFields = new extrafields();
+            Next = next;
+        }
+        
+        private static int CalculateSize(string name, string comment, extrafields extraFields, globaldata g)
         {
             // entrysize = ((sizeof(struct direntry) + strlen(name)) & 0xfffe);
             var entrysize = (SizeOf.DirEntry.Struct + name.Length + comment.Length) & 0xfffe;
             if (g.dirextension)
             {
-                entrysize += extrafields.ExtraFieldsSize(extraFields);
+                entrysize += extraFields.ExtraFieldsSize;
             }
             return entrysize;
         }
 
-        public static int EntrySize(direntry dirEntry, globaldata g)
-        {
-            return EntrySize(dirEntry.Name, dirEntry.comment, dirEntry.ExtraFields, g);
-        }
+        // public static int EntrySize(direntry dirEntry, globaldata g)
+        // {
+        //     return EntrySize(dirEntry.Name, dirEntry.comment, dirEntry.ExtraFields, g);
+        // }
         
         public static void Copy(direntry src, direntry dest)
         {
