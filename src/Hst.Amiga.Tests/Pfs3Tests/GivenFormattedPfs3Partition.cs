@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.Tests.Pfs3Tests;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -518,6 +519,62 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         }
     }
 
+    [Fact]
+    public async Task WhenCreate100FilesAndRenameAndSetCommentThenFilesExistAndDataMatches()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        const int files = 100;
+        for (var i = 0; i < files; i++)
+        {
+            // act - create file in root directory
+            await pfs3Volume.CreateFile($"New File{i}");
+        }
+
+        // act - flush changes
+        await pfs3Volume.Flush();
+
+        IList<Entry> entries;
+        for (var i = 0; i < files; i++)
+        {
+            // act - rename file with longer name
+            await pfs3Volume.Rename($"New File{i}", $"Renamed to longer filename{i}");
+
+            // assert - renamed file exist once
+            entries = (await pfs3Volume.ListEntries()).ToList();
+            var renamed = entries.Count(x => x.Name == $"Renamed to longer filename{i}");
+            Assert.Equal(1, renamed);
+            
+            // act - set comment for file
+            await pfs3Volume.SetComment($"Renamed to longer filename{i}", $"CommentCommentCommentComment{i}");
+            
+            // assert - file with comment exist once
+            entries = (await pfs3Volume.ListEntries()).ToList();
+            var renamedWithComment = entries.Count(x => x.Name == $"Renamed to longer filename{i}");
+            Assert.Equal(1, renamedWithComment);
+        }
+
+        // act - flush changes
+        await pfs3Volume.Flush();
+        
+        // act - list entries
+        entries = (await pfs3Volume.ListEntries()).OrderBy(x => x.Name).ToList();
+            
+        // assert - 100 entries exist and matches
+        Assert.Equal(files, entries.Count);
+        for (var i = 0; i < files; i++)
+        {
+            var entry = entries.FirstOrDefault(x => x.Name == $"Renamed to longer filename{i}");
+            Assert.Equal($"Renamed to longer filename{i}", entry?.Name ?? string.Empty);
+            Assert.NotNull(entry);
+            Assert.Equal($"CommentCommentCommentComment{i}", entry.Comment);
+        }
+    }
+
     [Theory]
     [InlineData(1000)]
     [InlineData(5000)]
@@ -778,6 +835,9 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
         Assert.NotNull(dirEntry);
         Assert.Equal(comment, dirEntry.Comment);
+
+        // await using var fileStream = System.IO.File.OpenWrite(@"comment.hdf");
+        // await stream.WriteTo(fileStream);
     }
 
     [Theory]

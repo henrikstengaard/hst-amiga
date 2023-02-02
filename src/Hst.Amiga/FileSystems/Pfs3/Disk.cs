@@ -945,7 +945,7 @@
 #endif
             //var dirBlock = file.le.info.file.dirblock.dirblock;
             //extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
-            extrafields = direntry_m.ExtraFields;
+            extrafields = new extrafields(direntry_m.ExtraFields);
             end = (int)(file.offset + size);
 
             /* new virtual size */
@@ -993,16 +993,20 @@
                 extrafields.SetRollPointer((uint)(end + 1)); /* byte PAST eof is offset 0 */
             }
             //destentry = (struct direntry *)entrybuffer;
-            destentry = direntry_m;
+            destentry = new direntry(direntry_m, g);
             //memcpy(destentry, direntry_m, direntry_m->next);
             destentry.SetExtraFields(extrafields, g);
             // Directory.AddExtraFields(dirBlock.entries, destentry, extrafields);
 
             /* commit changes */
             if (!await Directory.GetParent(file.le.info, directory, g))
+            {
                 return 0;
+            }
             else
+            {
                 await Directory.ChangeDirEntry(file.le.info, destentry, directory, fi, g);
+            }
 
             return (uint)written;
 

@@ -20,20 +20,15 @@
         // };
 
         /// <summary>
-        /// offset in dirblock entries
-        /// </summary>
-        //public int Offset { get; set; }
-        
-        /// <summary>
         /// Position of dir entry in dir block
         /// </summary>
         public int Position { get; set; }
-        
+
         /// <summary>
         /// Size of dir entry
         /// </summary>
         public byte Next { get; private set; }
-        
+
         /// <summary>
         /// Type of dir entry: dir, file, link etc
         /// </summary>
@@ -43,7 +38,7 @@
         /// anode number
         /// </summary>
         public uint anode { get; private set; }
-        
+
         /// <summary>
         /// sizeof file
         /// </summary>
@@ -53,7 +48,7 @@
         /// Creation date of dir entry
         /// </summary>
         public DateTime CreationDate { get; private set; }
-        
+
         /// <summary>
         /// protection bits (0 = RWED)
         /// </summary>
@@ -74,7 +69,6 @@
         public extrafields ExtraFields { get; private set; }
 
         public uint Size => fsize;
-        
 
         public direntry(byte next, sbyte type, uint anode, uint fsize, byte protection, DateTime date, string name,
             string comment, extrafields extraFields, globaldata g)
@@ -91,16 +85,22 @@
             Next = next == 0 ? (byte)CalculateSize(name, comment, extraFields, g) : next;
         }
 
+        public direntry(direntry dirEntry, globaldata g) : this(dirEntry.Next, dirEntry.type, dirEntry.anode,
+            dirEntry.fsize, dirEntry.protection, dirEntry.CreationDate, dirEntry.Name, dirEntry.comment,
+            dirEntry.ExtraFields, g)
+        {
+        }
+
         public void SetType(sbyte type)
         {
             this.type = type;
         }
-        
+
         public void SetAnode(uint anode)
         {
             this.anode = anode;
         }
-        
+
         public void SetFSize(uint fSize)
         {
             this.fsize = fSize;
@@ -115,7 +115,7 @@
         {
             this.protection = prot;
         }
-        
+
         public void SetExtraFields(extrafields extraFields, globaldata g)
         {
             var updateSize = this.ExtraFields.ExtraFieldsSize != extraFields.ExtraFieldsSize;
@@ -125,8 +125,9 @@
                 Next = (byte)CalculateSize(Name, comment, extraFields, g);
             }
         }
-        
-        public direntry() : this(0)// : this(0, 0, 0, 0, 0, DateTime.Now, string.Empty, string.Empty, new extrafields(), g)
+
+        public direntry() :
+            this(0) // : this(0, 0, 0, 0, 0, DateTime.Now, string.Empty, string.Empty, new extrafields(), g)
         {
         }
 
@@ -143,7 +144,7 @@
             ExtraFields = new extrafields();
             Next = next;
         }
-        
+
         private static int CalculateSize(string name, string comment, extrafields extraFields, globaldata g)
         {
             // entrysize = ((sizeof(struct direntry) + strlen(name)) & 0xfffe);
@@ -152,28 +153,19 @@
             {
                 entrysize += extraFields.ExtraFieldsSize;
             }
+
             return entrysize;
         }
 
-        // public static int EntrySize(direntry dirEntry, globaldata g)
-        // {
-        //     return EntrySize(dirEntry.Name, dirEntry.comment, dirEntry.ExtraFields, g);
-        // }
-        
-        public static void Copy(direntry src, direntry dest)
+        public override bool Equals(object obj)
         {
-            // dest.Offset = src.Offset;
-            // dest.next = src.next;
-            dest.Position = src.Position;
-            dest.type = src.type;
-            dest.anode = src.anode;
-            dest.fsize = src.fsize;
-            dest.protection = src.protection;
-            dest.CreationDate = src.CreationDate;
-            //dest.nlength = src.nlength;
-            dest.Name = src.Name;
-            dest.comment = src.comment;
-            dest.ExtraFields = src.ExtraFields;
+            if ((obj == null) || !(obj is direntry dirEntry))
+            {
+                return false;
+            }            
+            return Next == dirEntry.Next && Name == dirEntry.Name;
         }
+
+        public override int GetHashCode() => Next.GetHashCode() ^ Name.GetHashCode();
     }
 }

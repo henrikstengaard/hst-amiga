@@ -31,6 +31,11 @@
             this.ExtraFieldsSize = CalculateSize(this);
         }
 
+        public extrafields(extrafields extraFields) : this(extraFields.link, extraFields.uid, extraFields.gid,
+            extraFields.prot, extraFields.virtualsize, extraFields.rollpointer, extraFields.fsizex)
+        {
+        }
+        
         public extrafields() : this(0U, 0, 0, 0U, 0U, 0U, 0)
         {
         }
@@ -84,6 +89,7 @@
 
         public void SetProtection(uint protection)
         {
+            protection &= 0xffffff00; /* patch protection lower 8 bits */
             var updateSize = this.prot != protection; 
             this.prot = protection;
             if (updateSize)

@@ -15,13 +15,13 @@
                 Array.Copy(dirBlock.BlockBytes, 0, blockBytes, 0, g.RootBlock.ReservedBlksize);
             }
             
-            BigEndianConverter.ConvertUInt16ToBytes(Constants.DBLKID, blockBytes, 0); // 0
-            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 2); // 2, not used 1
+            BigEndianConverter.ConvertUInt16ToBytes(Constants.DBLKID, blockBytes, 0); // offset 0
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 2); // offset 2, not used 1
             BigEndianConverter.ConvertUInt32ToBytes(dirBlock.datestamp, blockBytes, 4); // 4
-            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 8); // 8, not used 2
-            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 0xa); // 10, not used 3
-            BigEndianConverter.ConvertUInt32ToBytes(dirBlock.anodenr, blockBytes, 0xc); // 12
-            BigEndianConverter.ConvertUInt32ToBytes(dirBlock.parent, blockBytes, 0x10); // 16
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 8); // offset 8, not used 2
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 0xa); // offset 10, not used 3
+            BigEndianConverter.ConvertUInt32ToBytes(dirBlock.anodenr, blockBytes, 0xc); // offset 12
+            BigEndianConverter.ConvertUInt32ToBytes(dirBlock.parent, blockBytes, 0x10); // offset 16
             
             var maxDirEntries = (SizeOf.DirBlock.Entries(g) / SizeOf.DirEntry.Struct) + 5;
 
@@ -44,6 +44,12 @@
                 {
                     throw new IOException($"Read entries from dir block exceeded max entries, possibly corrupt dir block");
                 }
+            }
+            
+            // clear remaining part of block bytes
+            for (var i = offset; i < blockBytes.Length; i++)
+            {
+                blockBytes[i] = 0;
             }
             
             dirBlock.BlockBytes = blockBytes;
