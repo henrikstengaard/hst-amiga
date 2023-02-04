@@ -20,11 +20,6 @@
         // };
 
         /// <summary>
-        /// Position of dir entry in dir block
-        /// </summary>
-        public int Position { get; set; }
-
-        /// <summary>
         /// Size of dir entry
         /// </summary>
         public byte Next { get; private set; }
@@ -73,7 +68,6 @@
         public direntry(byte next, sbyte type, uint anode, uint fsize, byte protection, DateTime date, string name,
             string comment, extrafields extraFields, globaldata g)
         {
-            Position = -1;
             this.type = type;
             this.anode = anode;
             this.fsize = fsize;
@@ -133,7 +127,6 @@
 
         public direntry(byte next)
         {
-            Position = -1;
             this.type = type;
             this.anode = anode;
             this.fsize = fsize;

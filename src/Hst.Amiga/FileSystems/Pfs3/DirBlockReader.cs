@@ -36,8 +36,6 @@
                     break;
                 }
 
-                entry.Position = position++;
-                
                 dirEntries.Add(entry);
                 dirEntriesNo++;
                 if (dirEntriesNo >= maxDirEntries)

@@ -33,7 +33,7 @@
 
                 if (offset + next >= g.RootBlock.ReservedBlksize)
                 {
-                    throw new IOException($"Dir entry at offset {offset} with next {next} exceeds block size {g.RootBlock.ReservedBlksize}");
+                    throw new IOException($"Dir entry '{dirEntry.Name}' at offset {offset} with next {next} exceeds block size {g.RootBlock.ReservedBlksize}");
                 }
                 
                 DirEntryWriter.Write(blockBytes, offset, next, dirEntry, g);
@@ -45,12 +45,9 @@
                     throw new IOException($"Read entries from dir block exceeded max entries, possibly corrupt dir block");
                 }
             }
-            
-            // clear remaining part of block bytes
-            for (var i = offset; i < blockBytes.Length; i++)
-            {
-                blockBytes[i] = 0;
-            }
+
+            // end of dir entries, next = 0
+            blockBytes[offset] = 0;
             
             dirBlock.BlockBytes = blockBytes;
 

@@ -658,9 +658,8 @@
  */
         public static async Task RemoveDirEntry(objectinfo info, globaldata g)
         {
-            int endofblok, startofblok, destofblok, startofclear;
-            ushort clearlen;
-            //SIPTR error;
+            // int endofblok, startofblok, destofblok, startofclear;
+            // ushort clearlen;
             objectinfo parent = new objectinfo();
 
             Macro.Lock(info.file.dirblock, g);
@@ -679,37 +678,12 @@
             // clearlen = info.direntry->next;
             // memmove(destofblok, startofblok, endofblok - startofblok);
             
-
-            // destofblok = info.file.direntry.Offset;
-            // startofblok = destofblok + info.file.direntry.next;
-            // endofblok = SizeOf.DirBlock.Entries(g);
-            // startofclear = endofblok - info.file.direntry.next;
-            // clearlen = info.file.direntry.next;
-            //
-            // // moves bytes from startofblok to destofblok
             var blk = info.file.dirblock.dirblock;
-            // var existing = blk.DirEntries.FirstOrDefault(x => x.Position == info.file.direntry.Position);
-            // if (existing == null)
-            // {
-            //     throw new IOException("Existing dir entry doesn't exist");
-            // }
             blk.DirEntries.Remove(info.file.direntry);
-            
-            // update dir entry positions after removing dir entry
-            var position = 0;
-            foreach (var dirEntry in blk.DirEntries)
-            {
-                dirEntry.Position = position++;
-            }
-            
-            //blk.DirEntries.Remove(info.file.direntry);
+
             // var movelen = endofblok - startofblok;
             // var temp = new byte[movelen];
-            // Array.Copy(blk.entries, startofblok, temp, 0, movelen);
-            // Array.Copy(temp, 0, blk.entries, destofblok, movelen);
-            //
-            // info.file.direntry = DirEntryReader.Read(blk.entries, info.file.direntry.Offset);
-            //
+
             // /* makes info invalid!! */
             // if (info.file.direntry.next != 0)
             // {
@@ -1106,15 +1080,11 @@
                 {
                     blk.DirEntries.Add(newentry);
                     
-                    // update dir entry positions!!!!
-
-                    newentry.Position = blk.DirEntries.IndexOf(newentry);
                     //memcpy(entry, newentry, newentry->next);
-                    // DirEntryWriter.Write(blk.entries, i, newentry);
                     entry = newentry;
+
                     //entry.next = 0;
                     //*(UBYTE *)NEXTENTRY(entry) = 0;     // dirblock afsluiten
-                    // blk.entries[i + newentry.next] = 0;
 
                     done = true;
                     break;
@@ -1151,16 +1121,10 @@
                 var blk = blok.dirblock;
                 blk.DirEntries.Add(newentry);
 
-                // update dir entry positions!!!!
-
-                
-                //entry = DirEntryReader.Read(blk.entries, 0);
                 //memcpy(entry, newentry, newentry->next);
                 //*(UBYTE *)NEXTENTRY(entry) = 0;     // mark end of dirblock
-                // DirEntryWriter.Write(blk.entries, 0, newentry);
-                newentry.Position = blk.DirEntries.IndexOf(newentry);
+
                 entry = newentry;
-                // entry.next = 0;
             }
 
             /* fill newinfo */
@@ -1232,6 +1196,7 @@
         {
             var volume = from.dirblock.volume;
 
+            // TODO: Examine when it's necessary update volume file entries, related to open files or dirs
             for (var node = Macro.HeadOf(volume.fileentries); node != null; node = node.Next)
             {
                 //throw new IOException("fileentries not empty"); 
@@ -1244,7 +1209,7 @@
                 if (fe.info.file.dirblock == from.dirblock)
                 {
                     /* is het de targetentry ? */
-                    if (fe.info.file.direntry.Position == from.direntry.Position)
+                    if (fe.info.file.direntry.Equals(from.direntry))
                     {
                         if (to != null)
                         {
@@ -1253,75 +1218,75 @@
                     }
                     else
                     {
-                        /* take only entries after target */
-                        if (fe.info.file.direntry.Position > from.direntry.Position)
-                        {
-                            // fe.info.file.direntry = (struct direntry *)((UBYTE *)fe->info.file.direntry + diff);v
-                            var d = fe.info.file.dirblock.dirblock;
-                            // fe.info.file.direntry = DirEntryReader.Read(d.entries, fe.info.file.direntry.Offset + diff);
-                            var nextEntry = d.DirEntries.FirstOrDefault(x =>
-                                x.Position == fe.info.file.direntry.Position + 1);
-                            if (nextEntry == null)
-                            {
-                                throw new IOException("Next entry is null");
-                            }
-                            fe.info.file.direntry = nextEntry;
-                        }
+            //             /* take only entries after target */
+            //             if (fe.info.file.direntry.Position > from.direntry.Position)
+            //             {
+            //                 // fe.info.file.direntry = (struct direntry *)((UBYTE *)fe->info.file.direntry + diff);v
+            //                 var d = fe.info.file.dirblock.dirblock;
+            //                 // fe.info.file.direntry = DirEntryReader.Read(d.entries, fe.info.file.direntry.Offset + diff);
+            //                 var nextEntry = d.DirEntries.FirstOrDefault(x =>
+            //                     x.Position == fe.info.file.direntry.Position + 1);
+            //                 if (nextEntry == null)
+            //                 {
+            //                     throw new IOException("Next entry is null");
+            //                 }
+            //                 fe.info.file.direntry = nextEntry;
+            //             }
+            //         }
                     }
-                }
-
-                /* check for exnext references */
-                if (fe.type.flags.dir != 0)
-                {
-                    var dle = fe.LockEntry;
-
-                    if (dle.nextentry.dirblock == from.dirblock)
+            
+                    /* check for exnext references */
+                    if (fe.type.flags.dir != 0)
                     {
-                        if (dle.nextentry.direntry.Position == from.direntry.Position && dle.nextentry.direntry == null)
-                        {
-                            await GetNextEntry(dle, g);
-                        }
-                        else
-                        {
-                            /* take only entries after target */
-                            if (dle.nextentry.direntry.Position > from.direntry.Position)
-                            {
-                                //dle.nextentry.direntry = (struct direntry *)((UBYTE *)dle->nextentry.direntry + diff);
-                                var d = fe.info.file.dirblock.dirblock;
-                                // dle.nextentry.direntry =
-                                //     DirEntryReader.Read(d.entries, dle.nextentry.direntry.Offset + diff);
-                                var nextEntry = d.DirEntries.FirstOrDefault(x =>
-                                    x.Position == dle.nextentry.direntry.Position);
-                                if (nextEntry == null)
-                                {
-                                    throw new IOException("Next entry is null");
-                                }
-                                dle.nextentry.direntry = nextEntry;
-                            }
-                        }
+                        var dle = fe.LockEntry;
+            //
+            //         if (dle.nextentry.dirblock == from.dirblock)
+            //         {
+            //             if (dle.nextentry.direntry.Position == from.direntry.Position && dle.nextentry.direntry == null)
+            //             {
+            //                 await GetNextEntry(dle, g);
+            //             }
+            //             else
+            //             {
+            //                 /* take only entries after target */
+            //                 if (dle.nextentry.direntry.Position > from.direntry.Position)
+            //                 {
+            //                     //dle.nextentry.direntry = (struct direntry *)((UBYTE *)dle->nextentry.direntry + diff);
+            //                     var d = fe.info.file.dirblock.dirblock;
+            //                     // dle.nextentry.direntry =
+            //                     //     DirEntryReader.Read(d.entries, dle.nextentry.direntry.Offset + diff);
+            //                     var nextEntry = d.DirEntries.FirstOrDefault(x =>
+            //                         x.Position == dle.nextentry.direntry.Position);
+            //                     if (nextEntry == null)
+            //                     {
+            //                         throw new IOException("Next entry is null");
+            //                     }
+            //                     dle.nextentry.direntry = nextEntry;
+            //                 }
+            //             }
                     }
                 }
             }
         }
 
-        public static async Task GetNextEntry(lockentry file, globaldata g)
-        {
-            canode anode = new canode();
-
-            /* get nextentry */
-            var d = file.nextentry.dirblock.dirblock;
-            // file.nextentry.direntry = Macro.NEXTENTRY(d, file.nextentry.direntry);
-            file.nextentry.direntry = d.DirEntries.FirstOrDefault(x =>
-                x.Position == file.nextentry.direntry.Position + 1);
-
-            /* no next entry? -> next block */
-            if (file.nextentry.direntry == null)
-            {
-                /* NB: 'nextanode' is een verwarrende naam */
-                await anodes.GetAnode(anode, file.nextanode, g);
-                file.nextanode = await GetFirstNonEmptyDE(anode.next, file.nextentry, g);
-            }
-        }
+        // public static async Task GetNextEntry(lockentry file, globaldata g)
+        // {
+        //     canode anode = new canode();
+        //
+        //     /* get nextentry */
+        //     var d = file.nextentry.dirblock.dirblock;
+        //     // file.nextentry.direntry = Macro.NEXTENTRY(d, file.nextentry.direntry);
+        //     file.nextentry.direntry = d.DirEntries.FirstOrDefault(x =>
+        //         x.Position == file.nextentry.direntry.Position + 1);
+        //
+        //     /* no next entry? -> next block */
+        //     if (file.nextentry.direntry == null)
+        //     {
+        //         /* NB: 'nextanode' is een verwarrende naam */
+        //         await anodes.GetAnode(anode, file.nextanode, g);
+        //         file.nextanode = await GetFirstNonEmptyDE(anode.next, file.nextentry, g);
+        //     }
+        // }
 
 /* Get first non empty direntry starting from anode [anodenr] 
  * Returns {NULL, NULL} if end of dir
@@ -2014,31 +1979,6 @@
             {
                 dirEntries.AddRange(blk.DirEntries);
                 
-                // update dir entry positions after adding dir entries
-                var position = 0;
-                foreach (var dirEntry in blk.DirEntries)
-                {
-                    dirEntry.Position = position++;
-                }
-
-                // /* scan block */
-                //
-                // var dirEntriesNo = 0;
-                // var entryIndex = 0;
-                // direntry entry;
-                // do
-                // {
-                //     entry = DirEntryReader.Read(blk.entries, entryIndex);
-                //     if (entry.next == 0)
-                //     {
-                //         break;
-                //     }
-                //     dirEntries.Add(entry);
-                //     dirEntriesNo++;
-                //     CheckReadDirEntryError(dirblock.blocknr, blk, dirEntriesNo, maxDirEntries, entryIndex);
-                //     entryIndex += entry.next;
-                // } while (entryIndex < blk.entries.Length);
-                
                 /* load next block */
                 var result = await anodes.NextBlock(anode, anodeoffset, g);
                 anodeoffset = result.Item2;
@@ -2336,13 +2276,6 @@
                 var dirBlock = prevblock.dirblock;
                 dirBlock.DirEntries.Add(to);
 
-                // update dir entry positions, after removing and adding dir entry
-                var position = 0;
-                foreach (var dirEntry in dirBlock.DirEntries)
-                {
-                    dirEntry.Position = position++;
-                }
-
                 result.direntry = dest;
                 result.dirblock = prevblock;
             }
@@ -2384,8 +2317,6 @@
                 // memcpy(dest, to, to->next);
                 dest = to;
                 newBlockBlk.DirEntries.Add(dest);
-                // update dir entry position after adding dir entry
-                to.Position = newBlockBlk.DirEntries.IndexOf(to);
                 
                 result.direntry = dest;
                 result.dirblock = newblock;
@@ -2431,13 +2362,9 @@
             //
             // // memmove(dest, start, movelen);
             var dirBlock = from.file.dirblock.dirblock;
-            // var temp = new byte[movelen];
-            // Array.Copy(dirBlock.entries, start, temp, 0, movelen);
-            // Array.Copy(temp, 0, dirBlock.entries, dest, movelen);
-            //
-            // /* fill in new entry */
-            // // memcpy((UBYTE *)from.direntry, to, to.next);
-            // DirEntryWriter.Write(dirBlock.entries, from.file.direntry.Offset, to);
+
+            /* fill in new entry */
+            // memcpy((UBYTE *)from.direntry, to, to.next);
 
             /* fill in result and make block dirty */
             // replace from with to by removing existing from dir entries and add new to dir entries 
@@ -2476,20 +2403,21 @@
                  * from.dirblock
                  * restore 'destdir' (can be invalidated by RemoveDirEntry)
                  */
-                if (destdir.file.dirblock == from.file.dirblock &&
-                    destdir.file.direntry.Position > from.file.direntry.Position)
-                {
-                    // destdir->file.direntry = (struct direntry *)((UBYTE *)destdir->file.direntry - removedlen);
-                    var dirBlock = destdir.file.dirblock.dirblock;
-                    // destdir.file.direntry =
-                    //     DirEntryReader.Read(dirBlock.entries, destdir.file.direntry.Offset - removedlen);
-                    destdir.file.direntry =
-                        dirBlock.DirEntries.FirstOrDefault(x => x.Position == destdir.file.direntry.Position - 1);
-                    if (destdir.file.direntry == null)
-                    {
-                        throw new IOException("RenameAcrossDirs: destdir.file.direntry is null");
-                    }
-                }
+                // TODO: Examine when this is nessecary
+                // if (destdir.file.dirblock == from.file.dirblock &&
+                //     destdir.file.direntry.Position > from.file.direntry.Position)
+                // {
+                //     // destdir->file.direntry = (struct direntry *)((UBYTE *)destdir->file.direntry - removedlen);
+                //     var dirBlock = destdir.file.dirblock.dirblock;
+                //     // destdir.file.direntry =
+                //     //     DirEntryReader.Read(dirBlock.entries, destdir.file.direntry.Offset - removedlen);
+                //     destdir.file.direntry =
+                //         dirBlock.DirEntries.FirstOrDefault(x => x.Position == destdir.file.direntry.Position - 1);
+                //     if (destdir.file.direntry == null)
+                //     {
+                //         throw new IOException("RenameAcrossDirs: destdir.file.direntry is null");
+                //     }
+                // }
 
                 /* add new entry */
                 await AddDirectoryEntry(destdir, to, result, g);
@@ -2788,7 +2716,7 @@
             await Lock.FetchObject(linknode.clustersize, extrafields.link, object_, g);
             // var objectDirBlock = object_.file.dirblock.dirblock;
             // extrafields = GetExtraFields(objectDirBlock.entries, object_.file.direntry);
-            extrafields = object_.file.direntry.ExtraFields;
+            extrafields = new extrafields(object_.file.direntry.ExtraFields);
 
             /* if the object lists our link as the first link, redirect it to the next one */
             if (extrafields.link == linknode.nr)
@@ -2796,7 +2724,6 @@
                 extrafields.SetLink(linknode.next);
                 //memcpy(entrybuffer, object_.file.direntry, object_.file.direntry->next);
                 //DirEntryWriter.Write(entrybuffer, 0, object_.file.direntry, g);
-                //AddExtraFields(entrybuffer, extrafields);
                 //AddExtraFields(entrybuffer, object_.file.direntry, extrafields);
                 object_.file.direntry.SetExtraFields(extrafields, g);
                 if (!await GetParent(object_, directory, g))
@@ -2993,7 +2920,7 @@
             destinfo = destdi.Clone();
             if (!(await Find(destinfo, destname, g)).Any())
             {
-                if (destinfo.file.direntry.Position != srcinfo.file.direntry.Position)
+                if (!destinfo.file.direntry.Equals(srcinfo.file.direntry))
                 {
                     throw new IOException("ERROR_OBJECT_EXISTS");
                 }
@@ -3296,14 +3223,13 @@
             if (g.dirextension)
             {
                 objectinfo directory = new objectinfo();
-                direntry sourceentry, destentry;
-                extrafields extrafields = new extrafields();
+                // direntry sourceentry;
+                // extrafields extrafields = new extrafields();
                 // UBYTE entrybuffer[MAX_ENTRYSIZE];
 
                 /* make new direntry */
                 //destentry = (struct direntry *)entrybuffer;
-                sourceentry = file.file.direntry;
-
+                //sourceentry = new direntry(file.file.direntry, g);
                 
                 // destentry = new direntry
                 // {
@@ -3322,14 +3248,14 @@
                 //memcpy(destentry, sourceentry, sourceentry->next);
 
                 /* set new extrafields */
-                var dirBlock = file.file.dirblock.dirblock;
+                //var dirBlock = file.file.dirblock.dirblock;
                 // extrafields = GetExtraFields(dirBlock.entries, sourceentry);
-                extrafields = new extrafields(sourceentry.ExtraFields);
-                extrafields.SetProtection(protection);
-                // AddExtraFields(dirBlock.entries, destentry, extrafields);
+                var extraFields = new extrafields(file.file.direntry.ExtraFields);
+                extraFields.SetProtection(protection);
 
-                destentry = new direntry(0, sourceentry.type, sourceentry.anode, sourceentry.fsize, sourceentry.protection,
-                    sourceentry.CreationDate, sourceentry.Name, sourceentry.comment, extrafields, g);
+                // AddExtraFields(dirBlock.entries, destentry, extrafields);
+                var destEntry = new direntry(file.file.direntry, g);
+                destEntry.SetExtraFields(extraFields, g);
                 
                 /* commit changes */
                 if (!await GetParent(file, directory, g))
@@ -3338,7 +3264,7 @@
                 }
                 else
                 {
-                    await ChangeDirEntry(file, destentry, directory, file.file, g);
+                    await ChangeDirEntry(file, destEntry, directory, file.file, g);
                 }
             }
 

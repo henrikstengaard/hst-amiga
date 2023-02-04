@@ -293,44 +293,45 @@
             /* decouple references */
             if (Macro.IsDirBlock(block))
             {
-                /* check fileinfo references */
-                for (var node = block.volume.fileentries.First; node != null; node = node.Next)
-                {
-                    /* only dirs and files have fileinfos that need to be updated,
-                    ** but the volume * pointer of volumeinfos never points to
-                    ** a cached block, so the type != ETF_VOLUME check is not
-                    ** necessary. Just check the dirblockpointer
-                    */
-                    var le = node.Value.LockEntry;
-                    if (le.le.info.file.dirblock == block)
-                    {
-                        le.le.dirblocknr = block.blocknr;
-
-                        // le->le.dirblockoffset = (UBYTE *)le->le.info.file.direntry - (UBYTE *)block;
-                        le.le.dirblockoffset = (uint)le.le.info.file.direntry.Position;
-// #if DELDIR
-                        le.le.info.deldir.special = Constants.SPECIAL_FLUSHED; /* flushed reference */
-// #else
-//                      le.Value.le.info.direntry = null;
-// #endif
-                        le.le.info.file.dirblock = null;
-                    }
-
-                    /* exnext references */
-                    if (le.le.type.flags.dir != 0 && le.nextentry.dirblock == block)
-                    {
-                        le.nextdirblocknr = block.blocknr;
-                        // le->nextdirblockoffset = (UBYTE *)le->nextentry.direntry - (UBYTE *)block;
-                        le.nextdirblockoffset = (uint)le.nextentry.direntry.Position;
-// #if DELDIR
-// le->nextentry.direntry = (struct direntry *)SPECIAL_FLUSHED;
-                        le.nextentry.direntry = new direntry(Constants.SPECIAL_FLUSHED);
-// #else
-//                         le.Value.le.nextentry.direntry = NULL;
-// #endif
-                        le.nextentry.dirblock = null;
-                    }
-                }
+                // TODO: Examine when it's necessary update volume file entries, related to open files or dirs
+                // /* check fileinfo references */
+//                 for (var node = block.volume.fileentries.First; node != null; node = node.Next)
+//                 {
+//                     /* only dirs and files have fileinfos that need to be updated,
+//                     ** but the volume * pointer of volumeinfos never points to
+//                     ** a cached block, so the type != ETF_VOLUME check is not
+//                     ** necessary. Just check the dirblockpointer
+//                     */
+//                     var le = node.Value.LockEntry;
+//                     if (le.le.info.file.dirblock == block)
+//                     {
+//                         le.le.dirblocknr = block.blocknr;
+//
+//                         // le->le.dirblockoffset = (UBYTE *)le->le.info.file.direntry - (UBYTE *)block;
+//                         le.le.dirblockoffset = (uint)le.le.info.file.direntry.Position;
+// // #if DELDIR
+//                         le.le.info.deldir.special = Constants.SPECIAL_FLUSHED; /* flushed reference */
+// // #else
+// //                      le.Value.le.info.direntry = null;
+// // #endif
+//                         le.le.info.file.dirblock = null;
+//                     }
+//
+//                     /* exnext references */
+//                     if (le.le.type.flags.dir != 0 && le.nextentry.dirblock == block)
+//                     {
+//                         le.nextdirblocknr = block.blocknr;
+//                         // le->nextdirblockoffset = (UBYTE *)le->nextentry.direntry - (UBYTE *)block;
+//                         le.nextdirblockoffset = (uint)le.nextentry.direntry.Position;
+// // #if DELDIR
+// // le->nextentry.direntry = (struct direntry *)SPECIAL_FLUSHED;
+//                         le.nextentry.direntry = new direntry(Constants.SPECIAL_FLUSHED);
+// // #else
+// //                         le.Value.le.nextentry.direntry = NULL;
+// // #endif
+//                         le.nextentry.dirblock = null;
+//                     }
+//                 }
             }
 
             /* wipe memory */
@@ -358,29 +359,30 @@
 
             //DB(Trace(1,"UpdateReference","block %lx\n", blocknr));
 
+            // TODO: Examine when it's necessary update volume file entries, related to open files or dirs
             // for (le = (lockentry_t *)HeadOf(&blk->volume->fileentries); le->le.next; le = (lockentry_t *)le->le.next)
-            for (var node = Macro.HeadOf(blk.volume.fileentries); node != null; node = node.Next)
-            {
-                le = node.Value.LockEntry;
-                /* ignoring the fact that not all objectinfos are fileinfos, but the
-                ** 'volumeinfo.volume' and 'deldirinfo.deldir' fields never are NULL anyway, so ...
-                ** maybe better to check for SPECIAL_FLUSHED
-                */
-                if (le.le.info.file.dirblock == null && le.le.dirblocknr == blocknr)
-                {
-                    le.le.info.file.dirblock = blk;
-                    le.le.info.file.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.le.dirblockoffset, g);
-                    le.le.dirblocknr = le.le.dirblockoffset = 0;
-                }
-
-                /* exnext references */
-                if (le.le.type.flags.dir != 0 && le.nextdirblocknr == blocknr)
-                {
-                    le.nextentry.dirblock = blk;
-                    le.nextentry.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.nextdirblockoffset, g);
-                    le.nextdirblocknr = le.nextdirblockoffset = 0;
-                }
-            }
+            // for (var node = Macro.HeadOf(blk.volume.fileentries); node != null; node = node.Next)
+            // {
+            //     le = node.Value.LockEntry;
+            //     /* ignoring the fact that not all objectinfos are fileinfos, but the
+            //     ** 'volumeinfo.volume' and 'deldirinfo.deldir' fields never are NULL anyway, so ...
+            //     ** maybe better to check for SPECIAL_FLUSHED
+            //     */
+            //     if (le.le.info.file.dirblock == null && le.le.dirblocknr == blocknr)
+            //     {
+            //         le.le.info.file.dirblock = blk;
+            //         le.le.info.file.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.le.dirblockoffset, g);
+            //         le.le.dirblocknr = le.le.dirblockoffset = 0;
+            //     }
+            //
+            //     /* exnext references */
+            //     if (le.le.type.flags.dir != 0 && le.nextdirblocknr == blocknr)
+            //     {
+            //         le.nextentry.dirblock = blk;
+            //         le.nextentry.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.nextdirblockoffset, g);
+            //         le.nextdirblocknr = le.nextdirblockoffset = 0;
+            //     }
+            // }
         }
         
 /* Updates objectinfo of a listentry (if necessary)

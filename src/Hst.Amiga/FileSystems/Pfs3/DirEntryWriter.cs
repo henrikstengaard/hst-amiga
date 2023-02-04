@@ -27,6 +27,9 @@
                 Array.Copy(commentBytes, 0, data, commentOffset + 1, commentBytes.Length);
             }
 
+            // set dir entry pad byte to 0
+            data[commentOffset + 1 + commentBytes.Length] = 0;
+
             if (g.dirextension)
             {
                 WriteExtraFields(data, offset, dirEntry);

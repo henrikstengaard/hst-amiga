@@ -92,7 +92,17 @@
         /// <param name="dirName"></param>
         public async Task CreateDirectory(string dirName)
         {
-            await Directory.NewDir(currentDirectory, dirName, g);
+            var entry = await Directory.NewDir(currentDirectory, dirName, g);
+
+            // TODO: Examine when it's necessary to keep entyr in volume file entries after creating new dir
+            for (var node = g.currentvolume.fileentries.First; node != null; node = node.Next)
+            {
+                if (node.Value != entry)
+                {
+                    continue;
+                }
+                g.currentvolume.fileentries.Remove(node);
+            }
         }
 
         /// <summary>
