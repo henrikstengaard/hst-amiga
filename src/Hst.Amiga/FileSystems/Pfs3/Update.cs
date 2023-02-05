@@ -463,11 +463,12 @@
                 {
                     var rootBlockBytes = RootBlockWriter.BuildBlock(volume.rootblk, g);
                     volume.rootblk.BlockBytes = rootBlockBytes;
-                    await Disk.RawWrite(g.stream, rootBlockBytes, 1, (uint)Constants.ROOTBLOCK, g);
+                    await Disk.RawWrite(g.stream, rootBlockBytes, 1, Constants.ROOTBLOCK, g);
                     
                     var reservedBitmapBlockBytes = BitmapBlockWriter.BuildBlock(volume.rootblk.ReservedBitmapBlock, g);
                     volume.rootblk.ReservedBitmapBlock.BlockBytes = reservedBitmapBlockBytes;
-                    await Disk.RawWrite(g.stream, reservedBitmapBlockBytes, (uint)(volume.rootblk.RblkCluster - 1), (uint)Constants.ROOTBLOCK + 1, g);
+                    var blocks = (uint)(reservedBitmapBlockBytes.Length / g.blocksize);
+                    await Disk.RawWrite(g.stream, reservedBitmapBlockBytes, blocks, Constants.ROOTBLOCK + 1, g);
 
                     volume.rootblk.Datestamp++;
                     volume.rootblockchangeflag = false;

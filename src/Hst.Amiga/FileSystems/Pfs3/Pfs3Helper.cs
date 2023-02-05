@@ -16,8 +16,7 @@
         public static async Task<globaldata> Mount(Stream stream, uint sectors, uint blocksPerTrack, uint surfaces, uint lowCyl,
             uint highCyl, uint numBuffer, uint blockSize, uint mask)
         {
-            var g = Init.CreateGlobalData(sectors, blocksPerTrack, surfaces, lowCyl, highCyl, numBuffer,
-                blockSize, mask);
+            var g = Init.CreateGlobalData(sectors, blocksPerTrack, surfaces, lowCyl, highCyl, numBuffer, mask);
             g.stream = stream;
 
             Init.Initialize(g);

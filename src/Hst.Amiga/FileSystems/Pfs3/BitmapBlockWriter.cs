@@ -8,7 +8,11 @@
     {
         public static byte[] BuildBlock(BitmapBlock bitmapBlock, globaldata g)
         {
-            var blockBytes = new byte[g.RootBlock.ReservedBlksize];
+            var reservedBlocks = bitmapBlock.bitmap.Length <= g.RootBlock.LongsPerBmb
+                ? 1
+                : 1 + (bitmapBlock.bitmap.Length - g.RootBlock.LongsPerBmb) / (g.RootBlock.ReservedBlksize / Amiga.SizeOf.ULong) + 1;
+            
+            var blockBytes = new byte[g.RootBlock.ReservedBlksize * reservedBlocks];
             if (bitmapBlock.BlockBytes != null)
             {
                 Array.Copy(bitmapBlock.BlockBytes, 0, blockBytes, 0, g.RootBlock.ReservedBlksize);
@@ -20,7 +24,7 @@
             BigEndianConverter.ConvertUInt32ToBytes(bitmapBlock.seqnr, blockBytes, 8);
 
             var offset = 0xc;
-            for (var i = 0; i < Math.Min(bitmapBlock.bitmap.Length, (int)g.glob_allocdata.longsperbmb); i++)
+            for (var i = 0; i < bitmapBlock.bitmap.Length; i++)
             {
                 BigEndianConverter.ConvertUInt32ToBytes(bitmapBlock.bitmap[i], blockBytes, offset);
                 offset += Amiga.SizeOf.ULong;

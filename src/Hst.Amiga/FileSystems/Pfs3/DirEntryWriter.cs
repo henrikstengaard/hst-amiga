@@ -27,8 +27,11 @@
                 Array.Copy(commentBytes, 0, data, commentOffset + 1, commentBytes.Length);
             }
 
-            // set dir entry pad byte to 0
-            data[commentOffset + 1 + commentBytes.Length] = 0;
+            // set last dir entry byte to 0, if size is odd (used together with entry size calculation binary and 0xfffe)
+            if (((commentOffset + 1 + commentBytes.Length) & 1) == 1)
+            {
+                data[commentOffset + 1 + commentBytes.Length] = 0;
+            }
 
             if (g.dirextension)
             {

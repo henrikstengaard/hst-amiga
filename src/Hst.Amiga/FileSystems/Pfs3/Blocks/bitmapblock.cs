@@ -23,9 +23,10 @@
         public uint seqnr;
         public uint[] bitmap; /* the bitmap.                      */
         
-        public BitmapBlock(int longsperbmb)
+        public BitmapBlock(long longsperbmb)
         {
             id = Constants.BMBLKID; /* BM (bitmap block)                */
+            seqnr = 0;
 
             bitmap = new uint[longsperbmb];
             for (var i = 0; i < longsperbmb; i++)

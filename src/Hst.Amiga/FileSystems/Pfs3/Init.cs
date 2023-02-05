@@ -19,14 +19,14 @@
         /// <param name="mask"></param>
         /// <returns></returns>
         public static globaldata CreateGlobalData(uint sectors, uint blocksPerTrack, uint surfaces, 
-            uint lowCyl, uint highCyl, uint numBuffers, uint blockSize, uint mask)
+            uint lowCyl, uint highCyl, uint numBuffers, uint mask)
         {
             var blocksPerCylinder = blocksPerTrack * surfaces;
             
             return new globaldata
             {
                 NumBuffers = numBuffers,
-                blocksize = blockSize,
+                blocksize = 512,
                 TotalSectors = (highCyl - lowCyl + 1) * blocksPerCylinder,
                 firstblock = lowCyl * blocksPerCylinder,
                 lastblock = (highCyl + 1) * blocksPerCylinder - 1,

@@ -188,7 +188,7 @@ public class CanSalvage
         //var partitionSize = (long)(highCyl - lowCyl + 1) * rigidDiskBlock.Heads * rigidDiskBlock.Sectors *rigidDiskBlock.BlockSize;
         const uint mask = 2147483646U;
 
-        return Init.CreateGlobalData(sectors, blocksPerTrack, surfaces, lowCyl, highCyl, 30, blockSize, mask);
+        return Init.CreateGlobalData(sectors, blocksPerTrack, surfaces, lowCyl, highCyl, 30, mask);
     }
 
     private async Task ExtractDirEntries(string path, uint anodenr, Dictionary<uint, Block> blocks, globaldata g)

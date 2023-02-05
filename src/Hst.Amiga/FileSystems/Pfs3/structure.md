@@ -25,6 +25,14 @@ PFS3 reads and writes sectors via block numbers, so block number 0 is the same a
 
 Root anode is always block no. 5
 
+Reserved bitmap block contains a bit per reserved block.
+Each reserved block uses reserved block size, but root block first and last reserved are sector offsets.
+
+Calculations:
+- Reserved cluster size: reserved block size / block size. E.g. 1024 / 512 = 2.
+- Reserved blocks: (last reserved - first reserved + 1) / reserved cluster size. E.g. (6529 - 2 + 1) / 2 = 3264. 
+
+
 Reserved block number:
 - 0: Boot block
 - 1: Boot block (continued)
