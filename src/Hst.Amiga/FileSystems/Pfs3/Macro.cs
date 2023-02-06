@@ -42,7 +42,15 @@
         public static int MKBADDR(uint x) => (int)x >> 2;
         
         public static void Lock(CachedBlock blk, globaldata g) => blk.used = g.locknr;
-        public static void UnlockAll(globaldata g) => g.locknr++;
+
+        public static void UnlockAll(globaldata g)
+        {
+            g.locknr++;
+            if (g.locknr == ushort.MaxValue)
+            {
+                g.locknr = 0;
+            }
+        }
         public static bool IsLocked(CachedBlock blk, globaldata g) => blk.used == g.locknr;
 
         /// <summary>
@@ -201,6 +209,16 @@ BPTR
             foreach (var lruCachedBlock in g.glob_lrudata.LRUqueue.Where(x => x.cblk == node).ToList())
             {
                 g.glob_lrudata.LRUqueue.Remove(lruCachedBlock);
+            }
+
+            for (var i = 0; i < g.glob_lrudata.LRUarray.Length; i++)
+            {
+                if (g.glob_lrudata.LRUarray[i] == null || g.glob_lrudata.LRUarray[i].cblk == node)
+                {
+                    continue;
+                }
+
+                g.glob_lrudata.LRUarray[i] = null;
             }
         }
         

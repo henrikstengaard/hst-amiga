@@ -40,8 +40,8 @@
             g.uip = false;
             g.locknr = 1;
 
-            g.glob_lrudata.LRUarray = Enumerable.Range(1, (int)g.glob_lrudata.poolsize)
-                    .Select(_ => new LruCachedBlock(new CachedBlock())).ToArray();
+            g.glob_lrudata.LRUarray = g.glob_lrudata.useLruArray ? Enumerable.Range(1, (int)g.glob_lrudata.poolsize)
+                    .Select(_ => new LruCachedBlock(new CachedBlock())).ToArray() : Array.Empty<LruCachedBlock>();
         }
 
         public static CachedBlock CheckCache(LinkedList<CachedBlock>[] list, ushort mask, uint blocknr, globaldata g)
@@ -152,6 +152,18 @@
                 goto ready;
             }
 
+            // if lru array is not used, new entries are added directly to lru pool
+            if (!g.glob_lrudata.useLruArray)
+            {
+                for (j = 0; j < NEW_LRU_ENTRIES; j++)
+                {
+                    //MinAddHead(&g->glob_lrudata.LRUpool, g.glob_lrudata.LRUarray[g.glob_lrudata.poolsize]);
+                    Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(new CachedBlock()));
+                }
+
+                goto retry;
+            }
+            
             /* Attempt to allocate new entries */
             //nlru = AllocVec(sizeof(struct lru_cachedblock *) *(g->glob_lrudata.poolsize + NEW_LRU_ENTRIES), MEMF_CLEAR);
             var nlru = new LruCachedBlock[g.glob_lrudata.poolsize + NEW_LRU_ENTRIES];
@@ -179,8 +191,8 @@
 
             if (nlru == null)
             {
-            //     /* No suitable block found -> we are in trouble */
-            //     //NormalErrorMsg(AFS_ERROR_OUT_OF_BUFFERS, NULL, 1);
+                //     /* No suitable block found -> we are in trouble */
+                //     //NormalErrorMsg(AFS_ERROR_OUT_OF_BUFFERS, NULL, 1);
                 retries++;
                 if (retries > 3)
                     return null;

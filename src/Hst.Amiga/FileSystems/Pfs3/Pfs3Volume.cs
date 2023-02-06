@@ -25,7 +25,7 @@
 
         public async ValueTask DisposeAsync()
         {
-            await Pfs3Helper.Unmount(g);
+            await Pfs3Helper.Flush(g);
 
             GC.SuppressFinalize(this);
         }
@@ -103,6 +103,7 @@
                 }
                 g.currentvolume.fileentries.Remove(node);
             }
+            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -124,6 +125,7 @@
             }
 
             g.currentvolume.fileentries.Clear();
+            Macro.UnlockAll(g);
         }
         
         public void ClearCachedData()
@@ -207,6 +209,7 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.DeleteObject(objectInfo, ignoreProtectionBits, g);
+            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -237,6 +240,7 @@
             }
             
             await Directory.RenameAndMove(currentDirectory, srcInfo, destInfo, remainingParts[0], g);
+            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -252,6 +256,7 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.AddComment(objectInfo, comment, g);
+            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -267,6 +272,7 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.ProtectFile(objectInfo, ProtectionBitsConverter.ToProtectionValue(protectionBits), g);
+            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -282,6 +288,7 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.SetDate(objectInfo, date, g);
+            Macro.UnlockAll(g);
         }
         
         /// <summary>
@@ -306,12 +313,13 @@
         /// <returns></returns>
         public async Task Flush()
         {
-            await Pfs3Helper.Unmount(g);
+            await Pfs3Helper.Flush(g);
         }
 
         public void Dispose()
         {
-            Pfs3Helper.Unmount(g).GetAwaiter().GetResult();
+            Macro.UnlockAll(g);
+            Pfs3Helper.Flush(g).GetAwaiter().GetResult();
 
             GC.SuppressFinalize(this);
         }

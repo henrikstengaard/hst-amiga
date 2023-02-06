@@ -6,6 +6,15 @@ PFS3 is originally developed by Michiel Pelt.
 
 The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen and is almost identical to it's C code with exceptions of structs used to read and write data, unions and moving pointers.
 
+## Changes compared to PFS3
+
+Following changes have been made compared to the original way PFS3 works:
+
+- Use of LRU array is disabled:
+  - PFS3 uses a LRU array initially allocated to 150 Lru cached blocks, if partition number of buffers are 30. This only seems to be used for allocating additional lru cached blocks, when lru pool is empty. Lru pool occasionally runs empty when it's blocks are flushed and written to disk. When lru pool is empty, 5 new lru cached blocks are allocated and added to lru array expanding it over time. To avoid this use of lry array is disabled by default and new lru cached blocks are added directly to lru pool.
+- All locks on blocks are unlocked after a write operation is completed:
+  - Write operations lock blocks when changed and are usually unlocked again after flushing and writing them to disk. However this is not always the case causing blocks to stay in the lru pool forever. To avoid this all blocks are unlocked after completing a write operation.
+
 ## Blocks
 
 See [Blocks](Blocks) page for details about blocks used by PFS3.

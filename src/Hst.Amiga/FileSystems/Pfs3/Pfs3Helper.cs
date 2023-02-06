@@ -28,14 +28,12 @@
             return g;
         }
 
-        public static async Task Unmount(globaldata g)
+        public static async Task Flush(globaldata g)
         {
-            if (!g.stream.CanWrite)
+            if (g.stream.CanWrite)
             {
-                return;
+                await Update.UpdateDisk(g);
             }
-            
-            await Update.UpdateDisk(g);
         }
     }
 }

@@ -988,7 +988,7 @@
             //     FreeMemP (node, g);
             // }
 
-            if (chain.next != null)
+            if (chain != null)
             {
                 Macro.MinRemove(chain, g); // remove from any list
             }

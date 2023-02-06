@@ -30,6 +30,7 @@
             if (this.dataWritten)
             {
                 Disk.UpdateDataCache(g).GetAwaiter().GetResult();
+                Macro.UnlockAll(g);
             }
         }
 

@@ -71,7 +71,6 @@
             {
                 throw new ArgumentNullException(nameof(fe));
             }
-
             
             if (fe.checknotify)
             {

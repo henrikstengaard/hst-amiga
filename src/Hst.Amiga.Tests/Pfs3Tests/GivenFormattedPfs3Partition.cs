@@ -71,7 +71,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act - list entries in root directory
         var entries = (await pfs3Volume.ListEntries()).ToList();
-        await Pfs3Helper.Unmount(pfs3Volume.g);
+        await Pfs3Helper.Flush(pfs3Volume.g);
 
         // assert - root directory contains directory created
         Assert.Single(entries);
@@ -495,10 +495,10 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             // act - create file in root directory
             await pfs3Volume.SetComment($"New File{i}", $"Comment{i}");
         }
-            
+
         // act - list entries
         var entries = (await pfs3Volume.ListEntries()).ToList();
-            
+
         for (var i = 0; i < 100; i++)
         {
             var entry = entries.FirstOrDefault(x => x.Name == $"New File{i}");
@@ -517,6 +517,77 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             Assert.Equal(data.Length, dataRead.Length);
             Assert.Equal(data, dataRead);
         }
+    }
+
+    [Fact]
+    public async Task WhenCreate200FilesWriteDataAndSetCommentThenFilesExistDataMatchesAndCacheIsEmptyAfterFlushing()
+    {
+        // arrange - data to write
+        var data = new byte[4000];
+        for (var i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)(i % 256);
+        }
+
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+        
+        for (var i = 0; i < 200; i++)
+        {
+            // act - create file in root directory
+            await pfs3Volume.CreateFile($"New File{i}");
+
+            // act - write data
+            await using (var entryStream = await pfs3Volume.OpenFile($"New File{i}", FileMode.Write))
+            {
+                await entryStream.WriteAsync(data, 0, data.Length);
+            }
+
+            // act - create file in root directory
+            await pfs3Volume.SetComment($"New File{i}", $"Comment{i}");
+
+        }
+
+        // act - flush changes
+        await pfs3Volume.Flush();
+        
+        // act - list entries
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+
+        for (var i = 0; i < 200; i++)
+        {
+            var entry = entries.FirstOrDefault(x => x.Name == $"New File{i}");
+            Assert.Equal($"New File{i}", entry?.Name ?? string.Empty);
+            Assert.NotNull(entry);
+            Assert.Equal($"Comment{i}", entry.Comment);
+                
+            await using (var entryStream = await pfs3Volume.OpenFile($"New File{i}", FileMode.Read))
+            {
+                dataRead = new byte[entryStream.Length];
+                bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+            }
+
+            // assert - data read matches data written
+            Assert.Equal(data.Length, bytesRead);
+            Assert.Equal(data.Length, dataRead.Length);
+            Assert.Equal(data, dataRead);
+        }
+
+        // act - flush changes
+        await pfs3Volume.Flush();
+
+        // assert - cache is empty
+        Assert.Empty(pfs3Volume.g.glob_lrudata.LRUarray);
+        Assert.Empty(pfs3Volume.g.glob_lrudata.LRUpool);
+        Assert.Empty(pfs3Volume.g.glob_lrudata.LRUpool);
+        Assert.Empty(pfs3Volume.g.currentvolume.anodechainlist);
     }
 
     [Fact]
