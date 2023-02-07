@@ -6,7 +6,6 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
-    using Core.Converters;
     using Exceptions;
 
     public static class Directory
@@ -39,7 +38,8 @@
             blk.oldblocknr = 0;
             blk.changeflag = true;
 
-            Macro.Hash(blk, volume.dirblks, Constants.HASHM_DIR);
+            //Macro.Hash(blk, volume.dirblks, Constants.HASHM_DIR);
+            Macro.Hash(blk, volume.dirblks);
             Cache.LOCK(blk, g);
             return blk;
         }
@@ -86,7 +86,17 @@
             await Update.UpdateDisk(g);
 
             /* flush cache */
-            for (var node = Macro.HeadOf(g.currentvolume.deldirblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(g.currentvolume.deldirblks); node != null; node = node.Next)
+            // {
+            //     ddblk = node.Value;
+            //     Lru.FlushBlock(ddblk, g);
+            //     // MinRemove(LRU_CHAIN(ddblk));
+            //     // MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(ddblk));
+            //     Macro.MinRemoveLru(ddblk, g);
+            //     Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(ddblk));
+            //     // i.p.v. FreeLRU((struct cachedblock *)ddblk, g);
+            // }
+            foreach (var node in g.currentvolume.deldirblks)
             {
                 ddblk = node.Value;
                 Lru.FlushBlock(ddblk, g);
@@ -178,7 +188,8 @@
             // ddblk->blk.creationtick		= volume->rootblk->creationtick;
 
             /* add to cache and return */
-            Macro.MinAddHead(volume.deldirblks, ddblk);
+            // Macro.MinAddHead(volume.deldirblks, ddblk);
+            Macro.AddToIndexes(volume.deldirblks, volume.deldirblksBySeqNr, ddblk);
             return ddblk;
         }
 
@@ -603,15 +614,21 @@
             }
 
             /* check cache */
-            for (var node = Macro.HeadOf(volume.deldirblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(volume.deldirblks); node != null; node = node.Next)
+            // {
+            //     ddblk = node.Value;
+            //     var ddblk_blk = ddblk.deldirblock;
+            //     if (ddblk_blk.seqnr == seqnr)
+            //     {
+            //         Lru.MakeLRU(ddblk, g);
+            //         return ddblk;
+            //     }
+            // }
+            if (volume.deldirblksBySeqNr.ContainsKey(seqnr))
             {
-                ddblk = node.Value;
-                var ddblk_blk = ddblk.deldirblock;
-                if (ddblk_blk.seqnr == seqnr)
-                {
-                    Lru.MakeLRU(ddblk, g);
-                    return ddblk;
-                }
+                ddblk = volume.deldirblksBySeqNr[seqnr];
+                Lru.MakeLRU(ddblk, g);
+                return ddblk;
             }
 
             /* alloc cache */
@@ -645,7 +662,8 @@
             ddblk.changeflag = false;
 
             /* add to cache and return */
-            Macro.MinAddHead(volume.deldirblks, ddblk);
+            // Macro.MinAddHead(volume.deldirblks, ddblk);
+            Macro.AddToIndexes(volume.deldirblks, volume.deldirblksBySeqNr, ddblk);
             return ddblk;
         }
 
@@ -1415,7 +1433,8 @@
             Pfs3Logger.Instance.Debug($"Directory: LoadDirBlock Enter, loading block {blocknr}");
 #endif
             // -I- check if already in cache
-            if ((dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, blocknr, g)) == null)
+            // if ((dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, blocknr, g)) == null)
+            if ((dirblk = Lru.CheckCache(volume.dirblks, blocknr, g)) == null)
             {
                 // -II- not in cache -> put it in
                 dirblk = await Lru.AllocLRU(g);
@@ -1430,7 +1449,8 @@
                         dirblk.blocknr = blocknr;
                         dirblk.used = 0;
                         dirblk.changeflag = false;
-                        Macro.Hash(dirblk, volume.dirblks, Constants.HASHM_DIR);
+                        //Macro.Hash(dirblk, volume.dirblks, Constants.HASHM_DIR);
+                        Macro.Hash(dirblk, volume.dirblks);
                         Lru.UpdateReference(blocknr, dirblk, g); // %10
                     }
                     else
@@ -2646,7 +2666,8 @@
                     await anodes.GetAnode(anode, anode.next, g);
 
                     /* remove dirblock from list if there */
-                    dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, anode.blocknr, g);
+                    // dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, anode.blocknr, g);
+                    dirblk = Lru.CheckCache(volume.dirblks, anode.blocknr, g);
                     if (dirblk != null)
                     {
                         Macro.MinRemove(dirblk, g);

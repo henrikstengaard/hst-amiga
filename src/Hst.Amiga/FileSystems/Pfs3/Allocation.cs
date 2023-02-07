@@ -2,7 +2,6 @@
 {
     using System;
     using System.IO;
-    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
 
@@ -62,7 +61,8 @@
                 bitmap[i] = UInt32.MaxValue; //  hexadecimal 0xFFFFFFFF
             }
 
-            Macro.MinAddHead(volume.bmblks, blok);
+            // Macro.MinAddHead(volume.bmblks, blok);
+            Macro.AddToIndexes(volume.bmblks, volume.bmblksBySeqNr, blok);
             await Update.MakeBlockDirty(indexblock, g);
             indexblock.used = oldlock; // unlock;
 
@@ -97,7 +97,8 @@
                 seqnr = seqnr
             };
             blok.changeflag = true;
-            Macro.MinAddHead(volume.bmindexblks, blok);
+            // Macro.MinAddHead(volume.bmindexblks, blok);
+            Macro.AddToIndexes(volume.bmindexblks, volume.bmindexblksBySeqNr, blok);
 
             return blok;
         }
@@ -196,7 +197,16 @@
             var volume = g.currentvolume;
 
             /* check cache */
-            for (var node = Macro.HeadOf(volume.bmindexblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(volume.bmindexblks); node != null; node = node.Next)
+            // {
+            //     indexblk = node.Value;
+            //     if (indexblk.blk is indexblock indexBlock && indexBlock.seqnr == nr)
+            //     {
+            //         Lru.MakeLRU(indexblk, g);
+            //         return indexblk;
+            //     }
+            // }
+            foreach (var node in volume.bmindexblks)
             {
                 indexblk = node.Value;
                 if (indexblk.blk is indexblock indexBlock && indexBlock.seqnr == nr)
@@ -205,7 +215,7 @@
                     return indexblk;
                 }
             }
-
+            
             /* not in cache, put it in */
             if (nr > (g.SuperMode ? Constants.MAXBITMAPINDEX : Constants.MAXSMALLBITMAPINDEX) ||
                 (blocknr = volume.rootblk.idx.large.bitmapindex[nr]) == 0 ||
@@ -234,7 +244,8 @@
                 indexblk.blocknr = blocknr;
                 indexblk.used = 0;
                 indexblk.changeflag = false;
-                Macro.MinAddHead(volume.bmindexblks, indexblk);
+                // Macro.MinAddHead(volume.bmindexblks, indexblk);
+                Macro.AddToIndexes(volume.bmindexblks, volume.bmindexblksBySeqNr, indexblk);
             }
             else
             {
@@ -313,14 +324,20 @@
             var andata = g.glob_anodedata;
 
             /* check cache */
-            for (var node = Macro.HeadOf(volume.bmblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(volume.bmblks); node != null; node = node.Next)
+            // {
+            //     bmb = node.Value;
+            //     if (bmb.BitmapBlock.seqnr == seqnr)
+            //     {
+            //         Lru.MakeLRU(bmb, g);
+            //         return bmb;
+            //     }
+            // }
+            if (volume.bmblksBySeqNr.ContainsKey(seqnr))
             {
-                bmb = node.Value;
-                if (bmb.BitmapBlock.seqnr == seqnr)
-                {
-                    Lru.MakeLRU(bmb, g);
-                    return bmb;
-                }
+                bmb = volume.bmblksBySeqNr[seqnr];
+                Lru.MakeLRU(bmb, g);
+                return bmb;
             }
 
             /* not in cache, put it in */
@@ -364,7 +381,8 @@
             bmb.blocknr = blocknr;
             bmb.used = 0;
             bmb.changeflag = false;
-            Macro.MinAddHead(volume.bmblks, bmb);
+            // Macro.MinAddHead(volume.bmblks, bmb);
+            Macro.AddToIndexes(volume.bmblks, volume.bmblksBySeqNr, bmb);
 
             return bmb;
         }
@@ -667,10 +685,6 @@
                 /* find all empty fields */
                 while (bmoffset < alloc_data.longsperbmb)
                 {
-#if DEBUG
-                    var bitmapBlocksInCache = g.currentvolume.bmblks.Select(x => x.blocknr).ToList();
-                    Pfs3Logger.Instance.Debug($"Allocation: AllocateBlocksAC scan bitmap block nr {bitmap.blocknr} ({bitmap.GetHashCode()}), size = {size}, bmseqnr = {bmseqnr}, bmoffset = {bmoffset}, bitmap blocks in cache '{string.Join(", ", bitmapBlocksInCache)}'");
-#endif
                     var bitmapBlk = bitmap.BitmapBlock;
                     if (bitmapBlk == null)
                     {

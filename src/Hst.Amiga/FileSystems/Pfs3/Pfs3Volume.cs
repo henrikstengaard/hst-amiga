@@ -138,19 +138,26 @@
 
             g.currentvolume.fileentries.Clear();
             g.currentvolume.anodechainlist.Clear();
-            foreach (var anblk in g.currentvolume.anblks)
-            {
-                anblk.Clear();
-            }
-            foreach (var dirblk in g.currentvolume.dirblks)
-            {
-                dirblk.Clear();
-            }
+            // foreach (var anblk in g.currentvolume.anblks)
+            // {
+            //     anblk.Clear();
+            // }
+            g.currentvolume.anblks.Clear();
+            // foreach (var dirblk in g.currentvolume.dirblks)
+            // {
+            //     dirblk.Clear();
+            // }
+            g.currentvolume.dirblks.Clear();
             g.currentvolume.bmblks.Clear();
+            g.currentvolume.bmblksBySeqNr.Clear();
             g.currentvolume.bmindexblks.Clear();
+            g.currentvolume.bmindexblksBySeqNr.Clear();
             g.currentvolume.deldirblks.Clear();
+            g.currentvolume.deldirblksBySeqNr.Clear();
             g.currentvolume.indexblks.Clear();
+            g.currentvolume.indexblksBySeqNr.Clear();
             g.currentvolume.superblks.Clear();
+            g.currentvolume.superblksBySeqNr.Clear();
             
 
             g.glob_lrudata.LRUarray = Array.Empty<LruCachedBlock>();

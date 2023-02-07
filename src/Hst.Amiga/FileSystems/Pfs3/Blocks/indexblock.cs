@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3.Blocks
 {
-    public class indexblock : IBlock
+    public class indexblock : ISeqBlock
     {
         // typedef struct indexblock
         // {
@@ -16,7 +16,7 @@
         public ushort id { get; set; }
         public ushort not_used_1 { get; set; }
         public uint datestamp { get; set; }
-        public uint seqnr;
+        public uint seqnr { get; set; }
         public int[] index; /* the indices                      */
 
         public indexblock(globaldata g)

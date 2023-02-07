@@ -25,6 +25,8 @@ PFS3 reads and writes sectors via block numbers, so block number 0 is the same a
 
 Root anode is always block no. 5
 
+Super blocks are used when disk is larger than 4GB.
+
 Reserved bitmap block contains a bit per reserved block.
 Each reserved block uses reserved block size, but root block first and last reserved are sector offsets.
 

@@ -44,6 +44,14 @@
                     .Select(_ => new LruCachedBlock(new CachedBlock())).ToArray() : Array.Empty<LruCachedBlock>();
         }
 
+        /// <summary>
+        /// check cache using linked list (original pfs3)
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="mask"></param>
+        /// <param name="blocknr"></param>
+        /// <param name="g"></param>
+        /// <returns></returns>
         public static CachedBlock CheckCache(LinkedList<CachedBlock>[] list, ushort mask, uint blocknr, globaldata g)
         {
             for (var block = Macro.HeadOf(list[(blocknr / 2) & mask]);
@@ -60,6 +68,25 @@
             return default;
         }
 
+        /// <summary>
+        /// check cache using dictionary
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="blocknr"></param>
+        /// <param name="g"></param>
+        /// <returns></returns>
+        public static CachedBlock CheckCache(IDictionary<uint, CachedBlock> list, uint blocknr, globaldata g)
+        {
+            if (!list.ContainsKey(blocknr))
+            {
+                return default;
+            }
+
+            var block = list[blocknr];
+            MakeLRU(block, g);
+            return block;
+        }
+        
         public static void MakeLRU(CachedBlock blk, globaldata g)
         {
 #if DEBUG

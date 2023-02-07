@@ -6,14 +6,27 @@ PFS3 is originally developed by Michiel Pelt.
 
 The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen and is almost identical to it's C code with exceptions of structs used to read and write data, unions and moving pointers.
 
-## Changes compared to PFS3
+## Changes and improvements
 
-Following changes have been made compared to the original way PFS3 works:
+Following changes and improvements have been made compared to the original PFS3.
 
-- Use of LRU array is disabled:
-  - PFS3 uses a LRU array initially allocated to 150 Lru cached blocks, if partition number of buffers are 30. This only seems to be used for allocating additional lru cached blocks, when lru pool is empty. Lru pool occasionally runs empty when it's blocks are flushed and written to disk. When lru pool is empty, 5 new lru cached blocks are allocated and added to lru array expanding it over time. To avoid this use of lry array is disabled by default and new lru cached blocks are added directly to lru pool.
-- All locks on blocks are unlocked after a write operation is completed:
-  - Write operations lock blocks when changed and are usually unlocked again after flushing and writing them to disk. However this is not always the case causing blocks to stay in the lru pool forever. To avoid this all blocks are unlocked after completing a write operation.
+### Use of LRU array is disabled
+
+PFS3 uses a LRU array initially allocated to 150 Lru cached blocks, if partition number of buffers are 30. This only seems to be used for allocating additional lru cached blocks, when lru pool is empty. Lru pool occasionally runs empty when it's blocks are flushed and written to disk. When lru pool is empty, 5 new lru cached blocks are allocated and added to lru array expanding it over time.
+
+To avoid this use of lry array is disabled by default and new lru cached blocks are added directly to lru pool.
+
+### All locks on blocks are removed after each write operation is completed
+
+Write operations lock blocks when changed and are usually unlocked again after flushing and writing them to disk. 
+
+However this is not always the case causing blocks to stay in the lru pool forever. To avoid this all blocks are unlocked after completing a write operation.
+
+### Blocks indexed in dictionaries instead of linked lists
+
+PFS3 adds cached anode, bitmap, bitmap index, index, dir, del dir and super blocks to linked lists in it's volume data, which are used to find cached blocks by either block no. or seq no.
+
+The linked lists have been replaced with dictionaries to improve speed determining if a block exists in cache.
 
 ## Blocks
 

@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class deldirblock : IBlock
+    public class deldirblock : ISeqBlock
     {
         // struct deldirblock
         // {

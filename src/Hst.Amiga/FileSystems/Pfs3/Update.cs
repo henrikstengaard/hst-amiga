@@ -21,7 +21,8 @@
         public static async Task<bool> MakeBlockDirty(CachedBlock blk, globaldata g)
         {
 #if DEBUG
-            Pfs3Logger.Instance.Debug($"Update: MakeBlockDirty, block nr = {blk.blocknr}, block type '{(blk.blk == null ? "null" : blk.blk.GetType().Name)}'");
+            Pfs3Logger.Instance.Debug(
+                $"Update: MakeBlockDirty, block nr = {blk.blocknr}, block type '{(blk.blk == null ? "null" : blk.blk.GetType().Name)}'");
 #endif
             uint blocknr;
             ushort oldlock;
@@ -96,6 +97,12 @@
 
         public static async Task UpdateDBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
+            // update dir block dictionary from old to new block nr
+            if (g.currentvolume.dirblks.ContainsKey(blk.oldblocknr))
+            {
+                g.currentvolume.dirblks.Remove(blk.oldblocknr);
+                g.currentvolume.dirblks.Add(newblocknr, blk);
+            }
 #if DEBUG
             Pfs3Logger.Instance.Debug($"Update: UpdateDBLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
@@ -117,7 +124,8 @@
             if (anode.blocknr != oldblocknr)
             {
 #if DEBUG
-                Pfs3Logger.Instance.Debug($"Update: UpdateDBLK, anode.blocknr = {anode.blocknr}, dblk.blocknr = {dblk.blocknr}");
+                Pfs3Logger.Instance.Debug(
+                    $"Update: UpdateDBLK, anode.blocknr = {anode.blocknr}, dblk.blocknr = {dblk.blocknr}");
 #endif
                 // DB(Trace(4, "UpdateDBLK", "anode.blocknr=%ld, dblk->blocknr=%ld\n",
                 //     anode.blocknr, dblk->blocknr));
@@ -132,11 +140,18 @@
             anode.blocknr = newblocknr;
             await anodes.SaveAnode(anode, anode.nr, g);
 
-            Macro.ReHash(blk, g.currentvolume.dirblks, Constants.HASHM_DIR, g);
+            //Macro.ReHash(blk, g.currentvolume.dirblks, Constants.HASHM_DIR, g);
         }
 
         public static async Task UpdateABLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
+            // update anode block dictionary from old to new block nr
+            if (g.currentvolume.anblks.ContainsKey(blk.oldblocknr))
+            {
+                g.currentvolume.anblks.Remove(blk.oldblocknr);
+                g.currentvolume.anblks.Add(newblocknr, blk);
+            }
+            
             //struct cindexblock *index;
             uint indexblknr, indexoffset, temp;
             var andata = g.glob_anodedata;
@@ -160,16 +175,24 @@
 #endif
             if (index.IndexBlock.index[indexoffset] != blk.oldblocknr)
             {
-                throw new IOException($"Update anode block at index offset {indexoffset} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {index.IndexBlock.index[indexoffset]}");                
+                throw new IOException(
+                    $"Update anode block at index offset {indexoffset} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {index.IndexBlock.index[indexoffset]}");
             }
-            
+
             index.IndexBlock.index[indexoffset] = (int)newblocknr;
             await MakeBlockDirty(index, g);
-            Macro.ReHash(blk, g.currentvolume.anblks, Constants.HASHM_ANODE, g);
+            //Macro.ReHash(blk, g.currentvolume.anblks, Constants.HASHM_ANODE, g);
         }
 
         public static async Task UpdateIBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
+            // update index block dictionary from old to new block nr
+            if (g.currentvolume.indexblks.ContainsKey(blk.oldblocknr))
+            {
+                g.currentvolume.indexblks.Remove(blk.oldblocknr);
+                g.currentvolume.indexblks.Add(newblocknr, blk);
+            }
+            
             // struct cindexblock *superblk;
             uint temp;
             var andata = g.glob_anodedata;
@@ -187,24 +210,30 @@
                 }
 
 #if DEBUG
-                Pfs3Logger.Instance.Debug($"Update: UpdateIBLK, SuperMode, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+                Pfs3Logger.Instance.Debug(
+                    $"Update: UpdateIBLK, SuperMode, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
                 if (superblk.IndexBlock.index[temp >> 16] != blk.oldblocknr)
                 {
-                    throw new IOException($"Update index block in super block at index offset {temp >> 16} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {superblk.IndexBlock.index[temp >> 16]}");                
+                    throw new IOException(
+                        $"Update index block in super block at index offset {temp >> 16} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {superblk.IndexBlock.index[temp >> 16]}");
                 }
+
                 superblk.IndexBlock.index[temp >> 16] = (int)newblocknr;
                 await MakeBlockDirty(superblk, g);
             }
             else
             {
 #if DEBUG
-                Pfs3Logger.Instance.Debug($"Update: UpdateIBLK, small, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+                Pfs3Logger.Instance.Debug(
+                    $"Update: UpdateIBLK, small, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
                 if (blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr] != blk.oldblocknr)
                 {
-                    throw new IOException($"Update index block in small at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr]}");                
+                    throw new IOException(
+                        $"Update index block in small at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr]}");
                 }
+
                 blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr] = newblocknr;
                 blk.volume.rootblockchangeflag = true;
             }
@@ -212,6 +241,13 @@
 
         public static void UpdateSBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
+            // update super block dictionary from old to new block nr
+            if (g.currentvolume.superblks.ContainsKey(blk.oldblocknr))
+            {
+                g.currentvolume.superblks.Remove(blk.oldblocknr);
+                g.currentvolume.superblks.Add(newblocknr, blk);
+            }
+            
             // blk->changeflag = TRUE;
             // blk->volume->rblkextension->changeflag = TRUE;
             // blk->volume->rblkextension->blk.superindex[((struct cindexblock *)blk)->blk.seqnr] = newblocknr;
@@ -222,13 +258,22 @@
 #endif
             if (blk.volume.rblkextension.rblkextension.superindex[blk.IndexBlock.seqnr] != blk.oldblocknr)
             {
-                throw new IOException($"Update super block at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rblkextension.rblkextension.superindex[blk.IndexBlock.seqnr]}");                
+                throw new IOException(
+                    $"Update super block at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rblkextension.rblkextension.superindex[blk.IndexBlock.seqnr]}");
             }
+
             blk.volume.rblkextension.rblkextension.superindex[blk.IndexBlock.seqnr] = newblocknr;
         }
 
         public static async Task UpdateBMBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
+            // update bitmap block dictionary from old to new block nr
+            if (g.currentvolume.bmblks.ContainsKey(blk.oldblocknr))
+            {
+                g.currentvolume.bmblks.Remove(blk.oldblocknr);
+                g.currentvolume.bmblks.Add(newblocknr, blk);
+            }
+
             // struct cindexblock *indexblock;
             var bmb = blk;
             uint temp;
@@ -251,27 +296,39 @@
             var indexBlockBlk = indexblock.IndexBlock;
             if (indexBlockBlk.index[temp >> 16] != blk.oldblocknr)
             {
-                throw new IOException($"Update bitmap block at index offset {temp >> 16} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {indexBlockBlk.index[temp >> 16]}");                
+                throw new IOException(
+                    $"Update bitmap block at index offset {temp >> 16} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {indexBlockBlk.index[temp >> 16]}");
             }
+
             indexBlockBlk.index[temp >> 16] = (int)newblocknr;
             await MakeBlockDirty(indexblock, g); /* recursion !! */
         }
 
         public static void UpdateBMIBLK(CachedBlock blk, uint newblocknr, globaldata g)
         {
+            // update bitmap index block dictionary from old to new block nr
+            if (g.currentvolume.bmindexblks.ContainsKey(blk.oldblocknr))
+            {
+                g.currentvolume.bmindexblks.Remove(blk.oldblocknr);
+                g.currentvolume.bmindexblks.Add(newblocknr, blk);
+            }
+            
             // blk->changeflag = TRUE;
             // blk->volume->rootblk->idx.large.bitmapindex[((struct cindexblock *)blk)->blk.seqnr] = newblocknr;
             // blk->volume->rootblockchangeflag = TRUE;
             blk.changeflag = true;
 #if DEBUG
-            Pfs3Logger.Instance.Debug($"Update: UpdateBMIBLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+            Pfs3Logger.Instance.Debug(
+                $"Update: UpdateBMIBLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
             if (blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr] != blk.oldblocknr)
             {
-                throw new IOException($"Update bitmap index block at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr]}");                
+                throw new IOException(
+                    $"Update bitmap index block at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr]}");
             }
+
             blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr] = newblocknr;
-            blk.volume.rootblockchangeflag = true;            
+            blk.volume.rootblockchangeflag = true;
         }
 
 // #if VERSION23
@@ -282,12 +339,15 @@
             // blk->volume->rootblockchangeflag = TRUE;
             blk.changeflag = true;
 #if DEBUG
-            Pfs3Logger.Instance.Debug($"Update: UpdateRBlkExtension, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+            Pfs3Logger.Instance.Debug(
+                $"Update: UpdateRBlkExtension, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
             if (blk.volume.rootblk.Extension != blk.oldblocknr)
             {
-                throw new IOException($"Update root extension block doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.Extension}");                
+                throw new IOException(
+                    $"Update root extension block doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.Extension}");
             }
+
             blk.volume.rootblk.Extension = newblocknr;
             blk.volume.rootblockchangeflag = true;
         }
@@ -295,17 +355,27 @@
 
         public static async Task UpdateDELDIR(CachedBlock blk, uint newblocknr, globaldata g)
         {
+            // update dir block dictionary from old to new block nr
+            if (g.currentvolume.deldirblks.ContainsKey(blk.oldblocknr))
+            {
+                g.currentvolume.deldirblks.Remove(blk.oldblocknr);
+                g.currentvolume.deldirblks.Add(newblocknr, blk);
+            }
+            
             // blk->changeflag = TRUE;
             // blk->volume->rblkextension->blk.deldir[((struct cdeldirblock *)blk)->blk.seqnr] = newblocknr;
             // MakeBlockDirty((struct cachedblock *)blk->volume->rblkextension, g);
             blk.changeflag = true;
 #if DEBUG
-            Pfs3Logger.Instance.Debug($"Update: UpdateDELDIR, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
+            Pfs3Logger.Instance.Debug(
+                $"Update: UpdateDELDIR, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
             if (blk.volume.rblkextension.rblkextension.deldir[blk.deldirblock.seqnr] != blk.oldblocknr)
             {
-                throw new IOException($"Update deldir block at index offset {blk.deldirblock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rblkextension.rblkextension.deldir[blk.deldirblock.seqnr]}");                
+                throw new IOException(
+                    $"Update deldir block at index offset {blk.deldirblock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rblkextension.rblkextension.deldir[blk.deldirblock.seqnr]}");
             }
+
             blk.volume.rblkextension.rblkextension.deldir[blk.deldirblock.seqnr] = newblocknr;
             await MakeBlockDirty(blk.volume.rblkextension, g);
         }
@@ -385,34 +455,54 @@
                 RemoveEmptySBlocks(volume, g);
 
                 /* update anode, dir, index and superblocks (not changed by UpdateFreeList) */
-                for (i = 0; i <= Constants.HASHM_DIR; i++)
-                {
-                    if (!await UpdateList(Macro.HeadOf(volume.dirblks[i]), g))
-                    {
-                        g.updateok = false;
-                    }
-                }
-
-                for (i = 0; i <= Constants.HASHM_ANODE; i++)
-                {
-                    if (!await UpdateList(Macro.HeadOf(volume.anblks[i]), g))
-                    {
-                        g.updateok = false;
-                    }
-                }
-
-                if (!await UpdateList(Macro.HeadOf(volume.indexblks), g))
+                // for (i = 0; i <= Constants.HASHM_DIR; i++)
+                // {
+                //     if (!await UpdateList(Macro.HeadOf(volume.dirblks[i]), g))
+                //     {
+                //         g.updateok = false;
+                //     }
+                // }
+                if (!await UpdateList(volume.dirblks.Values, g))
                 {
                     g.updateok = false;
                 }
 
-                if (!await UpdateList(Macro.HeadOf(volume.superblks), g))
+                // for (i = 0; i <= Constants.HASHM_ANODE; i++)
+                // {
+                //     if (!await UpdateList(Macro.HeadOf(volume.anblks[i]), g))
+                //     {
+                //         g.updateok = false;
+                //     }
+                // }
+                if (!await UpdateList(volume.anblks.Values, g))
+                {
+                    g.updateok = false;
+                }
+
+                // if (!await UpdateList(Macro.HeadOf(volume.indexblks), g))
+                // {
+                //     g.updateok = false;
+                // }
+                if (!await UpdateList(volume.indexblks.Values, g))
+                {
+                    g.updateok = false;
+                }
+
+                // if (!await UpdateList(Macro.HeadOf(volume.superblks), g))
+                // {
+                //     g.updateok = false;
+                // }
+                if (!await UpdateList(volume.superblks.Values, g))
                 {
                     g.updateok = false;
                 }
 
 // #if DELDIR
-                if (!await UpdateList(Macro.HeadOf(volume.deldirblks), g))
+                // if (!await UpdateList(Macro.HeadOf(volume.deldirblks), g))
+                // {
+                //     g.updateok = false;
+                // }
+                if (!await UpdateList(volume.deldirblks.Values, g))
                 {
                     g.updateok = false;
                 }
@@ -448,12 +538,20 @@
                 CommitReservedToBeFreed(g);
 
                 /* update bitmap and bitmap index blocks */
-                if (!await UpdateList(Macro.HeadOf(volume.bmblks), g))
+                // if (!await UpdateList(Macro.HeadOf(volume.bmblks), g))
+                // {
+                //     g.updateok = false;
+                // }
+                if (!await UpdateList(volume.bmblks.Values, g))
                 {
                     g.updateok = false;
                 }
 
-                if (!await UpdateList(Macro.HeadOf(volume.bmindexblks), g))
+                // if (!await UpdateList(Macro.HeadOf(volume.bmindexblks), g))
+                // {
+                //     g.updateok = false;
+                // }
+                if (!await UpdateList(volume.bmindexblks.Values, g))
                 {
                     g.updateok = false;
                 }
@@ -464,7 +562,7 @@
                     var rootBlockBytes = RootBlockWriter.BuildBlock(volume.rootblk, g);
                     volume.rootblk.BlockBytes = rootBlockBytes;
                     await Disk.RawWrite(g.stream, rootBlockBytes, 1, Constants.ROOTBLOCK, g);
-                    
+
                     var reservedBitmapBlockBytes = BitmapBlockWriter.BuildBlock(volume.rootblk.ReservedBitmapBlock, g);
                     volume.rootblk.ReservedBitmapBlock.BlockBytes = reservedBitmapBlockBytes;
                     var blocks = (uint)(reservedBitmapBlockBytes.Length / g.blocksize);
@@ -512,25 +610,38 @@
         public static async Task RemoveEmptyDBlocks(volumedata volume, globaldata g)
         {
             //struct cdirblock *blk, *next;
-            CachedBlock blk;
+            //CachedBlock blk;
             canode anode = new canode();
-            uint previous, i;
+            uint previous; //, i;
 
-            for (i = 0; i <= Constants.HASHM_DIR; i++)
+            // for (i = 0; i <= Constants.HASHM_DIR; i++)
+            // {
+            //     for (var node = Macro.HeadOf(volume.dirblks[i]); node != null; node = node.Next)
+            //     {
+            //         blk = node.Value;
+            //         if (blk.dirblock != null && Macro.IsEmptyDBlk(blk, g) && !await IsFirstDBlk(blk, g) &&
+            //             !Cache.ISLOCKED(blk, g))
+            //         {
+            //             previous = await GetAnodeOfDBlk(blk, anode, g);
+            //             await anodes.RemoveFromAnodeChain(anode, previous, blk.dirblock.anodenr, g);
+            //             Macro.MinRemove(blk, g);
+            //             Allocation.FreeReservedBlock(blk.blocknr, g);
+            //             Lru.ResToBeFreed(blk.oldblocknr, g);
+            //             Lru.FreeLRU(blk, g);
+            //         }
+            //     }
+            // }
+            foreach (var blk in volume.dirblks)
             {
-                for (var node = Macro.HeadOf(volume.dirblks[i]); node != null; node = node.Next)
+                if (blk.Value.dirblock != null && Macro.IsEmptyDBlk(blk.Value, g) && !await IsFirstDBlk(blk.Value, g) &&
+                    !Cache.ISLOCKED(blk.Value, g))
                 {
-                    blk = node.Value;
-                    if (blk.dirblock != null && Macro.IsEmptyDBlk(blk, g) && !await IsFirstDBlk(blk, g) &&
-                        !Cache.ISLOCKED(blk, g))
-                    {
-                        previous = await GetAnodeOfDBlk(blk, anode, g);
-                        await anodes.RemoveFromAnodeChain(anode, previous, blk.dirblock.anodenr, g);
-                        Macro.MinRemove(blk, g);
-                        Allocation.FreeReservedBlock(blk.blocknr, g);
-                        Lru.ResToBeFreed(blk.oldblocknr, g);
-                        Lru.FreeLRU(blk, g);
-                    }
+                    previous = await GetAnodeOfDBlk(blk.Value, anode, g);
+                    await anodes.RemoveFromAnodeChain(anode, previous, blk.Value.dirblock.anodenr, g);
+                    Macro.MinRemove(blk.Value, g);
+                    Allocation.FreeReservedBlock(blk.Value.blocknr, g);
+                    Lru.ResToBeFreed(blk.Value.oldblocknr, g);
+                    Lru.FreeLRU(blk.Value, g);
                 }
             }
         }
@@ -604,6 +715,33 @@
             return true;
         }
 
+        public static async Task<bool> UpdateList(IEnumerable<CachedBlock> list, globaldata g)
+        {
+            if (!g.updateok)
+                return false;
+
+            foreach (var blk in list)
+            {
+                if (blk.changeflag)
+                {
+                    Allocation.FreeReservedBlock(blk.oldblocknr, g);
+                    blk.blk.datestamp = blk.volume.rootblk.Datestamp;
+                    blk.oldblocknr = 0;
+                    if (!(await Disk.RawWrite(g.stream, blk.blk, g.currentvolume.rescluster, blk.blocknr,
+                            g)))
+                    {
+                        // goto update_error;
+                        // ErrorMsg (AFS_ERROR_UPDATE_FAIL, NULL, g);
+                        throw new IOException("AFS_ERROR_UPDATE_FAIL");
+                    }
+
+                    blk.changeflag = false;
+                }
+            }
+
+            return true;
+        }
+
         public static void CommitReservedToBeFreed(globaldata g)
         {
             var alloc_data = g.glob_allocdata;
@@ -651,37 +789,66 @@
             // struct cindexblock *index;
             var andata = g.glob_anodedata;
 
-            for (i = 0; i <= Constants.HASHM_ANODE; i++)
+            foreach (var node in volume.anblks)
             {
-                for (var node = Macro.HeadOf(volume.anblks[i]); node != null; node = node.Next)
+                blk = node.Value;
+                if (blk.changeflag && blk.ANodeBlock != null && !IsFirstABlk(blk) && IsEmptyABlk(blk, g) &&
+                    !Cache.ISLOCKED(blk, g))
                 {
-                    blk = node.Value;
-                    if (blk.changeflag && blk.ANodeBlock != null && !IsFirstABlk(blk) && IsEmptyABlk(blk, g) &&
-                        !Cache.ISLOCKED(blk, g))
+                    var anodeblock = blk.ANodeBlock;
+                    indexblknr = anodeblock.seqnr / andata.indexperblock;
+                    indexoffset = anodeblock.seqnr % andata.indexperblock;
+
+                    /* kill the block */
+                    Macro.MinRemove(blk, g);
+                    Allocation.FreeReservedBlock(blk.blocknr, g);
+                    Lru.ResToBeFreed(blk.oldblocknr, g);
+                    Lru.FreeLRU(blk, g);
+
+                    /* and remove the reference (this one should already be in the cache) */
+                    var index = await anodes.GetIndexBlock((ushort)indexblknr, g);
+                    if (index == null)
                     {
-                        var anodeblock = blk.ANodeBlock;
-                        indexblknr = anodeblock.seqnr / andata.indexperblock;
-                        indexoffset = anodeblock.seqnr % andata.indexperblock;
-
-                        /* kill the block */
-                        Macro.MinRemove(blk, g);
-                        Allocation.FreeReservedBlock(blk.blocknr, g);
-                        Lru.ResToBeFreed(blk.oldblocknr, g);
-                        Lru.FreeLRU(blk, g);
-
-                        /* and remove the reference (this one should already be in the cache) */
-                        var index = await anodes.GetIndexBlock((ushort)indexblknr, g);
-                        if (index == null)
-                        {
-                            // DBERR(if (!index) ErrorTrace(5, "RemoveEmptyABlocks", "GetIndexBlock returned NULL!"))
-                            throw new IOException("RemoveEmptyABlocks, GetIndexBlock returned NULL!");
-                        }
-
-                        index.IndexBlock.index[indexoffset] = 0;
-                        index.changeflag = true;
+                        // DBERR(if (!index) ErrorTrace(5, "RemoveEmptyABlocks", "GetIndexBlock returned NULL!"))
+                        throw new IOException("RemoveEmptyABlocks, GetIndexBlock returned NULL!");
                     }
+
+                    index.IndexBlock.index[indexoffset] = 0;
+                    index.changeflag = true;
                 }
             }
+
+            // for (i = 0; i <= Constants.HASHM_ANODE; i++)
+            // {
+            //     for (var node = Macro.HeadOf(volume.anblks[i]); node != null; node = node.Next)
+            //     {
+            //         blk = node.Value;
+            //         if (blk.changeflag && blk.ANodeBlock != null && !IsFirstABlk(blk) && IsEmptyABlk(blk, g) &&
+            //             !Cache.ISLOCKED(blk, g))
+            //         {
+            //             var anodeblock = blk.ANodeBlock;
+            //             indexblknr = anodeblock.seqnr / andata.indexperblock;
+            //             indexoffset = anodeblock.seqnr % andata.indexperblock;
+            //
+            //             /* kill the block */
+            //             Macro.MinRemove(blk, g);
+            //             Allocation.FreeReservedBlock(blk.blocknr, g);
+            //             Lru.ResToBeFreed(blk.oldblocknr, g);
+            //             Lru.FreeLRU(blk, g);
+            //
+            //             /* and remove the reference (this one should already be in the cache) */
+            //             var index = await anodes.GetIndexBlock((ushort)indexblknr, g);
+            //             if (index == null)
+            //             {
+            //                 // DBERR(if (!index) ErrorTrace(5, "RemoveEmptyABlocks", "GetIndexBlock returned NULL!"))
+            //                 throw new IOException("RemoveEmptyABlocks, GetIndexBlock returned NULL!");
+            //             }
+            //
+            //             index.IndexBlock.index[indexoffset] = 0;
+            //             index.changeflag = true;
+            //         }
+            //     }
+            // }
         }
 
         public static bool IsEmptyABlk(CachedBlock ablk, globaldata g)
@@ -709,7 +876,19 @@
             //struct cindexblock *blk, *next;
             CachedBlock blk;
 
-            for (var node = Macro.HeadOf(volume.indexblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(volume.indexblks); node != null; node = node.Next)
+            // {
+            //     blk = node.Value;
+            //     if (blk.changeflag && !IsFirstIBlk(blk) && IsEmptyIBlk(blk, g) && !Cache.ISLOCKED(blk, g))
+            //     {
+            //         await UpdateIBLK(blk, 0, g);
+            //         Macro.MinRemove(blk, g);
+            //         Allocation.FreeReservedBlock(blk.blocknr, g);
+            //         Lru.ResToBeFreed(blk.oldblocknr, g);
+            //         Lru.FreeLRU(blk, g);
+            //     }
+            // }
+            foreach (var node in volume.indexblks)
             {
                 blk = node.Value;
                 if (blk.changeflag && !IsFirstIBlk(blk) && IsEmptyIBlk(blk, g) && !Cache.ISLOCKED(blk, g))
@@ -728,7 +907,19 @@
             //struct cindexblock *blk, *next;
             CachedBlock blk;
 
-            for (var node = Macro.HeadOf(volume.superblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(volume.superblks); node != null; node = node.Next)
+            // {
+            //     blk = node.Value;
+            //     if (blk.changeflag && !IsFirstIBlk(blk) && IsEmptyIBlk(blk, g) && !Cache.ISLOCKED(blk, g))
+            //     {
+            //         UpdateSBLK(blk, 0, g);
+            //         Macro.MinRemove(blk, g);
+            //         Allocation.FreeReservedBlock(blk.blocknr, g);
+            //         Lru.ResToBeFreed(blk.oldblocknr, g);
+            //         Lru.FreeLRU(blk, g);
+            //     }
+            // }
+            foreach (var node in volume.superblks)
             {
                 blk = node.Value;
                 if (blk.changeflag && !IsFirstIBlk(blk) && IsEmptyIBlk(blk, g) && !Cache.ISLOCKED(blk, g))

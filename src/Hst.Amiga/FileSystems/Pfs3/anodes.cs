@@ -27,14 +27,20 @@
             var andata = g.glob_anodedata;
 
             /* check cache (can be empty) */
-            for (var node = volume.indexblks.First; node != null; node = node.Next)
+            // for (var node = volume.indexblks.First; node != null; node = node.Next)
+            // {
+            //     indexblk = node.Value;
+            //     if (indexblk.IndexBlock.seqnr == nr)
+            //     {
+            //         Lru.MakeLRU(indexblk, g);
+            //         return node.Value;
+            //     }
+            // }
+            if (volume.indexblksBySeqNr.ContainsKey(nr))
             {
-                indexblk = node.Value;
-                if (indexblk.IndexBlock.seqnr == nr)
-                {
-                    Lru.MakeLRU(indexblk, g);
-                    return node.Value;
-                }
+                indexblk = volume.indexblksBySeqNr[nr];
+                Lru.MakeLRU(indexblk, g);
+                return indexblk;
             }
 
             /* not in cache, put it in
@@ -93,7 +99,8 @@
                 indexblk.blocknr = blocknr;
                 indexblk.used = 0;
                 indexblk.changeflag = false;
-                volume.indexblks.AddFirst(indexblk);
+                // volume.indexblks.AddFirst(indexblk);
+                Macro.AddToIndexes(volume.indexblks, volume.indexblksBySeqNr, indexblk);
             }
             else
             {
@@ -130,16 +137,22 @@
             }
 
             /* check cache (can be empty) */
-            for (var node = volume.superblks.First; node != null; node = node.Next)
+            // for (var node = volume.superblks.First; node != null; node = node.Next)
+            // {
+            //     superblk = node.Value;
+            //     var superblk_blk = superblk.IndexBlock;
+            //     if (superblk_blk.seqnr == nr)
+            //     {
+            //         Lru.MakeLRU(superblk, g);
+            //         return node.Value;
+            //     }
+            // }
+            if (volume.superblksBySeqNr.ContainsKey(nr))
             {
-                superblk = node.Value;
-                var superblk_blk = superblk.IndexBlock;
-                if (superblk_blk.seqnr == nr)
-                {
-                    Lru.MakeLRU(superblk, g);
-                    return node.Value;
-                }
-            }
+                superblk = volume.superblksBySeqNr[nr];
+                Lru.MakeLRU(superblk, g);
+                return superblk;
+            }            
 
             /* not in cache, put it in
              * first, get blocknr
@@ -186,7 +199,8 @@
                 superblk.blocknr = blocknr;
                 superblk.used = 0;
                 superblk.changeflag = false;
-                Macro.MinAddHead(volume.superblks, superblk);
+                // Macro.MinAddHead(volume.superblks, superblk);
+                Macro.AddToIndexes(volume.superblks, volume.superblksBySeqNr, superblk);
             }
             else
             {
@@ -241,7 +255,8 @@
             blok_cblk.id     = Constants.SBLKID;
             blok_cblk.seqnr  = seqnr;
             blok.changeflag = true;
-            Macro.MinAddHead(volume.superblks, blok);
+            // Macro.MinAddHead(volume.superblks, blok);
+            Macro.AddToIndexes(volume.superblks, volume.superblksBySeqNr, blok);
 
             return blok;
         }
@@ -586,7 +601,8 @@
             }
 
             /* check cache */
-            ablock = Lru.CheckCache(volume.anblks, Constants.HASHM_ANODE, blocknr, g);
+            // ablock = Lru.CheckCache(volume.anblks, Constants.HASHM_ANODE, blocknr, g);
+            ablock = Lru.CheckCache(volume.anblks, blocknr, g);
             if (ablock != null)
                 return ablock;
 
@@ -628,7 +644,8 @@
             ablock.blocknr    = blocknr;
             ablock.used       = 0;
             ablock.changeflag = false;
-            Macro.Hash(ablock, volume.anblks, Constants.HASHM_ANODE);
+            // Macro.Hash(ablock, volume.anblks, Constants.HASHM_ANODE);
+            Macro.Hash(ablock, volume.anblks);
 
             return ablock;
         }
@@ -676,7 +693,8 @@
                 seqnr = seqnr
             };
             blok.changeflag = true;
-            Macro.Hash(blok, volume.anblks, Constants.HASHM_ANODE);
+            // Macro.Hash(blok, volume.anblks, Constants.HASHM_ANODE);
+            Macro.Hash(blok, volume.anblks);
             await Update.MakeBlockDirty(indexblock, g);
             indexblock.used = oldlock;         // unlock block
 
@@ -745,7 +763,8 @@
                 seqnr = seqnr
             };
             blok.changeflag = true;
-            Macro.MinAddHead(volume.indexblks, blok);
+            // Macro.MinAddHead(volume.indexblks, blok);
+            Macro.AddToIndexes(volume.indexblks, volume.indexblksBySeqNr, blok);
 
             return blok;
         }

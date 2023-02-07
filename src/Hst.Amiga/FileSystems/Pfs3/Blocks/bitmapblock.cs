@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3.Blocks
 {
-    public class BitmapBlock : IBlock
+    public class BitmapBlock : ISeqBlock
     {
 /* structure for both normal as reserved bitmap
  * normal: normal clustersize
@@ -20,7 +20,7 @@
         public ushort id { get; set; }
         public ushort not_used_1 { get; set; }
         public uint datestamp { get; set; }
-        public uint seqnr;
+        public uint seqnr { get; set; }
         public uint[] bitmap; /* the bitmap.                      */
         
         public BitmapBlock(long longsperbmb)

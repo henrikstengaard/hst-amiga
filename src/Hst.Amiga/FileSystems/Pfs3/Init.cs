@@ -178,7 +178,8 @@
             }
 
             /* check cache */
-            var ablock = Lru.CheckCache(volume.anblks, Constants.HASHM_ANODE, blocknr, g);
+            // var ablock = Lru.CheckCache(volume.anblks, Constants.HASHM_ANODE, blocknr, g);
+            var ablock = Lru.CheckCache(volume.anblks, blocknr, g);
             if (ablock != null)
                 return ablock;
 
@@ -218,7 +219,8 @@
             ablock.blocknr = blocknr;
             ablock.used = 0;
             ablock.changeflag = false;
-            Macro.Hash(ablock, volume.anblks, Constants.HASHM_ANODE);
+            // Macro.Hash(ablock, volume.anblks, Constants.HASHM_ANODE);
+            Macro.Hash(ablock, volume.anblks);
 
             return ablock;
         }

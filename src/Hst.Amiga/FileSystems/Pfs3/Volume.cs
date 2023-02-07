@@ -151,21 +151,28 @@
             //         node = next;
             //     }
             // }
-            foreach (var list in volume.anblks)
-            {
-                FreeMinList(list, g);
-            }
+            // foreach (var list in volume.anblks)
+            // {
+            //     FreeMinList(list, g);
+            // }
+            FreeMinList(volume.anblks.Values, g);
 
-            foreach (var list in volume.dirblks)
-            {
-                FreeMinList(list, g);
-            }
+            // foreach (var list in volume.dirblks)
+            // {
+            //     FreeMinList(list, g);
+            // }
+            FreeMinList(volume.dirblks.Values, g);
 
-            FreeMinList(volume.indexblks, g);
-            FreeMinList(volume.bmblks, g);
-            FreeMinList(volume.superblks, g);
-            FreeMinList(volume.deldirblks, g);
-            FreeMinList(volume.bmindexblks, g);
+            // FreeMinList(volume.indexblks, g);
+            FreeMinList(volume.indexblks.Values, g);
+            // FreeMinList(volume.bmblks, g);
+            FreeMinList(volume.bmblks.Values, g);
+            // FreeMinList(volume.superblks, g);
+            FreeMinList(volume.superblks.Values, g);
+            // FreeMinList(volume.deldirblks, g);
+            FreeMinList(volume.deldirblks.Values, g);
+            // FreeMinList(volume.bmindexblks, g);
+            FreeMinList(volume.bmindexblks.Values, g);
         }
 
         private static void FreeMinList(LinkedList<CachedBlock> list, globaldata g)
@@ -177,6 +184,19 @@
             }
         }
 
+        private static void FreeMinList(IEnumerable<CachedBlock> list, globaldata g)
+        {
+            foreach (var node in list)
+            {
+                if (node == null)
+                {
+                    continue;
+                }
+                Lru.FlushBlock(node, g);
+                Lru.FreeLRU(node, g);
+            }
+        }
+        
         /* CheckVolume checks if a volume (ve lock) is (still) present.
 ** If volume==NULL (no disk present) then FALSE is returned (@XLII).
 ** result: requested volume present/not present TRUE/FALSE

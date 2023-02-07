@@ -174,21 +174,83 @@ BPTR
             // remove() removes the node from any list it' added to (Amiga MinList exec)
 
             var volume = g.currentvolume;
-            for (var i = 0; i < volume.anblks.Length; i++)
+            // for (var i = 0; i < volume.anblks.Length; i++)
+            // {
+            //     volume.anblks[i].Remove(node);
+            // }
+            if (volume.anblks.ContainsKey(node.blocknr))
             {
-                volume.anblks[i].Remove(node);
+                volume.anblks.Remove(node.blocknr);
             }
 
-            for (var i = 0; i < volume.dirblks.Length; i++)
+            // for (var i = 0; i < volume.dirblks.Length; i++)
+            // {
+            //     volume.dirblks[i].Remove(node);
+            // }
+            if (volume.dirblks.ContainsKey(node.blocknr))
             {
-                volume.dirblks[i].Remove(node);
+                volume.dirblks.Remove(node.blocknr);
             }
 
-            volume.indexblks.Remove(node);
-            volume.bmblks.Remove(node);
-            volume.superblks.Remove(node);
-            volume.deldirblks.Remove(node);
-            volume.bmindexblks.Remove(node);
+            // volume.indexblks.Remove(node);
+            if (volume.indexblks.ContainsKey(node.blocknr))
+            {
+                volume.indexblks.Remove(node.blocknr);
+                if (node.blk is indexblock indexBlock &&
+                    volume.indexblksBySeqNr.ContainsKey(indexBlock.seqnr) &&
+                    volume.indexblksBySeqNr[indexBlock.seqnr] == node)
+                {
+                    volume.indexblksBySeqNr.Remove(indexBlock.seqnr);
+                }
+            }
+
+            // volume.bmblks.Remove(node);
+            if (volume.bmblks.ContainsKey(node.blocknr))
+            {
+                volume.bmblks.Remove(node.blocknr);
+                if (node.blk is BitmapBlock bitmapBlock &&
+                    volume.bmblksBySeqNr.ContainsKey(bitmapBlock.seqnr) &&
+                    volume.bmblksBySeqNr[bitmapBlock.seqnr] == node)
+                {
+                    volume.bmblksBySeqNr.Remove(bitmapBlock.seqnr);
+                }
+            }
+
+            // volume.superblks.Remove(node);
+            if (volume.superblks.ContainsKey(node.blocknr))
+            {
+                volume.superblks.Remove(node.blocknr);
+                if (node.blk is indexblock superBlock &&
+                    volume.superblksBySeqNr.ContainsKey(superBlock.seqnr) &&
+                    volume.superblksBySeqNr[superBlock.seqnr] == node)
+                {
+                    volume.superblksBySeqNr.Remove(superBlock.seqnr);
+                }
+            }
+            
+            // volume.deldirblks.Remove(node);
+            if (volume.deldirblks.ContainsKey(node.blocknr))
+            {
+                volume.deldirblks.Remove(node.blocknr);
+                if (node.blk is deldirblock delDirBlock && 
+                    volume.deldirblksBySeqNr.ContainsKey(delDirBlock.seqnr) && 
+                    volume.deldirblksBySeqNr[delDirBlock.seqnr] == node)
+                {
+                    volume.deldirblksBySeqNr.Remove(delDirBlock.seqnr);
+                }
+            }
+
+            // volume.bmindexblks.Remove(node);
+            if (volume.bmindexblks.ContainsKey(node.blocknr))
+            {
+                volume.bmindexblks.Remove(node.blocknr);
+                if (node.blk is indexblock bitmapIndexBlock && 
+                    volume.bmindexblksBySeqNr.ContainsKey(bitmapIndexBlock.seqnr) && 
+                    volume.bmindexblksBySeqNr[bitmapIndexBlock.seqnr] == node)
+                {
+                    volume.bmindexblksBySeqNr.Remove(bitmapIndexBlock.seqnr);
+                }
+            }
         }
 
         /// <summary>
@@ -234,6 +296,20 @@ BPTR
             list.AddFirst(node);
         }
 
+        public static void AddToIndexes(IDictionary<uint, CachedBlock> byBlockNr, 
+            IDictionary<uint, CachedBlock> bySeqNr, CachedBlock node)
+        {
+            var seqBlock = node.blk as ISeqBlock;
+            if (seqBlock is null)
+            {
+                throw new ArgumentException("Node is not a seq block", nameof(node));
+            }
+            
+            // #define MinAddHead(list, node)  AddHead((struct List *)(list), (struct Node *)(node))
+            byBlockNr[node.blocknr] = node;
+            bySeqNr[seqBlock.seqnr] = node;
+        }
+        
         public static LinkedListNode<T> HeadOf<T>(LinkedList<T> list)
         {
             // #define HeadOf(list) ((void *)((list)->mlh_Head))
@@ -278,6 +354,11 @@ BPTR
             // #define Hash(blk, list, mask)                           \
             //             MinAddHead(&list[(blk->blocknr/2)&mask], blk)
             MinAddHead(list[(blk.blocknr / 2) & mask], blk);
+        }
+
+        public static void Hash(CachedBlock blk, IDictionary<uint, CachedBlock> list)
+        {
+            list.Add(blk.blocknr, blk);
         }
         
         /*
