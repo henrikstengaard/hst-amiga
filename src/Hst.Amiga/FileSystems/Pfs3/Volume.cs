@@ -2,6 +2,7 @@
 {
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
 
@@ -140,6 +141,8 @@
             if (volume == null)
                 return;
 
+            // for (list = volume->anblks; list<=&volume->bmindexblks; list++)
+            
             /* start with anblks!, fileentries are to be kept! */
             // for (list = volume->anblks; list<=&volume->bmindexblks; list++)
             // {
@@ -155,24 +158,38 @@
             // {
             //     FreeMinList(list, g);
             // }
-            FreeMinList(volume.anblks.Values, g);
+            FreeMinList(volume.anblks, g);
 
             // foreach (var list in volume.dirblks)
             // {
             //     FreeMinList(list, g);
             // }
-            FreeMinList(volume.dirblks.Values, g);
+            FreeMinList(volume.dirblks, g);
 
             // FreeMinList(volume.indexblks, g);
-            FreeMinList(volume.indexblks.Values, g);
+            FreeMinList(volume.indexblks, g);
+            
             // FreeMinList(volume.bmblks, g);
-            FreeMinList(volume.bmblks.Values, g);
+            FreeMinList(volume.bmblks, g);
+            
             // FreeMinList(volume.superblks, g);
-            FreeMinList(volume.superblks.Values, g);
+            FreeMinList(volume.superblks, g);
+            
             // FreeMinList(volume.deldirblks, g);
-            FreeMinList(volume.deldirblks.Values, g);
+            FreeMinList(volume.deldirblks, g);
+            
             // FreeMinList(volume.bmindexblks, g);
-            FreeMinList(volume.bmindexblks.Values, g);
+            FreeMinList(volume.bmindexblks, g);
+
+            foreach (var node in g.glob_lrudata.LRUpool.Where(x => x.cblk?.blk == null).ToList())
+            {
+                g.glob_lrudata.LRUpool.Remove(node);
+            }
+            
+            foreach (var node in g.glob_lrudata.LRUqueue.Where(x => x.cblk?.blk == null).ToList())
+            {
+                g.glob_lrudata.LRUqueue.Remove(node);
+            }
         }
 
         private static void FreeMinList(LinkedList<CachedBlock> list, globaldata g)
@@ -184,16 +201,24 @@
             }
         }
 
-        private static void FreeMinList(IEnumerable<CachedBlock> list, globaldata g)
+        private static void FreeMinList(IDictionary<uint, CachedBlock> list, globaldata g)
         {
+            var removeKeys = new List<uint>();
+            
             foreach (var node in list)
             {
-                if (node == null)
+                if (node.Value != null)
                 {
-                    continue;
+                    Lru.FlushBlock(node.Value, g);
+                    Lru.FreeLRU(node.Value, g);
                 }
-                Lru.FlushBlock(node, g);
-                Lru.FreeLRU(node, g);
+                
+                removeKeys.Add(node.Key);
+            }
+
+            foreach (var key in removeKeys)
+            {
+                list.Remove(key);
             }
         }
         

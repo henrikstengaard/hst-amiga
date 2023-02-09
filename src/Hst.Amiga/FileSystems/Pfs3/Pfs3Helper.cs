@@ -34,6 +34,8 @@
             {
                 await Update.UpdateDisk(g);
             }
+            
+            Volume.FreeVolumeResources(g.currentvolume, g);
         }
     }
 }

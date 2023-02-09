@@ -586,7 +586,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - cache is empty
         Assert.Empty(pfs3Volume.g.glob_lrudata.LRUarray);
         Assert.Empty(pfs3Volume.g.glob_lrudata.LRUpool);
+        Assert.Empty(pfs3Volume.g.glob_lrudata.LRUqueue);
+        
+        // assert - volume is empty
         Assert.Empty(pfs3Volume.g.currentvolume.anodechainlist);
+        Assert.Empty(pfs3Volume.g.currentvolume.anblks);
+        Assert.Empty(pfs3Volume.g.currentvolume.bmblks);
+        Assert.Empty(pfs3Volume.g.currentvolume.dirblks);
+        Assert.Empty(pfs3Volume.g.currentvolume.deldirblks);
+        Assert.Empty(pfs3Volume.g.currentvolume.bmindexblks);
+        Assert.Empty(pfs3Volume.g.currentvolume.indexblks);
+        Assert.Empty(pfs3Volume.g.currentvolume.superblks);
     }
 
     [Fact]
