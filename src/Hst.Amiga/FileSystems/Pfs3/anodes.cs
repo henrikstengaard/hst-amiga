@@ -688,8 +688,8 @@
             
             // CHANGE: Original pfs3 code adds new anode block to index block, but the index block does not
             // set change flag to true indicating it contains changes. The change flag is now set to ensure
-            // the cached index block is properly marked changes to avoid ot gets overwritten by other blocks
-            // as it appears unchanged
+            // the cached index block is properly marked changed to avoid it gets overwritten by other blocks
+            // as it appears unchanged with changed flag set to false.
             indexblock.changeflag = true;
 
             blok.volume     = volume;
