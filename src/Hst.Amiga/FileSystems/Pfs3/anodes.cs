@@ -542,7 +542,9 @@
                 else
                 {
                     if ((ablock = await big_NewAnodeBlock((ushort)seqnr, g)) == null)
+                    {
                         return 0;
+                    }
                     anodes = ablock.ANodeBlock.nodes;
                     k = 0;
                 }
@@ -683,6 +685,12 @@
             // DBERR(ErrorTrace(10,"big_NewAnodeBlock", "seqnr = %lu block = %lu\n", seqnr, blocknr));
 
             indexblock.IndexBlock.index[indexoffset] = blocknr;
+            
+            // CHANGE: Original pfs3 code adds new anode block to index block, but the index block does not
+            // set change flag to true indicating it contains changes. The change flag is now set to ensure
+            // the cached index block is properly marked changes to avoid ot gets overwritten by other blocks
+            // as it appears unchanged
+            indexblock.changeflag = true;
 
             blok.volume     = volume;
             blok.blocknr    = (uint)blocknr;

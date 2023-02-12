@@ -13,13 +13,11 @@
     public class Pfs3Volume : IFileSystemVolume, IAsyncDisposable, IDisposable
     {
         public readonly globaldata g;
-        private objectinfo currentDirectory;
         private uint dirNodeNr;
 
-        public Pfs3Volume(globaldata g, objectinfo currentDirectory, uint dirNodeNr)
+        public Pfs3Volume(globaldata g, uint dirNodeNr) 
         {
             this.g = g;
-            this.currentDirectory = currentDirectory;
             this.dirNodeNr = dirNodeNr;
         }
 
@@ -61,7 +59,7 @@
         /// <returns></returns>
         public async Task<Entry> FindEntry(string name)
         {
-            var objectInfo = currentDirectory.Clone();
+            var objectInfo = await GetCurrentDirectory();
             var found = await Directory.SearchInDir(dirNodeNr, name, objectInfo, g);
             return found ? DirEntryConverter.ToEntry(objectInfo.file.direntry) : null;
         }
@@ -72,6 +70,7 @@
         /// <param name="path">Relative or absolute path.</param>
         public async Task ChangeDirectory(string path)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var isRootPath = path.StartsWith("/");
             if (isRootPath && !Macro.IsRoot(currentDirectory))
             {
@@ -92,6 +91,7 @@
         /// <param name="dirName"></param>
         public async Task CreateDirectory(string dirName)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var entry = await Directory.NewDir(currentDirectory, dirName, g);
 
             // TODO: Examine when it's necessary to keep entyr in volume file entries after creating new dir
@@ -114,6 +114,7 @@
         /// <param name="ignoreProtectionBits"></param>
         public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             var found = !(await Directory.Find(objectInfo, fileName, g)).Any();
             await Directory.NewFile(found, currentDirectory, fileName, objectInfo, overwrite, ignoreProtectionBits, g);
@@ -175,6 +176,7 @@
         /// <returns></returns>
         public async Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits = false)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, fileName, g)).Any())
             {
@@ -210,6 +212,7 @@
         /// <param name="ignoreProtectionBits"></param>
         public async Task Delete(string name, bool ignoreProtectionBits = false)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
@@ -227,6 +230,7 @@
         /// <exception cref="IOException"></exception>
         public async Task Rename(string oldName, string newName)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var srcInfo = currentDirectory.Clone();
             if ((await Directory.Find(srcInfo, oldName, g)).Any())
             {
@@ -257,6 +261,7 @@
         /// <param name="comment"></param>
         public async Task SetComment(string name, string comment)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
@@ -273,6 +278,7 @@
         /// <param name="protectionBits"></param>
         public async Task SetProtectionBits(string name, ProtectionBits protectionBits)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
@@ -289,6 +295,7 @@
         /// <param name="date"></param>
         public async Task SetDate(string name, DateTime date)
         {
+            var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
@@ -296,6 +303,33 @@
             }
             await Directory.SetDate(objectInfo, date, g);
             Macro.UnlockAll(g);
+        }
+
+        private async Task<objectinfo> GetCurrentDirectory()
+        {
+            if (dirNodeNr == Constants.ANODE_ROOTDIR)
+            {
+                return await Directory.GetRoot(g);
+            }
+
+            var canode = new canode();
+            await anodes.GetAnode(canode, dirNodeNr, g);
+            
+            var dirBlock = await Directory.LoadDirBlock(canode.blocknr, g);
+            
+            return new objectinfo
+            {
+                volume = new volumeinfo
+                {
+                    root = (uint)(dirNodeNr == Constants.ST_USERDIR ? 0 : 1),
+                    volume = g.currentvolume
+                },
+                file = new fileinfo
+                {
+                    dirblock = dirBlock,
+                    direntry = new direntry(0, Constants.ST_USERDIR, dirNodeNr, 0, 0, DateTime.Now, string.Empty, string.Empty, new extrafields(), g)
+                }
+            };
         }
         
         /// <summary>
@@ -308,10 +342,10 @@
         {
             var g = await Pfs3Helper.Mount(stream, partitionBlock);
             
-            var root = await Directory.GetRoot(g);
+            //var root = (await Directory.GetRoot(g)).Clone();
             var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
             
-            return new Pfs3Volume(g, root, dirNodeNr);
+            return new Pfs3Volume(g, dirNodeNr);
         }
 
         /// <summary>
@@ -325,7 +359,6 @@
 
         public void Dispose()
         {
-            Macro.UnlockAll(g);
             Pfs3Helper.Flush(g).GetAwaiter().GetResult();
 
             GC.SuppressFinalize(this);

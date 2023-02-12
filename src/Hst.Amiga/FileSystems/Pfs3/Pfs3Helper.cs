@@ -30,6 +30,7 @@
 
         public static async Task Flush(globaldata g)
         {
+            Macro.UnlockAll(g);
             if (g.stream.CanWrite)
             {
                 await Update.UpdateDisk(g);

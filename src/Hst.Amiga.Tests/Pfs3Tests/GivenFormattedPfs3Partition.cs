@@ -531,14 +531,17 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
+        
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
 
+        await pfs3Volume.CreateDirectory("New Dir");
+        await pfs3Volume.ChangeDirectory("New Dir");
+        
         // act - read data
         int bytesRead;
         byte[] dataRead;
 
-        // act - mount pfs3 volume
-        await using var pfs3Volume = await MountVolume(stream);
-        
         for (var i = 0; i < 200; i++)
         {
             // act - create file in root directory
@@ -553,6 +556,11 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             // act - create file in root directory
             await pfs3Volume.SetComment($"New File{i}", $"Comment{i}");
 
+            // act - flush pfs3 volume for every 10th file
+            if (i % 10 == 0)
+            {
+                await pfs3Volume.Flush();
+            }
         }
 
         // act - flush changes

@@ -178,7 +178,7 @@ BPTR
             // {
             //     volume.anblks[i].Remove(node);
             // }
-            if (volume.anblks.ContainsKey(node.blocknr))
+            if (IsAnodeBlock(node) && volume.anblks.ContainsKey(node.blocknr))
             {
                 volume.anblks.Remove(node.blocknr);
             }
@@ -187,15 +187,18 @@ BPTR
             // {
             //     volume.dirblks[i].Remove(node);
             // }
-            if (volume.dirblks.ContainsKey(node.blocknr))
+            if (IsDirBlock(node) && volume.dirblks.ContainsKey(node.blocknr))
             {
                 volume.dirblks.Remove(node.blocknr);
             }
 
             // volume.indexblks.Remove(node);
-            if (volume.indexblks.ContainsKey(node.blocknr))
+            if (IsIndexBlock(node))
             {
-                volume.indexblks.Remove(node.blocknr);
+                if (volume.indexblks.ContainsKey(node.blocknr))
+                {
+                    volume.indexblks.Remove(node.blocknr);
+                }
                 if (node.blk is indexblock indexBlock &&
                     volume.indexblksBySeqNr.ContainsKey(indexBlock.seqnr) &&
                     volume.indexblksBySeqNr[indexBlock.seqnr] == node)
@@ -203,11 +206,15 @@ BPTR
                     volume.indexblksBySeqNr.Remove(indexBlock.seqnr);
                 }
             }
+            
 
             // volume.bmblks.Remove(node);
-            if (volume.bmblks.ContainsKey(node.blocknr))
+            if (IsBitmapBlock(node))
             {
-                volume.bmblks.Remove(node.blocknr);
+                if (volume.bmblks.ContainsKey(node.blocknr))
+                {
+                    volume.bmblks.Remove(node.blocknr);
+                }
                 if (node.blk is BitmapBlock bitmapBlock &&
                     volume.bmblksBySeqNr.ContainsKey(bitmapBlock.seqnr) &&
                     volume.bmblksBySeqNr[bitmapBlock.seqnr] == node)
@@ -217,9 +224,12 @@ BPTR
             }
 
             // volume.superblks.Remove(node);
-            if (volume.superblks.ContainsKey(node.blocknr))
+            if (IsSuperBlock(node))
             {
-                volume.superblks.Remove(node.blocknr);
+                if (volume.superblks.ContainsKey(node.blocknr))
+                {
+                    volume.superblks.Remove(node.blocknr);
+                }
                 if (node.blk is indexblock superBlock &&
                     volume.superblksBySeqNr.ContainsKey(superBlock.seqnr) &&
                     volume.superblksBySeqNr[superBlock.seqnr] == node)
@@ -227,13 +237,16 @@ BPTR
                     volume.superblksBySeqNr.Remove(superBlock.seqnr);
                 }
             }
-            
+
             // volume.deldirblks.Remove(node);
-            if (volume.deldirblks.ContainsKey(node.blocknr))
+            if (IsDeldir(node))
             {
-                volume.deldirblks.Remove(node.blocknr);
-                if (node.blk is deldirblock delDirBlock && 
-                    volume.deldirblksBySeqNr.ContainsKey(delDirBlock.seqnr) && 
+                if (volume.deldirblks.ContainsKey(node.blocknr))
+                {
+                    volume.deldirblks.Remove(node.blocknr);
+                }
+                if (node.blk is deldirblock delDirBlock &&
+                    volume.deldirblksBySeqNr.ContainsKey(delDirBlock.seqnr) &&
                     volume.deldirblksBySeqNr[delDirBlock.seqnr] == node)
                 {
                     volume.deldirblksBySeqNr.Remove(delDirBlock.seqnr);
@@ -241,11 +254,14 @@ BPTR
             }
 
             // volume.bmindexblks.Remove(node);
-            if (volume.bmindexblks.ContainsKey(node.blocknr))
+            if (IsBitmapIndexBlock(node))
             {
-                volume.bmindexblks.Remove(node.blocknr);
-                if (node.blk is indexblock bitmapIndexBlock && 
-                    volume.bmindexblksBySeqNr.ContainsKey(bitmapIndexBlock.seqnr) && 
+                if (volume.bmindexblks.ContainsKey(node.blocknr))
+                {
+                    volume.bmindexblks.Remove(node.blocknr);
+                }
+                if (node.blk is indexblock bitmapIndexBlock &&
+                    volume.bmindexblksBySeqNr.ContainsKey(bitmapIndexBlock.seqnr) &&
                     volume.bmindexblksBySeqNr[bitmapIndexBlock.seqnr] == node)
                 {
                     volume.bmindexblksBySeqNr.Remove(bitmapIndexBlock.seqnr);
