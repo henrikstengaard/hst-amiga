@@ -104,10 +104,10 @@ public class IconInfoCommand : CommandBase
             {
                 var colorIconImage = colorIcon.Images[i];
                 OnInformationMessage($"Color Icon {i + 1}:");
-                OnInformationMessage($"- Width: {colorIconImage.Width}");
-                OnInformationMessage($"- Height: {colorIconImage.Height}");
-                OnInformationMessage($"- Depth: {colorIconImage.BitsPerPixel} bpp");
-                OnInformationMessage($"- Transparent: {colorIconImage.IsTransparent}");
+                OnInformationMessage($"- Width: {colorIconImage.Image.Width}");
+                OnInformationMessage($"- Height: {colorIconImage.Image.Height}");
+                OnInformationMessage($"- Depth: {colorIconImage.Depth} bpp");
+                OnInformationMessage($"- Transparent: {colorIconImage.Image.IsTransparent}");
             }
         }
         

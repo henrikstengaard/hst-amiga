@@ -27,7 +27,7 @@
             }
 
             FaceChunk faceChunk = null;
-            var colorIconImages = new List<Image>();
+            var colorIconImages = new List<ColorIconImage>();
 
             while (stream.Position < stream.Length)
             {
@@ -88,7 +88,7 @@
             };
         }
 
-        private static async Task<Image> ReadImag(Stream stream, FaceChunk faceChunk)
+        private static async Task<ColorIconImage> ReadImag(Stream stream, FaceChunk faceChunk)
         {
             var transparentColor = stream.ReadByte();
             var numColors = stream.ReadByte() + 1;
@@ -106,11 +106,6 @@
             {
                 paletteSize++;
             }
-
-            // var imageData = await stream.ReadBytes(imageSize);
-            // var d = glowdata_uncompress(imageData, 0, imageSize, depth);
-            // await File.WriteAllBytesAsync("d.bin", d);
-            // var paletteData = await stream.ReadBytes(paletteSize);
 
             var pixels =
                 (imageCompressed
@@ -130,43 +125,34 @@
                     : ReadUncompressedPalette(stream, numColors, paletteSize, hasTransparentColor, transparentColor)).ToArray();
             }
 
-            // var pixelOffset = 0;
-            //
-            //
-            // var imageStream = new MemoryStream(imageData);
-            // var reader = new RleStreamReader(imageStream, depth);
-            // for (var y = 0; y < faceChunk.Height; y++)
-            // {
-            //     for (var x = 0; x < faceChunk.Width; x++)
-            //     {
-            //         pixels[pixelOffset++] = reader.ReadData8();
-            //     }
-            // }
-
-            //var t = await File.ReadAllBytesAsync("d.bin");
-
-
             var palette = new Palette(colors);
             if (hasTransparentColor)
             {
                 palette.TransparentColor = transparentColor;
             }
-            return new Image(faceChunk.Width, faceChunk.Height, hasPalette ? 8 : 24, palette, pixels);
+
+            return new ColorIconImage
+            {
+                Depth = depth,
+                Image = new Image(faceChunk.Width, faceChunk.Height, hasPalette ? 8 : 24, palette, pixels)
+            };
         }
 
         private static IEnumerable<Color> ReadUncompressedPalette(Stream stream, int numColors, int paletteSize,
             bool hasTransparentColor, int transparentColor)
         {
+            var colors = new List<Color>();
             var position = stream.Position;
             for (var i = 0; i < numColors; i++)
             {
                 var r = stream.ReadByte();
                 var g = stream.ReadByte();
                 var b = stream.ReadByte();
-                yield return new Color(r, g, b, hasTransparentColor && transparentColor == i ? 0 : 255);
+                colors.Add(new Color(r, g, b, hasTransparentColor && transparentColor == i ? 0 : 255));
             }
 
             stream.Seek(position + paletteSize, SeekOrigin.Begin);
+            return colors;
         }
 
         private static IEnumerable<Color> ReadCompressedPalette(Stream stream, int numColors, int paletteSize,
@@ -217,108 +203,5 @@
 
             return pixels;
         }
-        
-// Uncompress a slice of f, and append to outf.
-// The algorithm is the same as PackBits, except that the data elements may
-// be less than 8 bits.
-        private static byte[] glowdata_uncompress(byte[] f, int pos, int len, int bits_per_pixel)
-        {
-            var outf = new List<byte>();
-            
-            int x;
-            int i;
-            byte b, b2;
-            int bitpos;
-
-            bitpos = 0;
-
-            // Continue as long as at least 8 bits remain.
-            while(bitpos <= (len-1)*8) {
-                b = de_get_bits_symbol2(f, 8, pos, bitpos);
-                bitpos+=8;
-
-                if(b<=127) {
-                    // 1+b literal pixels
-                    x = 1+b;
-                    for(i=0; i<x; i++) {
-                        b2 = de_get_bits_symbol2(f, bits_per_pixel, pos, bitpos);
-                        bitpos += bits_per_pixel;
-                        outf.Add(b2);
-                    }
-                }
-                else if(b>=129) {
-                    // 257-b repeated pixels
-                    x = 257 - b;
-                    b2 = de_get_bits_symbol2(f, bits_per_pixel, pos, bitpos);
-                    bitpos += bits_per_pixel;
-                    for(i=0; i<x; i++) {
-                        outf.Add(b2);
-                    }
-                }
-            }
-
-            return outf.ToArray();
-        }
-        
-// Read a symbol (up to 8 bits) that starts at an arbitrary bit position.
-// It may span (two) bytes.
-        private static byte de_get_bits_symbol2(byte[] f, int nbits, int bytepos, int bitpos)
-        {
-            byte b0, b1;
-            int bits_in_first_byte;
-            int bits_in_second_byte;
-
-            bits_in_first_byte = 8 - (bitpos % 8);
-
-            b0 = f[bytepos + bitpos / 8];
-
-        if(bits_in_first_byte<8) {
-                b0 &= (byte)(0xff >> (8-bits_in_first_byte)); // Zero out insignificant bits
-            }
-
-            if(bits_in_first_byte == nbits) {
-                // First byte has all the bits
-                return b0;
-            }
-            else if(bits_in_first_byte >= nbits) {
-                // First byte has all the bits
-                return (byte)(b0 >> (bits_in_first_byte - nbits));
-            }
-
-            bits_in_second_byte = nbits - bits_in_first_byte;
-            b1 = f[bytepos + bitpos/8 +1];
-
-            return (byte)((b0<<bits_in_second_byte) | (b1>>(8-bits_in_second_byte)));
-        }
-        
-        private static byte de_get_bits_symbol(byte[] f, int bps, int rowstart, int index)
-        {
-            int byte_offset;
-            byte b;
-            byte x = 0;
-
-            switch(bps) {
-                case 1:
-                    byte_offset = rowstart + index/8;
-                    b = f[byte_offset];
-                    x = (byte)((b >> (7 - index%8)) & 0x01);
-                    break;
-                case 2:
-                    byte_offset = rowstart + index/4;
-                    b = f[byte_offset];
-                    x = (byte)((b >> (2 * (3 - index%4))) & 0x03);
-                    break;
-                case 4:
-                    byte_offset = rowstart + index/2;
-                    b = f[byte_offset];
-                    x = (byte)((b >> (4 * (1 - index%2))) & 0x0f);
-                    break;
-                case 8:
-                    byte_offset = rowstart + index;
-                    x = f[byte_offset];
-                    break;
-            }
-            return x;
-        }        
     }
 }
