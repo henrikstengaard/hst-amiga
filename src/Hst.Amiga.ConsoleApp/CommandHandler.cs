@@ -56,4 +56,11 @@ public static class CommandHandler
     {
         await Execute(new IconCreateCommand(GetLogger<IconCreateCommand>(), path, type));
     }
+    
+    public static async Task IconUpdate(string path, int? type, int? x, int? y, int? stackSize, int? drawerX,
+        int? drawerY, int? drawerWidth, int? drawerHeight)
+    {
+        await Execute(new IconUpdateCommand(GetLogger<IconUpdateCommand>(), path, type, x, y, stackSize, drawerX, drawerY,
+            drawerWidth, drawerHeight));
+    }
 }
