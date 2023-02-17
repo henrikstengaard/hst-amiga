@@ -610,7 +610,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    [Trait("Category", "PFS3")]
     public async Task WhenCreate100FilesAndRenameAndSetCommentThenFilesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
