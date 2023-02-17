@@ -866,6 +866,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
     [InlineData(DiskSize16Gb)]
+    [Trait("Category", "PFS3")]
     public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory(long diskSize)
     {
         // arrange - create pfs3 formatted disk
@@ -968,7 +969,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
     [InlineData(DiskSize16Gb)]
-    public async Task WhenSetCreationDateForFileInRootThenCreationDateIsChanged(long diskSize)
+    public async Task WhenSetDateForFileInRootThenCreationDateIsChanged(long diskSize)
     {
         // arrange - date to set
         var date = DateTime.Now.AddDays(-10).Trim(TimeSpan.TicksPerSecond);
@@ -996,6 +997,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    [Trait("Category", "PFS3")]
     public async Task WhenCreate2FilesIn2DirsWithProtectionBitsAndDateSetThenEntriesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
