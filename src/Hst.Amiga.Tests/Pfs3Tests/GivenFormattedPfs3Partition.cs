@@ -866,7 +866,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     [InlineData(DiskSize100Mb)]
     [InlineData(DiskSize4Gb)]
     [InlineData(DiskSize16Gb)]
-    [Trait("Category", "PFS3")]
     public async Task WhenMoveFileFromRootDirectoryToSubdirectoryThenFileIsLocatedInSubdirectory(long diskSize)
     {
         // arrange - create pfs3 formatted disk
