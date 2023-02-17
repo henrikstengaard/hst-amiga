@@ -521,7 +521,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    [Trait("Category", "PFS3")]
     public async Task WhenCreate200FilesWriteDataAndSetCommentThenFilesExistDataMatchesAndCacheIsEmptyAfterFlushing()
     {
         // arrange - data to write
