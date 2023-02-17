@@ -1072,16 +1072,9 @@
                 diranodenr = dir.file.direntry.anode;
 
             /* check if space in existing dirblocks */
-            var count = 0;
             await anodes.GetAnode(anode, diranodenr, g);
             for (; !eof;)
             {
-                count++;
-                if (count > 1000)
-                {
-                    throw new IOException("AddDirectoryEntry: LoadDirBlock looped more than 1000 times");
-                }
-                
                 if ((blok = await LoadDirBlock(anode.blocknr + anodeoffset, g)) == null)
                     break;
 
@@ -2211,17 +2204,11 @@
             }
             else
             {
-                var count = 0;
                 /* make space in block
                  */
                 while (!CheckFit(from.file.dirblock, spaceneeded, g) &&
                        !from.file.direntry.Equals(mover.file.direntry))
                 {
-                    count++;
-                    if (count > 1000)
-                    {
-                        throw new IOException("RenameWithinDir: Looped for more than 1000 times");
-                    }
                     // move first dir entry (mover) and update to new first dir entry
                     await MoveToPrevious(mover, mover.file.direntry, result, g);
                     mover.file.direntry = fromDirBlock.DirEntries.FirstOrDefault();
