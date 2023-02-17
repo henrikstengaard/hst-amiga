@@ -1072,9 +1072,16 @@
                 diranodenr = dir.file.direntry.anode;
 
             /* check if space in existing dirblocks */
+            var count = 0;
             await anodes.GetAnode(anode, diranodenr, g);
-            for (; !done && !eof;)
+            for (; !eof;)
             {
+                count++;
+                if (count > 1000)
+                {
+                    throw new IOException("AddDirectoryEntry: LoadDirBlock looped more than 1000 times");
+                }
+                
                 if ((blok = await LoadDirBlock(anode.blocknr + anodeoffset, g)) == null)
                     break;
 
