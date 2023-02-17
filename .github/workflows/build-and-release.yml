@@ -121,8 +121,8 @@ jobs:
           Rename-Item -Path $exeFileName -NewName ($exeFileName -replace 'Hst.Amiga.ConsoleApp', 'hst.amiga')
           zip -r $artifactName *
           $artifactPath=((Get-ChildItem -Filter $artifactName) | Select -First 1).FullName
-          "::set-output name=artifact_name::$artifactName"
-          "::set-output name=artifact_path::$artifactPath"
+          "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
+          "artifact_path=$artifactPath" >> $env:GITHUB_OUTPUT
 
       - name: Upload console app artifact
         uses: actions/upload-artifact@v2
