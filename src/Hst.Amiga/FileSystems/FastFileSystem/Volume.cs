@@ -41,6 +41,8 @@
         public bool IgnoreErrors { get; set; }
         public IList<string> Logs { get; set; }
         public int OffsetsPerBitmapBlock { get; set; }
+        
+        public uint NextFreeBlock { get; set; }
 
         public Volume()
         {

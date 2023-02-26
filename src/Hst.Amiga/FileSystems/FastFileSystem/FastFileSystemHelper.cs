@@ -250,6 +250,8 @@
 
             await Bitmap.AdfReadBitmap(volume, blocks, rootBlock);
 
+            volume.NextFreeBlock = volume.BitmapBlocks[volume.BitmapBlocks.Length - 1] + 1;
+
             return volume;
         }
 

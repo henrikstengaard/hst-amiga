@@ -90,11 +90,10 @@
         public static uint[] AdfGetFreeBlocks(Volume vol, uint nbSect)
         {
             var sectList = new List<uint>();
-            var block = vol.RootBlockOffset;
+            var block = vol.NextFreeBlock;
 
             var i = 0;
-            var diskFull = false;
-            while (i < nbSect && !diskFull)
+            while (i < nbSect)
             {
                 if (AdfIsBlockFree(vol, block))
                 {
@@ -102,24 +101,19 @@
                     i++;
                 }
 
-                if (block + vol.FirstBlock == vol.LastBlock)
+                block++;
+                
+                if (block + vol.FirstBlock >= vol.LastBlock)
                 {
-                    block = 2;
+                    block = vol.Reserved;
                 }
-                else if (block == vol.RootBlockOffset - 1)
+                else if (block == vol.NextFreeBlock)
                 {
-                    diskFull = true;
-                }
-                else
-                {
-                    block++;
+                    throw new DiskFullException("Disk full");
                 }
             }
 
-            if (diskFull)
-            {
-                throw new DiskFullException("Disk full");
-            }
+            vol.NextFreeBlock = block;
 
             for (var j = 0; j < nbSect; j++)
             {
