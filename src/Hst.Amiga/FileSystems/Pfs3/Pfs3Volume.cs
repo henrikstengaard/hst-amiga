@@ -114,10 +114,11 @@
         /// <param name="ignoreProtectionBits"></param>
         public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
         {
+            g.IgnoreProtectionBits = ignoreProtectionBits;
             var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             var found = !(await Directory.Find(objectInfo, fileName, g)).Any();
-            await Directory.NewFile(found, currentDirectory, fileName, objectInfo, overwrite, ignoreProtectionBits, g);
+            await Directory.NewFile(found, currentDirectory, fileName, objectInfo, overwrite, g);
 
             foreach (var fileEntry in g.currentvolume.fileentries)
             {
@@ -176,6 +177,7 @@
         /// <returns></returns>
         public async Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits = false)
         {
+            g.IgnoreProtectionBits = ignoreProtectionBits;
             var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, fileName, g)).Any())
@@ -187,7 +189,7 @@
                 }
 
                 // create new file
-                await Directory.NewFile(false, currentDirectory, fileName, objectInfo, true, ignoreProtectionBits, g);
+                await Directory.NewFile(false, currentDirectory, fileName, objectInfo, true, g);
             }
 
             var hasReadProtectionBit =
@@ -212,13 +214,14 @@
         /// <param name="ignoreProtectionBits"></param>
         public async Task Delete(string name, bool ignoreProtectionBits = false)
         {
+            g.IgnoreProtectionBits = ignoreProtectionBits;
             var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
             {
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
-            await Directory.DeleteObject(objectInfo, ignoreProtectionBits, g);
+            await Directory.DeleteObject(objectInfo, g);
             Macro.UnlockAll(g);
         }
 

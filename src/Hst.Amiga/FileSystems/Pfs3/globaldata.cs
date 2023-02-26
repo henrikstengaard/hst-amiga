@@ -10,6 +10,8 @@
         public DosEnvec DosEnvec { get; set; }
         public uint NumBuffers;
         public lru_data_s glob_lrudata;
+
+        public bool IgnoreProtectionBits { get; set; }
         
         /* LRU stuff */
         public bool uip;                           /* update in progress flag              */

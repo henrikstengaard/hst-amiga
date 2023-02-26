@@ -251,7 +251,7 @@
  * Note: 'directory' and 'newfile' may point to the same.
  */
         public static async Task NewFile(bool found, objectinfo directory, string filename, objectinfo newfile,
-            bool overwrite, bool ignoreProtectionBits, globaldata g)
+            bool overwrite, globaldata g)
         {
             objectinfo info = new objectinfo();
             uint anodenr;
@@ -311,7 +311,7 @@
 
                 /* Check deleteprotection */
                 if (Macro.IsVolume(info) ||
-                    (!ignoreProtectionBits && (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE))
+                    (!g.IgnoreProtectionBits && (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE))
                 {
                     throw new IOException("ERROR_DELETE_PROTECTED");
                 }
@@ -335,7 +335,7 @@
                     }
 
                     /* have to check protection again */
-                    if (!ignoreProtectionBits && (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE)
+                    if (!g.IgnoreProtectionBits && (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE)
                     {
                         throw new IOException("ERROR_DELETE_PROTECTED");
                     }
@@ -2545,14 +2545,14 @@
  * Don't check dirtycount!
  * info becomes INVALID!
  */
-        public static async Task DeleteObject(objectinfo info, bool ignoreProtectionBits, globaldata g)
+        public static async Task DeleteObject(objectinfo info, globaldata g)
         {
             uint anodenr;
 
             //ENTER("DeleteObject");
             /* Check deleteprotection */
 // #if DELDIR
-            if (info == null || (!ignoreProtectionBits && (info.deldir.special <= Constants.SPECIAL_DELFILE ||
+            if (info == null || (!g.IgnoreProtectionBits && (info.deldir.special <= Constants.SPECIAL_DELFILE ||
                                  (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE)))
 // #else
 // 	if (!info || IsVolume(*info) || info->file.direntry->protection & FIBF_DELETE)
