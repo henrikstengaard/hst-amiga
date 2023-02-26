@@ -129,6 +129,12 @@
             return (char)((c >= 'a' && c <= 'z') || (c >= 224 && c <= 254 && c != 247) ? c - ('a' - 'A') : c);
         }
 
+        private static string TrimName(Volume volume, string name)
+        {
+            var maxNameLength = volume.UseLnfs ? Constants.LNFSMAXNAMELEN : Constants.MAXNAMELEN;
+            return name.Length > maxNameLength ? name.Substring(0, maxNameLength) : name;
+        }
+
         public static int GetHashValue(int hashTableSize, string name, bool intl)
         {
             var hash = (uint)name.Length;
@@ -156,9 +162,11 @@
         public static async Task<NameToEntryBlockResult> GetEntryBlock(Volume volume, uint[] ht, string name,
             bool nUpdSect)
         {
+            name = TrimName(volume, name);
+
             var intl = volume.UseIntl || volume.UseDirCache;
             var hashVal = GetHashValue(ht.Length, name, intl);
-            var nameLen = Math.Min(name.Length, volume.UseLnfs ? Constants.LNFSMAXNAMELEN : Constants.MAXNAMELEN);
+            var nameLen = name.Length;
             var upperName = MyToUpper(name, intl);
 
             var nSect = ht[hashVal];
@@ -258,6 +266,8 @@
             {
                 throw new FileSystemException($"Invalid secondary type '{dir.SecType}'");
             }
+
+            name = TrimName(vol, name);
 
             var intl = vol.UseIntl || vol.UseDirCache;
             var len = Math.Min(name.Length, Constants.MAXNAMELEN);
@@ -370,6 +380,9 @@
 
         public static async Task RenameEntry(Volume vol, uint pSect, string oldName, uint nPSect, string newName)
         {
+            oldName = TrimName(vol, oldName);
+            newName = TrimName(vol, newName);
+            
             if (oldName == newName)
             {
                 return;
@@ -525,6 +538,7 @@
 
         public static async Task RemoveEntry(Volume vol, uint pSect, string name, bool ignoreProtectionBits)
         {
+            name = TrimName(vol, name);
             var parent = await Disk.ReadEntryBlock(vol, pSect);
 
             var result = await GetEntryBlock(vol, parent.HashTable, name, false);

@@ -10,6 +10,7 @@ using FileSystems.Exceptions;
 using FileSystems.FastFileSystem;
 using RigidDiskBlocks;
 using Xunit;
+using Constants = FileSystems.FastFileSystem.Constants;
 using Directory = FileSystems.FastFileSystem.Directory;
 using FileMode = FileSystems.FileMode;
 
@@ -818,5 +819,54 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
         Assert.NotNull(dirEntry);
         Assert.Equal(date, dirEntry.Date);
+    }
+
+    [Fact]
+    public async Task WhenCreateFileWithNameLongerThan30AndWriteDataThenFileExistsLimitedToLengthOf30()
+    {
+        // arrange - file name and expected file name
+        const string fileName = "1234567890123456789012345678901234567890";
+        var expectedName = fileName[..Constants.MAXNAMELEN];
+        
+        // arrange - data to write
+        var data = new byte[10];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, Dos3DosType);
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // act - create file
+        await ffsVolume.CreateFile(fileName);
+        
+        // act - write data
+        await using (var entryStream = await ffsVolume.OpenFile(fileName, FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+
+        // act - list entries in root directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        var dirEntry = entries.FirstOrDefault(x => x.Name == expectedName && x.Type == EntryType.File);
+        Assert.NotNull(dirEntry);
+        
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+        await using (var entryStream = await ffsVolume.OpenFile(fileName, FileMode.Read))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
     }
 }
