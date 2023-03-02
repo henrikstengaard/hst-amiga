@@ -55,16 +55,21 @@
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public async Task<FileSystems.Entry> FindEntry(string name)
+        public async Task<FileSystems.FindEntryResult> FindEntry(string name)
         {
-            var findEntryResult = await Directory.FindEntry(currentDirectorySector, name, volume);
-            if (findEntryResult.PartsNotFound.Any())
+            if (name.IndexOf("/", StringComparison.Ordinal) >= 0 || name.IndexOf("\\", StringComparison.Ordinal) >= 0)
             {
-                return null;
+                throw new ArgumentException("Name contains directory separator", nameof(name));
             }
+            
+            var findEntryResult = await Directory.FindEntry(currentDirectorySector, name, volume);
 
-            var entryBlock = await Disk.ReadEntryBlock(volume, findEntryResult.Sector);
-            return EntryConverter.ToEntry(Directory.ConvertEntryBlockToEntry(entryBlock));
+            var entry = findEntryResult.Entries.LastOrDefault();
+            return new FileSystems.FindEntryResult
+            {
+                PartsNotFound = findEntryResult.PartsNotFound.ToList(),
+                Entry = entry == null ? null : EntryConverter.ToEntry(entry)
+            };
         }
 
         public async Task ChangeDirectory(string path)
@@ -80,7 +85,7 @@
             {
                 throw new PathNotFoundException($"Path '{path}' not found");
             }
-
+            
             currentDirectorySector = findEntryResult.Sector;
         }
 

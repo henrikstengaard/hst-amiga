@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -170,17 +171,19 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         await ffsVolume.CreateDirectory("New Dir");
 
         // act - find entry
-        var entry = await ffsVolume.FindEntry("New Dir");
+        var result = await ffsVolume.FindEntry("New Dir");
         
         // assert - entry exists and is equal
-        Assert.NotNull(entry);
-        Assert.Equal("New Dir", entry.Name);
-        Assert.Equal(EntryType.Dir, entry.Type);
-        Assert.Equal(0, entry.Size);
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New Dir", result.Entry.Name);
+        Assert.Equal(EntryType.Dir, result.Entry.Type);
+        Assert.Equal(0, result.Entry.Size);
     }
 
     [Fact]
-    public async Task WhenFindNonExistingEntryThenExceptionIsThrown()
+    public async Task WhenFindNonExistingEntryThenPartsNotFoundContainsName()
     {
         // arrange - create fast file system formatted disk
         var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
@@ -189,10 +192,13 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         await using var ffsVolume = await MountVolume(stream);
         
         // act - find entry
-        var entry = await ffsVolume.FindEntry("New Dir");
+        var result = await ffsVolume.FindEntry("New Dir");
         
-        // assert - entry is null, not found
-        Assert.Null(entry);
+        // assert - result has new dir in parts not found and entry is null
+        Assert.NotNull(result);
+        Assert.Single(result.PartsNotFound);
+        Assert.Equal(new List<string>{ "New Dir" }, result.PartsNotFound);
+        Assert.Null(result.Entry);
     }
     
     [Theory]
@@ -868,5 +874,63 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         Assert.Equal(data.Length, bytesRead);
         Assert.Equal(data.Length, dataRead.Length);
         Assert.Equal(data, dataRead);
+    }
+    
+    [Fact]
+    public async Task WhenFindDirectoryAndFileEntryThenEntryIsReturned()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, Dos3DosType);
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create directory
+        await ffsVolume.CreateDirectory("New Dir");
+
+        // act - change directory
+        await ffsVolume.ChangeDirectory("New Dir");
+        
+        // act - create file
+        await ffsVolume.CreateFile("New File");
+
+        // act - change directory
+        await ffsVolume.ChangeDirectory("/");
+
+        // act - find new dir entry
+        var result = await ffsVolume.FindEntry("New Dir");
+        
+        // assert - file entry is found and matches
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New Dir", result.Entry.Name);
+        Assert.Equal(EntryType.Dir, result.Entry.Type);
+        
+        // act - change directory
+        await ffsVolume.ChangeDirectory("New Dir");
+        
+        // act - find new file entry
+        result = await ffsVolume.FindEntry("New File");
+        
+        // assert - file entry is found and matches
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New File", result.Entry.Name);
+        Assert.Equal(EntryType.File, result.Entry.Type);
+    }
+
+    [Fact]
+    public async Task WhenFindEntryWithDirectorySeparatorInNameThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act & assert - find entry with directory separator throws exception
+        await Assert.ThrowsAsync<ArgumentException>(async () => await ffsVolume.FindEntry("New Dir/New File"));
     }
 }

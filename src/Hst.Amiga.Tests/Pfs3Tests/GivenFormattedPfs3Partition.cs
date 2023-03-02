@@ -29,17 +29,19 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         await pfs3Volume.CreateDirectory("New Dir");
 
         // act - find entry
-        var entry = await pfs3Volume.FindEntry("New Dir");
+        var result = await pfs3Volume.FindEntry("New Dir");
 
         // assert - entry exists and is equal
-        Assert.NotNull(entry);
-        Assert.Equal("New Dir", entry.Name);
-        Assert.Equal(EntryType.Dir, entry.Type);
-        Assert.Equal(0, entry.Size);
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New Dir", result.Entry.Name);
+        Assert.Equal(EntryType.Dir, result.Entry.Type);
+        Assert.Equal(0, result.Entry.Size);
     }
 
     [Fact]
-    public async Task WhenFindNonExistingEntryThenExceptionIsThrown()
+    public async Task WhenFindNonExistingEntryThenPartsNotFoundContainsName()
     {
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
@@ -48,10 +50,13 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         await using var pfs3Volume = await MountVolume(stream);
 
         // act - find entry
-        var entry = await pfs3Volume.FindEntry("New Dir");
+        var result = await pfs3Volume.FindEntry("New Dir");
 
-        // assert - entry is null, not found
-        Assert.Null(entry);
+        // assert - result has new dir in parts not found and entry is null
+        Assert.NotNull(result);
+        Assert.Single(result.PartsNotFound);
+        Assert.Equal(new List<string>{ "New Dir" }, result.PartsNotFound);
+        Assert.Null(result.Entry);
     }
 
     [Theory]
@@ -1181,4 +1186,62 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
             Assert.Equal(overwrittenData.Length, entry.Size);
         }
     }
+    
+    [Fact]
+    public async Task WhenFindDirectoryAndFileEntryThenEntryIsReturned()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+        
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - create directory
+        await pfs3Volume.CreateDirectory("New Dir");
+
+        // act - change directory
+        await pfs3Volume.ChangeDirectory("New Dir");
+        
+        // act - create file
+        await pfs3Volume.CreateFile("New File");
+
+        // act - change directory
+        await pfs3Volume.ChangeDirectory("/");
+
+        // act - find new dir entry
+        var result = await pfs3Volume.FindEntry("New Dir");
+        
+        // assert - file entry is found and matches
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New Dir", result.Entry.Name);
+        Assert.Equal(EntryType.Dir, result.Entry.Type);
+        
+        // act - change directory
+        await pfs3Volume.ChangeDirectory("New Dir");
+        
+        // act - find new file entry
+        result = await pfs3Volume.FindEntry("New File");
+        
+        // assert - file entry is found and matches
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New File", result.Entry.Name);
+        Assert.Equal(EntryType.File, result.Entry.Type);
+    }
+
+    [Fact]
+    public async Task WhenFindEntryWithDirectorySeparatorInNameThenExceptionIsThrown()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+        
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act & assert - find entry with directory separator throws exception
+        await Assert.ThrowsAsync<ArgumentException>(async () => await pfs3Volume.FindEntry("New Dir/New File"));
+    }    
 }

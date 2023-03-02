@@ -739,20 +739,23 @@
             sector = FastFileSystemHelper.GetSector(volume, entryBlock);
             
             int i;
+            var entries = new List<Entry>();
             for (i = 0; i < parts.Length; i++)
             {
                 var part = parts[i];
 
-                var entry = (await ReadEntries(volume, sector)).FirstOrDefault(x =>
+                var currentEntry = (await ReadEntries(volume, sector)).FirstOrDefault(x =>
                     x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
-                if (entry == null)
+                if (currentEntry == null)
                 {
                     break;
                 }
+                
+                entries.Add(currentEntry);
 
-                if (entry.IsDirectory())
+                if (currentEntry.IsDirectory())
                 {
-                    sector = FastFileSystemHelper.GetSector(volume, entry.EntryBlock);
+                    sector = FastFileSystemHelper.GetSector(volume, currentEntry.EntryBlock);
                 }
             }
 
@@ -760,6 +763,7 @@
             {
                 Name = parts.Last(),
                 Sector = sector,
+                Entries = entries,
                 PartsNotFound = parts.Skip(i).ToArray()
             };
         }

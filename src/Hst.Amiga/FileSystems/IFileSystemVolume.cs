@@ -33,7 +33,7 @@
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        Task<Entry> FindEntry(string name);
+        Task<FindEntryResult> FindEntry(string name);
         
         /// <summary>
         /// Change current directory

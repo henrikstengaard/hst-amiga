@@ -57,11 +57,21 @@
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public async Task<Entry> FindEntry(string name)
+        public async Task<FindEntryResult> FindEntry(string name)
         {
+            if (name.IndexOf("/", StringComparison.Ordinal) >= 0 || name.IndexOf("\\", StringComparison.Ordinal) >= 0)
+            {
+                throw new ArgumentException("Name contains directory separator", nameof(name));
+            }
+            
             var objectInfo = await GetCurrentDirectory();
             var found = await Directory.SearchInDir(dirNodeNr, name, objectInfo, g);
-            return found ? DirEntryConverter.ToEntry(objectInfo.file.direntry) : null;
+
+            return new FindEntryResult
+            {
+                PartsNotFound = found ? new List<string>() : new List<string> { name },
+                Entry = found ? DirEntryConverter.ToEntry(objectInfo.file.direntry) : null
+            };
         }
         
         /// <summary>
