@@ -84,6 +84,88 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    public async Task WhenCreate100DirectoriesWith100FilesInEachThenDirectoriesAndFilesExist()
+    {
+        // arrange - data to write
+        var data = new byte[1000];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // act - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+        
+        // create 100 directories with each 100 files
+        IList<Entry> entries;
+        for (var d = 0; d < 100; d++)
+        {
+            // act - change to root directory
+            await pfs3Volume.ChangeDirectory("/");
+
+            // act - create "New Dir" in root directory
+            var dirName = $"New Dir{d}";
+            await pfs3Volume.CreateDirectory(dirName);
+
+            // act - change to "New Dir" directory
+            await pfs3Volume.ChangeDirectory(dirName);
+
+            // act - create "Extra Dir" in "New Dir" directory
+            await pfs3Volume.CreateDirectory("Extra");
+
+            // act - change to "Extra Dir" directory
+            await pfs3Volume.ChangeDirectory("Extra");
+            
+            // create 100 files in directory
+            for (var f = 0; f < 100; f++)
+            {
+                // act - create file
+                var fileName = $"New File{f}";
+                await pfs3Volume.CreateFile(fileName);
+
+                // act - write data
+                await using var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Append);
+                await entryStream.WriteAsync(data, 0, data.Length);
+            }
+            
+            // arrange - flush changes
+            await pfs3Volume.Flush();
+            
+            // act - list entries
+            entries = (await pfs3Volume.ListEntries())
+                .OrderBy(x => x.Name).ToList();
+
+            // assert - 100 files exist
+            Assert.Equal(100, entries.Count);
+            Assert.Equal(100, entries.Count(x => x.Type == EntryType.File));
+            for (var f = 0; f < 100; f++)
+            {
+                var expectedFileName = $"New File{f}";
+                var entry = entries.FirstOrDefault(x => x.Name == expectedFileName)?.Name ?? string.Empty;
+                Assert.Equal(expectedFileName, entry);
+            }
+        }
+        
+        // act - change to root directory
+        await pfs3Volume.ChangeDirectory("/");
+
+        // act - list entries
+        entries = (await pfs3Volume.ListEntries())
+            .OrderBy(x => x.Name).ToList();
+
+        // assert - 100 directories exist
+        Assert.Equal(100, entries.Count);
+        Assert.Equal(100, entries.Count(x => x.Type == EntryType.Dir));
+        for (var d = 0; d < 100; d++)
+        {
+            var expectedFileName = $"New Dir{d}";
+            var entry = entries.FirstOrDefault(x => x.Name == expectedFileName)?.Name ?? string.Empty;
+            Assert.Equal(expectedFileName, entry);
+            
+        }
+    }
+    
+    [Fact]
     public async Task WhenCreateAndList100DirectoriesInRootDirectoryThenDirectoriesExist()
     {
         // arrange - create pfs3 formatted disk

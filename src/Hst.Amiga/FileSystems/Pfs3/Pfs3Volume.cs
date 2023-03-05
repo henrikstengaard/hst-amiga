@@ -113,7 +113,6 @@
                 }
                 g.currentvolume.fileentries.Remove(node);
             }
-            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -137,7 +136,6 @@
             }
 
             g.currentvolume.fileentries.Clear();
-            Macro.UnlockAll(g);
         }
         
         public void ClearCachedData()
@@ -232,7 +230,6 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.DeleteObject(objectInfo, g);
-            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -264,7 +261,6 @@
             }
             
             await Directory.RenameAndMove(currentDirectory, srcInfo, destInfo, remainingParts[0], g);
-            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -281,7 +277,6 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.AddComment(objectInfo, comment, g);
-            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -298,7 +293,6 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.ProtectFile(objectInfo, ProtectionBitsConverter.ToProtectionValue(protectionBits), g);
-            Macro.UnlockAll(g);
         }
 
         /// <summary>
@@ -315,7 +309,6 @@
                 throw new PathNotFoundException($"Path '{name}' not found");
             }
             await Directory.SetDate(objectInfo, date, g);
-            Macro.UnlockAll(g);
         }
 
         private async Task<objectinfo> GetCurrentDirectory()
@@ -368,6 +361,24 @@
         public async Task Flush()
         {
             await Pfs3Helper.Flush(g);
+        }
+
+        public IEnumerable<string> GetStatus()
+        {
+            return new[]
+            {
+                $"PF3 cache status:",
+                $"Cached anode blocks: {g.currentvolume.anblks.Count}",
+                $"Cached dir blocks: {g.currentvolume.dirblks.Count}",
+                $"Cached deldir blocks: {g.currentvolume.deldirblks.Count}",
+                $"Cached bitmap blocks: {g.currentvolume.bmblks.Count}",
+                $"Cached bitmap index blocks: {g.currentvolume.bmindexblks.Count}",
+                $"Cached index blocks: {g.currentvolume.indexblks.Count}",
+                $"Cached super blocks: {g.currentvolume.superblks.Count}",
+                $"LRU queue blocks: {g.glob_lrudata.LRUqueue.Count}",
+                $"LRU array blocks: {g.glob_lrudata.LRUarray.Length}",
+                $"LRU pool blocks: {g.glob_lrudata.LRUpool.Count}"
+            };
         }
 
         public void Dispose()

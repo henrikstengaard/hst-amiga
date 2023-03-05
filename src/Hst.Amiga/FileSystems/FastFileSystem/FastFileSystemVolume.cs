@@ -206,6 +206,11 @@
             return Task.CompletedTask;
         }
 
+        public IEnumerable<string> GetStatus()
+        {
+            return new List<string>();
+        }
+
         /// <summary>
         /// Mount partition fast file system volume from stream partition block
         /// </summary>

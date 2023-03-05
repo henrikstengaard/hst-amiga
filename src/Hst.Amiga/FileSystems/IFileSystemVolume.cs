@@ -105,5 +105,11 @@
         /// </summary>
         /// <returns></returns>
         Task Flush();
+
+        /// <summary>
+        /// Get status of file system
+        /// </summary>
+        /// <returns></returns>
+        IEnumerable<string> GetStatus();
     }
 }
