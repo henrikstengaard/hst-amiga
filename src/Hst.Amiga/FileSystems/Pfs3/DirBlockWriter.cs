@@ -12,7 +12,8 @@
             var blockBytes = new byte[g.RootBlock.ReservedBlksize];
             if (dirBlock.BlockBytes != null)
             {
-                Array.Copy(dirBlock.BlockBytes, 0, blockBytes, 0, g.RootBlock.ReservedBlksize);
+                Array.Copy(dirBlock.BlockBytes, 0, blockBytes, 0,
+                    Math.Min(dirBlock.BlockBytes.Length, g.RootBlock.ReservedBlksize));
             }
             
             BigEndianConverter.ConvertUInt16ToBytes(Constants.DBLKID, blockBytes, 0); // offset 0

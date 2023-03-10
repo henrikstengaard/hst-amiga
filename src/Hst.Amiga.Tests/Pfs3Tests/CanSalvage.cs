@@ -211,14 +211,14 @@ public class CanSalvage
 
         foreach (var block in blocks.Where(x => x.Value.Id == Constants.ABLKID))
         {
-            anodeBlocks[block.Key] = await AnodeBlockReader.Parse(block.Value.Bytes, g);
+            anodeBlocks[block.Key] = AnodeBlockReader.Parse(block.Value.Bytes, g);
         }
 
         var indexBlocks = new Dictionary<uint, indexblock>();
 
         foreach (var block in blocks.Where(x => x.Value.Id == Constants.IBLKID))
         {
-            indexBlocks[block.Key] = await IndexBlockReader.Parse(block.Value.Bytes, g);
+            indexBlocks[block.Key] = IndexBlockReader.Parse(block.Value.Bytes, g);
         }
 
         

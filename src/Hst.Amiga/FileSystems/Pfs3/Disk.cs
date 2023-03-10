@@ -73,7 +73,7 @@
             var type = typeof(T);
             if (type == typeof(anodeblock))
             {
-                return await AnodeBlockReader.Parse(buffer, g);
+                return AnodeBlockReader.Parse(buffer, g);
             }
 
             if (type == typeof(dirblock))
@@ -83,7 +83,7 @@
 
             if (type == typeof(indexblock))
             {
-                return await IndexBlockReader.Parse(buffer, g);
+                return IndexBlockReader.Parse(buffer, g);
             }
 
             if (type == typeof(BitmapBlock))
@@ -93,12 +93,12 @@
 
             if (type == typeof(deldirblock))
             {
-                return await DelDirBlockReader.Parse(buffer, g);
+                return DelDirBlockReader.Parse(buffer, g);
             }
 
             if (type == typeof(rootblockextension))
             {
-                return await RootBlockExtensionReader.Parse(buffer);
+                return RootBlockExtensionReader.Parse(buffer);
             }
 
             return default;
@@ -130,18 +130,21 @@
             BoundsCheck(true, blocknr, blocks, g);
 
             var blockOffset = (long)g.blocksize * blocknr;
-            g.stream.Seek(blockOffset, SeekOrigin.Begin);
 
             var writeLength = (int)(g.blocksize * blocks);
 
             if (buffer.Length == writeLength)
             {
+                g.stream.Seek(blockOffset, SeekOrigin.Begin);
                 await stream.WriteBytes(buffer);
             }
             else
             {
-                await stream.WriteAsync(buffer, offset, Math.Min(writeLength, buffer.Length));
-                
+                g.stream.Seek(blockOffset + offset, SeekOrigin.Begin);
+                var bufferPartLength = Math.Min(writeLength, buffer.Length);
+                var bufferPart = new byte[bufferPartLength];
+                Array.Copy(buffer, offset, bufferPart, 0, bufferPartLength);
+                await stream.WriteBytes(bufferPart);
             }
 
             return true;
@@ -157,22 +160,22 @@
             switch (block)
             {
                 case anodeblock anodeBlock:
-                    buffer = await AnodeBlockWriter.BuildBlock(anodeBlock);
+                    buffer = AnodeBlockWriter.BuildBlock(anodeBlock, g);
                     break;
                 case dirblock dirBlock:
                     buffer = DirBlockWriter.BuildBlock(dirBlock, g);
                     break;
                 case indexblock indexBlock:
-                    buffer = await IndexBlockWriter.BuildBlock(indexBlock);
+                    buffer = IndexBlockWriter.BuildBlock(indexBlock, g);
                     break;
                 case BitmapBlock bitmapBlock:
                     buffer = BitmapBlockWriter.BuildBlock(bitmapBlock, g);
                     break;
-                case deldirblock deldirblock:
-                    buffer = await DelDirBlockWriter.BuildBlock(deldirblock);
+                case deldirblock delDirBlock:
+                    buffer = DelDirBlockWriter.BuildBlock(delDirBlock, g);
                     break;
                 case rootblockextension rootBlockExtension:
-                    buffer = await RootBlockExtensionWriter.BuildBlock(rootBlockExtension);
+                    buffer = RootBlockExtensionWriter.BuildBlock(rootBlockExtension, g);
                     break;
                 default:
                     return false;

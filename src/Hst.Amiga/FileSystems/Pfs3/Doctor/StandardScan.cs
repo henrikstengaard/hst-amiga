@@ -52,7 +52,7 @@
                             currentBlockNr++;
                         }
 
-                        var anodeBlock = await AnodeBlockReader.Parse(buffer, g);
+                        var anodeBlock = AnodeBlockReader.Parse(buffer, g);
                         anodeBlocks.Add(new CachedBlock
                         {
                             blocknr = blockNr ?? uint.MaxValue,

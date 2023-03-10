@@ -1,42 +1,37 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    using System.Collections.Generic;
     using System.IO;
-    using System.Threading.Tasks;
     using Blocks;
-    using Core.Extensions;
+    using Core.Converters;
 
     public static class IndexBlockReader
     {
-        public static async Task<indexblock> Parse(byte[] blockBytes, globaldata g)
+        public static indexblock Parse(byte[] blockBytes, globaldata g)
         {
-            var blockStream = new MemoryStream(blockBytes);
-
-            var id = await blockStream.ReadBigEndianUInt16();
-            
-            if (id == 0)
+            var id = BigEndianConverter.ConvertBytesToUInt16(blockBytes);
+            if (id != Constants.IBLKID && id != Constants.SBLKID && id != Constants.BMIBLKID)
             {
-                return null;
+                throw new IOException($"Invalid index block id '{id}'");
             }
             
-            var not_used = await blockStream.ReadBigEndianUInt16();
-            var datestamp = await blockStream.ReadBigEndianUInt32();
-            var seqnr = await blockStream.ReadBigEndianUInt32();
+            var datestamp = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
+            var seqNr = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x8);
 
-            var index = new List<int>();
+            var offset = 0xc;
             var indexCount = (blockBytes.Length - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 2) / Amiga.SizeOf.Long;
+            var indexes = new int[indexCount];
             for (var i = 0; i < indexCount; i++)
             {
-                index.Add(await blockStream.ReadBigEndianInt32());
+                indexes[i] = BigEndianConverter.ConvertBytesToInt32(blockBytes, offset);
+                offset += Amiga.SizeOf.Long;
             }
             
             return new indexblock(g)
             {
                 id = id,
-                not_used_1 = not_used,
                 datestamp = datestamp,
-                seqnr = seqnr,
-                index = index.ToArray()
+                seqnr = seqNr,
+                index = indexes
             };
         }
     }

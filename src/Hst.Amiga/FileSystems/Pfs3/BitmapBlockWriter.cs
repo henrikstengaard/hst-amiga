@@ -15,7 +15,8 @@
             var blockBytes = new byte[g.RootBlock.ReservedBlksize * reservedBlocks];
             if (bitmapBlock.BlockBytes != null)
             {
-                Array.Copy(bitmapBlock.BlockBytes, 0, blockBytes, 0, g.RootBlock.ReservedBlksize);
+                Array.Copy(bitmapBlock.BlockBytes, 0, blockBytes, 0,
+                    Math.Min(bitmapBlock.BlockBytes.Length, g.RootBlock.ReservedBlksize));
             }
 
             BigEndianConverter.ConvertUInt16ToBytes(bitmapBlock.id, blockBytes, 0);

@@ -36,9 +36,10 @@ Experimental feature has been added as part of PFS3AIO.
 | 0x002  | UWORD         | Not used  |         |
 | 0x004  | ULONG         | Datestamp |         |
 | 0x008  | ULONG         | Seq nr    |         |
-| 0x00c  | Anode * nodes | Nodes     |         |
+| 0x00c  | ULONG         | Not used  |         |
+| 0x010  | Anode * nodes | Nodes     |         |
 
-Nodes = (Reserved block size - 0x00c) / anode size
+Nodes = (Reserved block size - 0x010) / anode size
 
 ## Anode
 

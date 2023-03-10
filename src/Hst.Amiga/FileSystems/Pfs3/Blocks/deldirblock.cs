@@ -23,15 +23,15 @@
 
         public byte[] BlockBytes { get; set; }
 
-        public ushort id { get; set; }
-        public ushort not_used_1 { get; set; }
-        public uint datestamp { get; set; }
-        public uint seqnr { get; set; }
-        public ushort uid { get; set; }
-        public ushort gid { get; set; }
-        public uint protection { get; set; }
-        public DateTime CreationDate { get; set; }
-        public deldirentry[] entries { get; set; }
+        public ushort id { get; set; } // 0x0
+        public ushort not_used_1 { get; set; } // 0x2
+        public uint datestamp { get; set; } // 0x4
+        public uint seqnr { get; set; } // 0x8
+        public ushort uid { get; set; } // 0xc
+        public ushort gid { get; set; } // 0xe
+        public uint protection { get; set; } // 0x10
+        public DateTime CreationDate { get; set; } // 0x14
+        public deldirentry[] entries { get; set; } // 0x20
 
         public deldirblock(globaldata g)
         {

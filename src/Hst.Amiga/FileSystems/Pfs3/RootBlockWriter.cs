@@ -11,7 +11,8 @@
             var blockBytes = new byte[512];
             if (rootBlock.BlockBytes != null)
             {
-                Array.Copy(rootBlock.BlockBytes, 0, blockBytes, 0, 512);
+                Array.Copy(rootBlock.BlockBytes, 0, blockBytes, 0,
+                    Math.Min(rootBlock.BlockBytes.Length, 512));
             }
 
             BigEndianConverter.ConvertInt32ToBytes(rootBlock.DiskType, blockBytes, 0); // 0

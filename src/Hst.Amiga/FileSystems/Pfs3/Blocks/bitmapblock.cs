@@ -2,7 +2,7 @@
 {
     public class BitmapBlock : ISeqBlock
     {
-/* structure for both normal as reserved bitmap
+/* structure for both normal and reserved bitmap
  * normal: normal clustersize
  * reserved: directly behind rootblock. As long as necessary
  */
