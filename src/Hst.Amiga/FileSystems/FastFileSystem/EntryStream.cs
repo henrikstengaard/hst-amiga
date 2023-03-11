@@ -128,8 +128,12 @@
             var extBlock = Pos2DataBlock(nPos);
             if (extBlock == uint.MaxValue)
             {
-                currentData =
-                    await Disk.ReadDataBlock(volume, fileHdr.DataBlocks[volume.IndexSize - 1 - curDataPtr]);
+                currentData = fileHdr.DataBlocks[volume.IndexSize - 1 - curDataPtr] == 0
+                    ? new DataBlock
+                    {
+                        Data = new byte[volume.DataBlockSize]
+                    }
+                    : await Disk.ReadDataBlock(volume, fileHdr.DataBlocks[volume.IndexSize - 1 - curDataPtr]);
             }
             else
             {
@@ -146,7 +150,12 @@
                     throw new IOException("error");
                 }
 
-                currentData = await Disk.ReadDataBlock(volume, currentExt.Index[posInExtBlk]);
+                currentData = currentExt.Index[posInExtBlk] == 0
+                    ? new DataBlock
+                    {
+                        Data = new byte[volume.DataBlockSize]
+                    }
+                    : await Disk.ReadDataBlock(volume, currentExt.Index[posInExtBlk]);
             }
         }
 
@@ -307,6 +316,7 @@
             {
                 return n;
             }
+
             var blockSize = volume.DataBlockSize;
             var dataPtr = currentData.Data;
 
@@ -366,6 +376,7 @@
                 {
                     fileHdr.FirstData = nSect;
                 }
+
                 fileHdr.DataBlocks[volume.IndexSize - 1 - nDataBlock] = nSect;
                 fileHdr.HighSeq++;
             }
@@ -444,21 +455,22 @@
 
             return nSect;
         }
-        
+
         public async Task AdfCloseFile()
         {
             await AdfFlushFile();
         }
-        
+
         public async Task AdfFlushFile()
         {
-            if (currentExt != null) 
+            if (currentExt != null)
             {
                 if (writeMode)
                 {
                     await Disk.WriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
                 }
             }
+
             if (currentData != null)
             {
                 if (writeMode)
@@ -476,19 +488,21 @@
                     }
                 }
             }
+
             if (writeMode)
             {
                 fileHdr.ByteSize = pos;
                 fileHdr.Date = DateTime.Now;
                 await Disk.WriteFileHdrBlock(volume, fileHdr.HeaderKey, fileHdr as FileHeaderBlock);
 
-                if (volume.UseDirCache) 
+                if (volume.UseDirCache)
                 {
                     var parent = await Disk.ReadEntryBlock(volume, fileHdr.Parent);
                     await Cache.UpdateCache(volume, parent, fileHdr, true);
                 }
+
                 await Bitmap.AdfUpdateBitmap(volume);
             }
-        }        
+        }
     }
 }

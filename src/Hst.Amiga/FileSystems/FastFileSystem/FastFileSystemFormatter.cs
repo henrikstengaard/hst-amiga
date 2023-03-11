@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
+    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
@@ -73,9 +74,11 @@
             // calculate partition start offset
             var partitionStartByteOffset = (long)lowCyl * surfaces * blocksPerTrack * blockSize;
 
-            // write dos type at partition start
+            // write boot block with dos type at partition start
+            var bootBlockBytes = new byte[blockSize * reserved];
+            Array.Copy(dosType, 0, bootBlockBytes, 0, dosType.Length);
             stream.Seek(partitionStartByteOffset, SeekOrigin.Begin);
-            await stream.WriteBytes(dosType);
+            await stream.WriteBytes(bootBlockBytes);
 
             // build root block bytes
             var rootBlockBytes = RootBlockBuilder.Build(rootBlock, (int)fileSystemBlockSize);

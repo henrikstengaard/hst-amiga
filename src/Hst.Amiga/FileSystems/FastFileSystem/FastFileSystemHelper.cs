@@ -110,7 +110,7 @@
                         await fileStream.WriteAsync(buffer, 0, bytesRead);
                     } while (bytesRead == buffer.Length);
                 }
-                
+
                 var fileInfo = new FileInfo(entryPath)
                 {
                     CreationTimeUtc = entry.Date,
@@ -183,19 +183,23 @@
         /// <param name="rootBlockOffset"></param>
         /// <returns></returns>
         public static async Task<Volume> Mount(Stream stream, uint lowCyl, uint highCyl, uint surfaces,
-            uint blocksPerTrack, uint reserved = 2, uint blockSize = 512, uint fileSystemBlockSize = 512, uint rootBlockOffset = 0)
+            uint blocksPerTrack, uint reserved = 2, uint blockSize = 512, uint fileSystemBlockSize = 512,
+            uint rootBlockOffset = 0)
         {
             var cylinders = highCyl - lowCyl + 1;
             var blocksPerCylinder = surfaces * blocksPerTrack;
             var blocks = cylinders * blocksPerCylinder / (fileSystemBlockSize / blockSize);
             var partitionStartOffset = lowCyl * blocksPerCylinder * blockSize;
 
-            // if (adfReadBootBlock(vol, &boot)!=RC_OK) {
-            //     (*adfEnv.wFct)("adfMount : BootBlock invalid");
-            //     return NULL;
-            // }       
             stream.Seek(partitionStartOffset, SeekOrigin.Begin);
             var bootBlockBytes = await stream.ReadBytes((int)blockSize);
+
+            // throw exception, if boot block dos type is invalid
+            if (bootBlockBytes[0] != 0x44 || bootBlockBytes[1] != 0x4f || bootBlockBytes[2] != 0x53)
+            {
+                throw new IOException(
+                    $"Invalid fast file system dos type '{string.Join(string.Empty, bootBlockBytes.Take(4).Select(x => x.ToString("x2")))}' in boot block");
+            }
 
             var mode = (int)bootBlockBytes[3];
             var useOfs = Macro.UseOfs(mode);
@@ -203,18 +207,20 @@
             var useFfs = Macro.UseFfs(mode);
             var useDirCache = Macro.UseDirCache(mode);
             var useLnfs = Macro.UseLnfs(mode);
-            
+
             var offsetsPerBitmapBlock = BlockHelper.CalculateOffsetsPerBitmapBlockCount(fileSystemBlockSize);
-            
-            var dataBlockSize = useFfs ? fileSystemBlockSize : fileSystemBlockSize - (SizeOf.ULong * 4) - (SizeOf.Long * 2);
+
+            var dataBlockSize =
+                useFfs ? fileSystemBlockSize : fileSystemBlockSize - (SizeOf.ULong * 4) - (SizeOf.Long * 2);
 
             var hashtableSize = CalculateHashtableSize(fileSystemBlockSize);
-            
+
             // calculate root block offset, if not set
             if (rootBlockOffset == 0)
             {
                 rootBlockOffset =
-                    OffsetHelper.CalculateRootBlockOffset(lowCyl, highCyl, reserved, surfaces, blocksPerTrack, fileSystemBlockSize);
+                    OffsetHelper.CalculateRootBlockOffset(lowCyl, highCyl, reserved, surfaces, blocksPerTrack,
+                        fileSystemBlockSize);
             }
 
             // seek root block offset
