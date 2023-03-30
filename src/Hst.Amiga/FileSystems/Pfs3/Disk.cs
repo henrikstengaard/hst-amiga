@@ -106,46 +106,26 @@
 
         public static async Task<bool> RawWrite(Stream stream, byte[] buffer, uint blocks, uint blocknr, globaldata g)
         {
-            return await RawWrite(stream, buffer, 0, blocks, blocknr, g);
-        }
-
-        public static async Task<bool> RawWrite(Stream stream, byte[] buffer, int offset, uint blocks, uint blocknr,
-            globaldata g)
-        {
 #if DEBUG
-            Pfs3Logger.Instance.Debug($"Disk: Raw write bytes to block nr {blocknr} with size of {blocks} blocks");
+            Pfs3Logger.Instance.Debug($"Disk: Raw write bytes to block nr {blocknr} with buffer size {buffer.Length} and size of {blocks} blocks");
 #endif
             // RawReadWrite_DS(TRUE, buffer, blocks, blocknr, g);
-
+            if (g.softprotect)
+            {
+                throw new IOException("ERROR_DISK_WRITE_PROTECTED");
+            }
+            
             if (blocknr == UInt32.MaxValue) // blocknr of uninitialised anode
                 return false;
 
             blocknr += g.firstblock;
 
-            if (g.softprotect)
-            {
-                throw new IOException("ERROR_DISK_WRITE_PROTECTED");
-            }
-
             BoundsCheck(true, blocknr, blocks, g);
 
             var blockOffset = (long)g.blocksize * blocknr;
-
-            var writeLength = (int)(g.blocksize * blocks);
-
-            if (buffer.Length == writeLength)
-            {
-                g.stream.Seek(blockOffset, SeekOrigin.Begin);
-                await stream.WriteBytes(buffer);
-            }
-            else
-            {
-                g.stream.Seek(blockOffset + offset, SeekOrigin.Begin);
-                var bufferPartLength = Math.Min(writeLength, buffer.Length);
-                var bufferPart = new byte[bufferPartLength];
-                Array.Copy(buffer, offset, bufferPart, 0, bufferPartLength);
-                await stream.WriteBytes(bufferPart);
-            }
+            
+            g.stream.Seek(blockOffset, SeekOrigin.Begin);
+            await stream.WriteAsync(buffer, 0, Convert.ToInt32(Math.Min(buffer.Length, g.blocksize * blocks)));
 
             return true;
         }
@@ -216,8 +196,14 @@
 
             /* write them */
             //await RawWrite(g.dc.data[slotnr << g.blockshift], i-slotnr, g.dc.ref_[slotnr].blocknr, g);
-            await RawWrite(g.stream, g.dc.data, slotnr << g.blockshift, (uint)(i - slotnr), g.dc.ref_[slotnr].blocknr,
-                g);
+            var slotData = new byte[(int)(g.blocksize * (i - slotnr))];
+            
+            var di = slotnr << g.blockshift;
+            for (var si = 0; si < slotData.Length; si++)
+            {
+                slotData[si] = g.dc.data[di++];
+            }
+            await RawWrite(g.stream, slotData, (uint)(i - slotnr), g.dc.ref_[slotnr].blocknr, g);
         }
 
         /* SeekInFile
@@ -826,7 +812,7 @@
             else
             {
                 // *error = RawRead(&g->dc.data[i<<BLOCKSHIFT], 1, blocknr, g);
-                var data = await RawRead(1, blocknr, g); 
+                var data = await RawRead(1, blocknr, g);
                 Array.Copy(data, 0, g.dc.data, i << Macro.BLOCKSHIFT(g), data.Length);
             }
 

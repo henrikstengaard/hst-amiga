@@ -8,15 +8,13 @@
     {
         public static byte[] BuildBlock(BitmapBlock bitmapBlock, globaldata g)
         {
-            var reservedBlocks = bitmapBlock.bitmap.Length <= g.RootBlock.LongsPerBmb
-                ? 1
-                : 1 + (bitmapBlock.bitmap.Length - g.RootBlock.LongsPerBmb) / (g.RootBlock.ReservedBlksize / Amiga.SizeOf.ULong) + 1;
+            var blocks = Pfs3Helper.CalculateBitmapBlocksCount(bitmapBlock.bitmap.Length, g);
             
-            var blockBytes = new byte[g.RootBlock.ReservedBlksize * reservedBlocks];
+            var blockBytes = new byte[g.blocksize * blocks];
             if (bitmapBlock.BlockBytes != null)
             {
                 Array.Copy(bitmapBlock.BlockBytes, 0, blockBytes, 0,
-                    Math.Min(bitmapBlock.BlockBytes.Length, g.RootBlock.ReservedBlksize));
+                    Math.Min(bitmapBlock.BlockBytes.Length, g.blocksize));
             }
 
             BigEndianConverter.ConvertUInt16ToBytes(bitmapBlock.id, blockBytes, 0);

@@ -89,7 +89,7 @@
             volume.rootblockchangeflag = true;
 
             blok.volume = volume;
-            blok.blocknr = volume.rootblk.idx.large.bitmapindex[seqnr];
+            blok.blocknr = g.RootBlock.idx.large.bitmapindex[seqnr];
             blok.used = 0;
             blok.blk = new indexblock(g)
             {
@@ -110,7 +110,7 @@
         {
             var vol = g.currentvolume;
             var alloc_data = g.glob_allocdata;
-            var bitmap = alloc_data.res_bitmap.bitmap;
+            var bitmap = g.RootBlock.ReservedBitmapBlock.bitmap;
             //uint free = (uint)g.RootBlock.ReservedFree;
             uint blocknr;
             int i, j;
@@ -148,7 +148,7 @@
                                 alloc_data.res_roving = (uint)(32 * i + (31 - j));
                                 // DB(Trace(10,"AllocReservedBlock","allocated %ld\n", blocknr));
 #if DEBUG
-                                Pfs3Logger.Instance.Debug($"Allocation: AllocReservedBlock, allocated block nr = {blocknr}");
+                                Pfs3Logger.Instance.Debug($"Allocation: AllocReservedBlock, allocated block nr = {blocknr}, bitmap = {i}, bit = {j}, alloc_data.res_roving = {alloc_data.res_roving}");
 #endif
                                 return blocknr;
                             }
@@ -161,6 +161,9 @@
             */
             if (alloc_data.res_roving != 0)
             {
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Allocation: end of bitmap reached,alloc_data.res_roving = {alloc_data.res_roving}");
+#endif
                 alloc_data.res_roving = 0;
                 blocknr = AllocReservedBlock(g);
             }
@@ -181,9 +184,13 @@
              */
             if (blocknr != 0 && blocknr <= g.RootBlock.LastReserved)
             {
-                var alloc_data = g.glob_allocdata;
-                var bitmap = alloc_data.res_bitmap.bitmap;
+                var bitmap = g.RootBlock.ReservedBitmapBlock.bitmap;
                 var t = (blocknr - g.RootBlock.FirstReserved) / g.currentvolume.rescluster;
+
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Allocation: FreeReservedBlock, block nr = {blocknr}, bitmap = {t / 32}, bit = {t % 32}");
+#endif
+                
                 bitmap[t / 32] |= 0x80000000U >> (int)(t % 32);
                 g.RootBlock.ReservedFree++;
                 g.currentvolume.rootblockchangeflag = true;
@@ -218,7 +225,7 @@
             
             /* not in cache, put it in */
             if (nr > (g.SuperMode ? Constants.MAXBITMAPINDEX : Constants.MAXSMALLBITMAPINDEX) ||
-                (blocknr = volume.rootblk.idx.large.bitmapindex[nr]) == 0 ||
+                (blocknr = g.RootBlock.idx.large.bitmapindex[nr]) == 0 ||
                 (indexblk = await Lru.AllocLRU(g)) == null)
             {
                 return null;

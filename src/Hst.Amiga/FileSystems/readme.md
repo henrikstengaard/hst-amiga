@@ -5,14 +5,14 @@
 Files in Amiga file systems have a series of protection bits which controls their attributes. 
 
 The protection bits are represented by letters:
-- h The file should be held resident in memory after it has been used.
-- s	The file is a script.
-- p	The file is a pure command and can be made resident.
-- a	The file has been archived.
-- r	The file can be read.
-- w	The file can be written to (altered).
-- e	The file is executable (a program).
-- d	The file can be deleted.
+- `H` The file should be held resident in memory after it has been used.
+- `S` The file is a script.
+- `P` The file is a pure command and can be made resident.
+- `A` The file has been archived.
+- `R` The file can be read.
+- `W` The file can be written to (altered).
+- `E` The file is executable (a program).
+- `D` The file can be deleted.
 
 Protection bits are represented by following bits:
 

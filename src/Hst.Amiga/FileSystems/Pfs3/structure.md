@@ -27,13 +27,15 @@ Root anode is always block no. 5
 
 Super blocks are used when disk is larger than 4GB.
 
-Reserved bitmap block contains a bit per reserved block.
+Reserved bitmap block contains a bit per reserved block. Blocks used for reserved bitmap block is calculated by longs a bitmap block can contain divided by block size (usually 512 bytes).
+First block of bitmap block can contain 512 - 2 * uword - 2 * ulong, 500 / 4 = 125.
+Following blocks can contain 512 / 4 = 128 longs.
+
 Each reserved block uses reserved block size, but root block first and last reserved are sector offsets.
 
 Calculations:
 - Reserved cluster size: reserved block size / block size. E.g. 1024 / 512 = 2.
 - Reserved blocks: (last reserved - first reserved + 1) / reserved cluster size. E.g. (6529 - 2 + 1) / 2 = 3264. 
-
 
 Reserved block number:
 - 0: Boot block
@@ -78,3 +80,20 @@ PFS3 uses own packets in `void NormalCommands(struct DosPacket *action, globalda
 - ACTION_SET_FNSIZE
 
 How are these handled?
+
+
+
+
+[19:00:57 DBG] Update: MakeBlockDirty, block nr = 446, block type 'indexblock'
+[19:00:57 DBG] Allocation: AllocReservedBlock Enter
+[19:00:57 DBG] Allocation: AllocReservedBlock, allocated block nr = 462, alloc_data.res_roving = 230
+[19:00:57 DBG] Update: UpdateIBLK, small, oldblocknr = 446, newblocknr = 462
+
+
+[19:00:57 DBG] Allocation: FreeReservedBlock, block nr = 446, t = 222
+[19:00:57 DBG] Allocation: FreeReservedBlock, bits 1 = '00000001000001100011111110111111', uint = 4261175424
+[19:00:57 DBG] Allocation: FreeReservedBlock, bits 2 = '01000001000001100011111110111111', uint = 4261175426
+[19:00:57 DBG] Disk: Raw write block type 'indexblock' to block nr 462 with size of 2 blocks
+[19:00:57 DBG] Disk: Raw write bytes to block nr 462 with size of 2 blocks
+
+

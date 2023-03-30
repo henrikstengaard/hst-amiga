@@ -228,14 +228,14 @@
                 Pfs3Logger.Instance.Debug(
                     $"Update: UpdateIBLK, small, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
-                if (blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr] != blk.oldblocknr)
+                if (g.RootBlock.idx.small.indexblocks[blk.IndexBlock.seqnr] != blk.oldblocknr)
                 {
                     throw new IOException(
-                        $"Update index block in small at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr]}");
+                        $"Update index block in small at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {g.RootBlock.idx.small.indexblocks[blk.IndexBlock.seqnr]}");
                 }
 
-                blk.volume.rootblk.idx.small.indexblocks[blk.IndexBlock.seqnr] = newblocknr;
-                blk.volume.rootblockchangeflag = true;
+                g.RootBlock.idx.small.indexblocks[blk.IndexBlock.seqnr] = newblocknr;
+                g.currentvolume.rootblockchangeflag = true;
             }
         }
 
@@ -321,18 +321,18 @@
             Pfs3Logger.Instance.Debug(
                 $"Update: UpdateBMIBLK, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
-            if (blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr] != blk.oldblocknr)
+            if (g.RootBlock.idx.large.bitmapindex[blk.IndexBlock.seqnr] != blk.oldblocknr)
             {
                 throw new IOException(
-                    $"Update bitmap index block at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr]}");
+                    $"Update bitmap index block at index offset {blk.IndexBlock.seqnr} doesn't have expected old block nr {blk.oldblocknr} but instead block nr {g.RootBlock.idx.large.bitmapindex[blk.IndexBlock.seqnr]}");
             }
 
-            blk.volume.rootblk.idx.large.bitmapindex[blk.IndexBlock.seqnr] = newblocknr;
-            blk.volume.rootblockchangeflag = true;
+            g.RootBlock.idx.large.bitmapindex[blk.IndexBlock.seqnr] = newblocknr;
+            g.currentvolume.rootblockchangeflag = true;
         }
 
 // #if VERSION23
-        public static void UpdateRBlkExtension(CachedBlock blk, uint newblocknr, globaldata g)
+        public static async Task UpdateRBlkExtension(CachedBlock blk, uint newblocknr, globaldata g)
         {
             // blk->changeflag = TRUE;
             // blk->volume->rootblk->extension = newblocknr;
@@ -342,14 +342,15 @@
             Pfs3Logger.Instance.Debug(
                 $"Update: UpdateRBlkExtension, oldblocknr = {blk.oldblocknr}, newblocknr = {newblocknr}");
 #endif
-            if (blk.volume.rootblk.Extension != blk.oldblocknr)
+            if (g.RootBlock.Extension != blk.oldblocknr)
             {
                 throw new IOException(
-                    $"Update root extension block doesn't have expected old block nr {blk.oldblocknr} but instead block nr {blk.volume.rootblk.Extension}");
+                    $"Update root extension block doesn't have expected old block nr {blk.oldblocknr} but instead block nr {g.RootBlock.Extension}");
             }
 
-            blk.volume.rootblk.Extension = newblocknr;
-            blk.volume.rootblockchangeflag = true;
+            g.RootBlock.Extension = newblocknr;
+            g.currentvolume.rootblockchangeflag = true;
+            await MakeBlockDirty(blk, g);
         }
 // #endif
 
@@ -403,7 +404,7 @@
 
                 case Constants.EXTENSIONID: /* rootblockextension */
                     // rext->blk.datestamp = g->currentvolume->rootblk->datestamp;
-                    blk.blk.datestamp = g.currentvolume.rootblk.Datestamp;
+                    blk.blk.datestamp = g.RootBlock.Datestamp;
                     break;
             }
         }
@@ -525,7 +526,7 @@
                     // rext->blk.volume_date[0] = (UWORD)time.ds_Days;
                     // rext->blk.volume_date[1] = (UWORD)time.ds_Minute;
                     // rext->blk.volume_date[2] = (UWORD)time.ds_Tick;
-                    rext_blk.datestamp = volume.rootblk.Datestamp;
+                    rext_blk.datestamp = g.RootBlock.Datestamp;
 
                     if (!await UpdateDirtyBlock(rext, g))
                     {
@@ -559,16 +560,16 @@
                 /* update root (MUST be done last) */
                 if (g.updateok)
                 {
-                    var rootBlockBytes = RootBlockWriter.BuildBlock(volume.rootblk, g);
-                    volume.rootblk.BlockBytes = rootBlockBytes;
+                    var rootBlockBytes = RootBlockWriter.BuildBlock(g.RootBlock, g);
+                    g.RootBlock.BlockBytes = rootBlockBytes;
                     await Disk.RawWrite(g.stream, rootBlockBytes, 1, Constants.ROOTBLOCK, g);
 
-                    var reservedBitmapBlockBytes = BitmapBlockWriter.BuildBlock(volume.rootblk.ReservedBitmapBlock, g);
-                    volume.rootblk.ReservedBitmapBlock.BlockBytes = reservedBitmapBlockBytes;
+                    var reservedBitmapBlockBytes = BitmapBlockWriter.BuildBlock(g.RootBlock.ReservedBitmapBlock, g);
+                    g.RootBlock.ReservedBitmapBlock.BlockBytes = reservedBitmapBlockBytes;
                     var blocks = (uint)(reservedBitmapBlockBytes.Length / g.blocksize);
                     await Disk.RawWrite(g.stream, reservedBitmapBlockBytes, blocks, Constants.ROOTBLOCK + 1, g);
 
-                    volume.rootblk.Datestamp++;
+                    g.RootBlock.Datestamp++;
                     volume.rootblockchangeflag = false;
 
                     /* make sure update is really done */
@@ -696,7 +697,7 @@
                 {
                     Allocation.FreeReservedBlock(blk.Value.oldblocknr, g);
                     blk2 = blk.Value;
-                    blk2.blk.datestamp = blk2.volume.rootblk.Datestamp;
+                    blk2.blk.datestamp = g.RootBlock.Datestamp;
                     blk.Value.oldblocknr = 0;
                     if (!(await Disk.RawWrite(g.stream, blk.Value.blk, g.currentvolume.rescluster, blk.Value.blocknr,
                             g)))
@@ -725,7 +726,7 @@
                 if (blk.changeflag)
                 {
                     Allocation.FreeReservedBlock(blk.oldblocknr, g);
-                    blk.blk.datestamp = blk.volume.rootblk.Datestamp;
+                    blk.blk.datestamp = g.RootBlock.Datestamp;
                     blk.oldblocknr = 0;
                     if (!(await Disk.RawWrite(g.stream, blk.blk, g.currentvolume.rescluster, blk.blocknr,
                             g)))
@@ -814,7 +815,6 @@
                     }
 
                     index.IndexBlock.index[indexoffset] = 0;
-                    index.changeflag = true;
                 }
             }
 

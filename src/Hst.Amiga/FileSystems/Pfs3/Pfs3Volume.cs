@@ -15,7 +15,7 @@
         public readonly globaldata g;
         private uint dirNodeNr;
 
-        public Pfs3Volume(globaldata g, uint dirNodeNr) 
+        public Pfs3Volume(globaldata g, uint dirNodeNr)
         {
             this.g = g;
             this.dirNodeNr = dirNodeNr;
@@ -384,7 +384,6 @@
         public void Dispose()
         {
             Pfs3Helper.Flush(g).GetAwaiter().GetResult();
-
             GC.SuppressFinalize(this);
         }
     }

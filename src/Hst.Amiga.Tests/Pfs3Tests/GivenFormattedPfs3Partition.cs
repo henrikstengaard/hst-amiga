@@ -1315,6 +1315,363 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    public async Task WhenOverwriting100FilesIn3DirectoriesThenEntriesExistAndDataMatches()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+        
+        // arrange - data to write
+        var data = new byte[100];
+        
+        // iterate 2 times: first creates files, second overwrites files
+        for (var iteration = 0; iteration < 2; iteration++)
+        {
+            // arrange - mount pfs3 volume
+            await using var pfs3Volume = await MountVolume(stream);
+
+            // iterate 3 directories
+            for (var dir = 0; dir < 5; dir++)
+            {
+                // act - change to root directory
+                await pfs3Volume.ChangeDirectory("/");
+
+                // act - create directory, if first iteration
+                var dirName = $"New Dir{dir}";
+                if (iteration == 0)
+                {
+                    await pfs3Volume.CreateDirectory(dirName);
+                }
+
+                // act - change directory
+                await pfs3Volume.ChangeDirectory(dirName);
+
+                // iterate 100 files
+                for (var file = 0; file < 100; file++)
+                {
+                    // act - create file
+                    var fileName = $"New File{file}";
+                    await pfs3Volume.CreateFile(fileName, true);
+
+                    // act - write data
+                    await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Append))
+                    {
+                        Array.Fill(data, (byte)file);
+
+                        await entryStream.WriteAsync(data, 0, data.Length);
+                        await entryStream.FlushAsync();
+                    }
+
+                    await pfs3Volume.Flush();
+                    
+                    // act - data read from file
+                    byte[] actualFileData;
+                    int bytesRead;
+                    await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Read))
+                    {
+                        actualFileData = new byte[entryStream.Length];
+                        bytesRead = await entryStream.ReadAsync(actualFileData, 0, actualFileData.Length);
+                    }
+
+                    // assert - data read matches
+                    Array.Fill(data, (byte)file);
+                    Assert.Equal(data.Length, bytesRead);
+                    Assert.Equal(data.Length, actualFileData.Length);
+                    Assert.Equal(data, actualFileData);
+                    
+                }
+            }
+        }
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume2 = await MountVolume(stream);
+
+        // assert - 3 directories exist
+        for (var dir = 0; dir < 5; dir++)
+        {
+            // act - change to root directory
+            await pfs3Volume2.ChangeDirectory("/");
+
+            // act - find dir entry
+            var dirName = $"New Dir{dir}";
+            var dirResult = await pfs3Volume2.FindEntry(dirName);
+            
+            // assert - dir entry is found and matches
+            Assert.NotNull(dirResult);
+            Assert.Empty(dirResult.PartsNotFound);
+            Assert.NotNull(dirResult.Entry);
+            Assert.Equal(dirName, dirResult.Entry.Name);
+            Assert.Equal(EntryType.Dir, dirResult.Entry.Type);
+            
+            // act - change directory
+            await pfs3Volume2.ChangeDirectory(dirName);
+
+            // assert - 100 files exist
+            for (var file = 0; file < 100; file++)
+            {
+                // act - find file entry
+                var fileName = $"New File{file}";
+                var fileResult = await pfs3Volume2.FindEntry(fileName);
+            
+                // assert - file entry is found and matches
+                Assert.NotNull(fileResult);
+                Assert.Empty(fileResult.PartsNotFound);
+                Assert.NotNull(fileResult.Entry);
+                Assert.Equal(fileName, fileResult.Entry.Name);
+                Assert.Equal(EntryType.File, fileResult.Entry.Type);
+                
+                // act - data read from file
+                byte[] actualFileData;
+                int bytesRead;
+                await using (var entryStream = await pfs3Volume2.OpenFile(fileName, FileMode.Read))
+                {
+                    actualFileData = new byte[entryStream.Length];
+                    bytesRead = await entryStream.ReadAsync(actualFileData, 0, actualFileData.Length);
+                }
+
+                // assert - data read matches
+                Array.Fill(data, (byte)file);
+                Assert.Equal(data.Length, bytesRead);
+                Assert.Equal(data.Length, actualFileData.Length);
+                Assert.Equal(data, actualFileData);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task WhenOverwriting100Files()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - data to write
+        var data = new byte[100];
+
+        // iterate 100 files
+        for (var file = 0; file < 100; file++)
+        {
+            // arrange - mount pfs3 volume
+            await using var pfs3Volume = await MountVolume(stream);
+            
+            // act - create file
+            var fileName = $"New File{file}";
+            await pfs3Volume.CreateFile(fileName, true);
+
+            // act - write data
+            await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Append))
+            {
+                Array.Fill(data, (byte)file);
+
+                await entryStream.WriteAsync(data, 0, data.Length);
+                await entryStream.FlushAsync();
+            }
+        }
+
+        // arrange - mount pfs3 volume
+        await using (var pfs3Volume = await MountVolume(stream))
+        {
+            // iterate 100 files
+            for (var file = 0; file < 100; file++)
+            {
+                // act - create file
+                var fileName = $"New File{file}";
+
+                // act - data read from file
+                byte[] actualFileData;
+                int bytesRead;
+                await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Read))
+                {
+                    actualFileData = new byte[entryStream.Length];
+                    bytesRead = await entryStream.ReadAsync(actualFileData, 0, actualFileData.Length);
+                }
+
+                // assert - data read matches
+                Array.Fill(data, (byte)file);
+                Assert.Equal(data.Length, bytesRead);
+                Assert.Equal(data.Length, actualFileData.Length);
+                Assert.Equal(data, actualFileData);
+            }
+        }
+    }
+    
+    [Fact]
+    public async Task WhenWriteFileDataLessThanBlockSizeThenDataMatches()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - data to write
+        var data = new byte[100];
+        for (var i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)i;
+        }
+        var fileName = "New File";
+        
+        // arrange - mount pfs3 volume
+        await using (var pfs3Volume = await MountVolume(stream))
+        {
+            // act - create file
+            await pfs3Volume.CreateFile(fileName, true);
+
+            // act - write data
+            await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Append))
+            {
+                await entryStream.WriteAsync(data, 0, data.Length);
+                await entryStream.FlushAsync();
+            }
+        }
+
+        await using (var pfs3Volume = await MountVolume(stream))
+        {
+            // act - find file entry
+            var fileResult = await pfs3Volume.FindEntry(fileName);
+
+            // assert - file entry is found and matches
+            Assert.NotNull(fileResult);
+            Assert.Empty(fileResult.PartsNotFound);
+            Assert.NotNull(fileResult.Entry);
+            Assert.Equal(fileName, fileResult.Entry.Name);
+            Assert.Equal(EntryType.File, fileResult.Entry.Type);
+
+            // act - data read from file
+            byte[] actualFileData;
+            int bytesRead;
+            await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Read))
+            {
+                actualFileData = new byte[entryStream.Length];
+                bytesRead = await entryStream.ReadAsync(actualFileData, 0, actualFileData.Length);
+            }
+
+            // assert - data read matches
+            Assert.Equal(data.Length, bytesRead);
+            Assert.Equal(data.Length, actualFileData.Length);
+            Assert.Equal(data, actualFileData);
+        }
+    }
+
+    [Fact]
+    public async Task WhenOverwriting100FilesIn5Directories3TimesThenEntriesExistAndDataMatches()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+        
+        // arrange - data to write
+        var data = new byte[100];
+        Array.Fill<byte>(data, 1);
+            
+        // arrange - mount pfs3 volume
+        await using (var pfs3Volume = await MountVolume(stream))
+        {
+            // iterate 3 times        
+            for (var iteration = 0; iteration < 3; iteration++)
+            {
+                // iterate 5 directories
+                for (var dir = 0; dir < 5; dir++)
+                {
+                    // act - change to root directory
+                    await pfs3Volume.ChangeDirectory("/");
+
+                    // act - create directory, if first iteration
+                    var dirName = $"New Dir{dir}";
+                    if (iteration == 0)
+                    {
+                        await pfs3Volume.CreateDirectory(dirName);
+                    }
+
+                    // act - change directory
+                    await pfs3Volume.ChangeDirectory(dirName);
+
+                    // iterate 100 files
+                    for (var file = 0; file < 100; file++)
+                    {
+                        // act - create file
+                        var fileName = $"New File{file}";
+                        await pfs3Volume.CreateFile(fileName, true);
+
+                        // act - write data
+                        Array.Fill(data, (byte)file);
+                        await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Append))
+                        {
+                            await entryStream.WriteAsync(data, 0, data.Length);
+                            await entryStream.FlushAsync();
+                        }
+
+                        await pfs3Volume.Flush();
+                        
+                        // act - data read from file
+                        byte[] actualFileData;
+                        int bytesRead;
+                        await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Read))
+                        {
+                            actualFileData = new byte[entryStream.Length];
+                            bytesRead = await entryStream.ReadAsync(actualFileData, 0, actualFileData.Length);
+                        }
+
+                        // assert - data read matches
+                        Assert.Equal(data.Length, bytesRead);
+                        Assert.Equal(data.Length, actualFileData.Length);
+                        Assert.Equal(data, actualFileData);
+                    }
+                }
+            }
+        }
+
+        await using (var pfs3Volume = await MountVolume(stream))
+        {
+            // assert - 5 directories exist
+            for (var dir = 0; dir < 5; dir++)
+            {
+                // act - change to root directory
+                await pfs3Volume.ChangeDirectory("/");
+
+                // act - find dir entry
+                var dirName = $"New Dir{dir}";
+                var dirResult = await pfs3Volume.FindEntry(dirName);
+
+                // assert - dir entry is found and matches
+                Assert.NotNull(dirResult);
+                Assert.Empty(dirResult.PartsNotFound);
+                Assert.NotNull(dirResult.Entry);
+                Assert.Equal(dirName, dirResult.Entry.Name);
+                Assert.Equal(EntryType.Dir, dirResult.Entry.Type);
+
+                // act - change directory
+                await pfs3Volume.ChangeDirectory(dirName);
+
+                // assert - 100 files exist
+                for (var file = 0; file < 100; file++)
+                {
+                    // act - find file entry
+                    var fileName = $"New File{file}";
+                    var fileResult = await pfs3Volume.FindEntry(fileName);
+
+                    // assert - file entry is found and matches
+                    Assert.NotNull(fileResult);
+                    Assert.Empty(fileResult.PartsNotFound);
+                    Assert.NotNull(fileResult.Entry);
+                    Assert.Equal(fileName, fileResult.Entry.Name);
+                    Assert.Equal(EntryType.File, fileResult.Entry.Type);
+
+                    // act - data read from file
+                    byte[] actualFileData;
+                    int bytesRead;
+                    await using (var entryStream = await pfs3Volume.OpenFile(fileName, FileMode.Read))
+                    {
+                        actualFileData = new byte[entryStream.Length];
+                        bytesRead = await entryStream.ReadAsync(actualFileData, 0, actualFileData.Length);
+                    }
+
+                    // assert - data read matches
+                    Array.Fill(data, (byte)file);
+                    Assert.Equal(data.Length, bytesRead);
+                    Assert.Equal(data.Length, actualFileData.Length);
+                    Assert.Equal(data, actualFileData);
+                }
+            }
+        }
+    }
+    
+    [Fact]
     public async Task WhenFindEntryWithDirectorySeparatorInNameThenExceptionIsThrown()
     {
         // arrange - create pfs3 formatted disk

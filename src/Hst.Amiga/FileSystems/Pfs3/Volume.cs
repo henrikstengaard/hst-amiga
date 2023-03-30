@@ -22,7 +22,6 @@
             // volume = AllocMemPR (sizeof(struct volumedata), g);
             var volume = new volumedata
             {
-                rootblk = rootblock,
                 rootblockchangeflag = false
             };
 
@@ -301,17 +300,10 @@
             
             // read reserved bitmap blocks
             var numReserved = Pfs3Formatter.CalcNumReserved(g, rootBlock.ReservedBlksize);
-            //var reservedBitmapBlockCount = Pfs3Formatter.CalculateRootBlockAndReservedBitmapBlockCount(rootBlock, numReserved);
-            var bytesPerBlock = (ushort)g.blocksize;
-            var resCluster = (ushort)(rootBlock.ReservedBlksize / bytesPerBlock);
-
-            var reservedBitmapLongs = numReserved / 32 + 1;
-            var reservedBitmapBlocks = reservedBitmapLongs <= rootBlock.LongsPerBmb
-                ? 1
-                : 1 + (reservedBitmapLongs - rootBlock.LongsPerBmb) / (rootBlock.ReservedBlksize / Amiga.SizeOf.ULong) + 1;
-
-            blockBytes = await Disk.RawRead((uint)reservedBitmapBlocks * resCluster, Constants.ROOTBLOCK + 1, g);
-            rootBlock.ReservedBitmapBlock = BitmapBlockReader.Parse(blockBytes, (int)(numReserved / 32 + 1));
+            var reservedBitmapsCount = (int)(numReserved / 32 + 1);
+            var reservedBitmapBlocksCount = Pfs3Helper.CalculateBitmapBlocksCount(reservedBitmapsCount, g);
+            blockBytes = await Disk.RawRead((uint)reservedBitmapBlocksCount, Constants.ROOTBLOCK + 1, g);
+            rootBlock.ReservedBitmapBlock = BitmapBlockReader.Parse(blockBytes, reservedBitmapsCount);
             
             /* check size and read all rootblock blocks */
             // 17.10: with 1024 byte blocks rblsize can be 1!
@@ -360,7 +352,7 @@
             g.currentvolume = await MakeVolumeData(rootBlock, g);
             
             /* update rootblock */
-            g.RootBlock = g.currentvolume.rootblk = rootBlock;
+            g.RootBlock = rootBlock;
             
             /* Reconfigure modules to new volume */
             await Init.InitModules (g.currentvolume, false, g);

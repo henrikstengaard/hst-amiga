@@ -39,9 +39,9 @@
             BigEndianConverter.ConvertUInt32ToBytes(0, blockBytes, 0x5c); // 92, not used
             
             var offset = 0x60;
-            foreach (var index in rootBlock.idx.union)
+            for (var i = 0; i < SizeOf.RootBlock.IdxUnion; i++)
             {
-                BigEndianConverter.ConvertUInt32ToBytes(index, blockBytes, offset);
+                BigEndianConverter.ConvertUInt32ToBytes(rootBlock.idx.union[i], blockBytes, offset);
                 offset += Amiga.SizeOf.ULong;
             }
 

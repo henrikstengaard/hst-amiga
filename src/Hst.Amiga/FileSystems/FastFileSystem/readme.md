@@ -2,7 +2,12 @@
 
 Fast File System directory contains classes to read and write partitions with Fast File System (FFS). Fast File System is the most common file system used by Amiga computers as it comes part of Amiga OS.
 
-The code is inspired by ADFLib http://lclevy.free.fr/adflib/adf_info.html, https://github.com/lclevy/ADFlib by Laurent Clévy, Wikipedia page about Fast File System https://en.wikipedia.org/wiki/Amiga_Fast_File_System and OS dev Wiki page https://wiki.osdev.org/FFS_(Amiga).
+The code is inspired by following links:
+- http://lclevy.free.fr/adflib/adf_info.html ADF info by Laurent Clévy. 
+- https://github.com/lclevy/ADFlib ADFLib by Laurent Clévy.
+- https://en.wikipedia.org/wiki/Amiga_Fast_File_System Wikipedia page about Fast File System. 
+- https://wiki.osdev.org/FFS_(Amiga) OS dev wiki page about Fast File System.
+- https://wiki.amigaos.net/wiki/DCFS_and_LNFS_Low_Level_Data_Structures Amiga OS wiki page about long filename support in Fast File System.
 
 ## Blocks
 

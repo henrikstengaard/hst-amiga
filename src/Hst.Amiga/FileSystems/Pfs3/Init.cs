@@ -98,7 +98,7 @@
         */
         public static async Task InitModules(volumedata volume, bool formatting, globaldata g)
         {
-            var rootBlock = volume.rootblk;
+            var rootBlock = g.RootBlock;
             var blk = volume.rblkextension?.rblkextension ?? new rootblockextension();
 
             g.RootBlock = rootBlock;
@@ -138,8 +138,8 @@
                 (ushort)(volume.rblkextension != null ? volume.rblkextension.rblkextension.curranseqnr : 0);
             //andata.anodesperblock = (volume->rootblk->reserved_blksize - sizeof(anodeblock_t)) / sizeof(anode_t);
             //andata.indexperblock = (volume->rootblk->reserved_blksize - sizeof(indexblock_t)) / sizeof(LONG);
-            andata.anodesperblock = (ushort)((volume.rootblk.ReservedBlksize - SizeOf.ANODEBLOCK_T) / SizeOf.ANODE_T);
-            andata.indexperblock = (ushort)((volume.rootblk.ReservedBlksize - SizeOf.INDEXBLOCK_T) / 4);
+            andata.anodesperblock = (ushort)((g.RootBlock.ReservedBlksize - SizeOf.ANODEBLOCK_T) / SizeOf.ANODE_T);
+            andata.indexperblock = (ushort)((g.RootBlock.ReservedBlksize - SizeOf.INDEXBLOCK_T) / 4);
             andata.maxanodeseqnr = (uint)(g.SuperMode
                 ? ((Constants.MAXSUPER + 1) * andata.indexperblock * andata.indexperblock * andata.anodesperblock - 1)
                 : (Constants.MAXSMALLINDEXNR * andata.indexperblock - 1));
@@ -233,7 +233,7 @@
         public static void InitAllocation(volumedata volume, globaldata g)
         {
             uint t;
-            var rootblock = volume.rootblk;
+            var rootblock = g.RootBlock;
 
             if (g.harddiskmode)
             {
@@ -257,7 +257,7 @@
                 alloc_data.tobefreed_index = 0;
                 alloc_data.tbf_resneed = 0;
                 //alloc_data.res_bitmap = (bitmapblock_t *)(rootblock+1);   /* bitmap directly behind rootblock */
-                alloc_data.res_bitmap = rootblock.ReservedBitmapBlock;
+                //alloc_data.res_bitmap = rootblock.ReservedBitmapBlock;
 
                 if (volume.rblkextension != null)
                 {

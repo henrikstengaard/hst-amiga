@@ -82,6 +82,8 @@
                 throw new Exception("ERROR_NO_FREE_STORE");
             }
 
+            g.RootBlock = rootBlock;
+
             /*  make volumedata BEFORE rext ! (bug 00135) */
             // g->currentvolume = volume = MakeVolumeData (rootblock, g);
             volumedata volume;
@@ -264,14 +266,14 @@
             if ((blocknr = Allocation.AllocReservedBlock(g)) == 0)
                 return false;
 
-            volume.rootblk.Extension = blocknr;
-            if ((volume.rblkextension = MakeFormatRBlkExtension(volume.rootblk, g)) == null)
+            g.RootBlock.Extension = blocknr;
+            if ((volume.rblkextension = MakeFormatRBlkExtension(g.RootBlock, g)) == null)
             {
                 Allocation.FreeReservedBlock (blocknr, g);
                 return false;
             }
 
-            volume.rootblk.Options |= RootBlock.DiskOptionsEnum.MODE_EXTENSION;
+            g.RootBlock.Options |= RootBlock.DiskOptionsEnum.MODE_EXTENSION;
             volume.rootblockchangeflag = true;
             return true;
         }

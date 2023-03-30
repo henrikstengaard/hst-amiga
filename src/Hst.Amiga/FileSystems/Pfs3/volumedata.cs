@@ -7,7 +7,6 @@
     {
         // struct volumedata   *next;          /* volumechain                          */
         // struct volumedata   *prev;      
-        public RootBlock rootblk { get; set; } /* the cached rootblock. Also in g.     */
 
 //#if VERSION23
         public CachedBlock rblkextension { get; set; } /* extended rblk, NULL if disabled*/

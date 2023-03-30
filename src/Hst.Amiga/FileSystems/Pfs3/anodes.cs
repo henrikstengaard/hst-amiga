@@ -64,7 +64,7 @@
             }
             else
             {
-                if (nr > Constants.MAXSMALLINDEXNR || (blocknr = volume.rootblk.idx.small.indexblocks[nr]) == 0)
+                if (nr > Constants.MAXSMALLINDEXNR || (blocknr = g.RootBlock.idx.small.indexblocks[nr]) == 0)
                     return null;
             }
 
@@ -757,7 +757,7 @@
                 superblok.IndexBlock.index[superoffset] = blocknr;
                 await Update.MakeBlockDirty(superblok, g);
             } else {
-                volume.rootblk.idx.small.indexblocks[seqnr] = (uint)blocknr;
+                g.RootBlock.idx.small.indexblocks[seqnr] = (uint)blocknr;
                 volume.rootblockchangeflag = true;
             }
 

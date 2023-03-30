@@ -183,7 +183,7 @@
             ddblk.blk = ddblk_blk;
             ddblk.changeflag = true;
             ddblk_blk.protection = Constants.DELENTRY_PROT; /* re..re..re.. */
-            ddblk_blk.CreationDate = volume.rootblk.CreationDate;
+            ddblk_blk.CreationDate = g.RootBlock.CreationDate;
             // ddblk->blk.creationminute	= volume->rootblk->creationminute;
             // ddblk->blk.creationtick		= volume->rootblk->creationtick;
 
@@ -651,7 +651,7 @@
                 // ErrorMsg (AFS_ERROR_DELDIR_INVALID, NULL, g);
                 Lru.FreeLRU(ddblk, g);
                 //volume.rootblk.Options ^= Constants.MODE_DELDIR;
-                volume.rootblk.Options ^= RootBlock.DiskOptionsEnum.MODE_DELDIR;
+                g.RootBlock.Options ^= RootBlock.DiskOptionsEnum.MODE_DELDIR;
                 g.deldirenabled = false;
             }
 
