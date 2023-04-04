@@ -166,6 +166,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
     
     [Fact]
+    [Trait("Category", "PFS3")]
     public async Task WhenCreateAndList100DirectoriesInRootDirectoryThenDirectoriesExist()
     {
         // arrange - create pfs3 formatted disk
@@ -194,6 +195,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    [Trait("Category", "PFS3")]
     public async Task WhenCreateAndList100FilesInRootDirectoryThenFilesExist()
     {
         // arrange - create pfs3 formatted disk
@@ -222,6 +224,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    [Trait("Category", "PFS3")]
     public async Task WhenCreateAndSearchFor100DirectoriesInRootDirectoryThenDirectoriesAreFound()
     {
         // arrange - create pfs3 formatted disk
@@ -608,7 +611,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    [Trait("Category", "PFS3")]    
+    [Trait("Category", "PFS3")]
     public async Task WhenCreate200FilesWriteDataAndSetCommentThenFilesExistDataMatchesAndCacheIsEmptyAfterFlushing()
     {
         // arrange - data to write
@@ -697,6 +700,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    [Trait("Category", "PFS3")]
     public async Task WhenCreate100FilesAndRenameAndSetCommentThenFilesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
@@ -1012,9 +1016,6 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
         Assert.NotNull(dirEntry);
         Assert.Equal(comment, dirEntry.Comment);
-
-        // await using var fileStream = System.IO.File.OpenWrite(@"comment.hdf");
-        // await stream.WriteTo(fileStream);
     }
 
     [Theory]
@@ -1082,6 +1083,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    [Trait("Category", "PFS3")]
     public async Task WhenCreate2FilesIn2DirsWithProtectionBitsAndDateSetThenEntriesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
@@ -1317,6 +1319,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    [Trait("Category", "PFS3")]
     public async Task WhenOverwriting100FilesIn3DirectoriesThenEntriesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
@@ -1440,7 +1443,8 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
-    public async Task WhenOverwriting100Files()
+    [Trait("Category", "PFS3")]
+    public async Task WhenOverwriting100FilesThenEntriesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
@@ -1552,6 +1556,7 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
     }
 
     [Fact]
+    [Trait("Category", "PFS3")]
     public async Task WhenOverwriting100FilesIn5Directories3TimesThenEntriesExistAndDataMatches()
     {
         // arrange - create pfs3 formatted disk
