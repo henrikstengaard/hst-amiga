@@ -17,6 +17,8 @@
                 paletteIndex[colorId] = i;
             }
 
+            var highestColorUsed = 0;
+
             const int bitsPerByte = 8;
             var bytesPerRow = (image.Width + 15) / 16 * 2;
 
@@ -31,18 +33,22 @@
                     {
                         throw new InvalidOperationException();
                     }
-                    // get a reference to the pixel at position x
-                    //var pixel = image.GetPixel(x, y);
+
+                    // get a reference to the pixel at position x, y
                     var pixel = imagePixelDataIterator.Current;
 
                     var colorId = (uint)pixel.R << 24 | (uint)pixel.G << 16 | (uint)pixel.B << 8 | (uint)pixel.A;
                     if (!paletteIndex.ContainsKey(colorId))
                     {
-                        //palette.Add(new[] { pixel.R, pixel.G, pixel.B, pixel.A });
                         paletteIndex[colorId] = paletteIndex.Count;
                     }
                     
                     var color = paletteIndex[colorId];
+
+                    if (color > highestColorUsed)
+                    {
+                        highestColorUsed = color;
+                    }
 
                     for (var plane = 0; plane < depth; plane++)
                     {
@@ -58,50 +64,10 @@
                 }
             }
             
-            // image.ProcessPixelRows(accessor =>
-            // {
-            //     // Color is pixel-agnostic, but it's implicitly convertible to the Rgba32 pixel type
-            //     //Rgba32 transparent = Color.Transparent;
-            //
-            //     for (int y = 0; y < accessor.Height; y++)
-            //     {
-            //         Span<Rgba32> pixelRow = accessor.GetRowSpan(y);
-            //
-            //         // pixelRow.Length has the same value as accessor.Width,
-            //         // but using pixelRow.Length allows the JIT to optimize away bounds checks:
-            //         for (int x = 0; x < pixelRow.Length; x++)
-            //         {
-            //             // get a reference to the pixel at position x
-            //             ref Rgba32 pixel = ref pixelRow[x];
-            //
-            //             var colorId = pixel.ToHex();
-            //             if (!paletteIndex.ContainsKey(colorId))
-            //             {
-            //                 palette.Add(new[] { pixel.R, pixel.G, pixel.B, pixel.A });
-            //                 paletteIndex[colorId] = palette.Count - 1;
-            //             }
-            //
-            //             var color = paletteIndex[colorId];
-            //
-            //             for (var plane = 0; plane < depth; plane++)
-            //             {
-            //                 var bit = 7 - (x % bitsPerByte);
-            //                 var offset = (bytesPerRow * image.Height * plane) + (y * bytesPerRow) + (x / bitsPerByte);
-            //
-            //                 var setBitPlane = (color & (1 << plane)) != 0;
-            //                 if (setBitPlane)
-            //                 {
-            //                     data[offset] |= (byte)(1 << bit);
-            //                 }
-            //             }
-            //         }
-            //     }
-            // });
-
-            if (paletteIndex.Count > maxColors)
+            if (highestColorUsed > maxColors)
             {
                 throw new ArgumentException(
-                    $"Image has {paletteIndex.Count} colors, but depth {depth} only allows max {maxColors} colors",
+                    $"Image uses {(highestColorUsed + 1)} colors, but depth {depth} only allows max {maxColors} colors",
                     nameof(depth));
             }
 
@@ -111,7 +77,7 @@
                 LeftEdge = 0,
                 Width = (short)image.Width,
                 Height = (short)image.Height,
-                Depth = (byte)depth,
+                Depth = (byte)Math.Min(depth, highestColorUsed),
                 Data = data,
                 ImageDataPointer = 1,
                 PlanePick = (byte)(maxColors - 1)

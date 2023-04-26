@@ -28,7 +28,7 @@ public static class Program
 
             var appState = AppState.Instance;
             var app =
-                $"Hst Imager v{appState.Version.Major}.{appState.Version.Minor}.{appState.Version.Build} ({appState.BuildDate})";
+                $"Hst Amiga v{appState.Version.Major}.{appState.Version.Minor}.{appState.Version.Build} ({appState.BuildDate})";
             var author = "Henrik Noerfjand Stengaard";
 
             Log.Logger.Information(app);

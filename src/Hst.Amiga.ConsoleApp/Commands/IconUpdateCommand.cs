@@ -71,8 +71,6 @@ public class IconUpdateCommand : CommandBase
             return new Result(new Error($"Drawer height not valid for type {diskObject.Type}"));
         }
         
-        //var colorIconBytes = await iconStream.ReadBytes((int)(iconStream.Length - iconStream.Position));
-
         var isUpdated = false;
         
         if (type.HasValue)

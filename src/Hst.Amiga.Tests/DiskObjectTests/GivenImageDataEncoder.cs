@@ -65,17 +65,12 @@
             TestDataHelper.SetImageDataPixel(expectedImageData, width, height, depth, 1, 1, 3);
             
             // arrange - create pixel data for image
-            //var pixelData = TestDataHelper.CreatePixelData(width, height);
             var pixelData = new byte[width * height];
 
             // arrange - set pixel x = 1, y = 2 set to palette color 2
-            // TestDataHelper.SetPixelDataPixel(pixelData, width, 0, 1, (byte)palette.Colors[2].R,
-            //     (byte)palette.Colors[2].G, (byte)palette.Colors[2].B, (byte)palette.Colors[2].A);
             pixelData[(width * 1) + 0] = 2;
 
             // arrange - set pixel x = 2, y = 2 set to palette color 3
-            // TestDataHelper.SetPixelDataPixel(pixelData, width, 1, 1, (byte)palette.Colors[3].R,
-            //     (byte)palette.Colors[3].G, (byte)palette.Colors[3].B, (byte)palette.Colors[3].A);
             pixelData[(width * 1) + 1] = 3;
             
             // arrange - load image from pixel data

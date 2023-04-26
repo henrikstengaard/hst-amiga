@@ -52,9 +52,11 @@ public static class CommandHandler
         await Execute(new IconInfoCommand(GetLogger<IconInfoCommand>(), path, all));
     }
 
-    public static async Task IconCreate(string path, IconType type)
+    public static async Task IconCreate(string path, IconType type, int? x, int? y, int? stackSize, int? drawerX,
+        int? drawerY, int? drawerWidth, int? drawerHeight, ImageType imageType, string image1Path, string image2Path)
     {
-        await Execute(new IconCreateCommand(GetLogger<IconCreateCommand>(), path, type));
+        await Execute(new IconCreateCommand(GetLogger<IconCreateCommand>(), path, type, x, y, stackSize, drawerX,
+            drawerY, drawerWidth, drawerHeight, imageType, image1Path, image2Path));
     }
     
     public static async Task IconUpdate(string path, int? type, int? x, int? y, int? stackSize, int? drawerX,
@@ -62,5 +64,15 @@ public static class CommandHandler
     {
         await Execute(new IconUpdateCommand(GetLogger<IconUpdateCommand>(), path, type, x, y, stackSize, drawerX, drawerY,
             drawerWidth, drawerHeight));
+    }
+
+    public static async Task IconImageImport(string iconPath, ImageType imageType, string image1Path, string image2Path)
+    {
+        await Execute(new IconImageImport(GetLogger<IconImageImport>(), iconPath, imageType, image1Path, image2Path));
+    }
+
+    public static async Task IconImageExport(string iconPath, ImageType imageType, string image1Path, string image2Path, string jsonPalettePath)
+    {
+        await Execute(new IconImageExport(GetLogger<IconImageExport>(), iconPath, imageType, image1Path, image2Path, jsonPalettePath));
     }
 }

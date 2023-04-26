@@ -2,5 +2,12 @@ namespace Hst.Amiga.ConsoleApp;
 
 public enum IconType
 {
-    Standard
+    Disk,
+    Drawer,
+    Tool,
+    Project,
+    Garbage,
+    Device,
+    Kick,
+    AppIcon
 }

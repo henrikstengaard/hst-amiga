@@ -132,6 +132,35 @@
             return diskObject;
         }
 
+        public static DiskObject CreateToolInfo()
+        {
+            var diskObject = CreateInfo();
+            diskObject.Gadget.Activation = 1;
+            diskObject.Gadget.Flags = 6;
+            diskObject.Gadget.GadgetId = 100;
+            diskObject.Gadget.UserDataPointer = 1;
+            diskObject.Type = Constants.DiskObjectTypes.TOOL;
+            diskObject.DrawerDataPointer = 0;
+            diskObject.DrawerData = null;
+            diskObject.DrawerData2 = null;
+            return diskObject;
+        }
+
+        public static DiskObject CreateGarbageInfo()
+        {
+            var diskObject = CreateInfo();
+            diskObject.Gadget.Activation = 3;
+            diskObject.Gadget.Flags = 6;
+            diskObject.Gadget.GadgetId = 0;
+            diskObject.Type = Constants.DiskObjectTypes.GARBAGE;
+            diskObject.DrawerDataPointer = 0;
+            diskObject.DrawerData = CreateDrawerData(10, 10, 460, 200);
+            diskObject.DrawerData.Flags = 33554687;
+            diskObject.DrawerDataPointer = 1;
+            diskObject.DrawerData2 = null;
+            return diskObject;
+        }
+        
         public static IEnumerable<string> ConvertToolTypesToStrings(ToolTypes toolTypes)
         {
             return toolTypes.TextDatas.Select(x => AmigaTextHelper.GetString(x.Data, 0, x.Data.Length - 1)).ToList();

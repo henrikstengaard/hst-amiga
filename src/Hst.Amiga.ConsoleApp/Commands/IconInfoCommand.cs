@@ -40,6 +40,8 @@ public class IconInfoCommand : CommandBase
         OnInformationMessage($"- Type: {diskObject.Type} ({GetIconType(diskObject)})");
         OnInformationMessage($"- Position x: {diskObject.CurrentX}");
         OnInformationMessage($"- Position y: {diskObject.CurrentY}");
+        OnInformationMessage($"- Width: {diskObject.Gadget.Width}");
+        OnInformationMessage($"- Height: {diskObject.Gadget.Height}");
         OnInformationMessage($"- Stack size: {diskObject.StackSize}");
 
         if ((diskObject.Type == Constants.DiskObjectTypes.DISK || 
@@ -47,7 +49,7 @@ public class IconInfoCommand : CommandBase
              diskObject.Type == Constants.DiskObjectTypes.GARBAGE) && 
             diskObject.DrawerData != null)
         {
-            OnInformationMessage($"Drawer: {diskObject.DrawerData.LeftEdge}");
+            OnInformationMessage("Drawer:");
             OnInformationMessage($"- Position x: {diskObject.DrawerData.LeftEdge}");
             OnInformationMessage($"- Position y: {diskObject.DrawerData.TopEdge}");
             OnInformationMessage($"- Width: {diskObject.DrawerData.Width}");
@@ -70,7 +72,6 @@ public class IconInfoCommand : CommandBase
             OnInformationMessage($"- Depth: {Math.Pow(2, diskObject.SecondImageData.Depth)} bpp");
         }
 
-        
         var textDatas = diskObject.ToolTypes?.TextDatas?.ToList() ?? new List<TextData>();
 
         if (!textDatas.Any())

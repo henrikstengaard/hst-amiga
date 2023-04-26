@@ -20,6 +20,12 @@
             diskObject.ToolTypes.TextDatas = RemoveNewIconTextDatas(diskObject.ToolTypes.TextDatas, imageHeader).ToList();
         }
 
+        public static NewIcon GetNewIconImage(DiskObject diskObject, int imageNumber)
+        {
+            var decoder = new NewIconToolTypesDecoder(diskObject.ToolTypes?.TextDatas ?? new List<TextData>());
+            return decoder.Decode(imageNumber);
+        }
+        
         public static void SetNewIconImage(DiskObject diskObject, int imageNumber, NewIcon newIcon)
         {
             var imageHeader = $"IM{imageNumber}=";
