@@ -65,14 +65,24 @@ public static class CommandHandler
         await Execute(new IconUpdateCommand(GetLogger<IconUpdateCommand>(), path, type, x, y, stackSize, drawerX, drawerY,
             drawerWidth, drawerHeight));
     }
-
+    
+    public static async Task IconImageExport(string iconPath, ImageType imageType, string image1Path, string image2Path, string jsonPalettePath)
+    {
+        await Execute(new IconImageExport(GetLogger<IconImageExport>(), iconPath, imageType, image1Path, image2Path, jsonPalettePath));
+    }
+    
     public static async Task IconImageImport(string iconPath, ImageType imageType, string image1Path, string image2Path)
     {
         await Execute(new IconImageImport(GetLogger<IconImageImport>(), iconPath, imageType, image1Path, image2Path));
     }
 
-    public static async Task IconImageExport(string iconPath, ImageType imageType, string image1Path, string image2Path, string jsonPalettePath)
+    public static async Task IconToolTypesExport(string iconPath, string toolTypesPath, bool excludeNewIcon)
     {
-        await Execute(new IconImageExport(GetLogger<IconImageExport>(), iconPath, imageType, image1Path, image2Path, jsonPalettePath));
+        await Execute(new IconToolTypesExport(GetLogger<IconToolTypesExport>(), iconPath, toolTypesPath, excludeNewIcon));
+    }
+    
+    public static async Task IconToolTypesImport(string iconPath, string toolTypesPath, bool preserveNewIcon)
+    {
+        await Execute(new IconToolTypesImport(GetLogger<IconToolTypesImport>(), iconPath, toolTypesPath, preserveNewIcon));
     }
 }

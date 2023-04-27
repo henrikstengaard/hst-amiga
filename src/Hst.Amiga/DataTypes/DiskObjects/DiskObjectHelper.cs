@@ -99,13 +99,13 @@
             diskObject.Gadget.GadgetRenderPointer = 1;
             diskObject.FirstImageData = imageData;
         }
-        
+
         public static void SetSecondImage(DiskObject diskObject, ImageData imageData)
         {
             diskObject.Gadget.SelectRenderPointer = 1;
             diskObject.SecondImageData = imageData;
         }
-        
+
         public static DiskObject CreateProjectInfo()
         {
             var diskObject = CreateInfo();
@@ -160,10 +160,16 @@
             diskObject.DrawerData2 = null;
             return diskObject;
         }
+
+        public static IEnumerable<TextData> ConvertStringsToTextDatas(IEnumerable<string> strings)
+        {
+            return strings.Select(CreateTextData).ToList();
+        }
         
         public static IEnumerable<string> ConvertToolTypesToStrings(ToolTypes toolTypes)
         {
-            return toolTypes.TextDatas.Select(x => AmigaTextHelper.GetString(x.Data, 0, x.Data.Length - 1)).ToList();
+            return (toolTypes?.TextDatas ?? new List<TextData>())
+                .Select(x => AmigaTextHelper.GetString(x.Data, 0, x.Data.Length - 1)).ToList();
         }
 
         public static TextData CreateTextData(string text)
@@ -180,7 +186,7 @@
         {
             return Convert.ToInt32(Math.Ceiling(Math.Log(colors) / Math.Log(2)));
         }
-        
+
         public static int CalculateColors(int depth)
         {
             return Convert.ToInt32(Math.Pow(2, depth));

@@ -38,7 +38,6 @@ public class IconImageImport : IconCommandBase
         
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         var diskObject = await DiskObjectReader.Read(iconStream);
-        
         var colorIcon = iconStream.Position < iconStream.Length 
             ? await ColorIconReader.Read(iconStream)
             : new ColorIcon();

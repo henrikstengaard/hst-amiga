@@ -165,7 +165,7 @@ Updates icon properties:
   - Drawer X position
   - Drawer Y position
   - Drawer width
-  - Drawer width
+  - Drawer height
 
 Example of displaying usage for updating icon:
 ```

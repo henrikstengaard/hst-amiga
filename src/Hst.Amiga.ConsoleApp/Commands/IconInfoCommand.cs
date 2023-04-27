@@ -29,12 +29,9 @@ public class IconInfoCommand : CommandBase
     {
         await using var iconStream = File.OpenRead(path);
         var diskObject = await DiskObjectReader.Read(iconStream);
-
-        ColorIcon colorIcon = null;
-        if (iconStream.Position < iconStream.Length)
-        {
-            colorIcon = await ColorIconReader.Read(iconStream);
-        }
+        var colorIcon = iconStream.Position < iconStream.Length 
+            ? await ColorIconReader.Read(iconStream)
+            : new ColorIcon();
 
         OnInformationMessage("Icon:");
         OnInformationMessage($"- Type: {diskObject.Type} ({GetIconType(diskObject)})");
@@ -112,7 +109,6 @@ public class IconInfoCommand : CommandBase
             }
         }
         
-        OnInformationMessage("Tool types:");
         var decodedTextDatas = textDatas.Select(x => AmigaTextHelper.GetString(x.Data));
 
         if (!all)
@@ -120,7 +116,7 @@ public class IconInfoCommand : CommandBase
             decodedTextDatas = decodedTextDatas.Where(x => !x.StartsWith("IM1=") && !x.StartsWith("IM2="));
         }
         
-        OnInformationMessage(string.Join(Environment.NewLine, decodedTextDatas));
+        OnInformationMessage($"Tool types:{Environment.NewLine}{string.Join(Environment.NewLine, decodedTextDatas)}");
 
         return new Result();
     }

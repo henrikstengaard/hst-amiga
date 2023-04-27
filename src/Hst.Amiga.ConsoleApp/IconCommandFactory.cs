@@ -10,8 +10,9 @@ public static class IconCommandFactory
 
         command.AddCommand(CreateIconInfo());
         command.AddCommand(CreateIconCreate());
-        command.AddCommand(CreateIconImageCommand());
+        command.AddCommand(CreateIconImage());
         command.AddCommand(CreateIconUpdate());
+        command.AddCommand(CreateIconToolTypes());
 
         return command;
     }
@@ -190,7 +191,7 @@ public static class IconCommandFactory
         return command;
     }
 
-    private static Command CreateIconImageCommand()
+    private static Command CreateIconImage()
     {
         var command = new Command("image", "Icon image.");
 
@@ -259,6 +260,64 @@ public static class IconCommandFactory
         command.AddOption(image1PathOption);
         command.AddOption(image2PathOption);
         command.AddOption(jsonPalettePathOption);
+        
+        return command;
+    }
+    
+    private static Command CreateIconToolTypes()
+    {
+        var command = new Command("tooltypes", "Icon tool types.");
+
+        command.AddCommand(CreateIconToolTypesExport());
+        command.AddCommand(CreateIconToolTypesImport());
+
+        return command;
+    }
+
+    private static Command CreateIconToolTypesExport()
+    {
+        var iconPathArgument = new Argument<string>(
+            name: "IconPath",
+            description: "Path to icon file.");
+
+        var toolTypesPathArgument = new Argument<string>(
+            name: "ToolTypesPath",
+            description: "Path to tool types file for exporting.");
+        
+        var excludeNewIconOption = new Option<bool>(
+            new[] { "--exclude-newicon", "-xn" },
+            description: "Exclude new icon from tool types.");
+        
+        var command = new Command("export", "Export icon tool types.");
+        command.SetHandler(CommandHandler.IconToolTypesExport, iconPathArgument, toolTypesPathArgument, excludeNewIconOption);
+        
+        command.AddArgument(iconPathArgument);
+        command.AddArgument(toolTypesPathArgument);
+        command.AddOption(excludeNewIconOption);
+        
+        return command;
+    }
+
+    private static Command CreateIconToolTypesImport()
+    {
+        var iconPathArgument = new Argument<string>(
+            name: "IconPath",
+            description: "Path to icon file.");
+
+        var toolTypesPathArgument = new Argument<string>(
+            name: "ToolTypesPath",
+            description: "Path to tool types file for importing.");
+
+        var preserveNewIconOption = new Option<bool>(
+            new[] { "--preserve-newicon", "-pn" },
+            description: "Preserve new icon in icon tool types.");
+        
+        var command = new Command("import", "Import icon tool types.");
+        command.SetHandler(CommandHandler.IconToolTypesImport, iconPathArgument, toolTypesPathArgument, preserveNewIconOption);
+        
+        command.AddArgument(iconPathArgument);
+        command.AddArgument(toolTypesPathArgument);
+        command.AddOption(preserveNewIconOption);
         
         return command;
     }

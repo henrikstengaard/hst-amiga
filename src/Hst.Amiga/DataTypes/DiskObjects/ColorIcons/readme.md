@@ -1,4 +1,13 @@
+# Color icons
 
+## Compression
+
+Compressed color icons uses RLE compression.
+
+copy block
+repeat block
+
+##
 
 if (debug)
 puts("coloriconencode");

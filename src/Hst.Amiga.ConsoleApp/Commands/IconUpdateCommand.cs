@@ -1,15 +1,14 @@
 ﻿namespace Hst.Amiga.ConsoleApp.Commands;
 
-using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Core;
-using Core.Extensions;
 using DataTypes.DiskObjects;
+using DataTypes.DiskObjects.ColorIcons;
 using Microsoft.Extensions.Logging;
 
-public class IconUpdateCommand : CommandBase
+public class IconUpdateCommand : IconCommandBase
 {
     private readonly ILogger<IconUpdateCommand> logger;
     private readonly string path;
@@ -46,6 +45,9 @@ public class IconUpdateCommand : CommandBase
         
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         var diskObject = await DiskObjectReader.Read(iconStream);
+        var colorIcon = iconStream.Position < iconStream.Length 
+            ? await ColorIconReader.Read(iconStream)
+            : new ColorIcon();
 
         if (diskObject.Type is not (Constants.DiskObjectTypes.DISK or Constants.DiskObjectTypes.DRAWER or Constants.DiskObjectTypes.GARBAGE) &&
             drawerX.HasValue)
@@ -131,9 +133,8 @@ public class IconUpdateCommand : CommandBase
         {
             return new Result();
         }
-        
-        iconStream.Position = 0;
-        await DiskObjectWriter.Write(diskObject, iconStream);
+
+        await WriteIcon(iconStream, diskObject, colorIcon);
 
         return new Result();
     }

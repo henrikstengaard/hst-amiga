@@ -189,7 +189,7 @@ public abstract class IconCommandBase : CommandBase
 
     protected static async Task WriteIcon(Stream stream, DiskObject diskObject, ColorIcon colorIcon)
     {
-        stream.Position = 0;
+        stream.SetLength(0);
         await DiskObjectWriter.Write(diskObject, stream);
 
         if (colorIcon.Images.Length > 0)
