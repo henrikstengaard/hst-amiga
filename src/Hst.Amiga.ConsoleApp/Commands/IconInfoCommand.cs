@@ -31,7 +31,7 @@ public class IconInfoCommand : CommandBase
         var diskObject = await DiskObjectReader.Read(iconStream);
         var colorIcon = iconStream.Position < iconStream.Length 
             ? await ColorIconReader.Read(iconStream)
-            : new ColorIcon();
+            : null;
 
         OnInformationMessage("Icon:");
         OnInformationMessage($"- Type: {diskObject.Type} ({GetIconType(diskObject)})");
@@ -58,7 +58,7 @@ public class IconInfoCommand : CommandBase
             OnInformationMessage($"Planar icon 1:");
             OnInformationMessage($"- Width: {diskObject.FirstImageData.Width}");
             OnInformationMessage($"- Height: {diskObject.FirstImageData.Height}");
-            OnInformationMessage($"- Depth: {Math.Pow(2, diskObject.FirstImageData.Depth)} bpp");
+            OnInformationMessage($"- Depth: {diskObject.FirstImageData.Depth} bpp ({DiskObjectHelper.CalculateColors(diskObject.FirstImageData.Depth)} colors)");
         }
 
         if (diskObject.SecondImageData != null)
@@ -66,15 +66,10 @@ public class IconInfoCommand : CommandBase
             OnInformationMessage($"Planar icon 2:");
             OnInformationMessage($"- Width: {diskObject.SecondImageData.Width}");
             OnInformationMessage($"- Height: {diskObject.SecondImageData.Height}");
-            OnInformationMessage($"- Depth: {Math.Pow(2, diskObject.SecondImageData.Depth)} bpp");
+            OnInformationMessage($"- Depth: {diskObject.SecondImageData.Depth} bpp ({DiskObjectHelper.CalculateColors(diskObject.SecondImageData.Depth)} colors)");
         }
 
         var textDatas = diskObject.ToolTypes?.TextDatas?.ToList() ?? new List<TextData>();
-
-        if (!textDatas.Any())
-        {
-            return new Result();
-        }
 
         var newIcon1 = new NewIconToolTypesDecoder(textDatas).Decode(1);
         if (newIcon1 != null)
@@ -82,7 +77,7 @@ public class IconInfoCommand : CommandBase
             OnInformationMessage($"New Icon 1:");
             OnInformationMessage($"- Width: {newIcon1.Width}");
             OnInformationMessage($"- Height: {newIcon1.Height}");
-            OnInformationMessage($"- Depth: {newIcon1.Depth} bpp");
+            OnInformationMessage($"- Depth: {newIcon1.Depth} bpp ({DiskObjectHelper.CalculateColors(newIcon1.Depth)} colors)");
             OnInformationMessage($"- Transparent: {newIcon1.Transparent}");
         }
         
@@ -93,6 +88,7 @@ public class IconInfoCommand : CommandBase
             OnInformationMessage($"- Width: {newIcon2.Width}");
             OnInformationMessage($"- Height: {newIcon2.Height}");
             OnInformationMessage($"- Depth: {newIcon2.Depth} bpp");
+            OnInformationMessage($"- Depth: {newIcon2.Depth} bpp ({DiskObjectHelper.CalculateColors(newIcon2.Depth)} colors)");
             OnInformationMessage($"- Transparent: {newIcon2.Transparent}");
         }
 
@@ -104,7 +100,8 @@ public class IconInfoCommand : CommandBase
                 OnInformationMessage($"Color Icon {i + 1}:");
                 OnInformationMessage($"- Width: {colorIconImage.Image.Width}");
                 OnInformationMessage($"- Height: {colorIconImage.Image.Height}");
-                OnInformationMessage($"- Depth: {colorIconImage.Depth} bpp");
+                OnInformationMessage($"- Depth: {colorIconImage.Depth} bpp ({DiskObjectHelper.CalculateColors(colorIconImage.Depth)} colors)");
+                OnInformationMessage($"- Borderless: {(colorIcon.Flags & 1) == 1}");
                 OnInformationMessage($"- Transparent: {colorIconImage.Image.IsTransparent}");
             }
         }

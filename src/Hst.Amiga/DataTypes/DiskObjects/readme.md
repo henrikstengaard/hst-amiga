@@ -33,14 +33,14 @@ New icons encodes the icon data in a 7-bit encoding in ASCII and stores it's pal
 The encoded new icon data is stored as text in the icons Tool Type metadata after the line `*** DON'T EDIT THE FOLLOWING LINES!! ***`.
 This makes new icon images relatively large in file size compared to conventional Amiga icons.
 
-The use of ASCII encoding is seen as inefficient and improper use of the icons Tool Type metadata.
+The use of ASCII encoding is seen as inefficient and misuse of the icons Tool Type metadata.
 
 ### Color icon images
 
 AmigaOS 3.5 introduced Color icons (also called GlowIcons) and supported New icons without need of third-party applications.
 
 The standard icon size is 46×46 pixels with maximum 256 (8-bit) colors.
-New icons data is stored as an extension to standard AmigaOS by adding after the disk object data.
+New icons data is stored as an extension to standard AmigaOS by adding a new data block appended at the end of the icon file.
 
 Color icons are based on the more general IFF file format and is the native icon format used in AmigaOS 3.5, 3.9 and 4.0.
 

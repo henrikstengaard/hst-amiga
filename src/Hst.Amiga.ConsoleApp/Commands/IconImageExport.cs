@@ -18,17 +18,17 @@ public class IconImageExport : CommandBase
 {
     private readonly ILogger<IconImageExport> logger;
     private readonly string path;
-    private readonly ImageType type;
+    private readonly ImageType imageType;
     private readonly string image1Path;
     private readonly string image2Path;
     private readonly string palettePath;
 
-    public IconImageExport(ILogger<IconImageExport> logger, string path, ImageType type, string image1Path,
+    public IconImageExport(ILogger<IconImageExport> logger, string path, ImageType imageType, string image1Path,
         string image2Path, string palettePath)
     {
         this.logger = logger;
         this.path = path;
-        this.type = type;
+        this.imageType = imageType;
         this.image1Path = image1Path;
         this.image2Path = image2Path;
         this.palettePath = palettePath;
@@ -36,33 +36,40 @@ public class IconImageExport : CommandBase
 
     public override async Task<Result> Execute(CancellationToken token)
     {
+        if (imageType == ImageType.Auto)
+        {
+            return new Result(new Error("Auto image type is not supported for icon image export"));
+        }
+
         if (string.IsNullOrWhiteSpace(image1Path) && string.IsNullOrWhiteSpace(image2Path))
         {
             return new Result(new Error("Image 1 and Image 2 not defined, no icon image to export"));
         }
 
+        OnInformationMessage($"Reading disk object from icon file '{path}'");
+        
         await using var iconStream = File.OpenRead(path);
         var diskObject = await DiskObjectReader.Read(iconStream);
         var colorIcon = iconStream.Position < iconStream.Length
             ? await ColorIconReader.Read(iconStream)
             : new ColorIcon();
 
-        switch (type)
+        switch (imageType)
         {
             case ImageType.Planar:
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
-                    OnInformationMessage($"Exporting planar image 1 to file '{image1Path}'");
+                    OnInformationMessage($"Exporting planar icon image 1 to file '{image1Path}'");
                     var image = ImageDataDecoder.Decode(diskObject.FirstImageData,
-                        GetPalette(diskObject.FirstImageData));
+                        GetPalette(diskObject.FirstImageData), true);
                     WriteImage(image1Path, image);
                 }
 
                 if (!string.IsNullOrWhiteSpace(image2Path))
                 {
-                    OnInformationMessage($"Exporting planar image 2 to file '{image2Path}'");
+                    OnInformationMessage($"Exporting planar icon image 2 to file '{image2Path}'");
                     var image = ImageDataDecoder.Decode(diskObject.SecondImageData,
-                        GetPalette(diskObject.SecondImageData));
+                        GetPalette(diskObject.SecondImageData), true);
                     WriteImage(image2Path, image);
                 }
 
@@ -121,10 +128,10 @@ public class IconImageExport : CommandBase
             if (imageData.Depth <= 2)
             {
                 OnInformationMessage($"Using Amiga OS 3.1 4 color palette");
-                return AmigaOs31Palette.FourColors();
+                return AmigaOsPalette.FourColors();
             }
             OnInformationMessage($"Using Amiga OS 3.1 full color palette");
-            return AmigaOs31Palette.FullPalette();
+            return AmigaOsPalette.FullPalette();
         }
 
         OnInformationMessage($"Reading palette from JSON file '{palettePath}'");

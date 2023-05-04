@@ -33,7 +33,9 @@
         /// <returns></returns>
         public static NewIcon ToNewIcon(Image image)
         {
-            return image.BitsPerPixel <= 8 ? CreateFromIndexedImage(image) : CreateFromImage(image); 
+            return image.BitsPerPixel <= 8 && image.Palette.Colors.Count > 0
+                ? CreateFromIndexedImage(image)
+                : CreateFromImage(image); 
         }
 
         private static NewIcon CreateFromIndexedImage(Image image)

@@ -1,5 +1,3 @@
-using Hst.Amiga.DataTypes.DiskObjects;
-
 namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
@@ -12,6 +10,7 @@ using System.Threading.Tasks;
 using Core;
 using DataTypes.DiskObjects;
 using DataTypes.DiskObjects.ColorIcons;
+using DataTypes.DiskObjects.NewIcons;
 using Microsoft.Extensions.Logging;
 
 public class IconToolTypesImport : IconCommandBase
@@ -114,25 +113,4 @@ public class IconToolTypesImport : IconCommandBase
 
     private static readonly byte[] NewIconHeaderBytes = AmigaTextHelper.GetBytes(Constants.NewIcon.Header);
     private static readonly byte[] NewIconImageHeaderBytes = AmigaTextHelper.GetBytes("IM");
-}
-
-public static class TextDataExtensions
-{
-    public static bool StartsWith(this TextData textData, byte[] bytes)
-    {
-        if (textData.Data.Length < bytes.Length)
-        {
-            return false;
-        }
-
-        for (var i = 0; i < bytes.Length; i++)
-        {
-            if (textData.Data[i] != bytes[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 }

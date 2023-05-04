@@ -7,6 +7,42 @@
 
     public static class NewIconHelper
     {
+        private static readonly byte[] NewIconHeaderBytes = AmigaTextHelper.GetBytes(Constants.NewIcon.Header);
+        
+        public static int FindNewIconHeaderIndex(DiskObject diskObject)
+        {
+            if (diskObject.ToolTypes == null)
+            {
+                return -1;
+            }
+            
+            var dataTypes = (diskObject.ToolTypes?.TextDatas ?? new List<TextData>()).ToList();
+            for (var i = 0; i < dataTypes.Count; i++)
+            {
+                if (!dataTypes[i].StartsWith(NewIconHeaderBytes))
+                {
+                    continue;
+                }
+
+                return i > 0 && dataTypes[i - 1].Size > 0 && dataTypes[i - 1].Data[0] == 32 ? i - 1 : i;
+            }
+
+            return -1;
+        }
+        
+        public static void RemoveNewIconImages(DiskObject diskObject)
+        {
+            var newIconHeaderIndex = FindNewIconHeaderIndex(diskObject);
+
+            if (newIconHeaderIndex == -1)
+            {
+                return;
+            }
+
+            // remove text datas containing new icon header and icon images
+            diskObject.ToolTypes.TextDatas = diskObject.ToolTypes.TextDatas.Take(newIconHeaderIndex).ToList();
+        }
+
         public static void RemoveNewIconImage(DiskObject diskObject, int imageNumber)
         {
             var imageHeader = $"IM{imageNumber}=";
@@ -24,6 +60,16 @@
         {
             var decoder = new NewIconToolTypesDecoder(diskObject.ToolTypes?.TextDatas ?? new List<TextData>());
             return decoder.Decode(imageNumber);
+        }
+
+        public static void SetFirstImage(DiskObject diskObject, NewIcon newIcon)
+        {
+            SetNewIconImage(diskObject, 1, newIcon);
+        }
+
+        public static void SetSecondImage(DiskObject diskObject, NewIcon newIcon)
+        {
+            SetNewIconImage(diskObject, 2, newIcon);
         }
         
         public static void SetNewIconImage(DiskObject diskObject, int imageNumber, NewIcon newIcon)

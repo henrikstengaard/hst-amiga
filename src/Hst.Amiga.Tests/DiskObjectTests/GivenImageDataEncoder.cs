@@ -14,7 +14,7 @@
             var width = 2;
             var height = 2;
             var depth = 2;
-            var palette = AmigaOs31Palette.FourColors();
+            var palette = AmigaOsPalette.FourColors();
             
             // arrange - create expected image data with pixel x = 2, y = 2 set to palette color 3
             var expectedImageData = TestDataHelper.CreateImageData(width, height, depth);
@@ -53,7 +53,7 @@
             var width = 2;
             var height = 2;
             var depth = 2;
-            var palette = AmigaOs31Palette.FourColors();
+            var palette = AmigaOsPalette.FourColors();
             
             // arrange - create expected image data
             var expectedImageData = TestDataHelper.CreateImageData(width, height, depth);

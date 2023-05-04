@@ -13,7 +13,7 @@
             var width = 2;
             var height = 2;
             var depth = 2;
-            var palette = AmigaOs31Palette.FourColors();
+            var palette = AmigaOsPalette.FourColors();
 
             // arrange - create expected pixel data
             var pixelData = TestDataHelper.CreatePixelData(width, height);
@@ -47,7 +47,7 @@
             TestDataHelper.SetImageDataPixel(imageData.Data, width, height, depth, 1, 1, 3);
 
             // act - decode image data
-            var image = ImageDataDecoder.Decode(imageData, palette);
+            var image = ImageDataDecoder.Decode(imageData, palette, false);
 
             // assert - image matches pixels set
             AssertEqual(expectedImage, image);
@@ -60,7 +60,7 @@
             var width = 2;
             var height = 2;
             var depth = 2;
-            var palette = AmigaOs31Palette.FourColors();
+            var palette = AmigaOsPalette.FourColors();
             var colors = palette.Colors;
 
             // arrange - create expected pixel data
@@ -98,7 +98,7 @@
             TestDataHelper.SetImageDataPixel(imageData.Data, width, height, depth, 1, 1, 3);
 
             // act - decode image data
-            var image = ImageDataDecoder.Decode(imageData, palette);
+            var image = ImageDataDecoder.Decode(imageData, palette, false);
 
             // assert - image matches pixels set
             AssertEqual(expectedImage, image);

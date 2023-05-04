@@ -101,14 +101,14 @@
         
         public static Image CreateFirstImage()
         {
-            return CreateImage(AmigaOs31Palette.FourColors());
+            return CreateImage(AmigaOsPalette.FourColors());
         }
         
         public static Image CreateSecondImage()
         {
             var palette = new Palette();
 
-            foreach (var color in AmigaOs31Palette.FourColors().Colors.Reverse())
+            foreach (var color in AmigaOsPalette.FourColors().Colors.Reverse())
             {
                 palette.AddColor(color);
             }

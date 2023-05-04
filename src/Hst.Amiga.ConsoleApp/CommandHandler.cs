@@ -70,6 +70,11 @@ public static class CommandHandler
     {
         await Execute(new IconImageExport(GetLogger<IconImageExport>(), iconPath, imageType, image1Path, image2Path, jsonPalettePath));
     }
+
+    public static async Task IconImageConvert(string iconPath, ImageType srcType, ImageType destType, string jsonPalettePath)
+    {
+        await Execute(new IconImageConvert(GetLogger<IconImageConvert>(), iconPath, srcType, destType, jsonPalettePath));
+    }
     
     public static async Task IconImageImport(string iconPath, ImageType imageType, string image1Path, string image2Path)
     {

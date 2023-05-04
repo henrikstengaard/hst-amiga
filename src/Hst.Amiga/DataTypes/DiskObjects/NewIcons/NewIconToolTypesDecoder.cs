@@ -186,7 +186,7 @@
 
             // get palette from decoded data
             var colors = new List<Color>();
-            for (var p = 0; p < (ncolors == 256 ? ncolors - 1 : ncolors); p++, offset += 3)
+            for (var p = 0; p < ncolors; p++, offset += 3)
             {
                 colors.Add(new Color(decoded[offset], decoded[offset + 1], decoded[offset + 2], (byte)(p == 0 && has_trns ? 0 : 255)));
             }

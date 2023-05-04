@@ -13,7 +13,7 @@
         private int pendingBits;
         private readonly byte[] textDataHeader;
         private readonly List<byte> currentTextData;
-        private int BytesLeft => Constants.NewIcon.MAX_TEXTDATA_LENGTH - currentTextData.Count - (pendingBits > 0 ? 1 : 0);
+        private int BytesLeft => Constants.NewIcon.MAX_TEXTDATA_LENGTH - currentTextData.Count;
 
         public NewIconAsciiEncoder(int imageNumber)
         {
@@ -42,7 +42,7 @@
 
             if (BytesLeft <= 0)
             {
-                Flush();
+                Next();
             }
         }
 
@@ -94,6 +94,13 @@
             
             // add ascii encoded next value and possible flush pending data, if no bytes left
             Add(AsciiEncode(nextValue));
+
+            // flush pending bits, if 1 byte left and pending bits +
+            // next value does not fit new icon bits per value
+            if (pendingBits + BitsPerValue > NewIconBitsPerByte && BytesLeft == 1)
+            {
+                Flush();
+            }
         }
 
         public void Flush()
@@ -109,6 +116,10 @@
 
         public void Next()
         {
+            // reset pending data and bits
+            pendingBits = 0;
+            pendingData = 0;
+            
             // add tool types line termination
             currentTextData.Add(0);
 
@@ -120,10 +131,6 @@
 
             currentTextData.Clear();
             currentTextData.AddRange(textDataHeader);
-
-            // reset pending data and bits
-            pendingBits = 0;
-            pendingData = 0;
         }
 
         private byte AsciiEncode(byte value)

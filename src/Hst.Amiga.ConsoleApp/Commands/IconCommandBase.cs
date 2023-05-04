@@ -14,22 +14,14 @@ public abstract class IconCommandBase : CommandBase
 {
     protected static void CreateDummyPlanarImages(DiskObject diskObject)
     {
-        short depth = 2;
-        var imageData = new ImageData
-        {
-            Data = new byte[1],
-            Width = 1,
-            Height = 1,
-            Depth = depth,
-            TopEdge = 0,
-            LeftEdge = 0,
-            NextPointer = 0,
-            PlanePick = (byte)(Math.Pow(2, depth) - 1),
-            PlaneOnOff = 0,
-            ImageDataPointer = 1,
-        };
+        var image = new Image(1, 1, 8);
+        image.Palette.AddColor(0, 0, 0);
+        var imageData = ImageDataEncoder.Encode(image, 2);
+        diskObject.Gadget.Width = 1;
+        diskObject.Gadget.Height = 1;
         diskObject.FirstImageData = imageData;
-        diskObject.SecondImageData = imageData;
+        diskObject.Gadget.GadgetRenderPointer = 1;
+        diskObject.Gadget.SelectRenderPointer = 0;
     }
 
     protected async Task<Result> ImportIconImages(DiskObject diskObject, ColorIcon colorIcon, ImageType type, string image1Path, string image2Path)
@@ -48,8 +40,9 @@ public abstract class IconCommandBase : CommandBase
                     diskObject.Gadget.Height = diskObject.FirstImageData.Height;
 
                     // delete planar icon image 2, if not width or height is equal
-                    if (diskObject.SecondImageData.Width != diskObject.Gadget.Width ||
-                        diskObject.SecondImageData.Height != diskObject.Gadget.Height)
+                    if (diskObject.SecondImageData != null && 
+                        (diskObject.SecondImageData.Width != diskObject.Gadget.Width ||
+                        diskObject.SecondImageData.Height != diskObject.Gadget.Height))
                     {
                         diskObject.SecondImageData = null;
                         diskObject.Gadget.SelectRenderPointer = 0;
@@ -142,7 +135,7 @@ public abstract class IconCommandBase : CommandBase
     protected static async Task<ImageData> ImportPlanarImage(string imagePath)
     {
         var image = await ReadImage(imagePath);
-        return ImageDataEncoder.Encode(image, image.BitsPerPixel);
+        return ImageDataEncoder.Encode(image);
     }
 
     protected static async Task<NewIcon> ImportNewIconImage(string imagePath)
@@ -165,7 +158,7 @@ public abstract class IconCommandBase : CommandBase
         return new ColorIconImage
         {
             Image = image,
-            Depth = 8
+            Depth = DiskObjectHelper.CalculateDepth(image.Palette.Colors.Count)
         };
     }
     
@@ -192,9 +185,10 @@ public abstract class IconCommandBase : CommandBase
         stream.SetLength(0);
         await DiskObjectWriter.Write(diskObject, stream);
 
+        stream.SetLength(stream.Position);
+        
         if (colorIcon.Images.Length > 0)
         {
-            stream.SetLength(stream.Position);
             await ColorIconWriter.Write(stream, colorIcon, true, true);
         }        
     }

@@ -184,7 +184,7 @@
 
         public static int CalculateDepth(int colors)
         {
-            return Convert.ToInt32(Math.Ceiling(Math.Log(colors) / Math.Log(2)));
+            return colors > 1 ? Convert.ToInt32(Math.Ceiling(Math.Log(colors) / Math.Log(2))) : 1;
         }
 
         public static int CalculateColors(int depth)

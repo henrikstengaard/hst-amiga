@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.DataTypes.DiskObjects
 {
-    using Hst.Imaging;
+    using System.Linq;
+    using Imaging;
 
     public static class ImageDataDecoder
     {
@@ -11,7 +12,7 @@
         /// <returns></returns>
         public static Image Decode(ImageData imageData)
         {
-            return Decode(imageData, AmigaOs31Palette.FourColors());
+            return Decode(imageData, AmigaOsPalette.FourColors(), true);
         }
 
         /// <summary>
@@ -19,9 +20,17 @@
         /// </summary>
         /// <param name="imageData"></param>
         /// <param name="palette"></param>
+        /// <param name="transparent"></param>
         /// <returns></returns>
-        public static Image Decode(ImageData imageData, Palette palette)
+        public static Image Decode(ImageData imageData, Palette palette, bool transparent)
         {
+            if (transparent)
+            {
+                var firstColor = palette.Colors[0];
+                var transparentColor = new Color(firstColor.R, firstColor.G, firstColor.B, 0);
+                palette = new Palette(new[] { transparentColor }.Concat(palette.Colors.Skip(1)), 0);
+            }
+            
             var bitsPerByte = 8;
             var bytesPerRow = (imageData.Width + 15) / 16 * 2;
 

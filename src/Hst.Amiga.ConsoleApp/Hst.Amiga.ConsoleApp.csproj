@@ -2,6 +2,7 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
@@ -26,13 +27,22 @@
     </ItemGroup>
     
     <ItemGroup>
-      <None Update="palettes\amiga-os-1.3-palette.json">
+      <None Update="palettes\amigaos-1.3-palette.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="palettes\amiga-os-3.1-palette.json">
+      <None Update="palettes\amigaos-3.1-palette.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="palettes\full-palette.json">
+      <None Update="palettes\amigaos-full-palette.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="palettes\amigaos-full-palette.gpl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="palettes\amigaos-1.3-palette.gpl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="palettes\amigaos-3.1-palette.gpl">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>

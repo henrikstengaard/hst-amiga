@@ -26,7 +26,7 @@ public class IconCreateCommand : IconCommandBase
     private readonly string image2Path;
 
     public IconCreateCommand(ILogger<IconCreateCommand> logger, string path, IconType type, int? x, int? y,
-        int? stackSize, int? drawerX, int? drawerY, int? drawerWidth, int? drawerHeight, ImageType imageType, 
+        int? stackSize, int? drawerX, int? drawerY, int? drawerWidth, int? drawerHeight, ImageType imageType,
         string image1Path, string image2Path)
     {
         this.logger = logger;
@@ -53,7 +53,7 @@ public class IconCreateCommand : IconCommandBase
         {
             diskObject.CurrentX = x.Value;
         }
-        
+
         if (y.HasValue)
         {
             diskObject.CurrentY = y.Value;
@@ -63,17 +63,17 @@ public class IconCreateCommand : IconCommandBase
         {
             diskObject.StackSize = stackSize.Value;
         }
-        
-        if ((diskObject.Type == Constants.DiskObjectTypes.DISK || 
-             diskObject.Type == Constants.DiskObjectTypes.DRAWER || 
-             diskObject.Type == Constants.DiskObjectTypes.GARBAGE) && 
+
+        if ((diskObject.Type == Constants.DiskObjectTypes.DISK ||
+             diskObject.Type == Constants.DiskObjectTypes.DRAWER ||
+             diskObject.Type == Constants.DiskObjectTypes.GARBAGE) &&
             diskObject.DrawerData != null)
         {
             if (drawerX.HasValue)
             {
                 diskObject.DrawerData.LeftEdge = (short)drawerX.Value;
             }
-            
+
             if (drawerY.HasValue)
             {
                 diskObject.DrawerData.TopEdge = (short)drawerY.Value;
@@ -83,23 +83,26 @@ public class IconCreateCommand : IconCommandBase
             {
                 diskObject.DrawerData.Width = (short)drawerWidth.Value;
             }
-            
+
             if (drawerHeight.HasValue)
             {
                 diskObject.DrawerData.Height = (short)drawerHeight.Value;
             }
         }
-        
+
         CreateDummyPlanarImages(diskObject);
 
         if (!string.IsNullOrWhiteSpace(image1Path) || !string.IsNullOrWhiteSpace(image2Path))
         {
-            var result = await ImportIconImages(diskObject, colorIcon, imageType, image1Path, image2Path);
+            var result = await ImportIconImages(diskObject, colorIcon,
+                imageType == ImageType.Auto ? ImageType.ColorIcon : imageType, image1Path, image2Path);
             if (result.IsFaulted)
             {
                 return result;
             }
         }
+
+        OnInformationMessage($"Writing disk object to icon file '{path}'");
         
         await using var iconStream = File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
         await WriteIcon(iconStream, diskObject, colorIcon);

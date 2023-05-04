@@ -6,5 +6,6 @@
     {
         public int Depth { get; set; }
         public Image Image { get; set; }
+        public int PaletteByteSize { get; set; }
     }
 }

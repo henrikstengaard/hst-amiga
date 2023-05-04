@@ -84,7 +84,7 @@
                 Height = height + 1,
                 Flags = flags,
                 Aspect = aspect,
-                MaxPalBytes = maxPalBytes
+                MaxPalBytes = maxPalBytes + 1
             };
         }
 

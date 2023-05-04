@@ -2,7 +2,7 @@
 {
     using Imaging;
 
-    public static class AmigaOs31Palette
+    public static class AmigaOsPalette
     {
         /// <summary>
         /// Amiga OS 3.1 4 color setting
@@ -56,15 +56,15 @@
             palette.AddColor(204, 170, 119);
             palette.AddColor(221, 102, 153);
             
-            palette.AddColor(102, 34, 0);
-            palette.AddColor(238, 85, 0);
-            palette.AddColor(153, 255, 17);
-            palette.AddColor(238, 187, 0);
-                    
-            palette.AddColor(85, 85, 255);
-            palette.AddColor(153, 34, 255);
-            palette.AddColor(0, 255, 136);
-            palette.AddColor(204, 204, 204);
+            // palette.AddColor(102, 34, 0);
+            // palette.AddColor(238, 85, 0);
+            // palette.AddColor(153, 255, 17);
+            // palette.AddColor(238, 187, 0);
+            //         
+            // palette.AddColor(85, 85, 255);
+            // palette.AddColor(153, 34, 255);
+            // palette.AddColor(0, 255, 136);
+            // palette.AddColor(204, 204, 204);
 
             return palette;
         }

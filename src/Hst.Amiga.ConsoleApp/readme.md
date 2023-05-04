@@ -83,6 +83,35 @@ Example of creating a new icon file "disk.info" of icon type "Disk" and import p
 hst.amiga icon create disk.info disk --image-type planar --image1-path image1.png --image2-path image2.png
 ```
 
+### Convert icon images
+
+Convert icon images from one type to another.
+
+Hst Amiga can convert between following icon image types:
+- Planar
+- New icon
+- Color icon
+
+Example of displaying usage for convert icon images:
+```
+hst.amiga icon image convert
+```
+
+Example of converting planar icon images to new icon images for icon file "disk.info":
+```
+hst.amiga icon image convert disk.info planar newicon
+```
+
+Example of converting planar icon images to color icon images for icon file "disk.info":
+```
+hst.amiga icon image convert disk.info planar coloricon
+```
+
+Example of converting auto detected icon images (in order color icon, new icon and planar) to color icon images for icon file "disk.info":
+```
+hst.amiga icon image convert disk.info auto coloricon
+```
+
 ### Export icon images
 
 Export icon images from an icon file.
@@ -152,6 +181,44 @@ hst.amiga icon image import disk.info newicon --image1-path image1.png --image2-
 Example of importing image files "image1.png" and "image2.png" as color icon images in icon file "disk.info":
 ```
 hst.amiga icon image import disk.info coloricon --image1-path image1.png --image2-path image2.png
+```
+
+### Import tool types
+
+Import tool types to an icon file.
+
+Example of displaying usage for import icon images:
+```
+hst.amiga icon tooltypes import
+```
+
+Example of importing tool types from text file "tooltypes.txt" to in icon file "disk.info":
+```
+hst.amiga icon tooltypes import disk.info tooltypes.txt
+```
+
+Example of importing tool types from text file "tooltypes.txt" to in icon file "disk.info" and preserve new icon images in icon file:
+```
+hst.amiga icon tooltypes import disk.info tooltypes.txt --preserve-newicon
+```
+
+### Export tool types
+
+Export tool types from an icon file.
+
+Example of displaying usage for export icon images:
+```
+hst.amiga icon tooltypes export
+```
+
+Example of exporting tool types from icon file "disk.info" to text file "tooltypes.txt":
+```
+hst.amiga icon tooltypes import disk.info tooltypes.txt
+```
+
+Example of exporting tool types from icon file "disk.info" to text file "tooltypes.txt" exclude new icon from tool types:
+```
+hst.amiga icon tooltypes import disk.info tooltypes.txt --exclude-newicon
 ```
 
 ### Update icon

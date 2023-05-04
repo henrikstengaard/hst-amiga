@@ -39,6 +39,14 @@
                     nameof(colorIcon));
             }
             
+            var imagBytes = new List<byte>();
+            foreach (var colorIconImage in colorIcon.Images)
+            {
+                imagBytes.AddRange(BuildChunk(ColorIconChunkIdentifiers.IMAG, BuildImagChunk(colorIconImage, compressImage, compressPalette)));
+            }
+
+            colorIcon.MaxPalBytes = colorIcon.Images.Max(x => x.PaletteByteSize);
+            
             var iconBytes = new List<byte>();
 
             var idBytes = BitConverter.GetBytes(ColorIconChunkIdentifiers.ICON);
@@ -46,10 +54,12 @@
 
             iconBytes.AddRange(BuildChunk(ColorIconChunkIdentifiers.FACE, BuildFaceChunk(colorIcon)));
 
-            foreach (var colorIconImage in colorIcon.Images)
-            {
-                iconBytes.AddRange(BuildChunk(ColorIconChunkIdentifiers.IMAG, BuildImagChunk(colorIconImage, compressImage, compressPalette)));
-            }
+            iconBytes.AddRange(imagBytes);
+            
+            // foreach (var colorIconImage in colorIcon.Images)
+            // {
+            //     iconBytes.AddRange(BuildChunk(ColorIconChunkIdentifiers.IMAG, BuildImagChunk(colorIconImage, compressImage, compressPalette)));
+            // }
 
             await stream.WriteBytes(BuildChunk(ColorIconChunkIdentifiers.FORM, iconBytes.ToArray()));
         }
@@ -112,8 +122,10 @@
 
             var imageSizeBytes = new byte[2];
             BigEndianConverter.ConvertUInt16ToBytes((ushort)(pixelBytes.Length - 1), imageSizeBytes, 0);
+            var paletteByteSize = paletteBytes.Length - 1;
             var paletteSizeBytes = new byte[2];
-            BigEndianConverter.ConvertUInt16ToBytes((ushort)(paletteBytes.Length - 1), paletteSizeBytes, 0);
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)paletteByteSize, paletteSizeBytes, 0);
+            image.PaletteByteSize = paletteByteSize;
 
             chunkBytes.AddRange(imageSizeBytes);
             chunkBytes.AddRange(paletteSizeBytes);

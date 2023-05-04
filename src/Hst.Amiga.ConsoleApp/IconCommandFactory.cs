@@ -195,9 +195,39 @@ public static class IconCommandFactory
     {
         var command = new Command("image", "Icon image.");
 
+        command.AddCommand(CreateIconImageConvert());
         command.AddCommand(CreateIconImageImport());
         command.AddCommand(CreateIconImageExport());
 
+        return command;
+    }
+
+    private static Command CreateIconImageConvert()
+    {
+        var iconPathArgument = new Argument<string>(
+            name: "Path",
+            description: "Path to icon file.");
+
+        var srcTypeArgument = new Argument<ImageType>(
+            name: "SrcType",
+            description: "Source type of icon image to convert from.");
+
+        var destTypeArgument = new Argument<ImageType>(
+            name: "DestType",
+            description: "Destination type of icon image to convert to.");
+        
+        var jsonPalettePathOption = new Option<string>(
+            new[] { "--palette-path", "-p" },
+            description: "Path to JSON palette for converting planar images.");
+
+        var command = new Command("convert", "Convert icon image.");
+        command.SetHandler(CommandHandler.IconImageConvert, iconPathArgument, srcTypeArgument, destTypeArgument, jsonPalettePathOption);
+        
+        command.AddArgument(iconPathArgument);
+        command.AddArgument(srcTypeArgument);
+        command.AddArgument(destTypeArgument);
+        command.AddOption(jsonPalettePathOption);
+        
         return command;
     }
     

@@ -18,13 +18,33 @@
             }
 
             var highestColorUsed = 0;
+            
+            var imagePixelDataIterator = new ImagePixelDataIterator(image);
+            while (imagePixelDataIterator.Next())
+            {
+                if (imagePixelDataIterator.Current.PaletteColor <= highestColorUsed)
+                {
+                    continue;
+                }
 
+                highestColorUsed = imagePixelDataIterator.Current.PaletteColor;
+            }
+            
+            if (highestColorUsed > maxColors)
+            {
+                throw new ArgumentException(
+                    $"Image uses {(highestColorUsed + 1)} colors, but depth {depth} only allows max {maxColors} colors",
+                    nameof(depth));
+            }
+
+            var adjustedDepth = Math.Min(depth, DiskObjectHelper.CalculateDepth(highestColorUsed + 1));
+            
             const int bitsPerByte = 8;
             var bytesPerRow = (image.Width + 15) / 16 * 2;
 
-            var data = new byte[bytesPerRow * image.Height * depth];
+            var data = new byte[bytesPerRow * image.Height * adjustedDepth];
 
-            var imagePixelDataIterator = new ImagePixelDataIterator(image);
+            imagePixelDataIterator = new ImagePixelDataIterator(image);
             for (int y = 0; y < image.Height; y++)
             {
                 for (int x = 0; x < image.Width; x++)
@@ -45,12 +65,7 @@
                     
                     var color = paletteIndex[colorId];
 
-                    if (color > highestColorUsed)
-                    {
-                        highestColorUsed = color;
-                    }
-
-                    for (var plane = 0; plane < depth; plane++)
+                    for (var plane = 0; plane < adjustedDepth; plane++)
                     {
                         var bit = 7 - (x % bitsPerByte);
                         var offset = (bytesPerRow * image.Height * plane) + (y * bytesPerRow) + (x / bitsPerByte);
@@ -64,20 +79,13 @@
                 }
             }
             
-            if (highestColorUsed > maxColors)
-            {
-                throw new ArgumentException(
-                    $"Image uses {(highestColorUsed + 1)} colors, but depth {depth} only allows max {maxColors} colors",
-                    nameof(depth));
-            }
-
             return new ImageData
             {
                 TopEdge = 0,
                 LeftEdge = 0,
                 Width = (short)image.Width,
                 Height = (short)image.Height,
-                Depth = (byte)Math.Min(depth, highestColorUsed),
+                Depth = (byte)adjustedDepth,
                 Data = data,
                 ImageDataPointer = 1,
                 PlanePick = (byte)(maxColors - 1)

@@ -43,6 +43,8 @@ public class IconUpdateCommand : IconCommandBase
             return new Result(new Error($"Invalid type {type.Value}"));
         }
         
+        OnInformationMessage($"Reading disk object from icon file '{path}'");
+        
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         var diskObject = await DiskObjectReader.Read(iconStream);
         var colorIcon = iconStream.Position < iconStream.Length 
@@ -133,6 +135,8 @@ public class IconUpdateCommand : IconCommandBase
         {
             return new Result();
         }
+
+        OnInformationMessage($"Writing disk object to icon file '{path}'");
 
         await WriteIcon(iconStream, diskObject, colorIcon);
 
