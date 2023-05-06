@@ -112,6 +112,30 @@ Example of converting auto detected icon images (in order color icon, new icon a
 hst.amiga icon image convert disk.info auto coloricon
 ```
 
+### Delete icon images
+
+Delete icon images from an icon file.
+
+Example of displaying usage for delete icon images:
+```
+hst.amiga icon image delete
+```
+
+Example of deleting all icon images from icon file "disk.info":
+```
+hst.amiga icon image delete disk.info
+```
+
+Example of deleting planar icon images from icon file "disk.info":
+```
+hst.amiga icon image delete disk.info planar
+```
+
+Example of deleting new icon images from icon file "disk.info":
+```
+hst.amiga icon image delete disk.info newicon
+```
+
 ### Export icon images
 
 Export icon images from an icon file.

@@ -196,6 +196,7 @@ public static class IconCommandFactory
         var command = new Command("image", "Icon image.");
 
         command.AddCommand(CreateIconImageConvert());
+        command.AddCommand(CreateIconImageDelete());
         command.AddCommand(CreateIconImageImport());
         command.AddCommand(CreateIconImageExport());
 
@@ -227,6 +228,27 @@ public static class IconCommandFactory
         command.AddArgument(srcTypeArgument);
         command.AddArgument(destTypeArgument);
         command.AddOption(jsonPalettePathOption);
+        
+        return command;
+    }
+
+    private static Command CreateIconImageDelete()
+    {
+        var iconPathArgument = new Argument<string>(
+            name: "Path",
+            description: "Path to icon file.");
+
+        var imageTypeArgument = new Argument<ImageType?>(
+            name: "ImageType",
+            description: "Type of icon image to delete.");
+        imageTypeArgument.Arity = ArgumentArity.ZeroOrOne;
+
+        var command = new Command("delete", "Delete icon image.");
+        
+        command.SetHandler(CommandHandler.IconImageDelete, iconPathArgument, imageTypeArgument);
+        
+        command.AddArgument(iconPathArgument);
+        command.AddArgument(imageTypeArgument);
         
         return command;
     }

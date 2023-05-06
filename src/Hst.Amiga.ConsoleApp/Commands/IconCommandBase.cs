@@ -192,4 +192,11 @@ public abstract class IconCommandBase : CommandBase
             await ColorIconWriter.Write(stream, colorIcon, true, true);
         }        
     }
+    
+    protected static void DeleteAllIconImages(DiskObject diskObject, ColorIcon colorIcon)
+    {
+        CreateDummyPlanarImages(diskObject);
+        NewIconHelper.RemoveNewIconImages(diskObject);
+        colorIcon.Images = Array.Empty<ColorIconImage>();
+    }
 }

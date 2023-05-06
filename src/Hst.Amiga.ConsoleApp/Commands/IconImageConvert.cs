@@ -54,7 +54,7 @@ public class IconImageConvert : IconCommandBase
             return new Result(new Error($"No images to convert from source type '{srcType}'"));
         }
         
-        RemoveIconImages(diskObject, colorIcon);
+        DeleteAllIconImages(diskObject, colorIcon);
         
         EncodeIconImages(diskObject, colorIcon, images);
 
@@ -124,13 +124,6 @@ public class IconImageConvert : IconCommandBase
         }
 
         return NewIconHelper.GetNewIconImage(diskObject, 1) != null ? ImageType.NewIcon : ImageType.Planar;
-    }
-
-    private static void RemoveIconImages(DiskObject diskObject, ColorIcon colorIcon)
-    {
-        CreateDummyPlanarImages(diskObject);
-        NewIconHelper.RemoveNewIconImages(diskObject);
-        colorIcon.Images = Array.Empty<ColorIconImage>();
     }
 
     private void EncodeIconImages(DiskObject diskObject, ColorIcon colorIcon, IEnumerable<Image> images)
