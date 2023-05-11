@@ -265,6 +265,11 @@
             anodechain achain;
 // #endif
 
+            if (found && overwrite && newfile.file.direntry.type != Constants.ST_FILE)
+            {
+                throw new NotAFileException($"Overwrite existing file '{filename}' failed, not a file");
+            }
+
             //DB(Trace(10, "NewFile", "%s\n", filename));
             /* check disk-writeprotection etc */
             /* check disk-writeprotection etc */

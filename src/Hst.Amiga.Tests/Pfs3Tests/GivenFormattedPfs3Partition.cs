@@ -1689,5 +1689,39 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
 
         // act & assert - find entry with directory separator throws exception
         await Assert.ThrowsAsync<ArgumentException>(async () => await pfs3Volume.FindEntry("New Dir/New File"));
-    }    
+    }
+    
+    [Fact]
+    public async Task WhenCreatingDirectoryAndFileWithSameNameThenExceptionIsThrown()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - create directory
+        const string name = "Dir";
+        await pfs3Volume.CreateDirectory(name);
+            
+        // act & assert - create file with same name as directory
+        await Assert.ThrowsAsync<PathAlreadyExistsException>(async () => await pfs3Volume.CreateFile(name));
+    }
+
+    [Fact]
+    public async Task WhenCreatingDirectoryAndFileWithSameNameOverwritingExistingThenExceptionIsThrown()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - create directory
+        const string name = "Dir";
+        await pfs3Volume.CreateDirectory(name);
+            
+        // act & assert - create and overwrite file with same name as directory
+        await Assert.ThrowsAsync<NotAFileException>(async () => await pfs3Volume.CreateFile(name, true, true));
+    }
 }
