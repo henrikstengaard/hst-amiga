@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
+    using System;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
@@ -36,13 +37,10 @@
                 volume.Logs.Add($"ERROR: File \"{name}\" not found.");
             }
 
-            // remove entry, if write, overwrite and entry exists
+            // free entry file blocks, if write and overwrite existing entry
             if (write && overwrite && nSect != uint.MaxValue)
             {
-                await Directory.RemoveEntry(volume, parentSector, name, ignoreProtectionBits);
-                parent = await Disk.ReadEntryBlock(volume, parentSector);
-                result = await Directory.GetEntryBlock(volume, parent.HashTable, name, false);
-                nSect = result.NSect;
+                await AdfFreeFileBlocks(volume, result.EntryBlock);
             }
             
             if (!write && result.EntryBlock == null)
@@ -65,7 +63,7 @@
                         throw new FileSystemException($"File '{name}' does not have read protection bits set");
                     }
                     break;
-                case FileMode.Write when nSect != uint.MaxValue:
+                case FileMode.Write when !overwrite && nSect != uint.MaxValue:
                     throw new PathAlreadyExistsException($"Path '{name}' already exists");
             }
 
@@ -75,7 +73,21 @@
 
             if (mode == FileMode.Write)
             {
-                fileHdr = await Directory.CreateFile(volume, parent, name);
+                fileHdr = overwrite && nSect != uint.MaxValue ? entry : await Directory.CreateFile(volume, parent, name);
+                if (overwrite)
+                {
+                    // reset existing file header block for overwriting
+                    fileHdr.HighSeq = 0;
+                    fileHdr.ByteSize = 0;
+                    fileHdr.Date = DateTime.Now;
+                    fileHdr.Access = 0;
+                    fileHdr.Comment = string.Empty;
+                    fileHdr.FirstData = 0;
+                    for (var i = 0; i < fileHdr.Index.Length; i++)
+                    {
+                        fileHdr.Index[i] = 0;
+                    }
+                }
                 eof = true;
             }
 
@@ -88,7 +100,6 @@
 
             return entryStream;
         }
-        
         
 /*
  * adfFreeFileBlocks
@@ -141,7 +152,7 @@
             //     return RC_MALLOC;
             // }
 
-            fileBlocks.extens= new uint[fileBlocks.nbExtens];
+            fileBlocks.extens = new uint[fileBlocks.nbExtens];
             // fileBlocks.extens=(SECTNUM*)malloc(fileBlocks->nbExtens * sizeof(SECTNUM));
             // if (!fileBlocks->extens) {
             //     (*adfEnv.eFct)("adfGetFileBlocks : malloc");

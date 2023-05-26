@@ -44,6 +44,78 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
             Assert.Equal(expectedEntries[i], entries[i].Name);
         }
     }
+    
+    [Fact]
+    public async Task WhenCreate100DirectoriesFilesAndOverwrite100FilesInRootDirectoryThenDirectoriesFilesExists()
+    {
+        var data = new byte[844];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create 100 directories in root directory
+        var dirEntries = Enumerable.Range(0, 100).Select(x => $"New Dir{x}").OrderBy(x => x)
+            .ToList();
+        foreach (var dirEntry in dirEntries)
+        {
+            await ffsVolume.CreateDirectory(dirEntry);
+        }
+
+        // act - create 100 files in root directory
+        var fileEntries = Enumerable.Range(0, 100).Select(x => $"New File{x}").OrderBy(x => x)
+            .ToList();
+        foreach (var fileEntry in fileEntries)
+        {
+            await ffsVolume.CreateFile(fileEntry, true, true);
+            
+            // act - write data
+            await using (var entryStream = await ffsVolume.OpenFile(fileEntry, FileMode.Append))
+            {
+                await entryStream.WriteAsync(data, 0, data.Length);
+            }
+        }
+
+        data = new byte[388];
+        Array.Fill<byte>(data, 2);
+        
+        // act - overwrite 100 existing files in root directory
+        foreach (var fileEntry in fileEntries)
+        {
+            await ffsVolume.CreateFile(fileEntry, true, true);
+            
+            // act - write data
+            await using (var entryStream = await ffsVolume.OpenFile(fileEntry, FileMode.Append))
+            {
+                await entryStream.WriteAsync(data, 0, data.Length);
+            }
+        }
+
+        // assert - list entries in root directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Equal(200, entries.Count);
+        
+        // assert - 100 directories exist
+        var actualDirEntries = entries.Where(x => x.Type == EntryType.Dir)
+            .ToDictionary(key => key.Name, value => value);
+        Assert.Equal(100, actualDirEntries.Count);
+        foreach (var dirEntry in dirEntries)
+        {
+            Assert.Equal(dirEntry, actualDirEntries[dirEntry].Name);
+        }
+        
+        // assert - 100 files exist
+        var actualFileEntries = entries.Where(x => x.Type == EntryType.File)
+            .ToDictionary(key => key.Name, value => value);
+        Assert.Equal(100, actualFileEntries.Count);
+        foreach (var fileEntry in fileEntries)
+        {
+            Assert.Equal(fileEntry, actualFileEntries[fileEntry].Name);
+        }
+    }
 
     [Fact]
     public async Task WhenCreateAndList100DirectoriesInRootDirectoryThenDirectoriesExists()
