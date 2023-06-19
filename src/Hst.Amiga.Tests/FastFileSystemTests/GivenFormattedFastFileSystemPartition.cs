@@ -1005,4 +1005,36 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         // act & assert - find entry with directory separator throws exception
         await Assert.ThrowsAsync<ArgumentException>(async () => await ffsVolume.FindEntry("New Dir/New File"));
     }
+
+    [Fact]
+    public async Task WhenCreateDirectoryAndFileWithSameNameThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create directory
+        await ffsVolume.CreateDirectory("Dir");
+        
+        // act & assert - create and file with same name as directory throws exception
+        await Assert.ThrowsAsync<PathAlreadyExistsException>(async () => await ffsVolume.CreateFile("Dir", ignoreProtectionBits: true));
+    }
+    
+    [Fact]
+    public async Task WhenCreateDirectoryAndOverwriteAsFileWithSameNameThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create directory
+        await ffsVolume.CreateDirectory("Dir");
+        
+        // act & assert - create and overwrite file with same name as directory throws exception
+        await Assert.ThrowsAsync<NotAFileException>(async () => await ffsVolume.CreateFile("Dir", true, true));
+    }
 }

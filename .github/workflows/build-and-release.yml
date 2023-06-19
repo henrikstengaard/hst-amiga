@@ -1,9 +1,22 @@
 name: Build and release
 
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      build-package:
+        type: boolean
+        description: Build package
+        required: false
+        default: true
+      build-console:
+        type: boolean
+        description: Build console
+        required: false
+        default: true
 
 jobs:
   build-package:
+    if: ${{ github.event.inputs.build-package == 'true' }}
     timeout-minutes: 5
     runs-on: ubuntu-latest
 
@@ -44,6 +57,7 @@ jobs:
         dotnet nuget push **/bin/Release/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key ${{ secrets.NUGET_ORG_API_KEY }}
 
   build-console:
+    if: ${{ github.event.inputs.build-console == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

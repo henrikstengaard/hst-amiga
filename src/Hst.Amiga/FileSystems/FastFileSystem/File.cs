@@ -55,6 +55,12 @@
             }
 
             var entry = result.EntryBlock;
+
+            if (overwrite && entry != null && entry.SecType != Constants.ST_FILE)
+            {
+                throw new NotAFileException($"Entry '{name}' is not a file, expected secondary type {entry.SecType}");
+            }
+            
             switch (mode)
             {
                 case FileMode.Read when Macro.hasR(entry.Access):
