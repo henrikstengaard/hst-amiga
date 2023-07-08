@@ -9,6 +9,7 @@ using DataTypes.DiskObjects;
 using DataTypes.DiskObjects.ColorIcons;
 using DataTypes.DiskObjects.NewIcons;
 using Imaging;
+using Models;
 
 public abstract class IconCommandBase : CommandBase
 {
@@ -108,6 +109,8 @@ public abstract class IconCommandBase : CommandBase
                     {
                         colorIcon.Images[0] = colorIconImage;
                     }
+                    colorIcon.Width = colorIconImage.Image.Width;
+                    colorIcon.Height = colorIconImage.Image.Height;
                 }
                 if (!string.IsNullOrWhiteSpace(image2Path))
                 {
@@ -135,15 +138,19 @@ public abstract class IconCommandBase : CommandBase
     protected static async Task<ImageData> ImportPlanarImage(string imagePath)
     {
         var image = await ReadImage(imagePath);
+        if (image.BitsPerPixel != 8)
+        {
+            image = ImageConverter.To8Bpp(image);
+        }
         return ImageDataEncoder.Encode(image);
     }
 
     protected static async Task<NewIcon> ImportNewIconImage(string imagePath)
     {
         var image = await ReadImage(imagePath);
-        if (image.BitsPerPixel > 8)
+        if (image.BitsPerPixel != 8)
         {
-            throw new ArgumentException($"Image '{imagePath}' has more than 8 bits per pixel", nameof(imagePath));
+            image = ImageConverter.To8Bpp(image);
         }
         return NewIconConverter.ToNewIcon(image);
     }
@@ -151,9 +158,9 @@ public abstract class IconCommandBase : CommandBase
     protected static async Task<ColorIconImage> ImportColorIconImage(string imagePath)
     {
         var image = await ReadImage(imagePath);
-        if (image.BitsPerPixel > 8)
+        if (image.BitsPerPixel != 8)
         {
-            throw new ArgumentException($"Image '{imagePath}' has more than 8 bits per pixel", nameof(imagePath));
+            image = ImageConverter.To8Bpp(image);
         }
         return new ColorIconImage
         {
@@ -198,5 +205,48 @@ public abstract class IconCommandBase : CommandBase
         CreateDummyPlanarImages(diskObject);
         NewIconHelper.RemoveNewIconImages(diskObject);
         colorIcon.Images = Array.Empty<ColorIconImage>();
+    }
+
+    protected static void SetDrawerFlags(DiskObject diskObject, DrawerFlags drawerFlags)
+    {
+        switch (drawerFlags)
+        {
+            case DrawerFlags.IconsOnly:
+                DiskObjectHelper.SetDrawerData2Flags(diskObject, DrawerData2.FlagEnum.ViewIcons);
+                break;
+            case DrawerFlags.AllFiles:
+                DiskObjectHelper.SetDrawerData2Flags(diskObject, DrawerData2.FlagEnum.ViewIcons | DrawerData2.FlagEnum.AllFiles);
+                break;
+            case DrawerFlags.Os1X:
+            default:
+                DiskObjectHelper.SetDrawerData2Flags(diskObject, DrawerData2.FlagEnum.ViewIconsOs1X);
+                break;
+        }
+    }
+
+    protected static void SetDrawerViewModes(DiskObject diskObject, DrawerViewModes drawerViewMode)
+    {
+        switch (drawerViewMode)
+        {
+            case DrawerViewModes.Icons:
+                DiskObjectHelper.SetDrawerData2ViewMode(diskObject, DrawerData2.ViewModesEnum.ShowIcons);
+                break;
+            case DrawerViewModes.SortedByDate:
+                DiskObjectHelper.SetDrawerData2ViewMode(diskObject, DrawerData2.ViewModesEnum.ShowSortedByDate);
+                break;
+            case DrawerViewModes.SortedByName:
+                DiskObjectHelper.SetDrawerData2ViewMode(diskObject, DrawerData2.ViewModesEnum.ShowSortedByName);
+                break;
+            case DrawerViewModes.SortedBySize:
+                DiskObjectHelper.SetDrawerData2ViewMode(diskObject, DrawerData2.ViewModesEnum.ShowSortedBySize);
+                break;
+            case DrawerViewModes.SortedByType:
+                DiskObjectHelper.SetDrawerData2ViewMode(diskObject, DrawerData2.ViewModesEnum.ShowSortedByType);
+                break;
+            case DrawerViewModes.Os1X:
+            default:
+                DiskObjectHelper.SetDrawerData2ViewMode(diskObject, DrawerData2.ViewModesEnum.ShowIconsOs1X);
+                break;
+        }
     }
 }

@@ -27,7 +27,7 @@
             var offset = 0x14;
             var dirEntriesNo = 0;
             var dirEntries = new List<direntry>(maxDirEntries);
-            var position = 0;
+            
             do
             {
                 var entry = DirEntryReader.Read(blockBytes, offset, g);

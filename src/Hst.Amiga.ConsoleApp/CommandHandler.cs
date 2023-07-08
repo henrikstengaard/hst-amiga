@@ -7,6 +7,7 @@ using Commands;
 using Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Models;
 using Serilog;
 
 public static class CommandHandler
@@ -53,17 +54,18 @@ public static class CommandHandler
     }
 
     public static async Task IconCreate(string path, IconType type, int? x, int? y, int? stackSize, int? drawerX,
-        int? drawerY, int? drawerWidth, int? drawerHeight, ImageType imageType, string image1Path, string image2Path)
+        int? drawerY, int? drawerWidth, int? drawerHeight, DrawerFlags? drawerFlags, DrawerViewModes? drawerViewModes,
+        ImageType imageType, string image1Path, string image2Path)
     {
         await Execute(new IconCreateCommand(GetLogger<IconCreateCommand>(), path, type, x, y, stackSize, drawerX,
-            drawerY, drawerWidth, drawerHeight, imageType, image1Path, image2Path));
+            drawerY, drawerWidth, drawerHeight, drawerFlags, drawerViewModes, imageType, image1Path, image2Path));
     }
     
     public static async Task IconUpdate(string path, int? type, int? x, int? y, int? stackSize, int? drawerX,
-        int? drawerY, int? drawerWidth, int? drawerHeight)
+        int? drawerY, int? drawerWidth, int? drawerHeight, DrawerFlags? drawerFlags, DrawerViewModes? drawerViewModes)
     {
         await Execute(new IconUpdateCommand(GetLogger<IconUpdateCommand>(), path, type, x, y, stackSize, drawerX, drawerY,
-            drawerWidth, drawerHeight));
+            drawerWidth, drawerHeight, drawerFlags, drawerViewModes));
     }
     
     public static async Task IconImageExport(string iconPath, ImageType imageType, string image1Path, string image2Path, string jsonPalettePath)

@@ -1,6 +1,7 @@
 namespace Hst.Amiga.ConsoleApp;
 
 using System.CommandLine;
+using Models;
 
 public static class IconCommandFactory
 {
@@ -74,6 +75,16 @@ public static class IconCommandFactory
             new[] { "--drawer-height", "-dh" },
             description: "Update drawer height of icon.");
 
+        var drawerFlagsOption = new Option<DrawerFlags?>(
+            new[] { "--flags", "-f" },
+            description: "Drawer flags.",
+            getDefaultValue: () => DrawerFlags.IconsOnly | DrawerFlags.AllFiles);
+
+        var drawerViewModesOption = new Option<DrawerViewModes?>(
+            new[] { "--view-modes", "-v" },
+            description: "Drawer view modes.",
+            getDefaultValue: () => DrawerViewModes.Os1X);
+        
         var imageTypeOption = new Option<ImageType>(
             new[] { "--image-type", "-it" },
             description: "Type of icon image to create.");
@@ -99,12 +110,14 @@ public static class IconCommandFactory
             var drawerY = context.ParseResult.GetValueForOption(drawerYOption);
             var drawerWidth = context.ParseResult.GetValueForOption(drawerWidthOption);
             var drawerHeight = context.ParseResult.GetValueForOption(drawerHeightOption);
+            var drawerFlags = context.ParseResult.GetValueForOption(drawerFlagsOption);
+            var drawerViewModes = context.ParseResult.GetValueForOption(drawerViewModesOption);
             var imageType = context.ParseResult.GetValueForOption(imageTypeOption);
             var image1Path = context.ParseResult.GetValueForOption(image1PathOption);
             var image2Path = context.ParseResult.GetValueForOption(image2PathOption);
 
             await CommandHandler.IconCreate(path, type, x, y, stackSize, drawerX, drawerY, drawerWidth, drawerHeight,
-                imageType, image1Path, image2Path);
+                drawerFlags, drawerViewModes, imageType, image1Path, image2Path);
         });
         
         command.AddArgument(pathArgument);
@@ -116,6 +129,8 @@ public static class IconCommandFactory
         command.AddOption(drawerYOption);
         command.AddOption(drawerWidthOption);
         command.AddOption(drawerHeightOption);
+        command.AddOption(drawerFlagsOption);
+        command.AddOption(drawerViewModesOption);
         command.AddOption(imageTypeOption);
         command.AddOption(image1PathOption);
         command.AddOption(image2PathOption);
@@ -161,6 +176,16 @@ public static class IconCommandFactory
             new[] { "--drawer-height", "-dh" },
             description: "Update drawer height of icon.");
         
+        var drawerFlagsOption = new Option<DrawerFlags?>(
+            new[] { "--flags", "-f" },
+            description: "Drawer flags.",
+            getDefaultValue: () => DrawerFlags.IconsOnly | DrawerFlags.AllFiles);
+
+        var drawerViewModesOption = new Option<DrawerViewModes?>(
+            new[] { "--view-modes", "-v" },
+            description: "Drawer view mode.",
+            getDefaultValue: () => DrawerViewModes.Os1X);
+        
         var command = new Command("update", "Update icon file.");
         
         command.SetHandler(async (context) =>
@@ -174,8 +199,11 @@ public static class IconCommandFactory
             var drawerY = context.ParseResult.GetValueForOption(drawerYOption);
             var drawerWidth = context.ParseResult.GetValueForOption(drawerWidthOption);
             var drawerHeight = context.ParseResult.GetValueForOption(drawerHeightOption);
+            var drawerFlags = context.ParseResult.GetValueForOption(drawerFlagsOption);
+            var drawerViewModes = context.ParseResult.GetValueForOption(drawerViewModesOption);
 
-            await CommandHandler.IconUpdate(path, type, x, y, stackSize, drawerX, drawerY, drawerWidth, drawerHeight);
+            await CommandHandler.IconUpdate(path, type, x, y, stackSize, drawerX, drawerY, drawerWidth, drawerHeight,
+                drawerFlags, drawerViewModes);
         });
         
         command.AddArgument(pathArgument);
@@ -187,6 +215,8 @@ public static class IconCommandFactory
         command.AddOption(drawerYOption);
         command.AddOption(drawerWidthOption);
         command.AddOption(drawerHeightOption);
+        command.AddOption(drawerFlagsOption);
+        command.AddOption(drawerViewModesOption);
 
         return command;
     }

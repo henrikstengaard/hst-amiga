@@ -44,7 +44,7 @@ New icons data is stored as an extension to standard AmigaOS by adding a new dat
 
 Color icons are based on the more general IFF file format and is the native icon format used in AmigaOS 3.5, 3.9 and 4.0.
 
-## Icon file structure
+## Disk object file structure
 
 The format of the Amiga .info file is as follows:
 

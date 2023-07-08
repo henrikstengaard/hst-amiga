@@ -1,8 +1,6 @@
 ﻿namespace Hst.Amiga.Tests.DiskObjectTests
 {
     using System;
-    using System.Linq;
-    using DataTypes.DiskObjects;
     using Imaging;
     using Xunit;
 
@@ -33,8 +31,6 @@
             var sourcePixelIterator = new ImagePixelDataIterator(source);
             var destPixelIterator = new ImagePixelDataIterator(destination);
 
-            var t = source.PixelData.SequenceEqual(destination.PixelData);
-            
             for (int y = 0; y < source.Height; y++)
             {
                 for (int x = 0; x < source.Width; x++)

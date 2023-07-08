@@ -51,6 +51,12 @@ public class IconInfoCommand : CommandBase
             OnInformationMessage($"- Position y: {diskObject.DrawerData.TopEdge}");
             OnInformationMessage($"- Width: {diskObject.DrawerData.Width}");
             OnInformationMessage($"- Height: {diskObject.DrawerData.Height}");
+
+            if (diskObject.DrawerData2 != null)
+            {
+                OnInformationMessage($"- Flags: {(DrawerData2.FlagEnum)diskObject.DrawerData2.Flags}");
+                OnInformationMessage($"- View modes: {(DrawerData2.ViewModesEnum)diskObject.DrawerData2.ViewModes}");
+            }
         }
 
         if (diskObject.FirstImageData != null)

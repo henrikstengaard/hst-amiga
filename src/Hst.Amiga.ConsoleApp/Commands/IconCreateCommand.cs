@@ -8,6 +8,7 @@ using Core;
 using DataTypes.DiskObjects;
 using DataTypes.DiskObjects.ColorIcons;
 using Microsoft.Extensions.Logging;
+using Models;
 
 public class IconCreateCommand : IconCommandBase
 {
@@ -21,12 +22,15 @@ public class IconCreateCommand : IconCommandBase
     private readonly int? drawerY;
     private readonly int? drawerWidth;
     private readonly int? drawerHeight;
+    private readonly DrawerFlags? drawerFlags;
+    private readonly DrawerViewModes? drawerViewModes;
     private readonly ImageType imageType;
     private readonly string image1Path;
     private readonly string image2Path;
 
     public IconCreateCommand(ILogger<IconCreateCommand> logger, string path, IconType type, int? x, int? y,
-        int? stackSize, int? drawerX, int? drawerY, int? drawerWidth, int? drawerHeight, ImageType imageType,
+        int? stackSize, int? drawerX, int? drawerY, int? drawerWidth, int? drawerHeight, DrawerFlags? drawerFlags,
+        DrawerViewModes? drawerViewModes, ImageType imageType,
         string image1Path, string image2Path)
     {
         this.logger = logger;
@@ -39,6 +43,8 @@ public class IconCreateCommand : IconCommandBase
         this.drawerY = drawerY;
         this.drawerWidth = drawerWidth;
         this.drawerHeight = drawerHeight;
+        this.drawerFlags = drawerFlags;
+        this.drawerViewModes = drawerViewModes;
         this.imageType = imageType;
         this.image1Path = image1Path;
         this.image2Path = image2Path;
@@ -64,9 +70,7 @@ public class IconCreateCommand : IconCommandBase
             diskObject.StackSize = stackSize.Value;
         }
 
-        if ((diskObject.Type == Constants.DiskObjectTypes.DISK ||
-             diskObject.Type == Constants.DiskObjectTypes.DRAWER ||
-             diskObject.Type == Constants.DiskObjectTypes.GARBAGE) &&
+        if (IsDrawerIcon(diskObject) &&
             diskObject.DrawerData != null)
         {
             if (drawerX.HasValue)
@@ -87,6 +91,16 @@ public class IconCreateCommand : IconCommandBase
             if (drawerHeight.HasValue)
             {
                 diskObject.DrawerData.Height = (short)drawerHeight.Value;
+            }
+            
+            if (drawerFlags.HasValue)
+            {
+                SetDrawerFlags(diskObject, drawerFlags.Value);
+            }
+            
+            if (drawerViewModes.HasValue)
+            {
+                SetDrawerViewModes(diskObject, drawerViewModes.Value);
             }
         }
 
@@ -110,6 +124,12 @@ public class IconCreateCommand : IconCommandBase
         return new Result();
     }
 
+    private static bool IsDrawerIcon(DiskObject diskObject)
+    {
+        return diskObject.Type is Constants.DiskObjectTypes.DISK or Constants.DiskObjectTypes.DRAWER
+            or Constants.DiskObjectTypes.GARBAGE;
+    }
+    
     private DiskObject CreateDiskObject()
     {
         return type switch

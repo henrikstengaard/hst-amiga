@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.Linq;
     using Amiga;
+    using Core;
 
     public static class DiskObjectHelper
     {
@@ -190,6 +191,44 @@
         public static int CalculateColors(int depth)
         {
             return Convert.ToInt32(Math.Pow(2, depth));
+        }
+
+        public static void SetDrawerData2Flags(DiskObject diskObject, DrawerData2.FlagEnum flags)
+        {
+            if (diskObject.Type != Constants.DiskObjectTypes.DISK && diskObject.Type != Constants.DiskObjectTypes.DRAWER && diskObject.Type != Constants.DiskObjectTypes.GARBAGE)
+            {
+                return;
+            }
+
+            if (diskObject.DrawerData2 == null)
+            {
+                diskObject.DrawerData2 = new DrawerData2
+                {
+                    Flags = (uint)(DrawerData2.FlagEnum.ViewIcons | DrawerData2.FlagEnum.AllFiles),
+                    ViewModes = (ushort)DrawerData2.ViewModesEnum.ShowIconsOs1X
+                };
+            }
+
+            diskObject.DrawerData2.Flags = (uint)flags;
+        }
+
+        public static void SetDrawerData2ViewMode(DiskObject diskObject, DrawerData2.ViewModesEnum viewMode)
+        {
+            if (diskObject.Type != Constants.DiskObjectTypes.DISK && diskObject.Type != Constants.DiskObjectTypes.DRAWER && diskObject.Type != Constants.DiskObjectTypes.GARBAGE)
+            {
+                return;
+            }
+
+            if (diskObject.DrawerData2 == null)
+            {
+                diskObject.DrawerData2 = new DrawerData2
+                {
+                    Flags = (uint)(DrawerData2.FlagEnum.ViewIcons | DrawerData2.FlagEnum.AllFiles),
+                    ViewModes = (ushort)DrawerData2.ViewModesEnum.ShowIconsOs1X
+                };
+            }
+
+            diskObject.DrawerData2.ViewModes = (ushort)viewMode;
         }
     }
 }

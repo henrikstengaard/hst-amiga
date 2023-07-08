@@ -1215,7 +1215,7 @@
  * Update references
  * diff is direntry size difference (new - original)
  */
-        public static async Task UpdateChangedRef(fileinfo from, fileinfo to, globaldata g)
+        public static Task UpdateChangedRef(fileinfo from, fileinfo to, globaldata g)
         {
             var volume = from.dirblock.volume;
 
@@ -1290,6 +1290,8 @@
                     }
                 }
             }
+
+            return Task.CompletedTask;
         }
 
         // public static async Task GetNextEntry(lockentry file, globaldata g)

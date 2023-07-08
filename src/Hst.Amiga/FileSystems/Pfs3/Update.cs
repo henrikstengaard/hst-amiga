@@ -82,7 +82,7 @@
                     break;
 
                 case Constants.EXTENSIONID: /* rootblockextension */
-                    UpdateRBlkExtension(blk, newblocknr, g);
+                    await UpdateRBlkExtension(blk, newblocknr, g);
                     break;
 
                 case Constants.DELDIRID: /* deldir */
@@ -419,7 +419,6 @@
             var alloc_data = g.glob_allocdata;
             var andata = g.glob_anodedata;
             bool success;
-            uint i;
 
             /*
              * Do update
