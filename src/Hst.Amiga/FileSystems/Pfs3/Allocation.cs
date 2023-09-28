@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
     using System;
+    using System.IO;
     using System.Threading.Tasks;
     using Blocks;
 
@@ -25,8 +26,12 @@
             indexblnr = seqnr / andata.indexperblock;
             indexoffset = seqnr % andata.indexperblock;
             if ((indexblock = await GetBitmapIndex((ushort)indexblnr, g)) == null)
+            {
                 if ((indexblock = await NewBitmapIndexBlock((ushort)indexblnr, g)) == null)
+                {
                     return null;
+                }
+            }
 
             oldlock = indexblock.used;
             Cache.LOCK(indexblock, g);
@@ -56,7 +61,8 @@
                 bitmap[i] = UInt32.MaxValue; //  hexadecimal 0xFFFFFFFF
             }
 
-            Macro.MinAddHead(volume.bmblks, blok);
+            // Macro.MinAddHead(volume.bmblks, blok);
+            Macro.AddToIndexes(volume.bmblks, volume.bmblksBySeqNr, blok);
             await Update.MakeBlockDirty(indexblock, g);
             indexblock.used = oldlock; // unlock;
 
@@ -83,7 +89,7 @@
             volume.rootblockchangeflag = true;
 
             blok.volume = volume;
-            blok.blocknr = volume.rootblk.idx.large.bitmapindex[seqnr];
+            blok.blocknr = g.RootBlock.idx.large.bitmapindex[seqnr];
             blok.used = 0;
             blok.blk = new indexblock(g)
             {
@@ -91,7 +97,8 @@
                 seqnr = seqnr
             };
             blok.changeflag = true;
-            Macro.MinAddHead(volume.bmindexblks, blok);
+            // Macro.MinAddHead(volume.bmindexblks, blok);
+            Macro.AddToIndexes(volume.bmindexblks, volume.bmindexblksBySeqNr, blok);
 
             return blok;
         }
@@ -103,12 +110,15 @@
         {
             var vol = g.currentvolume;
             var alloc_data = g.glob_allocdata;
-            var bitmap = alloc_data.res_bitmap.bitmap;
+            var bitmap = g.RootBlock.ReservedBitmapBlock.bitmap;
             //uint free = (uint)g.RootBlock.ReservedFree;
             uint blocknr;
             int i, j;
 
             // ENTER("AllocReservedBlock");
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: AllocReservedBlock Enter");
+#endif
 
             /* Check if allocation possible 
              * (really necessary?)
@@ -137,6 +147,9 @@
                                 g.RootBlock.ReservedFree--;
                                 alloc_data.res_roving = (uint)(32 * i + (31 - j));
                                 // DB(Trace(10,"AllocReservedBlock","allocated %ld\n", blocknr));
+#if DEBUG
+                                Pfs3Logger.Instance.Debug($"Allocation: AllocReservedBlock, allocated block nr = {blocknr}, bitmap = {i}, bit = {j}, alloc_data.res_roving = {alloc_data.res_roving}");
+#endif
                                 return blocknr;
                             }
                         }
@@ -148,13 +161,20 @@
             */
             if (alloc_data.res_roving != 0)
             {
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Allocation: end of bitmap reached,alloc_data.res_roving = {alloc_data.res_roving}");
+#endif
                 alloc_data.res_roving = 0;
-                return AllocReservedBlock(g);
+                blocknr = AllocReservedBlock(g);
             }
             else
-                return 0;
+                blocknr = 0;
 
             // EXIT("AllocReservedBlock");
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: AllocReservedBlock Exit, block nr = {blocknr}");
+#endif
+            return blocknr;
         }
 
         public static void FreeReservedBlock(uint blocknr, globaldata g)
@@ -164,9 +184,13 @@
              */
             if (blocknr != 0 && blocknr <= g.RootBlock.LastReserved)
             {
-                var alloc_data = g.glob_allocdata;
-                var bitmap = alloc_data.res_bitmap.bitmap;
+                var bitmap = g.RootBlock.ReservedBitmapBlock.bitmap;
                 var t = (blocknr - g.RootBlock.FirstReserved) / g.currentvolume.rescluster;
+
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Allocation: FreeReservedBlock, block nr = {blocknr}, bitmap = {t / 32}, bit = {t % 32}");
+#endif
+                
                 bitmap[t / 32] |= 0x80000000U >> (int)(t % 32);
                 g.RootBlock.ReservedFree++;
                 g.currentvolume.rootblockchangeflag = true;
@@ -180,32 +204,40 @@
             var volume = g.currentvolume;
 
             /* check cache */
-            for (var node = Macro.HeadOf(volume.bmindexblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(volume.bmindexblks); node != null; node = node.Next)
+            // {
+            //     indexblk = node.Value;
+            //     if (indexblk.blk is indexblock indexBlock && indexBlock.seqnr == nr)
+            //     {
+            //         Lru.MakeLRU(indexblk, g);
+            //         return indexblk;
+            //     }
+            // }
+            foreach (var node in volume.bmindexblks)
             {
                 indexblk = node.Value;
-                if (indexblk.blk is BitmapBlock bitmapBlock && bitmapBlock.seqnr == nr)
-                {
-                    Lru.MakeLRU(indexblk, g);
-                    return indexblk;
-                }
                 if (indexblk.blk is indexblock indexBlock && indexBlock.seqnr == nr)
                 {
                     Lru.MakeLRU(indexblk, g);
                     return indexblk;
                 }
             }
-
+            
             /* not in cache, put it in */
             if (nr > (g.SuperMode ? Constants.MAXBITMAPINDEX : Constants.MAXSMALLBITMAPINDEX) ||
-                (blocknr = volume.rootblk.idx.large.bitmapindex[nr]) == 0 ||
+                (blocknr = g.RootBlock.idx.large.bitmapindex[nr]) == 0 ||
                 (indexblk = await Lru.AllocLRU(g)) == null)
             {
                 return null;
             }
 
             // DB(Trace(10,"GetBitmapIndex", "seqnr = %ld blocknr = %lx\n", nr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: GetBitmapIndex seqnr = {nr}, blocknr = {blocknr}");
+#endif
+            
             IBlock blk;
-            if ((blk = await Disk.RawRead<BitmapBlock>(g.currentvolume.rescluster, blocknr, g)) == null)
+            if ((blk = await Disk.RawRead<indexblock>(g.currentvolume.rescluster, blocknr, g)) == null)
             {
                 Lru.FreeLRU(indexblk, g);
                 return null;
@@ -219,7 +251,8 @@
                 indexblk.blocknr = blocknr;
                 indexblk.used = 0;
                 indexblk.changeflag = false;
-                Macro.MinAddHead(volume.bmindexblks, indexblk);
+                // Macro.MinAddHead(volume.bmindexblks, indexblk);
+                Macro.AddToIndexes(volume.bmindexblks, volume.bmindexblksBySeqNr, indexblk);
             }
             else
             {
@@ -298,14 +331,20 @@
             var andata = g.glob_anodedata;
 
             /* check cache */
-            for (var node = Macro.HeadOf(volume.bmblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(volume.bmblks); node != null; node = node.Next)
+            // {
+            //     bmb = node.Value;
+            //     if (bmb.BitmapBlock.seqnr == seqnr)
+            //     {
+            //         Lru.MakeLRU(bmb, g);
+            //         return bmb;
+            //     }
+            // }
+            if (volume.bmblksBySeqNr.ContainsKey(seqnr))
             {
-                bmb = node.Value;
-                if (bmb.BitmapBlock.seqnr == seqnr)
-                {
-                    Lru.MakeLRU(bmb, g);
-                    return bmb;
-                }
+                bmb = volume.bmblksBySeqNr[seqnr];
+                Lru.MakeLRU(bmb, g);
+                return bmb;
             }
 
             /* not in cache, put it in */
@@ -315,29 +354,16 @@
                 return null;
 
             /* get blocknr */
-            switch (indexblock.blk)
-            {
-                case BitmapBlock bitmapBlock:
-                    if ((blocknr = bitmapBlock.bitmap[temp >> 16]) == 0 || (bmb = await Lru.AllocLRU(g)) == null)
-                    {
-                        return null;
-                    }
-                    break;
-                case indexblock indexBlock:
-                    if ((blocknr = (uint)indexBlock.index[temp >> 16]) == 0 || (bmb = await Lru.AllocLRU(g)) == null)
-                    {
-                        return null;
-                    }
-                    break;
-            }
-
-            if (bmb == null)
+            var indexBlockBlk = indexblock.IndexBlock;
+            if ((blocknr = (uint)indexBlockBlk.index[temp >> 16]) == 0 || (bmb = await Lru.AllocLRU(g)) == null)
             {
                 return null;
             }
-            
-            // DB(Trace(10,"GetBitmapBlock", "seqnr = %ld blocknr = %lx\n", seqnr, blocknr));
 
+            // DB(Trace(10,"GetBitmapBlock", "seqnr = %ld blocknr = %lx\n", seqnr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: GetBitmapBlock seqnr = {seqnr}, blocknr = {blocknr}");
+#endif
             /* read it */
             bmb.blk = await Disk.RawRead<BitmapBlock>(g.currentvolume.rescluster, blocknr, g);
             if (bmb.blk == null)
@@ -362,7 +388,8 @@
             bmb.blocknr = blocknr;
             bmb.used = 0;
             bmb.changeflag = false;
-            Macro.MinAddHead(volume.bmblks, bmb);
+            // Macro.MinAddHead(volume.bmblks, bmb);
+            Macro.AddToIndexes(volume.bmblks, volume.bmblksBySeqNr, bmb);
 
             return bmb;
         }
@@ -582,8 +609,10 @@
             var alloc_data = g.glob_allocdata;
             bool extend = false, updateroving = true;
 
-
             //ENTER("AllocateBlocksAC");
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: AllocateBlocksAC Enter");
+#endif
 
             /* Check if allocation possible */
             if (alloc_data.alloc_available < size)
@@ -623,6 +652,10 @@
                 bmoffset = (ushort)(nr % alloc_data.longsperbmb);
                 bitmap = await GetBitmapBlock(bmseqnr, g);
                 var bitmapBlk = bitmap.BitmapBlock;
+                if (bitmapBlk == null)
+                {
+                    throw new IOException($"Allocation: Cached block nr {bitmap.blocknr} in chnode allocate returns null as bitmap block, type is '{(bitmap.blk == null ? "null" : bitmap.blk.GetType().Name)}'");
+                }
                 field = bitmapBlk.bitmap[bmoffset];
 
                 /* block directly behind file free ? */
@@ -655,11 +688,15 @@
                 /* scan all bitmapblocks */
                 bitmap = await GetBitmapBlock(bmseqnr, g);
                 oldlocknr = bitmap.used;
-
+                
                 /* find all empty fields */
                 while (bmoffset < alloc_data.longsperbmb)
                 {
                     var bitmapBlk = bitmap.BitmapBlock;
+                    if (bitmapBlk == null)
+                    {
+                        throw new IOException($"Allocation: Cached block nr {bitmap.blocknr} in allocate returns null as bitmap block, type is '{(bitmap.blk == null ? "null" : bitmap.blk.GetType().Name)}'");
+                    }
                     field = bitmapBlk.bitmap[bmoffset];
                     if (field != 0)
                     {
@@ -681,6 +718,11 @@
                                 /* take block */
                                 else
                                 {
+                                    // CHANGE: Moved lock of bitmap block from check block connect to
+                                    // ensure it's locked before possible allocating and saving anode
+                                    // If bitmap block not locked it will get replaced with an anode block
+                                    Macro.Lock(bitmap, g);
+                                    
                                     /* uninitialized anode */
                                     if (chnode.an.blocknr == UInt32.MaxValue) // = -1
                                     {
@@ -693,9 +735,8 @@
                                     {
                                         uint anodenr;
 
-                                        Macro.Lock(bitmap, g);
-
                                         chnode.next = new anodechainnode();
+                                        // CHANGE: Commented out as allocate memory is not an issue with c# as in c
 //                                         if (!(chnode.next = AllocMemP(anodechainnode), g)))
 //                                         {
 // // #if VERSION23
@@ -719,9 +760,8 @@
                                         chnode.an.clustersize = 0;
                                         chnode.an.next = 0;
                                     }
-
                                     
-                                    bitmapBlk.bitmap[bmoffset] &= (~j); /* remove block from freelist */
+                                    bitmapBlk.bitmap[bmoffset] &= ~j; /* remove block from freelist */
                                     chnode.an.clustersize++; /* to file  	  	  */
                                     await Update.MakeBlockDirty(bitmap, g);
 
@@ -739,13 +779,20 @@
                                             /* make state valid and update disk */
                                             await Update.MakeBlockDirty(ref_.dirblock, g);
                                             await anodes.SaveAnode(chnode.an, chnode.an.nr, g);
+                                            if (bitmap.BitmapBlock == null)
+                                            {
+                                                // error cached bitmap block overwritten with anodeblock
+                                                // as alloclru returns not locked bitmapblock and reuses
+                                                // it for anodeblock
+                                                throw new IOException("Bitmap block is null");
+                                            }
                                             await Update.UpdateDisk(g);
 
                                             /* abort if running out of reserved blocks */
                                             if (g.RootBlock.ReservedFree <= Constants.RESFREE_THRESHOLD)
                                             {
 // #if VERSION23
-                                                Directory.SetDEFileSize(ref_.dirblock.dirblock, ref_.direntry, oldfilesize, g);
+                                                ref_.direntry = Directory.SetDEFileSize(ref_.dirblock.dirblock, ref_.direntry, oldfilesize, g);
                                                 await Update.MakeBlockDirty (ref_.dirblock, g);
 // #endif
                                                 await FreeBlocksAC(achain, blocksdone, freeblocktype.freeanodes, g);
@@ -803,6 +850,9 @@
             }
 
             //EXIT("AllocateBlocksAC");
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Allocation: AllocateBlocksAC Exit");
+#endif
             return true;
         }
     }

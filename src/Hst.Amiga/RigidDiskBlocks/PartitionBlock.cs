@@ -82,7 +82,7 @@
         /// <summary>
         /// boot priority for autoboot
         /// </summary>
-        public uint BootPriority { get; set; }
+        public int BootPriority { get; set; }
 
         /// <summary>
         /// dostype for filesystem (DOS3, PDS3)

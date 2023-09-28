@@ -6,7 +6,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
-    using Core.Converters;
+    using Exceptions;
 
     public static class Directory
     {
@@ -38,7 +38,8 @@
             blk.oldblocknr = 0;
             blk.changeflag = true;
 
-            Macro.Hash(blk, volume.dirblks, Constants.HASHM_DIR);
+            //Macro.Hash(blk, volume.dirblks, Constants.HASHM_DIR);
+            Macro.Hash(blk, volume.dirblks);
             Cache.LOCK(blk, g);
             return blk;
         }
@@ -85,14 +86,23 @@
             await Update.UpdateDisk(g);
 
             /* flush cache */
-            for (var node = Macro.HeadOf(g.currentvolume.deldirblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(g.currentvolume.deldirblks); node != null; node = node.Next)
+            // {
+            //     ddblk = node.Value;
+            //     Lru.FlushBlock(ddblk, g);
+            //     // MinRemove(LRU_CHAIN(ddblk));
+            //     // MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(ddblk));
+            //     Macro.MinRemoveLru(ddblk, g);
+            //     Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(ddblk));
+            //     // i.p.v. FreeLRU((struct cachedblock *)ddblk, g);
+            // }
+            foreach (var node in g.currentvolume.deldirblks)
             {
                 ddblk = node.Value;
                 Lru.FlushBlock(ddblk, g);
                 // MinRemove(LRU_CHAIN(ddblk));
                 // MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(ddblk));
-                Macro.MinRemove(ddblk, g);
-                Macro.MinRemove(new LruCachedBlock(ddblk), g);
+                Macro.MinRemoveLru(ddblk, g);
                 Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(ddblk));
                 // i.p.v. FreeLRU((struct cachedblock *)ddblk, g);
             }
@@ -173,12 +183,13 @@
             ddblk.blk = ddblk_blk;
             ddblk.changeflag = true;
             ddblk_blk.protection = Constants.DELENTRY_PROT; /* re..re..re.. */
-            ddblk_blk.CreationDate = volume.rootblk.CreationDate;
+            ddblk_blk.CreationDate = g.RootBlock.CreationDate;
             // ddblk->blk.creationminute	= volume->rootblk->creationminute;
             // ddblk->blk.creationtick		= volume->rootblk->creationtick;
 
             /* add to cache and return */
-            Macro.MinAddHead(volume.deldirblks, ddblk);
+            // Macro.MinAddHead(volume.deldirblks, ddblk);
+            Macro.AddToIndexes(volume.deldirblks, volume.deldirblksBySeqNr, ddblk);
             return ddblk;
         }
 
@@ -240,12 +251,12 @@
  * Note: 'directory' and 'newfile' may point to the same.
  */
         public static async Task NewFile(bool found, objectinfo directory, string filename, objectinfo newfile,
-            globaldata g)
+            bool overwrite, globaldata g)
         {
             objectinfo info = new objectinfo();
             uint anodenr;
             int entryindex = 0;
-            byte[] entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
+            //byte[] entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
             extrafields extrafields = new extrafields();
             direntry destentry;
             canode anode = new canode();
@@ -253,6 +264,11 @@
 // #if VERSION23
             anodechain achain;
 // #endif
+
+            if (found && overwrite && newfile.file.direntry.type != Constants.ST_FILE)
+            {
+                throw new NotAFileException($"Overwrite existing file '{filename}' failed, not a file");
+            }
 
             //DB(Trace(10, "NewFile", "%s\n", filename));
             /* check disk-writeprotection etc */
@@ -286,6 +302,10 @@
 
             if (found)
             {
+                if (!overwrite)
+                {
+                    throw new PathAlreadyExistsException($"Path '{filename}' already exists");
+                }
                 /*
                  * new version: take over direntry
                  * (used to simply delete old and make new)
@@ -296,7 +316,7 @@
 
                 /* Check deleteprotection */
                 if (Macro.IsVolume(info) ||
-                    (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE)
+                    (!g.IgnoreProtectionBits && (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE))
                 {
                     throw new IOException("ERROR_DELETE_PROTECTED");
                 }
@@ -309,7 +329,9 @@
                 {
                     canode linknode = new canode();
 
-                    GetExtraFields(info.file.direntry, extrafields);
+                    // var dirBlock = info.file.dirblock.dirblock;
+                    // extrafields = GetExtraFields(dirBlock.entries, info.file.direntry);
+                    extrafields = info.file.direntry.ExtraFields;
                     anodenr = extrafields.link;
                     await anodes.GetAnode(linknode, info.file.direntry.anode, g);
                     if (!await Lock.FetchObject(linknode.clustersize, anodenr, info, g))
@@ -318,7 +340,7 @@
                     }
 
                     /* have to check protection again */
-                    if ((info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE)
+                    if (!g.IgnoreProtectionBits && (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE)
                     {
                         throw new IOException("ERROR_DELETE_PROTECTED");
                     }
@@ -350,10 +372,11 @@
                     ddslot = await AllocDeldirSlot(g);
 
                     /* make replacement anode, because we want to reuse the old one */
-                    info.file.direntry.anode = achain.head.an.nr = await anodes.AllocAnode(0, g);
+                    achain.head.an.nr = await anodes.AllocAnode(0, g);
+                    info.file.direntry.SetAnode(achain.head.an.nr); 
                     await anodes.SaveAnode(achain.head.an, achain.head.an.nr, g);
                     await AddToDeldir(info, ddslot, g);
-                    info.file.direntry.anode = anodenr;
+                    info.file.direntry.SetAnode(anodenr); 
                 }
 
                 /* Rollover files are essentially just 'reset' by overwriting:
@@ -363,8 +386,8 @@
                 if (info.file.direntry.type != Constants.ST_ROLLOVERFILE)
                 {
                     /* Change directory entry */
-                    SetDEFileSize(info.file.dirblock.dirblock, info.file.direntry, 0, g);
-                    info.file.direntry.type = Constants.ST_FILE;
+                    info.file.direntry = SetDEFileSize(info.file.dirblock.dirblock, info.file.direntry, 0, g);
+                    info.file.direntry.SetType(Constants.ST_FILE);
                     await Update.MakeBlockDirty(info.file.dirblock, g);
 
                     /* Reclaim anode */
@@ -383,22 +406,30 @@
 
                 /* Clear direntry extrafields */
                 //destentry = (struct direntry *)entrybuffer;
-                destentry = DirEntryReader.Read(entrybuffer, entryindex);
+                //destentry = DirEntryReader.Read(entrybuffer, entryindex);
                 //memcpy(destentry, info.file.direntry, info.file.direntry.next);
-                destentry.ExtraFields = new extrafields();
-                GetExtraFields(info.file.direntry, extrafields);
-                extrafields.virtualsize = extrafields.rollpointer = 0;
-                AddExtraFields(destentry, extrafields);
-                await ChangeDirEntry(info, destentry, directory, info.file, g);
-                newfile.file = info.file;
+                // NOTE: The 3 previous out commented lines makes new destentry using blank entrybuffer,
+                // then copies data from info.file.direntry to destentry.
+                // This is replaced by just reading info.file.direntry as destentry.
+                // destentry = DirEntryReader.Read(info.file.dirblock.dirblock.entries, info.file.direntry.Offset);
+                destentry = info.file.direntry;
+                // extrafields = GetExtraFields(info.file.dirblock.dirblock.entries, info.file.direntry);
+                extrafields = new extrafields(info.file.direntry.ExtraFields);
+                extrafields.SetVirtualSize(0);
+                extrafields.SetRollPointer(0);
+                //AddExtraFields(info.file.dirblock.dirblock.entries, destentry, extrafields);
+                destentry.SetExtraFields(extrafields, g);
+                var fileInfo = new fileinfo();
+                await ChangeDirEntry(info, destentry, directory, fileInfo, g);
+                newfile.file = fileInfo;
                 newfile.volume.root = 1;
                 return;
             }
 
             /* direntry alloceren en invullen */
-            if (await MakeDirEntry(Constants.ST_FILE, filename, entrybuffer, 0, g))
+            var entry = await MakeDirEntry(Constants.ST_FILE, filename, g);
+            if (entry != null)
             {
-                var entry = DirEntryReader.Read(entrybuffer, entryindex);
                 if (await AddDirectoryEntry(directory, entry, newfile.file, g))
                 {
                     newfile.volume.root = 1;
@@ -440,7 +471,7 @@
             ListType type = new ListType();
             CachedBlock blk;
             uint parentnr, blocknr;
-            byte[] entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
+            // byte[] entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
             int l;
 
             /* check disk-writeprotection etc */
@@ -484,14 +515,15 @@
             }
 
             /* allocate directory entry, fill it. Make fileentry */
-            var entryindex = 0;
-            if (!await MakeDirEntry(Constants.ST_USERDIR, dirname, entrybuffer, entryindex, g))
+            // var entryindex = 0;
+            var de = await MakeDirEntry(Constants.ST_USERDIR, dirname, g);
+            if (de == null)
             {
                 // goto error1;
                 throw new IOException("ERROR_DISK_FULL");
             }
 
-            var de = DirEntryReader.Read(entrybuffer, entryindex);
+            //var de = DirEntryReader.Read(entrybuffer, entryindex, g);
             if (!await AddDirectoryEntry(parent, de, info.file, g))
             {
                 //FreeAnode(((struct direntry *)entrybuffer)->anode, g);
@@ -544,7 +576,7 @@
             if (fileentry != null)
                 Lock.FreeListEntry(fileentry, g);
             //DB(Trace(1, "Newdir", "disk full"));
-            throw new IOException("disk full");
+            throw new DiskFullException("Disk full");
         }
 
 /*
@@ -587,15 +619,21 @@
             }
 
             /* check cache */
-            for (var node = Macro.HeadOf(volume.deldirblks); node != null; node = node.Next)
+            // for (var node = Macro.HeadOf(volume.deldirblks); node != null; node = node.Next)
+            // {
+            //     ddblk = node.Value;
+            //     var ddblk_blk = ddblk.deldirblock;
+            //     if (ddblk_blk.seqnr == seqnr)
+            //     {
+            //         Lru.MakeLRU(ddblk, g);
+            //         return ddblk;
+            //     }
+            // }
+            if (volume.deldirblksBySeqNr.ContainsKey(seqnr))
             {
-                ddblk = node.Value;
-                var ddblk_blk = ddblk.deldirblock;
-                if (ddblk_blk.seqnr == seqnr)
-                {
-                    Lru.MakeLRU(ddblk, g);
-                    return ddblk;
-                }
+                ddblk = volume.deldirblksBySeqNr[seqnr];
+                Lru.MakeLRU(ddblk, g);
+                return ddblk;
             }
 
             /* alloc cache */
@@ -618,18 +656,19 @@
                 // ErrorMsg (AFS_ERROR_DELDIR_INVALID, NULL, g);
                 Lru.FreeLRU(ddblk, g);
                 //volume.rootblk.Options ^= Constants.MODE_DELDIR;
-                volume.rootblk.Options ^= RootBlock.DiskOptionsEnum.MODE_DELDIR;
+                g.RootBlock.Options ^= RootBlock.DiskOptionsEnum.MODE_DELDIR;
                 g.deldirenabled = false;
             }
 
             /* initialize it */
             ddblk.volume = volume;
             ddblk.blocknr = blocknr;
-            ddblk.used = 1;
+            ddblk.used = 0;
             ddblk.changeflag = false;
 
             /* add to cache and return */
-            Macro.MinAddHead(volume.deldirblks, ddblk);
+            // Macro.MinAddHead(volume.deldirblks, ddblk);
+            Macro.AddToIndexes(volume.deldirblks, volume.deldirblksBySeqNr, ddblk);
             return ddblk;
         }
 
@@ -642,9 +681,8 @@
  */
         public static async Task RemoveDirEntry(objectinfo info, globaldata g)
         {
-            int endofblok, startofblok, destofblok, startofclear;
-            ushort clearlen;
-            //SIPTR error;
+            // int endofblok, startofblok, destofblok, startofclear;
+            // ushort clearlen;
             objectinfo parent = new objectinfo();
 
             Macro.Lock(info.file.dirblock, g);
@@ -662,29 +700,22 @@
             // startofclear = endofblok - info.direntry->next;
             // clearlen = info.direntry->next;
             // memmove(destofblok, startofblok, endofblok - startofblok);
-
-            destofblok = info.file.direntry.Offset;
-            startofblok = destofblok + info.file.direntry.next;
-            endofblok = SizeOf.DirBlock.Entries(g);
-            startofclear = endofblok - info.file.direntry.next;
-            clearlen = info.file.direntry.next;
-
-            // moves bytes from startofblok to destofblok
+            
             var blk = info.file.dirblock.dirblock;
-            for (var i = 0; i < endofblok - startofblok; i++)
-            {
-                blk.entries[destofblok + i] = blk.entries[startofblok + i];
-            }
+            blk.DirEntries.Remove(info.file.direntry);
 
-            /* makes info invalid!! */
-            if (info.file.direntry.next != 0)
-            {
-                //memset(startofclear, 0, clearlen);
-                for (var i = 0; i < clearlen; i++)
-                {
-                    blk.entries[startofclear + i] = 0;
-                }
-            }
+            // var movelen = endofblok - startofblok;
+            // var temp = new byte[movelen];
+
+            // /* makes info invalid!! */
+            // if (info.file.direntry.next != 0)
+            // {
+            //     //memset(startofclear, 0, clearlen);
+            //     // for (var i = 0; i < clearlen; i++)
+            //     // {
+            //     //     blk.entries[startofclear + i] = 0;
+            //     // }
+            // }
 
             await Update.MakeBlockDirty(info.file.dirblock, g); // %6.2
         }
@@ -747,6 +778,9 @@
  */
         public static async Task<bool> GetParent(objectinfo childfi, objectinfo parentfi, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Directory: GetParent Enter");
+#endif
             canode anode = new canode();
             CachedBlock dirblock = null;
             direntry de = null;
@@ -796,18 +830,27 @@
                 if (dirblock != null)
                 {
                     blk = dirblock.dirblock;
-                    de = Macro.FIRSTENTRY(blk);
-                    eob = false;
-
-                    while (!found && !eob)
-                    {
-                        found = de.anode == childanodenr;
-                        eob = de.next == 0;
-                        if (!found && !eob)
-                        {
-                            de = Macro.NEXTENTRY(blk, de);
-                        }
-                    }
+                    de = blk.DirEntries.FirstOrDefault(x => x.anode == childanodenr);
+                    found = de != null;
+                    // var maxDirEntries = CalculateMaxDirEntries(blk);
+                    // var dirEntriesNo = 0;
+                    // de = Macro.FIRSTENTRY(blk);
+                    // eob = false;
+                    //
+                    // do
+                    // {
+                    //     found = de.anode == childanodenr;
+                    //     if (found)
+                    //     {
+                    //         break;
+                    //     }
+                    //     eob = de.next == 0;
+                    //
+                    //     dirEntriesNo++;
+                    //     CheckReadDirEntryError(anode.blocknr + anodeoffset, blk, dirEntriesNo, maxDirEntries, -1);
+                    //     
+                    //     de = Macro.NEXTENTRY(blk, de);
+                    // } while (!eob);
 
                     if (!found)
                     {
@@ -831,8 +874,37 @@
 
             parentfi.file.direntry = de;
             parentfi.file.dirblock = dirblock;
+            parentfi.volume.root = de.anode != Constants.ANODE_ROOTDIR ? 1U : 0U;
             Macro.Lock(dirblock, g);
             return true;
+        }
+        
+        /// <summary>
+        /// Calculates max number of dir entries a dir block can store
+        /// </summary>
+        /// <param name="dirblock"></param>
+        /// <returns></returns>
+        // private static int CalculateMaxDirEntries(dirblock dirblock)
+        // {
+        //     return dirblock == null ? 0 : (dirblock.entries.Length / SizeOf.DirEntry.Struct) + 5;
+        // }
+
+        /// <summary>
+        /// Check if dir entry no has exceeded max number of dir entries
+        /// </summary>
+        /// <param name="blocknr"></param>
+        /// <param name="dirblock"></param>
+        /// <param name="dirEntriesNo"></param>
+        /// <param name="maxDirEntries"></param>
+        /// <param name="offset"></param>
+        /// <exception cref="IOException"></exception>
+        private static void CheckReadDirEntryError(uint blocknr, dirblock dirblock, int dirEntriesNo, int maxDirEntries, int offset)
+        {
+            if (dirEntriesNo < maxDirEntries)
+            {
+                return;
+            }
+            throw new IOException($"Read dir entry at offset {offset} exceeded max dir entries {maxDirEntries} for dirblock block nr {blocknr}");
         }
 
 /* SearchInDir
@@ -848,6 +920,9 @@
  */
         public static async Task<bool> SearchInDir(uint dirnodenr, string objectname, objectinfo info, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Directory: SearchInDir Enter");
+#endif
             canode anode = new canode();
             CachedBlock dirblock;
             //direntry entry = null;
@@ -867,29 +942,60 @@
                 intl_name = intl_name.Substring(g.fnsize);
             }
 
+            if (g.SearchInDirCache.ContainsKey(dirnodenr) && g.SearchInDirCache[dirnodenr].DirEntriesCache.ContainsKey(intl_name))
+            {
+                var cacheItem = g.SearchInDirCache[dirnodenr];
+                
+                info.file.direntry = cacheItem.DirEntriesCache[intl_name];
+                info.file.dirblock = cacheItem.DirBlock;
+                info.volume.root = 1;
+                info.volume.volume = cacheItem.DirBlock.volume;
+                Macro.Lock(cacheItem.DirBlock, g);
+                return true;
+            }
+
             //intltoupper(intl_name);     /* international uppercase objectname */
             await anodes.GetAnode(anode, dirnodenr, g);
             anodeoffset = 0;
             dirblock = await LoadDirBlock(anode.blocknr, g);
             var blk = dirblock.dirblock;
-            var entry = DirEntryReader.Read(blk.entries, 0);
+            
+            
+            // var maxDirEntries = CalculateMaxDirEntries(blk);
+            direntry entry = null;
             while (blk != null && !found && !eod) /* eod stands for end-of-dir */
             {
+#if DEBUG
+                Pfs3Logger.Instance.Debug($"Directory: SearchInDir cached block nr {dirblock.blocknr}, block type '{(dirblock.blk == null ? "null" : dirblock.blk.GetType().Name)}', found = {found}, eod = {eod}");
+#endif
+                
                 // entry = (struct direntry *)(&dirblock->blk.entries);
+                entry = blk.DirEntries.FirstOrDefault(x => AmigaTextHelper.ToUpper(x.Name, true) == intl_name);
+                found = entry != null;
 
                 /* scan block */
-                var entryIndex = 0;
-                while (entry.next != 0 && entryIndex + entry.next < blk.entries.Length)
-                {
-                    found = intl_name == AmigaTextHelper.ToUpper(entry.Name, true);
-                    if (found)
-                    {
-                        break;
-                    }
-
-                    entry = DirEntryReader.Read(blk.entries, entryIndex);
-                    entryIndex += entry.next;
-                }
+//                 var entryIndex = 0;
+//                 var dirEntriesNo = 0;
+//                 do
+//                 {
+// #if DEBUG
+//                     Pfs3Logger.Instance.Debug($"Directory: SearchInDir entryIndex = {entryIndex}, found = {found}, eod = {eod}");
+// #endif
+//                     entry = DirEntryReader.Read(blk.entries, entryIndex);
+//                     if (entry.next == 0)
+//                     {
+//                         break;
+//                     }
+//                     found = intl_name == AmigaTextHelper.ToUpper(entry.Name, true);
+//                     if (found)
+//                     {
+//                         break;
+//                     }
+//
+//                     dirEntriesNo++;
+//                     CheckReadDirEntryError(dirblock.blocknr, blk, dirEntriesNo, maxDirEntries, entryIndex);
+//                     entryIndex += entry.next;
+//                 } while (entryIndex < blk.entries.Length);
 
                 /* load next block */
                 if (!found)
@@ -900,6 +1006,7 @@
                     {
                         dirblock = await LoadDirBlock(anode.blocknr + anodeoffset, g);
                         blk = dirblock.dirblock;
+                        // entry = DirEntryReader.Read(blk.entries, 0);
                     }
                     else
                     {
@@ -915,6 +1022,13 @@
             }
             else if (found)
             {
+                // if (!g.SearchInDirCache.ContainsKey(dirnodenr))
+                // {
+                //     g.SearchInDirCache.Add(dirnodenr, new SearchInDirCacheItem(dirnodenr, dirblock));
+                // }
+                //
+                // g.SearchInDirCache[dirnodenr].DirEntriesCache.Add(intl_name, entry);
+                
                 info.file.direntry = entry;
                 info.file.dirblock = dirblock;
                 info.volume.root = 1;
@@ -946,6 +1060,9 @@
         public static async Task<bool> AddDirectoryEntry(objectinfo dir, direntry newentry, fileinfo newinfo,
             globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Directory: AddDirectoryEntry");
+#endif
             canode anode = new canode();
             uint anodeoffset = 0, diranodenr;
             CachedBlock blok = null;
@@ -961,27 +1078,36 @@
 
             /* check if space in existing dirblocks */
             await anodes.GetAnode(anode, diranodenr, g);
-            for (; !done && !eof;)
+            for (; !eof;)
             {
                 if ((blok = await LoadDirBlock(anode.blocknr + anodeoffset, g)) == null)
                     break;
 
                 var blk = blok.dirblock;
-                entry = DirEntryReader.Read(blk.entries, 0);
-
-                /* goto end of dirblock; i = aantal gebruikte bytes */
-                for (i = 0; entry.next > 0; entry = DirEntryReader.Read(blk.entries, i))
-                    i += entry.next;
+                i = blk.DirEntries.Sum(x => x.Next);
+                // entry = DirEntryReader.Read(blk.entries, 0);
+                //
+                // /* goto end of dirblock; i = aantal gebruikte bytes */
+                // var maxDirEntries = CalculateMaxDirEntries(blk);
+                // var dirEntriesNo = 0;
+                // for (i = 0; entry.next > 0; entry = DirEntryReader.Read(blk.entries, i))
+                // {
+                //     dirEntriesNo++;
+                //     CheckReadDirEntryError(blok.blocknr, blk, dirEntriesNo, maxDirEntries, i);
+                //     i += entry.next;
+                // }
 
                 /* does it fit in this block? (keep space for trailing 0) */
-                if (i + newentry.next + 1 < Macro.DB_ENTRYSPACE(g))
+                var newEntryNext = newentry.Next;
+                if (i + newEntryNext + 1 < Macro.DB_ENTRYSPACE(g))
                 {
+                    blk.DirEntries.Add(newentry);
+                    
                     //memcpy(entry, newentry, newentry->next);
-                    DirEntryWriter.Write(blk.entries, i, newentry);
                     entry = newentry;
+
                     //entry.next = 0;
                     //*(UBYTE *)NEXTENTRY(entry) = 0;     // dirblock afsluiten
-                    blk.entries[i + newentry.next] = 0;
 
                     done = true;
                     break;
@@ -1016,12 +1142,12 @@
                 blok = await MakeDirBlock(newanode.blocknr, newanode.nr, diranodenr, parent, g);
                 await anodes.SaveAnode(newanode, newanode.nr, g);
                 var blk = blok.dirblock;
-                //entry = DirEntryReader.Read(blk.entries, 0);
+                blk.DirEntries.Add(newentry);
+
                 //memcpy(entry, newentry, newentry->next);
                 //*(UBYTE *)NEXTENTRY(entry) = 0;     // mark end of dirblock
-                DirEntryWriter.Write(blk.entries, 0, newentry);
+
                 entry = newentry;
-                // entry.next = 0;
             }
 
             /* fill newinfo */
@@ -1056,8 +1182,8 @@
             // file->file.direntry->creationday = (UWORD)date->ds_Days;
             // file->file.direntry->creationminute = (UWORD)date->ds_Minute;
             // file->file.direntry->creationtick = (UWORD)date->ds_Tick;
-            file.file.direntry.CreationDate = date;
-            DirEntryWriter.Write(file.file.dirblock.dirblock.entries, file.file.direntry.Offset, file.file.direntry);
+            file.file.direntry.SetDate(date);
+            //DirEntryWriter.Write(file.file.dirblock.dirblock.entries, file.file.direntry.Offset, file.file.direntry);
             await Update.MakeBlockDirty(file.file.dirblock, g);
             return true;
         }
@@ -1074,12 +1200,12 @@
             }
             else if (!Macro.IsVolume(info))
             {
-                info.file.direntry.CreationDate = time;
+                info.file.direntry.SetDate(time);
                 // info.direntry.creationday = (UWORD)time.ds_Days;
                 // info.direntry.creationminute = (UWORD)time.ds_Minute;
                 // info.direntry->creationtick = (UWORD)time.ds_Tick;
-                info.file.direntry.protection =
-                    (byte)(info.file.direntry.protection & ~Constants.FIBF_ARCHIVE); // clear archivebit (eor)
+                info.file.direntry.SetProtection(
+                    (byte)(info.file.direntry.protection & ~Constants.FIBF_ARCHIVE)); // clear archivebit (eor)
 
                 await Update.MakeBlockDirty(info.file.dirblock, g);
             }
@@ -1089,12 +1215,14 @@
  * Update references
  * diff is direntry size difference (new - original)
  */
-        public static async Task UpdateChangedRef(fileinfo from, fileinfo to, int diff, globaldata g)
+        public static Task UpdateChangedRef(fileinfo from, fileinfo to, globaldata g)
         {
             var volume = from.dirblock.volume;
 
+            // TODO: Examine when it's necessary update volume file entries, related to open files or dirs
             for (var node = Macro.HeadOf(volume.fileentries); node != null; node = node.Next)
             {
+                //throw new IOException("fileentries not empty"); 
                 var fe = node.Value.ListEntry;
                 /* only dirs and files can be in a directory, but the volume *
                  * of volumeinfos can never point to a cached block, so a 
@@ -1104,7 +1232,7 @@
                 if (fe.info.file.dirblock == from.dirblock)
                 {
                     /* is het de targetentry ? */
-                    if (fe.info.file.direntry.Offset == from.direntry.Offset)
+                    if (fe.info.file.direntry.Equals(from.direntry))
                     {
                         if (to != null)
                         {
@@ -1113,59 +1241,77 @@
                     }
                     else
                     {
-                        /* take only entries after target */
-                        if (fe.info.file.direntry.Offset > from.direntry.Offset)
-                        {
-                            // fe.info.file.direntry = (struct direntry *)((UBYTE *)fe->info.file.direntry + diff);v
-                            var d = fe.info.file.dirblock.dirblock;
-                            fe.info.file.direntry = DirEntryReader.Read(d.entries, fe.info.file.direntry.Offset + diff);
-                        }
+            //             /* take only entries after target */
+            //             if (fe.info.file.direntry.Position > from.direntry.Position)
+            //             {
+            //                 // fe.info.file.direntry = (struct direntry *)((UBYTE *)fe->info.file.direntry + diff);v
+            //                 var d = fe.info.file.dirblock.dirblock;
+            //                 // fe.info.file.direntry = DirEntryReader.Read(d.entries, fe.info.file.direntry.Offset + diff);
+            //                 var nextEntry = d.DirEntries.FirstOrDefault(x =>
+            //                     x.Position == fe.info.file.direntry.Position + 1);
+            //                 if (nextEntry == null)
+            //                 {
+            //                     throw new IOException("Next entry is null");
+            //                 }
+            //                 fe.info.file.direntry = nextEntry;
+            //             }
+            //         }
                     }
-                }
-
-                /* check for exnext references */
-                if (fe.type.flags.dir != 0)
-                {
-                    var dle = fe.LockEntry;
-
-                    if (dle.nextentry.dirblock == from.dirblock)
+            
+                    /* check for exnext references */
+                    if (fe.type.flags.dir != 0)
                     {
-                        if (dle.nextentry.direntry.Offset == from.direntry.Offset && dle.nextentry.direntry.next == 0)
-                        {
-                            await GetNextEntry(dle, g);
-                        }
-                        else
-                        {
-                            /* take only entries after target */
-                            if (dle.nextentry.direntry.Offset > from.direntry.Offset)
-                            {
-                                //dle.nextentry.direntry = (struct direntry *)((UBYTE *)dle->nextentry.direntry + diff);
-                                var d = fe.info.file.dirblock.dirblock;
-                                dle.nextentry.direntry =
-                                    DirEntryReader.Read(d.entries, dle.nextentry.direntry.Offset + diff);
-                            }
-                        }
+                        var dle = fe.LockEntry;
+            //
+            //         if (dle.nextentry.dirblock == from.dirblock)
+            //         {
+            //             if (dle.nextentry.direntry.Position == from.direntry.Position && dle.nextentry.direntry == null)
+            //             {
+            //                 await GetNextEntry(dle, g);
+            //             }
+            //             else
+            //             {
+            //                 /* take only entries after target */
+            //                 if (dle.nextentry.direntry.Position > from.direntry.Position)
+            //                 {
+            //                     //dle.nextentry.direntry = (struct direntry *)((UBYTE *)dle->nextentry.direntry + diff);
+            //                     var d = fe.info.file.dirblock.dirblock;
+            //                     // dle.nextentry.direntry =
+            //                     //     DirEntryReader.Read(d.entries, dle.nextentry.direntry.Offset + diff);
+            //                     var nextEntry = d.DirEntries.FirstOrDefault(x =>
+            //                         x.Position == dle.nextentry.direntry.Position);
+            //                     if (nextEntry == null)
+            //                     {
+            //                         throw new IOException("Next entry is null");
+            //                     }
+            //                     dle.nextentry.direntry = nextEntry;
+            //                 }
+            //             }
                     }
                 }
             }
+
+            return Task.CompletedTask;
         }
 
-        public static async Task GetNextEntry(lockentry file, globaldata g)
-        {
-            canode anode = new canode();
-
-            /* get nextentry */
-            var d = file.nextentry.dirblock.dirblock;
-            file.nextentry.direntry = Macro.NEXTENTRY(d, file.nextentry.direntry);
-
-            /* no next entry? -> next block */
-            if (file.nextentry.direntry.next == 0)
-            {
-                /* NB: 'nextanode' is een verwarrende naam */
-                await anodes.GetAnode(anode, file.nextanode, g);
-                file.nextanode = await GetFirstNonEmptyDE(anode.next, file.nextentry, g);
-            }
-        }
+        // public static async Task GetNextEntry(lockentry file, globaldata g)
+        // {
+        //     canode anode = new canode();
+        //
+        //     /* get nextentry */
+        //     var d = file.nextentry.dirblock.dirblock;
+        //     // file.nextentry.direntry = Macro.NEXTENTRY(d, file.nextentry.direntry);
+        //     file.nextentry.direntry = d.DirEntries.FirstOrDefault(x =>
+        //         x.Position == file.nextentry.direntry.Position + 1);
+        //
+        //     /* no next entry? -> next block */
+        //     if (file.nextentry.direntry == null)
+        //     {
+        //         /* NB: 'nextanode' is een verwarrende naam */
+        //         await anodes.GetAnode(anode, file.nextanode, g);
+        //         file.nextanode = await GetFirstNonEmptyDE(anode.next, file.nextentry, g);
+        //     }
+        // }
 
 /* Get first non empty direntry starting from anode [anodenr] 
  * Returns {NULL, NULL} if end of dir
@@ -1187,7 +1333,8 @@
                     if (info.dirblock != null)
                     {
                         var d = info.dirblock.dirblock;
-                        info.direntry = Macro.FIRSTENTRY(d);
+                        // info.direntry = Macro.FIRSTENTRY(d);
+                        info.direntry = d.DirEntries.FirstOrDefault();
                     }
                 }
 
@@ -1197,7 +1344,7 @@
                     info.dirblock = null;
                     found = true;
                 }
-                else if (info.direntry.next != 0)
+                else if (info.direntry != null)
                 {
                     Macro.Lock(info.dirblock, g);
                     found = true;
@@ -1221,7 +1368,7 @@
  *
  * output: - info: objectinfo of new directoryentry
  */
-        public static async Task<bool> MakeDirEntry(int type, string name, byte[] entrybuffer, int entryIndex,
+        public static async Task<direntry> MakeDirEntry(int type, string name,
             globaldata g)
         {
             //ushort entrysize;
@@ -1229,13 +1376,12 @@
             //DateTime time;
             //MUFS(struct extrafields extrafields);
 
-            var entrysize = (SizeOf.DirEntry.Struct + name.Length) & 0xfffe;
             // entrysize = ((sizeof(struct direntry) + strlen(name)) & 0xfffe);
-            if (g.dirextension)
-                entrysize += 2;
+            // if (g.dirextension)
+            //     entrysize += 2;
             // var direntry = (struct direntry *)entrybuffer;
             // memset(direntry, 0, entrysize);
-            var direntry = new direntry();
+            //var direntry = new direntry((byte)Blocks.direntry.EntrySize(name, string.Empty, new extrafields(), g));
 
 #if MULTIUSER
 	if (g->muFS_ready)
@@ -1249,37 +1395,36 @@
 	}
 #endif
 
-            if ((direntry.anode = await anodes.AllocAnode(0, g)) == 0)
+            uint anode;
+            if ((anode = await anodes.AllocAnode(0, g)) == 0)
             {
-                return false;
+                return null;
             }
 
-            direntry.next = (byte)entrysize;
-            direntry.type = (sbyte)type;
-            // direntry->fsize        = 0;
-            direntry.CreationDate = DateTime.Now;
+            // direntry.type = (sbyte)type;
+            // direntry.fsize = 0;
+            // direntry.CreationDate = DateTime.Now;
             // direntry.creationday = (UWORD)time.ds_Days;
             // direntry.creationminute = (UWORD)time.ds_Minute;
             // direntry.creationtick = (UWORD)time.ds_Tick;
-            // direntry->protection  = 0x00;    // RWED
-            direntry.nlength = (byte)name.Length;
+            // direntry.protection  = 0x00;    // RWED
+            //direntry.nlength = (byte)name.Length;
 
             // the trailing 0 of strcpy() creates the empty comment!
             // the flags field following this is 0 by the memset call
             //strcpy((UBYTE *)&direntry->startofname, name);
-            direntry.Name = name;
+            // direntry.Name = name;
 
 #if MULTIUSER
 	if (g->dirextension && g->muFS_ready)
 		AddExtraFields(direntry, &extrafields);
 #endif
+            //DirEntryWriter.Write(entrybuffer, entryIndex, direntry, g);
+            // direntry.next = (byte)direntry.EntrySize(direntry, g);
 
-            DirEntryWriter.Write(entrybuffer, entryIndex, direntry);
-
-            return true;
+            return new direntry(0, (sbyte)type, anode, 0, 0, DateTime.Now, name, string.Empty, new extrafields(), g);
         }
-
-
+        
         /* NULL => failure 
  * The loaded dirblock is locked immediately (prevents flushing)
  * 
@@ -1291,8 +1436,12 @@
             var volume = g.currentvolume;
 
             //DB(Trace(1, "LoadDirBlock", "loading block %lx\n", blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Directory: LoadDirBlock Enter, loading block {blocknr}");
+#endif
             // -I- check if already in cache
-            if ((dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, blocknr, g)) == null)
+            // if ((dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, blocknr, g)) == null)
+            if ((dirblk = Lru.CheckCache(volume.dirblks, blocknr, g)) == null)
             {
                 // -II- not in cache -> put it in
                 dirblk = await Lru.AllocLRU(g);
@@ -1307,7 +1456,8 @@
                         dirblk.blocknr = blocknr;
                         dirblk.used = 0;
                         dirblk.changeflag = false;
-                        Macro.Hash(dirblk, volume.dirblks, Constants.HASHM_DIR);
+                        //Macro.Hash(dirblk, volume.dirblks, Constants.HASHM_DIR);
+                        Macro.Hash(dirblk, volume.dirblks);
                         Lru.UpdateReference(blocknr, dirblk, g); // %10
                     }
                     else
@@ -1331,25 +1481,24 @@
             }
 
             // EXIT("LoadDirBlock");
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Directory: LoadDirBlock Exit");
+#endif
             return dirblk;
         }
 
 /*
  * GetExtraFields (normal file only)
  */
-        public static void GetExtraFields(direntry direntry, extrafields extrafields)
-        {
-            // UWORD *extra = (UWORD *)extrafields;
-            // UWORD *fields = (UWORD *)(((UBYTE *)direntry) + direntry->next);
-            // ushort flags, i;
-            //
-            // flags = *(--fields);
-            // for (i = 0; i < sizeof(struct extrafields) / 2; i++, flags >>= 1)
-            // *(extra++) = (flags & 1) ? *(--fields) : 0;
-
-            /* patch protection lower 8 bits */
-            extrafields.prot |= direntry.protection;
-        }
+        // public static extrafields GetExtraFields(byte[] entries, direntry direntry)
+        // {
+        //     var extrafields = DirEntryReader.ReadExtraFields(entries, direntry.Offset, direntry);
+        //     
+        //     /* patch protection lower 8 bits */
+        //     extrafields.prot |= direntry.protection;
+        //
+        //     return extrafields;
+        // }
 
         public static uint GetDDFileSize(deldirentry dde, globaldata g)
         {
@@ -1530,10 +1679,13 @@
             return parts.Skip(i).ToArray();
         }
 
-        public static async Task<objectinfo> GetRoot(globaldata g)
+        public static Task<objectinfo> GetRoot(globaldata g)
         {
-            await Volume.UpdateCurrentDisk(g);
-            return new objectinfo
+            // CHANGE: Commented out UpdateCurrentDisk as this is only need when used on an Amiga
+            // changing from one partition to another.
+            // await Volume.UpdateCurrentDisk(g);
+            
+            return Task.FromResult(new objectinfo
             {
                 deldir = new deldirinfo
                 {
@@ -1549,7 +1701,7 @@
                 // file = new fileinfo
                 // {
                 // }
-            };
+            });
         }
 
 /* pre: - path <> 0 and volume or directory
@@ -1598,7 +1750,9 @@
                 extrafields extrafields = new extrafields();
                 canode linknode = new canode();
 
-                GetExtraFields(path.file.direntry, extrafields);
+                // var dirBlock = path.file.dirblock.dirblock;
+                // extrafields = GetExtraFields(dirBlock.entries, path.file.direntry);
+                extrafields = path.file.direntry.ExtraFields;
                 await anodes.GetAnode(linknode, path.file.direntry.anode, g);
                 if (!await Lock.FetchObject(linknode.clustersize, extrafields.link, path, g))
                     return false;
@@ -1815,8 +1969,9 @@
 
                 oldlock = ddblk.used;
                 Macro.Lock(ddblk, g);
-                var ddblk_blk = ddblk.dirblock;
-                dde = DelDirEntryReader.Read(ddblk_blk.entries, ddnr % Constants.DELENTRIES_PER_BLOCK);
+                var ddblk_blk = ddblk.deldirblock;
+                //dde = DelDirEntryReader.Read(ddblk_blk.entries, ddnr % Constants.DELENTRIES_PER_BLOCK);
+                dde = ddblk_blk.entries[ddnr % Constants.DELENTRIES_PER_BLOCK];
 
                 /* check if dde valid */
                 if (await IsDelfileValid(dde, ddblk, g))
@@ -1845,24 +2000,12 @@
             anodeoffset = 0;
             var dirblock = await LoadDirBlock(anode.blocknr, g);
             var blk = dirblock.dirblock;
-
-            while (!eod) /* eod stands for end-of-dir */
+            //var maxDirEntries = CalculateMaxDirEntries(blk);
+            
+            while (blk != null && !eod) /* eod stands for end-of-dir */
             {
-                /* scan block */
-                var entryIndex = 0;
-                direntry entry;
-                do
-                {
-                    entry = DirEntryReader.Read(blk.entries, entryIndex);
-
-                    if (entry.next != 0)
-                    {
-                        dirEntries.Add(entry);
-                    }
-
-                    entryIndex += entry.next;
-                } while (entry.next != 0 && entryIndex + entry.next < blk.entries.Length);
-
+                dirEntries.AddRange(blk.DirEntries);
+                
                 /* load next block */
                 var result = await anodes.NextBlock(anode, anodeoffset, g);
                 anodeoffset = result.Item2;
@@ -1946,7 +2089,7 @@
             // dde->creationminute = de->creationminute;
             // dde->creationtick = de->creationtick;
             dde.CreationDate = de.CreationDate;
-            dde.filename = de.Name.Substring(0, Math.Min(Constants.DELENTRYFNSIZE - 1, (int)de.nlength));
+            dde.filename = de.Name.Substring(0, Math.Min(Constants.DELENTRYFNSIZE - 1, (int)de.Name.Length));
             //strncpy(&dde->filename[1], &de->startofname, dde->filename[0]);
 
             /* Touch deldir block. Inserted here, simply because this the only
@@ -1976,11 +2119,22 @@
 #endif
         }
 
-        public static void SetDEFileSize(dirblock dirBlock, direntry direntry, uint size, globaldata g)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dirBlock"></param>
+        /// <param name="direntry"></param>
+        /// <param name="size"></param>
+        /// <param name="g"></param>
+        /// <returns>Updated direntry</returns>
+        public static direntry SetDEFileSize(dirblock dirBlock, direntry direntry, uint size, globaldata g)
         {
-            var de = DirEntryReader.Read(dirBlock.entries, direntry.Offset);
+            //var de = DirEntryReader.Read(dirBlock.entries, direntry.Offset);
+            var de = direntry;
             if (!g.largefile)
-                de.fsize = size;
+            {
+                de.SetFSize(size);
+            }
 #if LARGE_FILE_SIZE
 	else {
 		struct extrafields extrafields;
@@ -1993,7 +2147,8 @@
 		direntry->fsize = (ULONG)size;
 	}
 #endif
-            DirEntryWriter.Write(dirBlock.entries, de.Offset, de);
+            //DirEntryWriter.Write(dirBlock.entries, de.Offset, de);
+            return de;
         }
 
 /* Change a directoryentry. Covers all reference changing too
@@ -2012,6 +2167,8 @@
         {
             uint destanodenr = Macro.IsRoot(destdir) ? Constants.ANODE_ROOTDIR : Macro.FIANODENR(destdir.file);
 
+            //Cache.ClearSearchInDirCache(object_.file.dirblock.blocknr, g);
+            
             /* check whether a 'within dir' rename */
             if (to != null && destanodenr == from.file.dirblock.dirblock.anodenr)
                 await RenameWithinDir(from, to, result, g);
@@ -2019,47 +2176,11 @@
                 await RenameAcrossDirs(from, to, destdir, result, g);
         }
 
-        public static void AddExtraFields(direntry direntry, extrafields extra)
-        {
-            direntry.ExtraFields = extra;
-
-            // ushort offset, dirext;
-            // ushort[] array = new ushort[16];
-            // ushort i = 0, j = 0;
-            // ushort flags = 0, orvalue;
-            // UWORD *fields = (UWORD *)extra;
-            //
-            // /* patch protection lower 8 bits */
-            extra.prot &= 0xffffff00;
-            // offset = (ushort)(SizeOf.DirEntry.Struct + (direntry.nlength) + (Macro.COMMENT(direntry) & 0xfffe));
-            // dirext = (UWORD *)((UBYTE *)(direntry) + offset);
-            //
-            // orvalue = 1;
-            // /* fill packed field array */
-            // for (i = 0; i < SizeOf.ExtraFields.Struct / 2; i++)
-            // {
-            //     if (*fields)
-            //     {
-            //         array[j++] = *fields++;
-            //         flags |= orvalue;
-            //     }
-            //     else
-            //     {
-            //         fields++;
-            //     }
-            //
-            //     orvalue <<= 1;
-            // }
-            //
-            // /* add fields to direntry */
-            // i = j;
-            // while (i)
-            //     *dirext++ = array[--i];
-            // *dirext++ = flags;
-            //
-            // direntry.next = offset + 2 * j + 2;
-        }
-
+        // public static void AddExtraFields(byte[] entries, direntry direntry, extrafields extra)
+        // {
+        //     direntry.ExtraFields = extra;
+        //     DirEntryWriter.WriteExtraFields(entries, direntry.Offset, direntry);
+        // }
 
 /*
  * Rename file within dir
@@ -2075,9 +2196,15 @@
 
             Macro.Lock(from.file.dirblock, g);
             var fromDirBlock = from.file.dirblock.dirblock;
-            mover.file.direntry = Macro.FIRSTENTRY(fromDirBlock);
+            // mover.file.direntry = Macro.FIRSTENTRY(fromDirBlock);
+            mover.file.direntry = fromDirBlock.DirEntries.FirstOrDefault();
+            if (mover.file.direntry == null)
+            {
+                throw new IOException("RenameWithinDir: mover file direntry is null");
+            }
             mover.file.dirblock = from.file.dirblock;
-            spaceneeded = to.next - from.file.direntry.next;
+            mover.volume.root = mover.file.direntry.anode != Constants.ANODE_ROOTDIR ? 1U : 0U;
+            spaceneeded = to.Next - from.file.direntry.Next;
             if (spaceneeded <= 0)
             {
                 await RenameInPlace(from, to, result, g);
@@ -2086,16 +2213,15 @@
             {
                 /* make space in block
                  */
-                while (CheckFit(from.file.dirblock, spaceneeded, g) != null &&
-                       from.file.direntry.Offset != mover.file.direntry.Offset)
+                while (!CheckFit(from.file.dirblock, spaceneeded, g) &&
+                       !from.file.direntry.Equals(mover.file.direntry))
                 {
-                    // from.direntry = (struct direntry *)((UBYTE*)from.direntry - mover.direntry->next);
-                    from.file.direntry =
-                        DirEntryReader.Read(fromDirBlock.entries, from.file.direntry.Offset - mover.file.direntry.next);
+                    // move first dir entry (mover) and update to new first dir entry
                     await MoveToPrevious(mover, mover.file.direntry, result, g);
+                    mover.file.direntry = fromDirBlock.DirEntries.FirstOrDefault();
                 }
 
-                if (CheckFit(from.file.dirblock, spaceneeded, g) != null)
+                if (CheckFit(from.file.dirblock, spaceneeded, g))
                     await RenameInPlace(from, to, result, g);
                 else
                     await MoveToPrevious(from, to, result, g);
@@ -2104,11 +2230,14 @@
             Macro.Lock(result.dirblock, g);
         }
 
-/*
- * Check if direntry will fit in,
- * returns position to place it if ok
- */
-        public static direntry CheckFit(CachedBlock blok, int needed, globaldata g)
+        /// <summary>
+        /// Check if direntry will fit in, returns position to place it if ok
+        /// </summary>
+        /// <param name="blok"></param>
+        /// <param name="needed"></param>
+        /// <param name="g"></param>
+        /// <returns></returns>
+        public static bool CheckFit(CachedBlock blok, int needed, globaldata g)
         {
             // struct cdirblock *blok
             direntry entry;
@@ -2116,14 +2245,9 @@
 
             /* goto end of dirblock */
             var blk = blok.dirblock;
-            entry = Macro.FIRSTENTRY(blk);
-            for (i = 0; entry.next != 0; entry = Macro.NEXTENTRY(blk, entry))
-                i += entry.next;
+            i = blk.DirEntries.Sum(x => x.Next);
 
-            if (needed + i + 1 <= Macro.DB_ENTRYSPACE(g))
-                return entry;
-            else
-                return null;
+            return needed + i + 1 <= Macro.DB_ENTRYSPACE(g);
         }
 
 /*
@@ -2136,7 +2260,7 @@
         public static async Task<bool> MoveToPrevious(objectinfo de, direntry to, fileinfo result, globaldata g)
         {
             direntry dest;
-            CachedBlock prevblock = new CachedBlock(g); // cdirblock
+            CachedBlock prevblock = new CachedBlock(); // cdirblock
             canode anode = new canode();
             int removedlen;
             uint prev;
@@ -2170,14 +2294,15 @@
             }
 
             /* Add new entry */
-            if (prev != 0 && (dest = CheckFit(prevblock, to.next, g)) != null)
+            if (prev != 0 && CheckFit(prevblock, to.Next, g))
             {
                 // memcpy(dest, to, to->next);
                 // *(UBYTE*)NEXTENTRY(dest) = 0; /* end of dirblock */
+                // overwrite dest with to
+                dest = to;
                 var dirBlock = prevblock.dirblock;
-                DirEntryWriter.Write(dirBlock.entries, dest.Offset, to);
-                BigEndianConverter.ConvertUInt16ToBytes(0, dirBlock.entries,
-                    dest.Offset + to.next); /* end of dirblock */
+                dirBlock.DirEntries.Add(to);
+
                 result.direntry = dest;
                 result.dirblock = prevblock;
             }
@@ -2215,12 +2340,11 @@
 
                 /* add entry */
                 var newBlockBlk = newblock.dirblock;
-                dest = Macro.FIRSTENTRY(newBlockBlk);
+                // dest = Macro.FIRSTENTRY(newBlockBlk);
                 // memcpy(dest, to, to->next);
-                // *(UBYTE*)NEXTENTRY(dest) = 0; /* end of dirblock */
-                DirEntryWriter.Write(newBlockBlk.entries, dest.Offset, to);
-                BigEndianConverter.ConvertUInt16ToBytes(0, newBlockBlk.entries,
-                    dest.Offset + to.next); /* end of dirblock */
+                dest = to;
+                newBlockBlk.DirEntries.Add(dest);
+                
                 result.direntry = dest;
                 result.dirblock = newblock;
             }
@@ -2229,11 +2353,11 @@
             await Update.MakeBlockDirty(result.dirblock, g);
 
             /* remove old entry & make blocks dirty */
-            removedlen = de.file.direntry.next;
+            //removedlen = de.file.direntry.next;
             await RemoveDirEntry(de, g);
 
             /* update references */
-            await UpdateChangedRef(de.file, result, -removedlen, g);
+            await UpdateChangedRef(de.file, result, g);
             return true;
         }
 
@@ -2255,31 +2379,37 @@
                 await Touch(parent, g);
             }
 
-            /* make place for new entry */
-            diff = to.next - from.file.direntry.next;
-            dest = from.file.direntry.Offset + to.next;
-            start = from.file.direntry.Offset + from.file.direntry.next;
-            //end = (UBYTE *)&(from.dirblock->blk) + g.RootBlock.ReservedBlksize;
-            end = SizeOf.DirBlock.Entries(g);
-            movelen = (diff > 0) ? (end - dest) : (end - start);
-            // memmove(dest, start, movelen);
+            // /* make place for new entry */
+            //diff = to.next - from.file.direntry.next;
+            // dest = from.file.direntry.Offset + to.next;
+            // start = from.file.direntry.Offset + from.file.direntry.next;
+            // //end = (UBYTE *)&(from.dirblock->blk) + g.RootBlock.ReservedBlksize;
+            // end = SizeOf.DirBlock.Entries(g);
+            // movelen = diff > 0 ? end - dest : end - start;
+            //
+            // // memmove(dest, start, movelen);
             var dirBlock = from.file.dirblock.dirblock;
-            for (var i = 0; i < movelen; i++)
-            {
-                dirBlock.entries[dest + i] = dirBlock.entries[start + i];
-            }
 
             /* fill in new entry */
             // memcpy((UBYTE *)from.direntry, to, to.next);
-            DirEntryWriter.Write(dirBlock.entries, from.file.direntry.Offset, to);
 
             /* fill in result and make block dirty */
+            // replace from with to by removing existing from dir entries and add new to dir entries 
+            var existingDirEntry = dirBlock.DirEntries.FirstOrDefault(x => x.Name == from.file.direntry.Name);
+            if (existingDirEntry == null)
+            {
+                throw new IOException(
+                    $"Dir entry '{from.file.direntry.Name}' not found in dir block '{from.file.dirblock.blocknr}'");
+            }
+            dirBlock.DirEntries.Remove(existingDirEntry);
+            dirBlock.DirEntries.Add(to);
+            
             result.direntry = from.file.direntry;
             result.dirblock = from.file.dirblock;
             await Update.MakeBlockDirty(from.file.dirblock, g);
 
             /* update references */
-            await UpdateChangedRef(from.file, result, diff, g);
+            await UpdateChangedRef(from.file, result, g);
         }
 
 /*
@@ -2292,7 +2422,7 @@
             ushort removedlen;
 
             /* remove old entry (invalidates 'destdir') */
-            removedlen = from.file.direntry.next;
+            //removedlen = from.file.direntry.next;
             await RemoveDirEntry(from, g);
             if (to != null)
             {
@@ -2300,20 +2430,27 @@
                  * from.dirblock
                  * restore 'destdir' (can be invalidated by RemoveDirEntry)
                  */
-                if (destdir.file.dirblock == from.file.dirblock &&
-                    destdir.file.direntry.Offset > from.file.direntry.Offset)
-                {
-                    // destdir->file.direntry = (struct direntry *)((UBYTE *)destdir->file.direntry - removedlen);
-                    var dirBlock = destdir.file.dirblock.dirblock;
-                    destdir.file.direntry =
-                        DirEntryReader.Read(dirBlock.entries, destdir.file.direntry.Offset - removedlen);
-                }
+                // TODO: Examine when this is nessecary
+                // if (destdir.file.dirblock == from.file.dirblock &&
+                //     destdir.file.direntry.Position > from.file.direntry.Position)
+                // {
+                //     // destdir->file.direntry = (struct direntry *)((UBYTE *)destdir->file.direntry - removedlen);
+                //     var dirBlock = destdir.file.dirblock.dirblock;
+                //     // destdir.file.direntry =
+                //     //     DirEntryReader.Read(dirBlock.entries, destdir.file.direntry.Offset - removedlen);
+                //     destdir.file.direntry =
+                //         dirBlock.DirEntries.FirstOrDefault(x => x.Position == destdir.file.direntry.Position - 1);
+                //     if (destdir.file.direntry == null)
+                //     {
+                //         throw new IOException("RenameAcrossDirs: destdir.file.direntry is null");
+                //     }
+                // }
 
                 /* add new entry */
                 await AddDirectoryEntry(destdir, to, result, g);
             }
 
-            await UpdateChangedRef(from.file, result, -removedlen, g);
+            await UpdateChangedRef(from.file, result, g);
             if (result != null)
             {
                 Macro.Lock(result.dirblock, g);
@@ -2360,6 +2497,8 @@
                 }
             }
 
+            Cache.ClearSearchInDirCache(file.le.dirblocknr, g);
+
             /* changing file -> set notify flag */
             file.checknotify = true;
             g.dirty = true;
@@ -2378,18 +2517,18 @@
         {
             canode linklist = new canode();
             objectinfo loi = new objectinfo();
-            extrafields extrafields = new extrafields();
             uint linknr;
 
             //ENTER("UpdateLinks");
-            GetExtraFields(object_, extrafields);
+            // extrafields = GetExtraFields(entries, object_);
+            var extrafields = object_.ExtraFields;
             linknr = extrafields.link;
             while (linknr != 0)
             {
                 /* Update link: get link object info and update size */
                 await anodes.GetAnode(linklist, linknr, g);
                 await Lock.FetchObject(linklist.blocknr, linklist.nr, loi, g);
-                loi.file.direntry.fsize = object_.fsize;
+                loi.file.direntry.SetFSize(object_.fsize);
                 await Update.MakeBlockDirty(loi.file.dirblock, g);
                 linknr = linklist.next;
             }
@@ -2420,8 +2559,8 @@
             //ENTER("DeleteObject");
             /* Check deleteprotection */
 // #if DELDIR
-            if (info == null || info.deldir.special <= Constants.SPECIAL_DELFILE ||
-                (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE)
+            if (info == null || (!g.IgnoreProtectionBits && (info.deldir.special <= Constants.SPECIAL_DELFILE ||
+                                 (info.file.direntry.protection & Constants.FIBF_DELETE) == Constants.FIBF_DELETE)))
 // #else
 // 	if (!info || IsVolume(*info) || info->file.direntry->protection & FIBF_DELETE)
 // #endif
@@ -2534,7 +2673,8 @@
                     await anodes.GetAnode(anode, anode.next, g);
 
                     /* remove dirblock from list if there */
-                    dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, anode.blocknr, g);
+                    // dirblk = Lru.CheckCache(volume.dirblks, Constants.HASHM_DIR, anode.blocknr, g);
+                    dirblk = Lru.CheckCache(volume.dirblks, anode.blocknr, g);
                     if (dirblk != null)
                     {
                         Macro.MinRemove(dirblk, g);
@@ -2566,14 +2706,14 @@
             dirblok = await LoadDirBlock(anode.blocknr, g);
 
             var blk = dirblok?.dirblock;
-            while (dirblok != null && (blk != null && blk.entries[0] == 0) && anode.next != 0)
+            while (dirblok != null && (blk != null && blk.DirEntries.Count == 0) && anode.next != 0)
             {
                 await anodes.GetAnode(anode, anode.next, g);
                 dirblok = await LoadDirBlock(anode.blocknr, g);
                 blk = dirblok?.dirblock;
             }
 
-            if (dirblok != null && (blk != null && blk.entries[0] == 0)) /* not empty->entries present */
+            if (dirblok != null && (blk != null && blk.DirEntries.Count == 0)) /* not empty->entries present */
                 return true;
             else
                 return false;
@@ -2589,27 +2729,31 @@
             extrafields extrafields = new extrafields();
             objectinfo object_ = new objectinfo();
             objectinfo directory = new objectinfo();
-            var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
+            //var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
 
             /* get node to remove */
             await anodes.GetAnode(linknode, link.file.direntry.anode, g);
-            GetExtraFields(link.file.direntry, extrafields);
+            // var linkDirBlock = link.file.dirblock.dirblock;
+            // extrafields = GetExtraFields(linkDirBlock.entries, link.file.direntry);
+            extrafields = link.file.direntry.ExtraFields;
 
             /* delete old entry */
             await ChangeDirEntry(link, null, null, null, g);
 
             /* get object */
             await Lock.FetchObject(linknode.clustersize, extrafields.link, object_, g);
-            GetExtraFields(object_.file.direntry, extrafields);
+            // var objectDirBlock = object_.file.dirblock.dirblock;
+            // extrafields = GetExtraFields(objectDirBlock.entries, object_.file.direntry);
+            extrafields = new extrafields(object_.file.direntry.ExtraFields);
 
             /* if the object lists our link as the first link, redirect it to the next one */
             if (extrafields.link == linknode.nr)
             {
-                extrafields.link = linknode.next;
+                extrafields.SetLink(linknode.next);
                 //memcpy(entrybuffer, object_.file.direntry, object_.file.direntry->next);
-                DirEntryWriter.Write(entrybuffer, 0, object_.file.direntry);
-                //AddExtraFields(entrybuffer, extrafields);
-                AddExtraFields(object_.file.direntry, extrafields);
+                //DirEntryWriter.Write(entrybuffer, 0, object_.file.direntry, g);
+                //AddExtraFields(entrybuffer, object_.file.direntry, extrafields);
+                object_.file.direntry.SetExtraFields(extrafields, g);
                 if (!await GetParent(object_, directory, g))
                 {
                     throw new IOException("ERROR_DISK_NOT_VALIDATED");
@@ -2644,16 +2788,20 @@
  */
         public static async Task<bool> RemapLinks(objectinfo object_, globaldata g)
         {
-            extrafields extrafields = new extrafields();
+            extrafields extrafields;
             canode linknode = new canode();
             objectinfo link = new objectinfo();
             objectinfo directory = new objectinfo();
             direntry destentry;
             var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
 
+            Cache.ClearSearchInDirCache(object_.file.dirblock.blocknr, g);
+            
             //ENTER("RemapLinks");
             /* get head of linklist */
-            GetExtraFields(object_.file.direntry, extrafields);
+            var dirBlock = object_.file.dirblock.dirblock;
+            // extrafields = GetExtraFields(dirBlock.entries, object_.file.direntry);
+            extrafields = object_.file.direntry.ExtraFields;
             if (extrafields.link == 0)
             {
                 return false;
@@ -2672,15 +2820,18 @@
             //destentry = (struct direntry *)entrybuffer;
             //memcpy(destentry, link.file.direntry, link.file.direntry.next);
             destentry = link.file.direntry;
-            GetExtraFields(link.file.direntry, extrafields);
-            destentry.type = object_.file.direntry.type; // is this necessary?
-            destentry.fsize = object_.file.direntry.fsize; // is this necessary?
-            destentry.anode = object_.file.direntry.anode; // is this necessary?
+            // var linkDirBlock = link.file.dirblock.dirblock;
+            // extrafields = GetExtraFields(linkDirBlock.entries, link.file.direntry);
+            extrafields = new extrafields(link.file.direntry.ExtraFields);
+            destentry.SetType(object_.file.direntry.type); // is this necessary?
+            destentry.SetFSize(object_.file.direntry.fsize); // is this necessary?
+            destentry.SetAnode(object_.file.direntry.anode); // is this necessary?
 
-            extrafields.link = linknode.next;
-            AddExtraFields(destentry, extrafields);
+            extrafields.SetLink(linknode.next);
+            //AddExtraFields(linkDirBlock.entries, destentry, extrafields);
+            destentry.SetExtraFields(extrafields, g);
 
-            DirEntryWriter.Write(entrybuffer, 0, destentry);
+            // DirEntryWriter.Write(entrybuffer, 0, destentry);
 
             /* Free old linklist node */
             await anodes.FreeAnode(linknode.nr, g);
@@ -2708,11 +2859,11 @@
         public static async Task UpdateLinkDir(direntry object_, uint newdiran, globaldata g)
         {
             canode linklist = new canode();
-            extrafields extrafields = new extrafields();
             uint linknr;
 
             //ENTER("UpdateLinkDir");
-            GetExtraFields(object_, extrafields);
+            // extrafields = GetExtraFields(entries, object_);
+            var extrafields = object_.ExtraFields;
             linknr = extrafields.link;
             while (linknr != 0)
             {
@@ -2753,7 +2904,7 @@
             string destname, globaldata g)
         {
             direntry srcdirentry, destentry;
-            var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
+            // var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
             uint srcanodenr, destanodenr;
             short srcfieldoffset, destfieldoffset, fieldsize;
             objectinfo destinfo = new objectinfo();
@@ -2797,7 +2948,7 @@
             destinfo = destdi.Clone();
             if (!(await Find(destinfo, destname, g)).Any())
             {
-                if (destinfo.file.direntry.Offset != srcinfo.file.direntry.Offset)
+                if (!destinfo.file.direntry.Equals(srcinfo.file.direntry))
                 {
                     throw new IOException("ERROR_OBJECT_EXISTS");
                 }
@@ -2822,20 +2973,9 @@
             /* Make destination  */
             //destentry = (struct direntry *)&entrybuffer;
             //destentry = srcdirentry;
-            destentry = new direntry
-            {
-                Offset = srcdirentry.Offset,
-                next = srcdirentry.next,
-                type = srcdirentry.type,
-                anode = srcdirentry.anode,
-                fsize = srcdirentry.fsize,
-                protection = srcdirentry.protection,
-                CreationDate = srcdirentry.CreationDate,
-                nlength = (byte)destname.Length,
-                Name = destname,
-                comment = srcdirentry.comment
-            };
-
+            destentry = new direntry(0, srcdirentry.type, srcdirentry.anode, srcdirentry.fsize, srcdirentry.protection,
+                srcdirentry.CreationDate, destname, srcdirentry.comment, srcdirentry.ExtraFields, g);
+            
             /* copy header */
             //memcpy(destentry, srcdirentry, offsetof(struct direntry, nlength));
 
@@ -2852,20 +2992,21 @@
             // memcpy(destcomment, srccomment, *srccomment + 1);
 
             /* copy fields */
-            srcfieldoffset =
-                (short)((SizeOf.DirEntry.Struct + srcdirentry.nlength + srcdirentry.comment.Length) & 0xfffe);
-            destfieldoffset = (short)((SizeOf.DirEntry.Struct + destname.Length + srcdirentry.comment.Length) & 0xfffe);
-            fieldsize = (byte)(srcdirentry.next - srcfieldoffset);
-            //    if (g.dirextension)
-            //    {
-            //        //memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)srcdirentry + srcfieldoffset, fieldsize);
-            //    }
-
-            /* set size */
-            if (g.dirextension)
-                destentry.next = (byte)(destfieldoffset + fieldsize);
-            else
-                destentry.next = (byte)destfieldoffset;
+            // srcfieldoffset = (short)((SizeOf.DirEntry.Struct + srcdirentry.Name.Length + srcdirentry.comment.Length) & 0xfffe);
+            // destfieldoffset = (short)((SizeOf.DirEntry.Struct + destname.Length + srcdirentry.comment.Length) & 0xfffe);
+            // fieldsize = (byte)(srcdirentry.next - srcfieldoffset);
+            //
+            // if (g.dirextension)
+            // {
+            //     destentry.ExtraFields = srcdirentry.ExtraFields;
+            //     //memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)srcdirentry + srcfieldoffset, fieldsize);
+            // }
+            //
+            // /* set size */
+            // if (g.dirextension)
+            //     destentry.next = (byte)(destfieldoffset + fieldsize);
+            // else
+            //     destentry.next = (byte)destfieldoffset;
 
             /* remove source and add new direntry 
              * Makes srcinfo INVALID
@@ -2938,11 +3079,11 @@
         public static async Task MoveLink(direntry object_, uint newdiran, globaldata g)
         {
             canode linklist = new canode();
-            extrafields extrafields = new extrafields();
             uint linknr;
 
             //ENTER("MoveLink");
-            GetExtraFields(object_, extrafields);
+            // extrafields = GetExtraFields(entries, object_);
+            var extrafields = object_.ExtraFields;
 
             /* check if is link or linked to */
             if ((linknr = extrafields.link) == 0)
@@ -3011,19 +3152,19 @@
             // destentry = (struct direntry *)entrybuffer;
             sourceentry = info.file.direntry;
 
-            destentry = new direntry
-            {
-                Offset = sourceentry.Offset,
-                next = sourceentry.next,
-                type = sourceentry.type,
-                anode = sourceentry.anode,
-                fsize = sourceentry.fsize,
-                protection = sourceentry.protection,
-                CreationDate = sourceentry.CreationDate,
-                nlength = sourceentry.nlength,
-                Name = sourceentry.Name,
-                comment = comment
-            };
+            destentry = new direntry(0, sourceentry.type, sourceentry.anode, sourceentry.fsize, sourceentry.protection,
+                sourceentry.CreationDate, sourceentry.Name, comment, sourceentry.ExtraFields, g);
+            
+            // destentry = new direntry(sourceentry)
+            // {
+            //     type = sourceentry.type,
+            //     anode = sourceentry.anode,
+            //     fsize = sourceentry.fsize,
+            //     protection = sourceentry.protection,
+            //     CreationDate = sourceentry.CreationDate,
+            //     Name = sourceentry.Name,
+            //     comment = comment
+            // };
             
             /* copy header & name */
             // memcpy(destentry, sourceentry, sizeof(struct direntry) + sourceentry->nlength - 1);
@@ -3035,24 +3176,30 @@
 
             /* copy fields */
             //srccomment = COMMENT(sourceentry);
-            srcfieldoffset = (short)((SizeOf.DirEntry.Struct + sourceentry.nlength + sourceentry.comment.Length) & 0xfffe);
-            destfieldoffset = (short)((SizeOf.DirEntry.Struct + sourceentry.nlength + comment.Length) & 0xfffe);
-            fieldsize = (short)(sourceentry.next - srcfieldoffset);
+            // srcfieldoffset = (short)((SizeOf.DirEntry.Struct + sourceentry.Name.Length + sourceentry.comment.Length) & 0xfffe);
+            // destfieldoffset = (short)((SizeOf.DirEntry.Struct + sourceentry.Name.Length + comment.Length) & 0xfffe);
+            // fieldsize = (short)(sourceentry.next - srcfieldoffset);
+            //
+            // /* set size */
             // if (g.dirextension)
-            //     memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)sourceentry + srcfieldoffset, fieldsize);
-
-            /* set size */
-            if (g.dirextension)
-                destentry.next = (byte)(destfieldoffset + fieldsize);
-            else
-                destentry.next = (byte)destfieldoffset;
+            //     destentry.next = (byte)(destfieldoffset + fieldsize);
+            // else
+            //     destentry.next = (byte)destfieldoffset;
+            //
+            // if (g.dirextension)
+            // {
+            //     // memcpy((UBYTE *)destentry + destfieldoffset, (UBYTE *)sourceentry + srcfieldoffset, fieldsize);
+            //     destentry.ExtraFields = sourceentry.ExtraFields;
+            // }
 
             /* remove old directoryentry and add new */
             if (!await GetParent(info, directory, g))
                 return false;
             else
             {
-                await ChangeDirEntry(info, destentry, directory, info.file, g);
+                var fileInfo = new fileinfo();
+                await ChangeDirEntry(info, destentry, directory, fileInfo, g);
+                info.file = fileInfo;
                 return true;
             }
         }
@@ -3098,46 +3245,55 @@
                 throw new IOException("ERROR_DISK_FULL");
             }
 
-            file.file.direntry.protection = (byte)protection;
+            file.file.direntry.SetProtection((byte)protection);
 
             /* add second part of protection */
             if (g.dirextension)
             {
                 objectinfo directory = new objectinfo();
-                direntry sourceentry, destentry;
-                extrafields extrafields = new extrafields();
+                // direntry sourceentry;
+                // extrafields extrafields = new extrafields();
                 // UBYTE entrybuffer[MAX_ENTRYSIZE];
 
                 /* make new direntry */
                 //destentry = (struct direntry *)entrybuffer;
-                sourceentry = file.file.direntry;
-                destentry = new direntry
-                {
-                    Offset = sourceentry.Offset,
-                    next = sourceentry.next,
-                    type = sourceentry.type,
-                    anode = sourceentry.anode,
-                    fsize = sourceentry.fsize,
-                    protection = (byte)protection,
-                    CreationDate = sourceentry.CreationDate,
-                    nlength = sourceentry.nlength,
-                    Name = sourceentry.Name,
-                    comment = sourceentry.comment
-                };
+                //sourceentry = new direntry(file.file.direntry, g);
+                
+                // destentry = new direntry
+                // {
+                //     Offset = sourceentry.Offset,
+                //     next = sourceentry.next,
+                //     type = sourceentry.type,
+                //     anode = sourceentry.anode,
+                //     fsize = sourceentry.fsize,
+                //     protection = (byte)protection,
+                //     CreationDate = sourceentry.CreationDate,
+                //     Name = sourceentry.Name,
+                //     comment = sourceentry.comment
+                // };
 
                 /* copy source */
                 //memcpy(destentry, sourceentry, sourceentry->next);
 
                 /* set new extrafields */
-                GetExtraFields(sourceentry, extrafields);
-                extrafields.prot = protection;
-                AddExtraFields(destentry, extrafields);
+                //var dirBlock = file.file.dirblock.dirblock;
+                // extrafields = GetExtraFields(dirBlock.entries, sourceentry);
+                var extraFields = new extrafields(file.file.direntry.ExtraFields);
+                extraFields.SetProtection(protection);
 
+                // AddExtraFields(dirBlock.entries, destentry, extrafields);
+                var destEntry = new direntry(file.file.direntry, g);
+                destEntry.SetExtraFields(extraFields, g);
+                
                 /* commit changes */
                 if (!await GetParent(file, directory, g))
+                {
                     return false;
+                }
                 else
-                    await ChangeDirEntry(file, destentry, directory, file.file, g);
+                {
+                    await ChangeDirEntry(file, destEntry, directory, file.file, g);
+                }
             }
 
             /* mark block for update and return success */

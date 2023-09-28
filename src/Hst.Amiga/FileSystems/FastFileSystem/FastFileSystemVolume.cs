@@ -5,6 +5,7 @@
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
+    using Exceptions;
     using RigidDiskBlocks;
     using FileMode = FileMode;
 
@@ -49,6 +50,28 @@
                 .ToList();
         }
 
+        /// <summary>
+        /// Find entry in current directory
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public async Task<FileSystems.FindEntryResult> FindEntry(string name)
+        {
+            if (name.IndexOf("/", StringComparison.Ordinal) >= 0 || name.IndexOf("\\", StringComparison.Ordinal) >= 0)
+            {
+                throw new ArgumentException("Name contains directory separator", nameof(name));
+            }
+            
+            var findEntryResult = await Directory.FindEntry(currentDirectorySector, name, volume);
+
+            var entry = findEntryResult.Entries.LastOrDefault();
+            return new FileSystems.FindEntryResult
+            {
+                PartsNotFound = findEntryResult.PartsNotFound.ToList(),
+                Entry = entry == null ? null : EntryConverter.ToEntry(entry)
+            };
+        }
+
         public async Task ChangeDirectory(string path)
         {
             var isRootPath = path.StartsWith("/");
@@ -58,12 +81,11 @@
             }
 
             var findEntryResult = await Directory.FindEntry(currentDirectorySector, path, volume);
-
             if (findEntryResult.PartsNotFound.Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{path}' not found");
             }
-
+            
             currentDirectorySector = findEntryResult.Sector;
         }
 
@@ -80,9 +102,12 @@
         /// Create file in current directory
         /// </summary>
         /// <param name="fileName"></param>
-        public async Task CreateFile(string fileName)
+        /// <param name="overwrite"></param>
+        /// <param name="ignoreProtectionBits"></param>
+        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
         {
-            using (var _ = await File.Open(volume, currentDirectorySector, fileName, FileMode.Write))
+            using (var _ = await File.Open(volume, currentDirectorySector, fileName, FileMode.Write, overwrite,
+                       ignoreProtectionBits))
             {
             }
         }
@@ -92,19 +117,21 @@
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="mode"></param>
+        /// <param name="ignoreProtectionBits"></param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, FileMode mode)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits = false)
         {
-            return await File.Open(volume, currentDirectorySector, fileName, mode);
+            return await File.Open(volume, currentDirectorySector, fileName, mode, false, ignoreProtectionBits);
         }
 
         /// <summary>
         /// Delete file or directory from current directory
         /// </summary>
         /// <param name="name"></param>
-        public async Task Delete(string name)
+        /// <param name="ignoreProtectionBits"></param>
+        public async Task Delete(string name, bool ignoreProtectionBits = false)
         {
-            await Directory.RemoveEntry(volume, currentDirectorySector, name);
+            await Directory.RemoveEntry(volume, currentDirectorySector, name, ignoreProtectionBits);
         }
 
         /// <summary>
@@ -119,7 +146,7 @@
 
             if (srcEntryResult.PartsNotFound.Any())
             {
-                throw new IOException("Not found");
+                throw new PathNotFoundException($"Path '{oldName}' not found");
             }
 
             var destEntryResult = await Directory.FindEntry(currentDirectorySector, newName, volume);
@@ -127,15 +154,15 @@
 
             if (!partsNotFound.Any())
             {
-                throw new IOException("New name exists");
+                throw new PathAlreadyExistsException($"Path '{newName}' already exists");
             }
 
             if (partsNotFound.Count > 1)
             {
-                throw new IOException($"Directory '{partsNotFound[0]}' not found");
+                throw new PathNotFoundException($"Path '{partsNotFound[0]}' not found");
             }
 
-            await Directory.RenameEntry(volume, srcEntryResult.Sector, srcEntryResult.Name, destEntryResult.Sector, 
+            await Directory.RenameEntry(volume, srcEntryResult.Sector, srcEntryResult.Name, destEntryResult.Sector,
                 destEntryResult.Name);
         }
 
@@ -157,7 +184,7 @@
         public async Task SetProtectionBits(string name, ProtectionBits protectionBits)
         {
             await Directory.SetEntryAccess(volume, currentDirectorySector, name,
-                EntryConverter.GetAccess(protectionBits));
+                ProtectionBitsConverter.ToProtectionValue(protectionBits));
         }
 
         /// <summary>
@@ -171,16 +198,63 @@
         }
 
         /// <summary>
-        /// Mount pfs3 volume in stream using partition block information
+        /// Flush file system changes
+        /// </summary>
+        /// <returns></returns>
+        public Task Flush()
+        {
+            return Task.CompletedTask;
+        }
+
+        public IEnumerable<string> GetStatus()
+        {
+            return new List<string>();
+        }
+
+        /// <summary>
+        /// Mount partition fast file system volume from stream partition block
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="partitionBlock"></param>
         /// <returns></returns>
-        public static async Task<FastFileSystemVolume> Mount(Stream stream, PartitionBlock partitionBlock)
+        public static async Task<FastFileSystemVolume> MountPartition(Stream stream, PartitionBlock partitionBlock)
         {
-            var volume = await FastFileSystemHelper.Mount(stream, partitionBlock.LowCyl, partitionBlock.HighCyl,
-                partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved, partitionBlock.BlockSize,
+            return await Mount(stream, partitionBlock.LowCyl, partitionBlock.HighCyl,
+                partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved,
+                partitionBlock.BlockSize,
                 partitionBlock.FileSystemBlockSize);
+        }
+
+        /// <summary>
+        /// Mount adf fast file system volume from stream
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns>Fast file system volume</returns>
+        public static async Task<FastFileSystemVolume> MountAdf(Stream stream)
+        {
+            var volume = await FastFileSystemHelper.MountAdf(stream);
+
+            return new FastFileSystemVolume(volume, volume.RootBlockOffset);
+        }
+
+        /// <summary>
+        /// Mount fast file system volume from stream
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="lowCyl"></param>
+        /// <param name="highCyl"></param>
+        /// <param name="surfaces"></param>
+        /// <param name="blocksPerTrack"></param>
+        /// <param name="reserved"></param>
+        /// <param name="blockSize"></param>
+        /// <param name="fileSystemBlockSize"></param>
+        /// <returns></returns>
+        public static async Task<FastFileSystemVolume> Mount(Stream stream, uint lowCyl, uint highCyl,
+            uint surfaces, uint blocksPerTrack, uint reserved, uint blockSize, uint fileSystemBlockSize)
+        {
+            var volume = await FastFileSystemHelper.Mount(stream, lowCyl, highCyl, surfaces, blocksPerTrack, reserved,
+                blockSize,
+                fileSystemBlockSize);
 
             return new FastFileSystemVolume(volume, volume.RootBlockOffset);
         }

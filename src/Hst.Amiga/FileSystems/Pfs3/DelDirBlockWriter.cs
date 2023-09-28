@@ -1,44 +1,42 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    using System.IO;
-    using System.Threading.Tasks;
+    using System;
     using Blocks;
-    using Core.Extensions;
-    using Extensions;
+    using Core.Converters;
 
     public static class DelDirBlockWriter
     {
-        public static async Task<byte[]> BuildBlock(deldirblock deldirblock)
+        public static byte[] BuildBlock(deldirblock delDirBlock, globaldata g)
         {
-            var blockStream = deldirblock.BlockBytes == null || deldirblock.BlockBytes.Length == 0 ?
-                new MemoryStream() : new MemoryStream(deldirblock.BlockBytes);
-                
-            await blockStream.WriteBigEndianUInt16(deldirblock.id); // 0
-            await blockStream.WriteBigEndianUInt16(deldirblock.not_used_1); // 2
-            await blockStream.WriteBigEndianUInt32(deldirblock.datestamp); // 4
-            await blockStream.WriteBigEndianUInt32(deldirblock.seqnr); // 8
-
-            // not_used_2[2] + not_used_3
-            await blockStream.WriteBigEndianUInt16(0); // 12
-            await blockStream.WriteBigEndianUInt16(0); // 14
-            await blockStream.WriteBigEndianUInt16(0); // 16
-            
-            await blockStream.WriteBigEndianUInt16(deldirblock.uid); // 18
-            await blockStream.WriteBigEndianUInt16(deldirblock.gid); // 20
-            await blockStream.WriteBigEndianUInt32(deldirblock.protection); // 22
-            await DateHelper.WriteDate(blockStream, deldirblock.CreationDate); // 26
-            
-            foreach (var entry in deldirblock.entries)
+            var blockBytes = new byte[g.RootBlock.ReservedBlksize];
+            if (delDirBlock.BlockBytes != null)
             {
-                await blockStream.WriteBigEndianUInt32(entry.anodenr); // 32...
-                await blockStream.WriteBigEndianUInt32(entry.fsize); // 36...
-                await DateHelper.WriteDate(blockStream, entry.CreationDate); // 40... 
-                await blockStream.WriteString(entry.filename, 16); // 46 ...
-                await blockStream.WriteBigEndianUInt16(entry.fsizex); //
+                Array.Copy(delDirBlock.BlockBytes, 0, blockBytes, 0,
+                    Math.Min(delDirBlock.BlockBytes.Length, g.RootBlock.ReservedBlksize));
             }
             
-            var blockBytes = blockStream.ToArray();
-            deldirblock.BlockBytes = blockBytes;
+            BigEndianConverter.ConvertUInt16ToBytes(delDirBlock.id, blockBytes, 0);
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 0x2); // not used 1
+            BigEndianConverter.ConvertUInt32ToBytes(delDirBlock.datestamp, blockBytes, 0x4);
+            BigEndianConverter.ConvertUInt32ToBytes(delDirBlock.seqnr, blockBytes, 0x8);
+
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 0xc); // not used 2
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 0xe); // not used 2
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 0x10); // not used 3
+            
+            BigEndianConverter.ConvertUInt16ToBytes(delDirBlock.uid, blockBytes, 0x12);
+            BigEndianConverter.ConvertUInt16ToBytes(delDirBlock.gid, blockBytes, 0x14);
+            BigEndianConverter.ConvertUInt32ToBytes(delDirBlock.protection, blockBytes, 0x16);
+            DateHelper.WriteDate(delDirBlock.CreationDate, blockBytes, 0x1a);
+
+            var offset = 0x20; // first del dir entry offset
+            foreach (var entry in delDirBlock.entries)
+            {
+                DelDirEntryWriter.Write(blockBytes, offset, entry);
+                offset += SizeOf.DelDirEntry.Struct;
+            }
+            
+            delDirBlock.BlockBytes = blockBytes;
 
             return blockBytes;
         }

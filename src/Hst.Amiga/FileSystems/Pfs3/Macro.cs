@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
 
@@ -9,14 +10,14 @@
     {
         public static bool IsSameOI(objectinfo oi1, objectinfo oi2)
         {
-            return oi1.file.direntry.Offset == oi2.file.direntry.Offset && 
+            return oi1.file.direntry.Equals(oi2.file.direntry) && 
                    oi1.file.dirblock.blocknr == oi2.file.dirblock.blocknr;
         }
         
         public static void MarkDataDirty(int i, globaldata g) => g.dc.ref_[i].dirty = true;
             
         // comment: de is struct direntry *
-        public static int COMMENT(direntry de) => de.startofname + de.nlength;
+        //public static int COMMENT(direntry de) => de.startofname + de.Name.Length;
         
         public static bool IsRoot(objectinfo oi) => oi == null || oi.volume.root == 0;
         public static bool IsRootA(objectinfo oi) => oi.volume.root == 0;
@@ -41,7 +42,15 @@
         public static int MKBADDR(uint x) => (int)x >> 2;
         
         public static void Lock(CachedBlock blk, globaldata g) => blk.used = g.locknr;
-        public static void UnlockAll(globaldata g) => g.locknr++;
+
+        public static void UnlockAll(globaldata g)
+        {
+            g.locknr++;
+            if (g.locknr == ushort.MaxValue)
+            {
+                g.locknr = 0;
+            }
+        }
         public static bool IsLocked(CachedBlock blk, globaldata g) => blk.used == g.locknr;
 
         /// <summary>
@@ -49,15 +58,15 @@
         /// </summary>
         /// <param name="blok"></param>
         /// <returns></returns>
-        public static direntry FIRSTENTRY(dirblock blk) => DirEntryReader.Read(blk.entries, 0);
+        // public static direntry FIRSTENTRY(dirblock blk) => DirEntryReader.Read(blk.entries, 0);
 
         /* get next directory entry */
         //public static int NEXTENTRY(direntry de) => ((struct direntry*)((UBYTE*)(de) + (de)->next))
-        public static direntry NEXTENTRY(dirblock blk, direntry de)
-        {
-            return DirEntryReader.Read(blk.entries, de.next);
-        }         
-        public static int DB_HEADSPACE(globaldata g) => SizeOf.DirBlock.Struct(g);
+        // public static direntry NEXTENTRY(dirblock blk, direntry de)
+        // {
+        //     return DirEntryReader.Read(blk.entries, de.Offset + de.next);
+        // }         
+        // public static int DB_HEADSPACE(globaldata g) => SizeOf.DirBlock.Struct(g);
         public static int DB_ENTRYSPACE(globaldata g) => SizeOf.DirBlock.Entries(g);
         
         //public static int GetAnodeBlock(uint a, uint b, globaldata g) => anodes.big_GetAnodeBlock() (g.getanodeblock)(a, b);
@@ -145,66 +154,150 @@ BPTR
         public static bool IsDeldir(CachedBlock blk) => blk.blk.id == Constants.DELDIRID;
         public static bool IsSuperBlock(CachedBlock blk) => blk.blk.id == Constants.SBLKID;
 
-        /// <summary>
-        /// remove node from any list it's added to. Amiga MinList exec
-        /// </summary>
-        /// <param name="node"></param>
-        /// <param name="g"></param>
-        public static void MinRemove(LruCachedBlock node, globaldata g)
-        {
-            // #define MinRemove(node) Remove((struct Node *)node)
-            // remove() removes the node from any list it' added to
-            
-            g.glob_lrudata.LRUpool.Remove(node);
-            g.glob_lrudata.LRUqueue.Remove(node);
-        }
-
         public static void MinRemove(IEntry node, globaldata g)
         {
             var volume = g.currentvolume;
             volume.fileentries.Remove(node);
         }
+        
+        public static void MinRemove(anodechain anodechain, globaldata g)
+        {
+            g.currentvolume.anodechainlist.Remove(anodechain);
+        }
 
         public static void MinRemove(CachedBlock node, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Macro: MinRemove CachedBlock block nr {node.blocknr} ({node.GetHashCode()})");
+#endif
             // #define MinRemove(node) Remove((struct Node *)node)
-            // remove() removes the node from any list it' added to
-            
-            // var volume = g.currentvolume;
+            // remove() removes the node from any list it' added to (Amiga MinList exec)
+
+            var volume = g.currentvolume;
             // for (var i = 0; i < volume.anblks.Length; i++)
             // {
             //     volume.anblks[i].Remove(node);
             // }
+            if (IsAnodeBlock(node) && volume.anblks.ContainsKey(node.blocknr))
+            {
+                volume.anblks.Remove(node.blocknr);
+            }
+
             // for (var i = 0; i < volume.dirblks.Length; i++)
             // {
             //     volume.dirblks[i].Remove(node);
             // }
+            if (IsDirBlock(node) && volume.dirblks.ContainsKey(node.blocknr))
+            {
+                volume.dirblks.Remove(node.blocknr);
+            }
+
             // volume.indexblks.Remove(node);
+            if (IsIndexBlock(node))
+            {
+                if (volume.indexblks.ContainsKey(node.blocknr))
+                {
+                    volume.indexblks.Remove(node.blocknr);
+                }
+                if (node.blk is indexblock indexBlock &&
+                    volume.indexblksBySeqNr.ContainsKey(indexBlock.seqnr) &&
+                    volume.indexblksBySeqNr[indexBlock.seqnr] == node)
+                {
+                    volume.indexblksBySeqNr.Remove(indexBlock.seqnr);
+                }
+            }
+            
+
             // volume.bmblks.Remove(node);
+            if (IsBitmapBlock(node))
+            {
+                if (volume.bmblks.ContainsKey(node.blocknr))
+                {
+                    volume.bmblks.Remove(node.blocknr);
+                }
+                if (node.blk is BitmapBlock bitmapBlock &&
+                    volume.bmblksBySeqNr.ContainsKey(bitmapBlock.seqnr) &&
+                    volume.bmblksBySeqNr[bitmapBlock.seqnr] == node)
+                {
+                    volume.bmblksBySeqNr.Remove(bitmapBlock.seqnr);
+                }
+            }
+
             // volume.superblks.Remove(node);
+            if (IsSuperBlock(node))
+            {
+                if (volume.superblks.ContainsKey(node.blocknr))
+                {
+                    volume.superblks.Remove(node.blocknr);
+                }
+                if (node.blk is indexblock superBlock &&
+                    volume.superblksBySeqNr.ContainsKey(superBlock.seqnr) &&
+                    volume.superblksBySeqNr[superBlock.seqnr] == node)
+                {
+                    volume.superblksBySeqNr.Remove(superBlock.seqnr);
+                }
+            }
+
             // volume.deldirblks.Remove(node);
+            if (IsDeldir(node))
+            {
+                if (volume.deldirblks.ContainsKey(node.blocknr))
+                {
+                    volume.deldirblks.Remove(node.blocknr);
+                }
+                if (node.blk is deldirblock delDirBlock &&
+                    volume.deldirblksBySeqNr.ContainsKey(delDirBlock.seqnr) &&
+                    volume.deldirblksBySeqNr[delDirBlock.seqnr] == node)
+                {
+                    volume.deldirblksBySeqNr.Remove(delDirBlock.seqnr);
+                }
+            }
+
             // volume.bmindexblks.Remove(node);
+            if (IsBitmapIndexBlock(node))
+            {
+                if (volume.bmindexblks.ContainsKey(node.blocknr))
+                {
+                    volume.bmindexblks.Remove(node.blocknr);
+                }
+                if (node.blk is indexblock bitmapIndexBlock &&
+                    volume.bmindexblksBySeqNr.ContainsKey(bitmapIndexBlock.seqnr) &&
+                    volume.bmindexblksBySeqNr[bitmapIndexBlock.seqnr] == node)
+                {
+                    volume.bmindexblksBySeqNr.Remove(bitmapIndexBlock.seqnr);
+                }
+            }
         }
 
-        public static void MinRemoveX(CachedBlock node, globaldata g)
+        /// <summary>
+        /// Remove cached block from lru lists containing it
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="g"></param>
+        public static void MinRemoveLru(CachedBlock node, globaldata g)
         {
-            // #define MinRemove(node) Remove((struct Node *)node)
-            // remove() removes the node from any list it' added to
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Macro: MinRemoveLru CachedBlock block nr {node.blocknr} ({node.GetHashCode()})");
+#endif
+            foreach (var lruCachedBlock in g.glob_lrudata.LRUpool.Where(x => x.cblk == node).ToList())
+            {
+                g.glob_lrudata.LRUpool.Remove(lruCachedBlock);
+            }
             
-            var volume = g.currentvolume;
-            for (var i = 0; i < volume.anblks.Length; i++)
+            foreach (var lruCachedBlock in g.glob_lrudata.LRUqueue.Where(x => x.cblk == node).ToList())
             {
-                volume.anblks[i].Remove(node);
+                g.glob_lrudata.LRUqueue.Remove(lruCachedBlock);
             }
-            for (var i = 0; i < volume.dirblks.Length; i++)
+
+            for (var i = 0; i < g.glob_lrudata.LRUarray.Length; i++)
             {
-                volume.dirblks[i].Remove(node);
+                if (g.glob_lrudata.LRUarray[i] == null || g.glob_lrudata.LRUarray[i].cblk == node)
+                {
+                    continue;
+                }
+
+                g.glob_lrudata.LRUarray[i] = null;
             }
-            volume.indexblks.Remove(node);
-            volume.bmblks.Remove(node);
-            volume.superblks.Remove(node);
-            volume.deldirblks.Remove(node);
-            volume.bmindexblks.Remove(node);
         }
         
         /// <summary>
@@ -219,6 +312,20 @@ BPTR
             list.AddFirst(node);
         }
 
+        public static void AddToIndexes(IDictionary<uint, CachedBlock> byBlockNr, 
+            IDictionary<uint, CachedBlock> bySeqNr, CachedBlock node)
+        {
+            var seqBlock = node.blk as ISeqBlock;
+            if (seqBlock is null)
+            {
+                throw new ArgumentException("Node is not a seq block", nameof(node));
+            }
+            
+            // #define MinAddHead(list, node)  AddHead((struct List *)(list), (struct Node *)(node))
+            byBlockNr[node.blocknr] = node;
+            bySeqNr[seqBlock.seqnr] = node;
+        }
+        
         public static LinkedListNode<T> HeadOf<T>(LinkedList<T> list)
         {
             // #define HeadOf(list) ((void *)((list)->mlh_Head))
@@ -264,6 +371,11 @@ BPTR
             //             MinAddHead(&list[(blk->blocknr/2)&mask], blk)
             MinAddHead(list[(blk.blocknr / 2) & mask], blk);
         }
+
+        public static void Hash(CachedBlock blk, IDictionary<uint, CachedBlock> list)
+        {
+            list.Add(blk.blocknr, blk);
+        }
         
         /*
          * Hashing macros
@@ -284,7 +396,8 @@ BPTR
         {
             // #define FIRSTENTRY(blok) ((struct direntry*)((blok)->blk.entries))
             // #define IsEmptyDBlk(blk) (FIRSTENTRY(blk)->next == 0)
-            return FIRSTENTRY(blk.dirblock).next == 0;
+            //return FIRSTENTRY(blk.dirblock).next == 0;
+            return blk.dirblock.DirEntries.Count == 0;
         }
         
         public static bool IsUpdateNeeded(int rtbf_threshold, globaldata g)

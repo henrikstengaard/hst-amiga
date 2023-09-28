@@ -1,16 +1,278 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Extensions;
 using FileSystems;
+using FileSystems.Exceptions;
+using FileSystems.FastFileSystem;
+using RigidDiskBlocks;
 using Xunit;
+using Constants = FileSystems.FastFileSystem.Constants;
+using Directory = FileSystems.FastFileSystem.Directory;
 using FileMode = FileSystems.FileMode;
 
 public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
 {
+    [Fact]
+    public async Task WhenCreateAndList100FilesInRootDirectoryThenFilesExists()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // act - create 100 files in root directory
+        var expectedEntries = Enumerable.Range(0, 100).Select(x => $"New File{x}").OrderBy(x => x)
+            .ToList();
+        for (var i = 0; i < 100; i++)
+        {
+            await ffsVolume.CreateFile(expectedEntries[i]);
+        }
+
+        // assert - list entries contains files in root directory
+        var entries = (await ffsVolume.ListEntries())
+            .OrderBy(x => x.Name).ToList();
+        Assert.Equal(100, entries.Count);
+        Assert.Equal(100, entries.Count(x => x.Type == EntryType.File));
+        for (var i = 0; i < 100; i++)
+        {
+            Assert.Equal(expectedEntries[i], entries[i].Name);
+        }
+    }
+    
+    [Fact]
+    public async Task WhenCreate100DirectoriesFilesAndOverwrite100FilesInRootDirectoryThenDirectoriesFilesExists()
+    {
+        var data = new byte[844];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create 100 directories in root directory
+        var dirEntries = Enumerable.Range(0, 100).Select(x => $"New Dir{x}").OrderBy(x => x)
+            .ToList();
+        foreach (var dirEntry in dirEntries)
+        {
+            await ffsVolume.CreateDirectory(dirEntry);
+        }
+
+        // act - create 100 files in root directory
+        var fileEntries = Enumerable.Range(0, 100).Select(x => $"New File{x}").OrderBy(x => x)
+            .ToList();
+        foreach (var fileEntry in fileEntries)
+        {
+            await ffsVolume.CreateFile(fileEntry, true, true);
+            
+            // act - write data
+            await using (var entryStream = await ffsVolume.OpenFile(fileEntry, FileMode.Append))
+            {
+                await entryStream.WriteAsync(data, 0, data.Length);
+            }
+        }
+
+        data = new byte[388];
+        Array.Fill<byte>(data, 2);
+        
+        // act - overwrite 100 existing files in root directory
+        foreach (var fileEntry in fileEntries)
+        {
+            await ffsVolume.CreateFile(fileEntry, true, true);
+            
+            // act - write data
+            await using (var entryStream = await ffsVolume.OpenFile(fileEntry, FileMode.Append))
+            {
+                await entryStream.WriteAsync(data, 0, data.Length);
+            }
+        }
+
+        // assert - list entries in root directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Equal(200, entries.Count);
+        
+        // assert - 100 directories exist
+        var actualDirEntries = entries.Where(x => x.Type == EntryType.Dir)
+            .ToDictionary(key => key.Name, value => value);
+        Assert.Equal(100, actualDirEntries.Count);
+        foreach (var dirEntry in dirEntries)
+        {
+            Assert.Equal(dirEntry, actualDirEntries[dirEntry].Name);
+        }
+        
+        // assert - 100 files exist
+        var actualFileEntries = entries.Where(x => x.Type == EntryType.File)
+            .ToDictionary(key => key.Name, value => value);
+        Assert.Equal(100, actualFileEntries.Count);
+        foreach (var fileEntry in fileEntries)
+        {
+            Assert.Equal(fileEntry, actualFileEntries[fileEntry].Name);
+        }
+    }
+
+    [Fact]
+    public async Task WhenCreateAndList100DirectoriesInRootDirectoryThenDirectoriesExists()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // act - create 100 directories in root directory
+        var expectedEntries = Enumerable.Range(0, 100).Select(x => $"New Dir{x}").OrderBy(x => x)
+            .ToList();
+        for (var i = 0; i < 100; i++)
+        {
+            await ffsVolume.CreateDirectory(expectedEntries[i]);
+        }
+
+        // assert - list entries contains directories in root directory
+        var entries = (await ffsVolume.ListEntries())
+            .OrderBy(x => x.Name).ToList();
+        Assert.Equal(100, entries.Count);
+        Assert.Equal(100, entries.Count(x => x.Type == EntryType.Dir));
+        for (var i = 0; i < 100; i++)
+        {
+            Assert.Equal(expectedEntries[i], entries[i].Name);
+        }
+    }
+
+    [Fact]
+    public async Task WhenCreateAndSearchFor100DirectoriesInRootDirectoryThenDirectoriesAreFound()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+
+        // arrange - read rigid disk block
+        var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+
+        // arrange - get first partition
+        var partition = rigidDiskBlock.PartitionBlocks.FirstOrDefault();
+        
+        // assert - partition is not null
+        Assert.NotNull(partition);
+
+        // arrange - mount volume
+        var volume = await FastFileSystemHelper.Mount(stream, partition.LowCyl, partition.HighCyl, partition.Surfaces,
+            partition.BlocksPerTrack,
+            partition.Reserved, partition.BlockSize, partition.FileSystemBlockSize);
+        
+        // arrange - create fast file system volume
+        await using var ffsVolume = new FastFileSystemVolume(volume, volume.RootBlockOffset);
+
+        // act - create 100 directories in root directory
+        var expectedEntries = Enumerable.Range(0, 100).Select(x => $"New Dir{x}").OrderBy(x => x)
+            .ToList();
+        for (var i = 0; i < 100; i++)
+        {
+            await ffsVolume.CreateDirectory(expectedEntries[i]);
+        }
+
+        // act - search for directories created in root directory
+        for (var i = 0; i < 100; i++)
+        {
+            // act - find sub dir entry
+            var result = await Directory.FindEntry(volume.RootBlockOffset, $"New Dir{i}", volume);
+        
+            // assert - entry is found, if no parts not found
+            Assert.Empty(result.PartsNotFound);
+        }
+    }
+    
+    [Fact]
+    public async Task WhenCreateFindSubdirectoryThenSubDirectoryExists()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+
+        // arrange - read rigid disk block
+        var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+
+        // arrange - get first partition
+        var partition = rigidDiskBlock.PartitionBlocks.FirstOrDefault();
+        
+        // assert - partition is not null
+        Assert.NotNull(partition);
+
+        // arrange - mount volume
+        var volume = await FastFileSystemHelper.Mount(stream, partition.LowCyl, partition.HighCyl, partition.Surfaces,
+            partition.BlocksPerTrack,
+            partition.Reserved, partition.BlockSize, partition.FileSystemBlockSize);
+        
+        // arrange - create fast file system volume
+        await using var ffsVolume = new FastFileSystemVolume(volume, volume.RootBlockOffset);
+        
+        // arrange - create "New Dir" in root directory
+        await ffsVolume.CreateDirectory("New Dir");
+
+        // arrange - change directory to "New Dir", create "Sub Dir" directory
+        await ffsVolume.ChangeDirectory("New Dir");
+        await ffsVolume.CreateDirectory("Sub Dir");
+
+        // arrange - change directory to root directory
+        await ffsVolume.ChangeDirectory("/");
+
+        // act - find sub dir entry
+        var result = await Directory.FindEntry(volume.RootBlockOffset, "New Dir/Sub Dir", volume);
+        
+        // assert - entry is found, no parts not found
+        Assert.Empty(result.PartsNotFound);
+        
+        // assert - entry name is equal to sub dir
+        Assert.Equal("Sub Dir", result.Name);
+    }
+
+    [Fact]
+    public async Task WhenFindExistingEntryThenEntryExists()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // arrange - create "New Dir" in root directory
+        await ffsVolume.CreateDirectory("New Dir");
+
+        // act - find entry
+        var result = await ffsVolume.FindEntry("New Dir");
+        
+        // assert - entry exists and is equal
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New Dir", result.Entry.Name);
+        Assert.Equal(EntryType.Dir, result.Entry.Type);
+        Assert.Equal(0, result.Entry.Size);
+    }
+
+    [Fact]
+    public async Task WhenFindNonExistingEntryThenPartsNotFoundContainsName()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType: Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // act - find entry
+        var result = await ffsVolume.FindEntry("New Dir");
+        
+        // assert - result has new dir in parts not found and entry is null
+        Assert.NotNull(result);
+        Assert.Single(result.PartsNotFound);
+        Assert.Equal(new List<string>{ "New Dir" }, result.PartsNotFound);
+        Assert.Null(result.Entry);
+    }
+    
     [Theory]
     [InlineData(DiskSize100Mb, 512)]
     [InlineData(DiskSize100Mb, 1024)]
@@ -136,7 +398,7 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         await ffsVolume.OpenFile("New File", FileMode.Write);
 
         // assert - open same file for writing in root directory throws exception as file exists
-        await Assert.ThrowsAsync<IOException>(async () => await ffsVolume.OpenFile("New File", FileMode.Write));
+        await Assert.ThrowsAsync<PathAlreadyExistsException>(async () => await ffsVolume.OpenFile("New File", FileMode.Write));
     }
 
     [Fact]
@@ -172,7 +434,105 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         await using var ffsVolume = await MountVolume(stream);
 
         // act - open file in root directory in read mode, creates new file
-        await Assert.ThrowsAsync<IOException>(async () => await ffsVolume.OpenFile("New File", FileMode.Read));
+        await Assert.ThrowsAsync<PathNotFoundException>(async () => await ffsVolume.OpenFile("New File", FileMode.Read));
+    }
+    
+    [Fact]
+    public async Task WhenCreateAndOverwriteFileWithSmallerOneThenLessBytesAreFree()
+    {
+        // arrange - data to write
+        var data = new byte[10000];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        var freeBytesAtStart = ffsVolume.Free;
+        
+        // act - create file
+        await ffsVolume.CreateFile("New File");
+        
+        // act - write data
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+        
+        // assert - free bytes after writing 1st time is smaller than at start
+        var freeBytesAfter1StFile = ffsVolume.Free;
+        Assert.True(freeBytesAfter1StFile < freeBytesAtStart);
+
+        // arrange - data to write
+        data = new byte[1000];
+        Array.Fill<byte>(data, 1);
+        
+        // act - create file and overwrite existing
+        await ffsVolume.CreateFile("New File", true);
+
+        // act - write data
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+
+        // assert - free bytes after writing 2nd time is larger 1st time (overwritten file is smaller)
+        var freeBytesAfter2NdFile = ffsVolume.Free;
+        Assert.True(freeBytesAfter2NdFile > freeBytesAfter1StFile);
+        
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+        await using (var entryStream = await ffsVolume.OpenFile("New File", FileMode.Read))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+        
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
+    }
+    
+    [Fact]
+    public async Task WhenOpenFileWithoutReadBitThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - create file
+        await ffsVolume.CreateFile("New File");
+
+        // arrange - file only has delete protection bit set
+        await ffsVolume.SetProtectionBits("New File", ProtectionBits.Delete);
+        
+        // act - open file in read mode then exception is thrown
+        await Assert.ThrowsAsync<FileSystemException>(async () => await ffsVolume.OpenFile("New File", FileMode.Read));
+    }
+
+    [Fact]
+    public async Task WhenOpenFileWithoutReadBitAndIgnoreProtectionBitsThenFileOpened()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - create file
+        await ffsVolume.CreateFile("New File");
+
+        // arrange - file only has delete protection bit set
+        await ffsVolume.SetProtectionBits("New File", ProtectionBits.Delete);
+        
+        // act - open file in read mode then exception is thrown
+        await using var entryStream = await ffsVolume.OpenFile("New File", FileMode.Read, ignoreProtectionBits: true);
     }
     
     [Theory]
@@ -537,5 +897,144 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         var dirEntry = entries.FirstOrDefault(x => x.Name == "New File" && x.Type == EntryType.File);
         Assert.NotNull(dirEntry);
         Assert.Equal(date, dirEntry.Date);
+    }
+
+    [Fact]
+    public async Task WhenCreateFileWithNameLongerThan30AndWriteDataThenFileExistsLimitedToLengthOf30()
+    {
+        // arrange - file name and expected file name
+        const string fileName = "1234567890123456789012345678901234567890";
+        var expectedName = fileName[..Constants.MAXNAMELEN];
+        
+        // arrange - data to write
+        var data = new byte[10];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, Dos3DosType);
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // act - create file
+        await ffsVolume.CreateFile(fileName);
+        
+        // act - write data
+        await using (var entryStream = await ffsVolume.OpenFile(fileName, FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+
+        // act - list entries in root directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+
+        // assert - root directory contains file created
+        Assert.Single(entries);
+        var dirEntry = entries.FirstOrDefault(x => x.Name == expectedName && x.Type == EntryType.File);
+        Assert.NotNull(dirEntry);
+        
+        // act - read data
+        int bytesRead;
+        byte[] dataRead;
+        await using (var entryStream = await ffsVolume.OpenFile(fileName, FileMode.Read))
+        {
+            dataRead = new byte[entryStream.Length];
+            bytesRead = await entryStream.ReadAsync(dataRead, 0, dataRead.Length);
+        }
+
+        // assert - data read matches data written
+        Assert.Equal(data.Length, bytesRead);
+        Assert.Equal(data.Length, dataRead.Length);
+        Assert.Equal(data, dataRead);
+    }
+    
+    [Fact]
+    public async Task WhenFindDirectoryAndFileEntryThenEntryIsReturned()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, Dos3DosType);
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create directory
+        await ffsVolume.CreateDirectory("New Dir");
+
+        // act - change directory
+        await ffsVolume.ChangeDirectory("New Dir");
+        
+        // act - create file
+        await ffsVolume.CreateFile("New File");
+
+        // act - change directory
+        await ffsVolume.ChangeDirectory("/");
+
+        // act - find new dir entry
+        var result = await ffsVolume.FindEntry("New Dir");
+        
+        // assert - file entry is found and matches
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New Dir", result.Entry.Name);
+        Assert.Equal(EntryType.Dir, result.Entry.Type);
+        
+        // act - change directory
+        await ffsVolume.ChangeDirectory("New Dir");
+        
+        // act - find new file entry
+        result = await ffsVolume.FindEntry("New File");
+        
+        // assert - file entry is found and matches
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.NotNull(result.Entry);
+        Assert.Equal("New File", result.Entry.Name);
+        Assert.Equal(EntryType.File, result.Entry.Type);
+    }
+
+    [Fact]
+    public async Task WhenFindEntryWithDirectorySeparatorInNameThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, Dos3DosType);
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act & assert - find entry with directory separator throws exception
+        await Assert.ThrowsAsync<ArgumentException>(async () => await ffsVolume.FindEntry("New Dir/New File"));
+    }
+
+    [Fact]
+    public async Task WhenCreateDirectoryAndFileWithSameNameThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create directory
+        await ffsVolume.CreateDirectory("Dir");
+        
+        // act & assert - create and file with same name as directory throws exception
+        await Assert.ThrowsAsync<PathAlreadyExistsException>(async () => await ffsVolume.CreateFile("Dir", ignoreProtectionBits: true));
+    }
+    
+    [Fact]
+    public async Task WhenCreateDirectoryAndOverwriteAsFileWithSameNameThenExceptionIsThrown()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create directory
+        await ffsVolume.CreateDirectory("Dir");
+        
+        // act & assert - create and overwrite file with same name as directory throws exception
+        await Assert.ThrowsAsync<NotAFileException>(async () => await ffsVolume.CreateFile("Dir", true, true));
     }
 }

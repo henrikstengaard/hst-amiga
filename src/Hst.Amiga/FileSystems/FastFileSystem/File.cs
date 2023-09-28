@@ -1,8 +1,10 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
+    using System;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
+    using Exceptions;
     using FileMode = FileMode;
 
     public static class File
@@ -12,7 +14,8 @@
             return await Open(volume, entry.Parent, entry.Name, mode);
         }
 
-        public static async Task<Stream> Open(Volume volume, uint parentSector, string name, FileMode mode)
+        public static async Task<Stream> Open(Volume volume, uint parentSector, string name, FileMode mode,
+            bool overwrite = false, bool ignoreProtectionBits = false)
         {
             var parent = await Disk.ReadEntryBlock(volume, parentSector);
             
@@ -20,7 +23,7 @@
 
             if (!volume.Stream.CanWrite && write)
             {
-                throw new IOException("device is mounted 'read only'");
+                throw new FileSystemException("Device is mounted read only");
             }
 
             var result = await Directory.GetEntryBlock(volume, parent.HashTable, name, false);
@@ -29,16 +32,22 @@
             {
                 if (!volume.IgnoreErrors)
                 {
-                    throw new IOException($"file \"{name}\" not found.");
+                    throw new PathNotFoundException($"Path \"{name}\" not found");
                 }
                 volume.Logs.Add($"ERROR: File \"{name}\" not found.");
             }
 
+            // free entry file blocks, if write and overwrite existing entry
+            if (write && overwrite && nSect != uint.MaxValue)
+            {
+                await AdfFreeFileBlocks(volume, result.EntryBlock);
+            }
+            
             if (!write && result.EntryBlock == null)
             {
                 if (!volume.IgnoreErrors)
                 {
-                    throw new IOException($"file \"{name}\" has no entry block.");
+                    throw new PathNotFoundException($"Path \"{name}\" not found");
                 }
 
                 volume.Logs.Add($"ERROR: File \"{name}\" has no entry block.");
@@ -46,12 +55,22 @@
             }
 
             var entry = result.EntryBlock;
+
+            if (overwrite && entry != null && entry.SecType != Constants.ST_FILE)
+            {
+                throw new NotAFileException($"Entry '{name}' is not a file, expected secondary type {entry.SecType}");
+            }
+            
             switch (mode)
             {
                 case FileMode.Read when Macro.hasR(entry.Access):
-                    throw new IOException("access denied");
-                case FileMode.Write when nSect != uint.MaxValue:
-                    throw new IOException("file already exists");
+                    if (!ignoreProtectionBits)
+                    {
+                        throw new FileSystemException($"File '{name}' does not have read protection bits set");
+                    }
+                    break;
+                case FileMode.Write when !overwrite && nSect != uint.MaxValue:
+                    throw new PathAlreadyExistsException($"Path '{name}' already exists");
             }
 
             var fileHdr = mode == FileMode.Write ? new FileHeaderBlock(volume.FileSystemBlockSize) : entry;
@@ -60,8 +79,22 @@
 
             if (mode == FileMode.Write)
             {
-                    fileHdr = await Directory.CreateFile(volume, parent, name);
-                    eof = true;
+                fileHdr = overwrite && nSect != uint.MaxValue ? entry : await Directory.CreateFile(volume, parent, name);
+                if (overwrite)
+                {
+                    // reset existing file header block for overwriting
+                    fileHdr.HighSeq = 0;
+                    fileHdr.ByteSize = 0;
+                    fileHdr.Date = DateTime.Now;
+                    fileHdr.Access = 0;
+                    fileHdr.Comment = string.Empty;
+                    fileHdr.FirstData = 0;
+                    for (var i = 0; i < fileHdr.Index.Length; i++)
+                    {
+                        fileHdr.Index[i] = 0;
+                    }
+                }
+                eof = true;
             }
 
             var entryStream = new EntryStream(volume, write, eof, fileHdr);
@@ -73,7 +106,6 @@
 
             return entryStream;
         }
-        
         
 /*
  * adfFreeFileBlocks
@@ -126,7 +158,7 @@
             //     return RC_MALLOC;
             // }
 
-            fileBlocks.extens= new uint[fileBlocks.nbExtens];
+            fileBlocks.extens = new uint[fileBlocks.nbExtens];
             // fileBlocks.extens=(SECTNUM*)malloc(fileBlocks->nbExtens * sizeof(SECTNUM));
             // if (!fileBlocks->extens) {
             //     (*adfEnv.eFct)("adfGetFileBlocks : malloc");

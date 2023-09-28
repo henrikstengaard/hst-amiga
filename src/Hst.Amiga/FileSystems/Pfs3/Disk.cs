@@ -27,6 +27,10 @@
 
         public static async Task<byte[]> RawRead(uint blocks, uint blocknr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: Raw read bytes from block nr {blocknr} with size of {blocks} blocks");
+#endif
+            
             if (blocknr == UInt32.MaxValue) // blocknr of uninitialised anode
             {
                 return default;
@@ -60,37 +64,41 @@
 
         public static async Task<IBlock> RawRead<T>(uint blocks, uint blocknr, globaldata g) where T : IBlock
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: Raw read block type '{typeof(T).Name}' from block nr {blocknr} with size of {blocks} blocks");
+#endif
+
             var buffer = await RawRead(blocks, blocknr, g);
 
             var type = typeof(T);
             if (type == typeof(anodeblock))
             {
-                return await AnodeBlockReader.Parse(buffer, g);
+                return AnodeBlockReader.Parse(buffer, g);
             }
 
             if (type == typeof(dirblock))
             {
-                return await DirBlockReader.Parse(buffer, g);
+                return DirBlockReader.Parse(buffer, g);
             }
 
             if (type == typeof(indexblock))
             {
-                return await IndexBlockReader.Parse(buffer, g);
+                return IndexBlockReader.Parse(buffer, g);
             }
 
             if (type == typeof(BitmapBlock))
             {
-                return await BitmapBlockReader.Parse(buffer, (int)g.glob_allocdata.longsperbmb);
+                return BitmapBlockReader.Parse(buffer, (int)g.glob_allocdata.longsperbmb);
             }
 
             if (type == typeof(deldirblock))
             {
-                return await DelDirBlockReader.Parse(buffer, g);
+                return DelDirBlockReader.Parse(buffer, g);
             }
 
             if (type == typeof(rootblockextension))
             {
-                return await RootBlockExtensionReader.Parse(buffer);
+                return RootBlockExtensionReader.Parse(buffer);
             }
 
             return default;
@@ -98,75 +106,56 @@
 
         public static async Task<bool> RawWrite(Stream stream, byte[] buffer, uint blocks, uint blocknr, globaldata g)
         {
-            return await RawWrite(stream, buffer, 0, blocks, blocknr, g);
-        }
-
-        public static async Task<bool> RawWrite(Stream stream, byte[] buffer, int offset, uint blocks, uint blocknr,
-            globaldata g)
-        {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: Raw write bytes to block nr {blocknr} with buffer size {buffer.Length} and size of {blocks} blocks");
+#endif
             // RawReadWrite_DS(TRUE, buffer, blocks, blocknr, g);
-
+            if (g.softprotect)
+            {
+                throw new IOException("ERROR_DISK_WRITE_PROTECTED");
+            }
+            
             if (blocknr == UInt32.MaxValue) // blocknr of uninitialised anode
                 return false;
 
             blocknr += g.firstblock;
 
-            if (g.softprotect)
-            {
-                throw new IOException("ERROR_DISK_WRITE_PROTECTED");
-            }
-
             BoundsCheck(true, blocknr, blocks, g);
 
             var blockOffset = (long)g.blocksize * blocknr;
+            
             g.stream.Seek(blockOffset, SeekOrigin.Begin);
+            await stream.WriteAsync(buffer, 0, Convert.ToInt32(Math.Min(buffer.Length, g.blocksize * blocks)));
 
-            var writeLength = (int)(g.blocksize * blocks);
-
-            if (buffer.Length == writeLength)
-            {
-                await stream.WriteBytes(buffer);
-            }
-            else
-            {
-                await stream.WriteAsync(buffer, offset, Math.Min(writeLength, buffer.Length));
-                
-            }
-
-            
-            //
-            // // zero fill, if write length is larger than buffer
-            // if (offset + writeLength > buffer.Length)
-            // {
-            //     var zeroFill = new byte[offset + writeLength - buffer.Length];
-            //     await stream.WriteAsync(zeroFill, 0, zeroFill.Length);
-            // }
-            
             return true;
         }
 
         public static async Task<bool> RawWrite(Stream stream, IBlock block, uint blocks, uint blocknr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: Raw write block type '{block.GetType().Name}' to block nr {blocknr} with size of {blocks} blocks");
+#endif
+
             byte[] buffer;
             switch (block)
             {
                 case anodeblock anodeBlock:
-                    buffer = await AnodeBlockWriter.BuildBlock(anodeBlock);
+                    buffer = AnodeBlockWriter.BuildBlock(anodeBlock, g);
                     break;
                 case dirblock dirBlock:
-                    buffer = await DirBlockWriter.BuildBlock(dirBlock);
+                    buffer = DirBlockWriter.BuildBlock(dirBlock, g);
                     break;
                 case indexblock indexBlock:
-                    buffer = await IndexBlockWriter.BuildBlock(indexBlock);
+                    buffer = IndexBlockWriter.BuildBlock(indexBlock, g);
                     break;
                 case BitmapBlock bitmapBlock:
-                    buffer = await BitmapBlockWriter.BuildBlock(bitmapBlock);
+                    buffer = BitmapBlockWriter.BuildBlock(bitmapBlock, g);
                     break;
-                case deldirblock deldirblock:
-                    buffer = await DelDirBlockWriter.BuildBlock(deldirblock);
+                case deldirblock delDirBlock:
+                    buffer = DelDirBlockWriter.BuildBlock(delDirBlock, g);
                     break;
                 case rootblockextension rootBlockExtension:
-                    buffer = await RootBlockExtensionWriter.BuildBlock(rootBlockExtension);
+                    buffer = RootBlockExtensionWriter.BuildBlock(rootBlockExtension, g);
                     break;
                 default:
                     return false;
@@ -207,8 +196,14 @@
 
             /* write them */
             //await RawWrite(g.dc.data[slotnr << g.blockshift], i-slotnr, g.dc.ref_[slotnr].blocknr, g);
-            await RawWrite(g.stream, g.dc.data, slotnr << g.blockshift, (uint)(i - slotnr), g.dc.ref_[slotnr].blocknr,
-                g);
+            var slotData = new byte[(int)(g.blocksize * (i - slotnr))];
+            
+            var di = slotnr << g.blockshift;
+            for (var si = 0; si < slotData.Length; si++)
+            {
+                slotData[si] = g.dc.data[di++];
+            }
+            await RawWrite(g.stream, slotData, (uint)(i - slotnr), g.dc.ref_[slotnr].blocknr, g);
         }
 
         /* SeekInFile
@@ -229,6 +224,9 @@
             deldirentry delfile = null;
 
             // DB(Trace(1,"SeekInFile","offset = %ld mode=%ld\n",offset,mode));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: SeekInFile, offset = {offset}, mode = {mode}");
+#endif
             if (Macro.IsDelFile(file.le.info))
             {
                 if ((delfile = await Directory.GetDeldirEntryQuick(file.le.info.delfile.slotnr, g)) == null)
@@ -282,7 +280,7 @@
             anodeoffset = (uint)(newoffset >> g.blockshift);
             blockoffset = (uint)(newoffset & Macro.BLOCKSIZEMASK(g));
             file.currnode = file.anodechain.head;
-            anodes.CorrectAnodeAC(file.currnode, anodeoffset, g);
+            anodes.CorrectAnodeAC(file.currnode, ref anodeoffset, g);
             /* DiskSeek(anode.blocknr + anodeoffset, g); */
 
             file.anodeoffset = anodeoffset;
@@ -327,8 +325,11 @@
             // #if DELDIR
             deldirentry dde;
             // #endif
-
+            
             //DB(Trace(1,"ReadFromFile","size = %lx offset = %lx\n",size,file->offset));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: ReadFromFile, size = {size}, offset = {file.offset}");
+#endif
             CheckAccess.CheckReadAccess(file, g);
 
             /* correct size and check if zero */
@@ -432,7 +433,7 @@
                 blockstoread -= t;
                 dataptr += (int)(t << BLOCKSHIFT);
                 anodeoffset += t;
-                anodes.CorrectAnodeAC(chnode, anodeoffset, g);
+                anodes.CorrectAnodeAC(chnode, ref anodeoffset, g);
                 // }
             }
 
@@ -461,7 +462,7 @@
             // {
             file.anodeoffset += fullblks;
             file.blockoffset = (file.blockoffset + size) & BLOCKSIZEMASK; // not bytesleft!!
-            anodes.CorrectAnodeAC(file.currnode, file.anodeoffset, g);
+            anodes.CorrectAnodeAC(file.currnode, ref file.anodeoffset, g);
             file.offset += size;
             return size;
             // }
@@ -521,6 +522,9 @@
             int slotnr;
 
             //DB(Trace(1,"WriteToFile","size = %lx offset=%lx, file=%lx\n",size,file->offset,file));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: WriteToFile, size = {size}, offset = {file.offset}");
+#endif
             /* initialization values */
             chnode = file.currnode;
             anodeoffset = file.anodeoffset;
@@ -547,7 +551,7 @@
                 t = newblocksinfile - oldblocksinfile;
                 if (!await Allocation.AllocateBlocksAC(file.anodechain, t, file.le.info.file, g))
                 {
-                    Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, oldfilesize, g);
+                    file.le.info.file.direntry = Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, oldfilesize, g);
                     throw new IOException("ERROR_DISK_FULL");
                 }
             }
@@ -556,7 +560,7 @@
              * because anodeoffset can be outside last block! (filepointer is
              * byte 0 new block
              */
-            anodes.CorrectAnodeAC(chnode, anodeoffset, g);
+            anodes.CorrectAnodeAC(chnode, ref anodeoffset, g);
 
             /* check mask */
             maskok = ((buffer.Length - blockoffset + BLOCKSIZE) & ~g.DosEnvec.de_Mask) != 0 ||
@@ -700,7 +704,7 @@
                     dataptr += (int)(t << BLOCKSHIFT);
                     bytestowrite -= t << BLOCKSHIFT;
                     anodeoffset += t;
-                    anodes.CorrectAnodeAC(chnode, anodeoffset, g);
+                    anodes.CorrectAnodeAC(chnode, ref anodeoffset, g);
                 }
 
                 if (lastpart != null)
@@ -735,9 +739,9 @@
             // {
             file.anodeoffset += (blockoffset + size) >> BLOCKSHIFT;
             file.blockoffset = (blockoffset + size) & BLOCKSIZEMASK;
-            anodes.CorrectAnodeAC(file.currnode, file.anodeoffset, g);
+            anodes.CorrectAnodeAC(file.currnode, ref file.anodeoffset, g);
             file.offset += size;
-            Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, Math.Max(oldfilesize, file.offset), g);
+            file.le.info.file.direntry = Directory.SetDEFileSize(file.le.info.file.dirblock.dirblock, file.le.info.file.direntry, Math.Max(oldfilesize, file.offset), g);
             await Update.MakeBlockDirty(file.le.info.file.dirblock, g);
             return size;
             // }
@@ -808,7 +812,8 @@
             else
             {
                 // *error = RawRead(&g->dc.data[i<<BLOCKSHIFT], 1, blocknr, g);
-                g.dc.data = await RawRead(1, blocknr, g);
+                var data = await RawRead(1, blocknr, g);
+                Array.Copy(data, 0, g.dc.data, i << Macro.BLOCKSHIFT(g), data.Length);
             }
 
             g.dc.roving = (ushort)((g.dc.roving + 1) & g.dc.mask);
@@ -824,8 +829,9 @@
             //     return NULL;
             // else
             // return &g->dc.data[i<<BLOCKSHIFT];
-            var buffer = new byte[Macro.BLOCKSIZE(g)];
-            Array.Copy(g.dc.data, i << (int)Macro.BLOCKSHIFT(g), buffer, 0, Macro.BLOCKSIZE(g));
+            var blockSize = Macro.BLOCKSIZE(g);
+            var buffer = new byte[blockSize];
+            Array.Copy(g.dc.data, i<<Macro.BLOCKSHIFT(g), buffer, 0, blockSize);
             return buffer;
         }
 
@@ -839,18 +845,22 @@
             var direntry_m = file.le.info.file.direntry;
             var filesize_m = Directory.GetDEFileSize(file.le.info.file.direntry, g);
 
-            extrafields extrafields = new extrafields();
             uint read = 0;
             int q; // quantity
             int end, virtualoffset, virtualend, t;
 
             //DB(Trace(1,"ReadFromRollover","size = %lx offset = %lx\n",size,file->offset));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: ReadFromRollover, size = {size}, offset = {file.offset}");
+#endif
             if (size == 0)
             {
                 return 0;
             }
 
-            Directory.GetExtraFields(direntry_m, extrafields);
+            // var dirBlock = file.le.info.file.dirblock.dirblock;
+            // var extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
+            var extrafields = direntry_m.ExtraFields; 
 
             /* limit access to end of file */
             virtualoffset = (int)(file.offset - extrafields.rollpointer);
@@ -908,7 +918,7 @@
             var direntry_m = file.le.info.file.direntry;
             var filesize_m = Directory.GetDEFileSize(file.le.info.file.direntry, g);
 
-            extrafields extrafields = new extrafields();
+            extrafields extrafields;
             direntry destentry;
             objectinfo directory = new objectinfo();
             fileinfo fi = new fileinfo();
@@ -919,7 +929,12 @@
             bool extend = false;
 
             //DB(Trace(1,"WriteToRollover","size = %lx offset=%lx, file=%lx\n",size,file->offset,file));
-            Directory.GetExtraFields(direntry_m, extrafields);
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: WriteToRollover, size = {size}, offset = {file.offset}");
+#endif
+            //var dirBlock = file.le.info.file.dirblock.dirblock;
+            //extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
+            extrafields = new extrafields(direntry_m.ExtraFields);
             end = (int)(file.offset + size);
 
             /* new virtual size */
@@ -932,7 +947,7 @@
             virtualend = (int)(virtualoffset + size);
             if (virtualend >= extrafields.virtualsize)
             {
-                extrafields.virtualsize = (uint)Math.Min(filesize_m - 1, virtualend);
+                extrafields.SetVirtualSize((uint)Math.Min(filesize_m - 1, virtualend));
                 extend = true;
             }
 
@@ -963,17 +978,24 @@
 
             /* change rollpointer etc */
             if (extend && extrafields.virtualsize == filesize_m - 1)
-                extrafields.rollpointer = (uint)(end + 1); /* byte PAST eof is offset 0 */
+            {
+                extrafields.SetRollPointer((uint)(end + 1)); /* byte PAST eof is offset 0 */
+            }
             //destentry = (struct direntry *)entrybuffer;
-            destentry = direntry_m;
+            destentry = new direntry(direntry_m, g);
             //memcpy(destentry, direntry_m, direntry_m->next);
-            Directory.AddExtraFields(destentry, extrafields);
+            destentry.SetExtraFields(extrafields, g);
+            // Directory.AddExtraFields(dirBlock.entries, destentry, extrafields);
 
             /* commit changes */
             if (!await Directory.GetParent(file.le.info, directory, g))
+            {
                 return 0;
+            }
             else
+            {
                 await Directory.ChangeDirEntry(file.le.info, destentry, directory, fi, g);
+            }
 
             return (uint)written;
 
@@ -1018,7 +1040,12 @@
             uint anodeoffset, blockoffset;
 
             //DB(Trace(1,"SeekInRollover","offset = %ld mode=%ld\n",offset,mode));
-            Directory.GetExtraFields(direntry_m, extrafields);
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Disk: SeekInRollover, offset = {offset}, mode = {mode}");
+#endif
+            // var dirBlock = file.le.info.file.dirblock.dirblock;
+            // extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
+            extrafields = direntry_m.ExtraFields;
 
             /* do the seeking */
             oldvirtualoffset = (int)(file.offset - extrafields.rollpointer);
@@ -1061,7 +1088,7 @@
             anodeoffset = file.offset >> BLOCKSHIFT;
             blockoffset = file.offset & BLOCKSIZEMASK;
             file.currnode = file.anodechain.head;
-            anodes.CorrectAnodeAC(file.currnode, anodeoffset, g);
+            anodes.CorrectAnodeAC(file.currnode, ref anodeoffset, g);
 	
             file.anodeoffset  = anodeoffset;
             file.blockoffset  = blockoffset;

@@ -1,11 +1,10 @@
-﻿namespace Hst.Amiga.FileSystems.FastFileSystem
+namespace Hst.Amiga.FileSystems
 {
     using System.Collections.Generic;
 
     public class FindEntryResult
     {
-        public string Name { get; set; }
-        public uint Sector { get; set; }
+        public Entry Entry { get; set; }
         public IEnumerable<string> PartsNotFound { get; set; }
     }
 }

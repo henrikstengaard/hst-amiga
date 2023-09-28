@@ -5,6 +5,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Hst.Imaging.Pngcs" Version="0.4.57" />
+        <PackageReference Include="LTRData.DiscUtils.Containers" Version="1.0.25" />
+        <PackageReference Include="LTRData.DiscUtils.Fat" Version="1.0.25" />
+        <PackageReference Include="LTRData.DiscUtils.FileSystems" Version="1.0.25" />
+        <PackageReference Include="LTRData.DiscUtils.Iso9660" Version="1.0.25" />
+        <PackageReference Include="LTRData.DiscUtils.Vhd" Version="1.0.25" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.3.1" />
         <PackageReference Include="xunit" Version="2.4.2" />
         <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
@@ -28,87 +34,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="TestData\RigidDiskBlocks\pfs3aio">
+      <Content Include="TestData\**\*">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\RigidDiskBlocks\rigid-disk-block.img">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos1.adf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos5.adf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos2.adf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos3.adf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos4.adf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\Pfs3\pfs3aio">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\RigidDiskBlocks\rdsk_block.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\RigidDiskBlocks\part_block.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\RigidDiskBlocks\lseg_last_block.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\RigidDiskBlocks\lseg_block.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\RigidDiskBlocks\fshd_block.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\Pfs3\dirblock_1.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_fileheaderblock.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_comment-block-1.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_file-header-block-1.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_file-header-block-2.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_comment-block-2.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_dir-block-1.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_dir-block-2.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_bs1024_comment-block-1.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_bs1024_comment-block-2.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_bs1024_dir-block-1.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_bs1024_dir-block-2.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_bs1024_file-header-block-1.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="TestData\FastFileSystems\dos7_bs1024_file-header-block-2.bin">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+      </Content>      
     </ItemGroup>
-
 </Project>

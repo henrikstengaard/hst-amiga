@@ -7,6 +7,7 @@ logs/
 .env
 *.env
 .DS_Store
+packages/*
 
 #Paket dependency manager
 .paket/
@@ -191,6 +192,7 @@ PublishScripts/
 *.nuget.props
 *.nuget.targets
 !packages/*.nupkg
+!packages/readme.md
 
 # Microsoft Azure Build Output
 csx/

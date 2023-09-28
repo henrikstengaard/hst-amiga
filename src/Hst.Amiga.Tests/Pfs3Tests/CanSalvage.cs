@@ -6,15 +6,10 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Core.Converters;
-using Core.Extensions;
-using FileSystems.FastFileSystem;
 using FileSystems.Pfs3;
 using FileSystems.Pfs3.Blocks;
-using RigidDiskBlocks;
 using Xunit;
 using Constants = FileSystems.Pfs3.Constants;
-using Directory = FileSystems.Pfs3.Directory;
-using Disk = FileSystems.FastFileSystem.Disk;
 using FileMode = System.IO.FileMode;
 using Volume = FileSystems.Pfs3.Volume;
 
@@ -27,7 +22,7 @@ public class CanSalvage
         public ushort Id { get; set; }
     }
     
-    [Fact(Skip = "Experimental pfs3 salvage test")]
+    [Fact(Skip = "Manual test for internal testing")]
     public async Task Salvage()
     {
         await using var stream = System.IO.File.Open(@"d:\hst-imager\dh2.hdf", FileMode.Open, FileAccess.ReadWrite);
@@ -44,7 +39,7 @@ public class CanSalvage
         g.currentvolume = await Volume.MakeVolumeData(rootBlock, g);
 
         /* update rootblock */
-        g.RootBlock = g.currentvolume.rootblk = rootBlock;
+        g.RootBlock = rootBlock;
 
         // minimal init anodes
         var volume = g.currentvolume;
@@ -53,8 +48,8 @@ public class CanSalvage
             (ushort)(volume.rblkextension != null ? volume.rblkextension.rblkextension.curranseqnr : 0);
         //andata.anodesperblock = (volume->rootblk->reserved_blksize - sizeof(anodeblock_t)) / sizeof(anode_t);
         //andata.indexperblock = (volume->rootblk->reserved_blksize - sizeof(indexblock_t)) / sizeof(LONG);
-        andata.anodesperblock = (ushort)((volume.rootblk.ReservedBlksize - SizeOf.ANODEBLOCK_T) / SizeOf.ANODE_T);
-        andata.indexperblock = (ushort)((volume.rootblk.ReservedBlksize - SizeOf.INDEXBLOCK_T) / 4);
+        andata.anodesperblock = (ushort)((g.RootBlock.ReservedBlksize - SizeOf.ANODEBLOCK_T) / SizeOf.ANODE_T);
+        andata.indexperblock = (ushort)((g.RootBlock.ReservedBlksize - SizeOf.INDEXBLOCK_T) / 4);
         andata.maxanodeseqnr = (uint)(g.SuperMode
             ? ((Constants.MAXSUPER + 1) * andata.indexperblock * andata.indexperblock * andata.anodesperblock - 1)
             : (Constants.MAXSMALLINDEXNR * andata.indexperblock - 1));
@@ -193,7 +188,7 @@ public class CanSalvage
         //var partitionSize = (long)(highCyl - lowCyl + 1) * rigidDiskBlock.Heads * rigidDiskBlock.Sectors *rigidDiskBlock.BlockSize;
         const uint mask = 2147483646U;
 
-        return Init.CreateGlobalData(sectors, blocksPerTrack, surfaces, lowCyl, highCyl, 30, blockSize, mask);
+        return Init.CreateGlobalData(sectors, blocksPerTrack, surfaces, lowCyl, highCyl, 30, mask);
     }
 
     private async Task ExtractDirEntries(string path, uint anodenr, Dictionary<uint, Block> blocks, globaldata g)
@@ -209,21 +204,21 @@ public class CanSalvage
 
         foreach (var block in blocks.Where(x => x.Value.Id == Constants.DBLKID))
         {
-            dirBlocks[block.Key] = await DirBlockReader.Parse(block.Value.Bytes, g);
+            dirBlocks[block.Key] = DirBlockReader.Parse(block.Value.Bytes, g);
         }
 
         var anodeBlocks = new Dictionary<uint, anodeblock>();
 
         foreach (var block in blocks.Where(x => x.Value.Id == Constants.ABLKID))
         {
-            anodeBlocks[block.Key] = await AnodeBlockReader.Parse(block.Value.Bytes, g);
+            anodeBlocks[block.Key] = AnodeBlockReader.Parse(block.Value.Bytes, g);
         }
 
         var indexBlocks = new Dictionary<uint, indexblock>();
 
         foreach (var block in blocks.Where(x => x.Value.Id == Constants.IBLKID))
         {
-            indexBlocks[block.Key] = await IndexBlockReader.Parse(block.Value.Bytes, g);
+            indexBlocks[block.Key] = IndexBlockReader.Parse(block.Value.Bytes, g);
         }
 
         
@@ -231,7 +226,8 @@ public class CanSalvage
 
         foreach (var dirBlock in dirBlocks.Where(x => x.Value.parent == anodenr))
         {
-            var dirEntries = ReadDirEntries(dirBlock.Value).OrderBy(x => x.Name).ToList();
+            //var dirEntries = ReadDirEntries(dirBlock.Value, g).OrderBy(x => x.Name).ToList();
+            var dirEntries = dirBlock.Value.DirEntries;
 
             foreach (var dirEntry in dirEntries)
             {
@@ -247,7 +243,7 @@ public class CanSalvage
 
                 // big_GetAnodeBlock
                 var nr = Init.divide(seqnr, g.glob_anodedata.indexperblock);
-                var blocknr = g.currentvolume.rootblk.idx.small.indexblocks[nr];                
+                var blocknr = g.RootBlock.idx.small.indexblocks[nr];                
                 
                 //await CreateListEntry(dirEntry.anode, g);
                 var anode = anodeBlocks.Where(x => x.Value.seqnr == seqnr).ToList();
@@ -258,7 +254,7 @@ public class CanSalvage
                     file = new fileinfo
                     {
                         direntry = dirEntry,
-                        dirblock = new CachedBlock(g)
+                        dirblock = new CachedBlock()
                         {
                             blk = dirBlock.Value
                         }
@@ -320,19 +316,19 @@ public class CanSalvage
         
     }
 
-    private IEnumerable<direntry> ReadDirEntries(dirblock dirBlock)
-    {
-        var dirEntryIndex = 0;
-        direntry dirEntry;
-        do
-        {
-            dirEntry = DirEntryReader.Read(dirBlock.entries, dirEntryIndex);
-            if (dirEntry.next != 0)
-            {
-                yield return dirEntry;
-            }
-
-            dirEntryIndex += dirEntry.next;
-        } while (dirEntry.next != 0 && dirEntryIndex + dirEntry.next < dirBlock.entries.Length);
-    }
+    // private IEnumerable<direntry> ReadDirEntries(dirblock dirBlock, globaldata g)
+    // {
+    //     var dirEntryIndex = 0;
+    //     direntry dirEntry;
+    //     do
+    //     {
+    //         dirEntry = DirEntryReader.Read(dirBlock.entries, dirEntryIndex);
+    //         if (dirEntry.next != 0)
+    //         {
+    //             yield return dirEntry;
+    //         }
+    //
+    //         dirEntryIndex += dirEntry.next;
+    //     } while (dirEntry.next != 0 && dirEntryIndex + dirEntry.next < dirBlock.entries.Length);
+    // }
 }

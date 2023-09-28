@@ -2,50 +2,48 @@
 {
     using System.Collections.Generic;
     using System.IO;
-    using System.Threading.Tasks;
     using Blocks;
-    using Core.Extensions;
+    using Core.Converters;
 
     public static class AnodeBlockReader
     {
-        public static async Task<anodeblock> Parse(byte[] blockBytes, globaldata g)
+        public static anodeblock Parse(byte[] blockBytes, globaldata g)
         {
-            var blockStream = new MemoryStream(blockBytes);
-
-            var id = await blockStream.ReadBigEndianUInt16();
-            var not_used = await blockStream.ReadBigEndianUInt16();
-            var datestamp = await blockStream.ReadBigEndianUInt32();
-            var seqnr = await blockStream.ReadBigEndianUInt32();
-            var notUsed2 = await blockStream.ReadBigEndianUInt32();
-
-            if (id == 0)
+            var id = BigEndianConverter.ConvertBytesToUInt16(blockBytes);
+            if (id != Constants.ABLKID)
             {
-                return null;
+                throw new IOException($"Invalid anode block id '{id}'");
             }
+
+            var datestamp = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
+            var seqNr = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x8);
 
             var nodes = new List<anode>();
             var nodesCount = (g.RootBlock.ReservedBlksize - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 3) /
                              (Amiga.SizeOf.ULong * 3);
+
+            var offset = 0x10;
             for (var i = 0; i < nodesCount; i++)
             {
-                var clustersize = await blockStream.ReadBigEndianUInt32();
-                var blocknr = await blockStream.ReadBigEndianUInt32();
-                var next = await blockStream.ReadBigEndianUInt32();
+                var clusterSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, offset);
+                var blockNr = BigEndianConverter.ConvertBytesToUInt32(blockBytes, offset + 0x4);
+                var next = BigEndianConverter.ConvertBytesToUInt32(blockBytes, offset + 0x8);
 
                 nodes.Add(new anode
                 {
-                    clustersize = clustersize,
-                    blocknr = blocknr,
+                    clustersize = clusterSize,
+                    blocknr = blockNr,
                     next = next
                 });
+                
+                offset += 3 * Amiga.SizeOf.ULong;
             }
 
             return new anodeblock(g)
             {
                 id = id,
-                not_used_1 = not_used,
                 datestamp = datestamp,
-                seqnr = seqnr,
+                seqnr = seqNr,
                 nodes = nodes.ToArray()
             };
         }

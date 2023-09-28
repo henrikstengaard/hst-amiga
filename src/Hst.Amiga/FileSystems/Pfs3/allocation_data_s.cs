@@ -12,7 +12,6 @@
         public uint[][] tobefreed; /* tobefreed array                                  */
         public uint tobefreed_index;
         public uint tbf_resneed;                  /* max reserved blks needed for tbf cache           */
-        public BitmapBlock res_bitmap;     /* reserved block bitmap pointer                    */
         public uint res_roving;                   /* reserved roving pointer (0 at startup)           */
         public uint rovingbit;                    /* bitnumber (within LW) of main roving pointer     */
         public uint numreserved;                  /* total # reserved blocks (== lastreserved+1)      */

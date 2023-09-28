@@ -6,7 +6,6 @@
     /// </summary>
     public class CachedBlock
     {
-        private readonly globaldata g;
         /* Cached blocks in general
         */
         // struct cachedblock
@@ -47,11 +46,6 @@
         //UBYTE	dummy;					// pad to make offset even
 
         public IBlock blk { get; set; }
-
-        public CachedBlock(globaldata g)
-        {
-            this.g = g;
-        }
 
         public anodeblock ANodeBlock => blk as anodeblock;
 

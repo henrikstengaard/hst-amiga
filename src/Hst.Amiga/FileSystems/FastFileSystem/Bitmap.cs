@@ -5,6 +5,7 @@
     using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
+    using Exceptions;
 
     public static class Bitmap
     {
@@ -89,11 +90,10 @@
         public static uint[] AdfGetFreeBlocks(Volume vol, uint nbSect)
         {
             var sectList = new List<uint>();
-            var block = vol.RootBlockOffset;
+            var block = vol.NextFreeBlock;
 
             var i = 0;
-            var diskFull = false;
-            while (i < nbSect && !diskFull)
+            while (i < nbSect)
             {
                 if (AdfIsBlockFree(vol, block))
                 {
@@ -101,17 +101,24 @@
                     i++;
                 }
 
-                if ((block + vol.FirstBlock) == vol.LastBlock)
-                    block = 2;
-                else if (block == vol.RootBlockOffset - 1)
-                    diskFull = true;
-                else
-                    block++;
+                block++;
+                
+                if (block + vol.FirstBlock >= vol.LastBlock)
+                {
+                    block = vol.Reserved;
+                }
+                else if (block == vol.NextFreeBlock)
+                {
+                    throw new DiskFullException("Disk full");
+                }
             }
 
-            if (!diskFull)
-                for (var j = 0; j < nbSect; j++)
-                    AdfSetBlockUsed(vol, sectList[j]);
+            vol.NextFreeBlock = block;
+
+            for (var j = 0; j < nbSect; j++)
+            {
+                AdfSetBlockUsed(vol, sectList[j]);
+            }
 
             return i == nbSect ? sectList.ToArray() : Array.Empty<uint>();
         }
@@ -130,7 +137,7 @@
 
         public static void AdfSetBlockUsed(Volume vol, uint nSect)
         {
-            var sectOfMap = nSect - 2;
+            var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
             var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 
@@ -142,7 +149,7 @@
 
         public static bool AdfIsBlockFree(Volume vol, uint nSect)
         {
-            var sectOfMap = nSect - 2;
+            var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
             var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 
@@ -151,7 +158,7 @@
 
         public static void AdfSetBlockFree(Volume vol, uint nSect)
         {
-            var sectOfMap = nSect - 2;
+            var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
             var indexInMap = (sectOfMap / 32) % vol.OffsetsPerBitmapBlock;
 

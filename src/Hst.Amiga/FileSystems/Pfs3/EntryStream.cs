@@ -14,17 +14,23 @@
     {
         private readonly fileentry fileEntry;
         private readonly globaldata g;
+        private bool dataWritten;
 
         public EntryStream(fileentry fileEntry, globaldata g)
         {
             this.fileEntry = fileEntry;
             this.g = g;
+            this.dataWritten = false;
         }
 
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
             File.Close(fileEntry, g).GetAwaiter().GetResult();
+            if (this.dataWritten)
+            {
+                Disk.UpdateDataCache(g).GetAwaiter().GetResult();
+            }
         }
 
         public override void Flush()
@@ -64,16 +70,18 @@
 
         public override void SetLength(long value)
         {
-            throw new System.NotImplementedException();
+            throw new System.NotSupportedException("Entry stream doesn't support set length");
         }
 
         public override void Write(byte[] buffer, int offset, int count)
         {
+            this.dataWritten = true;
             Directory.WriteToObject(fileEntry, buffer, (uint)count, g).GetAwaiter().GetResult();
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
+            this.dataWritten = true;
             await Directory.WriteToObject(fileEntry, buffer, (uint)count, g);
         }
 
@@ -91,7 +99,6 @@
 #if NET6_0
         public override async ValueTask DisposeAsync()
         {
-            await File.Close(fileEntry, g);
             await base.DisposeAsync();
         }
 #endif

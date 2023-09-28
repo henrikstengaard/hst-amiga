@@ -18,6 +18,9 @@
         /// <exception cref="Exception"></exception>
         public static async Task FormatPartition(Stream stream, PartitionBlock partitionBlock, string diskName)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Pfs3Formatter: Formatting partition cylinders {partitionBlock.LowCyl} - {partitionBlock.HighCyl} with disk name '{diskName}'");
+#endif
             if (!stream.CanWrite)
             {
                 throw new IOException("Failed to format partition: Stream is not writable");
@@ -30,7 +33,7 @@
             
             var g = Init.CreateGlobalData(partitionBlock.Sectors, partitionBlock.BlocksPerTrack,
                 partitionBlock.Surfaces, partitionBlock.LowCyl, partitionBlock.HighCyl, partitionBlock.NumBuffer,
-                partitionBlock.BlockSize, partitionBlock.Mask);
+                partitionBlock.Mask);
             g.stream = stream;
             
             /* remove error-induced soft protect */
@@ -79,6 +82,8 @@
                 throw new Exception("ERROR_NO_FREE_STORE");
             }
 
+            g.RootBlock = rootBlock;
+
             /*  make volumedata BEFORE rext ! (bug 00135) */
             // g->currentvolume = volume = MakeVolumeData (rootblock, g);
             volumedata volume;
@@ -97,9 +102,15 @@
             await MakeBitmap(g);
 
             uint i;
+            uint? prev = null;
             do
             {
                 i = await anodes.AllocAnode(0, g);
+                if (prev.HasValue && prev.Value == i)
+                {
+                    throw new IOException("Format failed: Alloc node 0");
+                }
+                prev = i;
             } while (i < Constants.ANODE_ROOTDIR - 1);
 
             await MakeRootDir(g);
@@ -121,6 +132,9 @@
             g.currentvolume = null;
             //
             // return DOSTRUE;
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Pfs3Formatter: Formatting done");
+#endif
         }
 
 /*
@@ -252,14 +266,14 @@
             if ((blocknr = Allocation.AllocReservedBlock(g)) == 0)
                 return false;
 
-            volume.rootblk.Extension = blocknr;
-            if ((volume.rblkextension = MakeFormatRBlkExtension(volume.rootblk, g)) == null)
+            g.RootBlock.Extension = blocknr;
+            if ((volume.rblkextension = MakeFormatRBlkExtension(g.RootBlock, g)) == null)
             {
                 Allocation.FreeReservedBlock (blocknr, g);
                 return false;
             }
 
-            volume.rootblk.Options |= RootBlock.DiskOptionsEnum.MODE_EXTENSION;
+            g.RootBlock.Options |= RootBlock.DiskOptionsEnum.MODE_EXTENSION;
             volume.rootblockchangeflag = true;
             return true;
         }
@@ -270,7 +284,7 @@
             // return FALSE;
             //memset (rext, 0, sizeof(struct cachedblock) + rbl->reserved_blksize);
 
-            var rext = new CachedBlock(g)
+            var rext = new CachedBlock()
             {
                 volume = g.currentvolume,
                 blocknr = (uint)rootBlock.Extension,
@@ -299,10 +313,10 @@
     
         public static uint CalcNumReserved(globaldata g, uint resblocksize)
         {
-            uint temp, taken, i;
+            uint taken, i;
 
-            temp = g.TotalSectors * (g.blocksize / 128);
-            temp /= resblocksize / 128;
+            var temp = g.TotalSectors * (g.blocksize / 512);
+            temp /= (resblocksize / 512);
             taken = 0;
 
             for (i = 0; temp > schijf[i][0]; i++)
@@ -318,7 +332,13 @@
             return taken;
         }
         
-        public static int CalculateReservedBitmapBlockCount(RootBlock rbl, long numReserved)
+        /// <summary>
+        /// Calculate number of reserved blocks used for root block and reserved bitmap block
+        /// </summary>
+        /// <param name="rbl"></param>
+        /// <param name="numReserved"></param>
+        /// <returns></returns>
+        public static int CalculateRootBlockAndReservedBitmapBlockCount(RootBlock rbl, uint numReserved)
         {
             /* calculate number of 1024 byte blocks */
             var numblocks = 1;
@@ -326,20 +346,20 @@
             {
                 numblocks++;
             }
-
+            
             // convert to number of reserved blocks and allocate
-            return (1024 * numblocks + rbl.ReservedBlksize - 1) / rbl.ReservedBlksize;
+            return ((1024 * numblocks) + rbl.ReservedBlksize - 1) / rbl.ReservedBlksize;
         }
         
         /* makes reserved bitmap and allocates rootblockextension */
-        public static void MakeReservedBitmap(RootBlock rbl, long numReserved, globaldata g)
+        public static void MakeReservedBitmap(RootBlock rbl, uint numReserved, globaldata g)
         {
             // struct bitmapblock *bmb;
             // struct rootblock *newrootblock;
             // int *bitmap, numblocks, i, last, cluster, rescluster;
 
             /* calculate number of 1024 byte blocks */
-            var numblocks = CalculateReservedBitmapBlockCount(rbl, numReserved);
+            var numblocks = CalculateRootBlockAndReservedBitmapBlockCount(rbl, numReserved);
             rbl.ReservedFree -= (uint)numblocks;
 
             // convert to number of sectors
@@ -353,8 +373,8 @@
             //FreeBufmem(*rbl, g);
             //*rbl = newrootblock;
             //bmb = (bitmapblock_t *)(*rbl+1);		/* bitmap directly behind rootblock */
-            var longsPerBmb = (int)(numReserved / 32);
-            var bmb = new BitmapBlock(longsPerBmb + 1);
+            var reservedLongsPerBmb = (int)(numReserved / 32 + 1);
+            var bmb = new BitmapBlock(reservedLongsPerBmb);
 
             /* init bitmapblock header */
             bmb.id = Constants.BMBLKID;
@@ -362,8 +382,7 @@
 
             /* fill bitmap */
             //bitmap = bmb->bitmap;
-            bmb.bitmap = new uint[longsPerBmb + 1];
-            for (var i = 0; i < longsPerBmb; i++)
+            for (var i = 0; i < reservedLongsPerBmb; i++)
             {
                 // *bitmap++ = ~0; // ~ operator performs bitwise complement =  contain the highest possible value (signed to unsigned conversion)
                 bmb.bitmap[i] = uint.MaxValue;

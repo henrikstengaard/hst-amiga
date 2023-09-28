@@ -6,6 +6,33 @@ PFS3 is originally developed by Michiel Pelt.
 
 The code is based on pfs3aio (https://github.com/tonioni/pfs3aio) by Toni Wilen and is almost identical to it's C code with exceptions of structs used to read and write data, unions and moving pointers.
 
+## Changes and improvements
+
+Following changes and improvements have been made compared to the original PFS3.
+
+### New anode block marks index block changed
+
+New anode block adds the new anode block to it's index block, but the index block does not get change flag set to true indicating it contains changes.
+The change flag is now set to ensure the cached index block is properly marked changed to avoid it gets overwritten by other blocks as it appears unchanged with changed flag set to false.
+
+### Moved lock of bitmap block in allocate blocks ac
+
+Locking bitmap block has been moved earlier in allocate blocks ac
+to ensure it's locked before possible allocating and saving anode.
+If bitmap block is not locked it will get replaced with an anode block.
+
+### Use of LRU array is disabled
+
+PFS3 uses a LRU array initially allocated to 150 LRU cached blocks, if partition number of buffers are 30. This only seems to be used for allocating additional LRU cached blocks, when LRU pool is empty. LRU pool occasionally runs empty when it's blocks are flushed and written to disk. When LRU pool is empty, 5 new LRU cached blocks are allocated and added to LRU array expanding it over time.
+
+To avoid this use of LRU array is disabled by default and new LRU cached blocks are added directly to LRU pool.
+
+### Blocks indexed in dictionaries instead of linked lists
+
+PFS3 adds cached anode, bitmap, bitmap index, index, dir, del dir and super blocks to linked lists in it's volume data, which are used to find cached blocks by either block no. or seq no.
+
+The linked lists have been replaced with dictionaries to improve speed determining if a block exists in cache.
+
 ## Blocks
 
 See [Blocks](Blocks) page for details about blocks used by PFS3.

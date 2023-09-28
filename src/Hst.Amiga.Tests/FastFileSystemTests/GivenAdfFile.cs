@@ -1,16 +1,57 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests
 {
+    using System;
     using System.IO;
     using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
+    using FileSystems;
     using FileSystems.FastFileSystem;
+    using RigidDiskBlocks;
     using Xunit;
+    using Constants = FileSystems.FastFileSystem.Constants;
     using File = System.IO.File;
     using FileMode = System.IO.FileMode;
 
     public class GivenAdfFile
     {
+        [Fact]
+        public async Task WhenFormatAdfAndCreateFileThenFileExists()
+        {
+            const string dosType = "DOS3";
+            const string diskName = "ADF";
+            
+            // arrange - adf stream
+            var adfStream = new MemoryStream(new byte[FloppyDiskConstants.DoubleDensity.Size]);
+
+            // act - format adf
+            await FastFileSystemFormatter.Format(adfStream, FloppyDiskConstants.DoubleDensity.LowCyl,
+                FloppyDiskConstants.DoubleDensity.HighCyl,
+                FloppyDiskConstants.DoubleDensity.ReservedBlocks, FloppyDiskConstants.DoubleDensity.Heads,
+                FloppyDiskConstants.DoubleDensity.Sectors,
+                FloppyDiskConstants.BlockSize, FloppyDiskConstants.FileSystemBlockSize,
+                DosTypeHelper.FormatDosType(dosType), diskName);
+            
+            // arrange - mount adf volume
+            await using var volume = await FastFileSystemVolume.MountAdf(adfStream);
+
+            // act - create new file
+            await volume.CreateFile("NewFile");
+            
+            // act - read entries recursively from root block
+            var entries = (await volume.ListEntries()).OrderBy(x => x.Name).ToList();
+
+            // assert - root block contains 1 entry
+            Assert.NotEmpty(entries);
+            Assert.Single(entries);
+
+            // assert - file entry "NewFile" exists in root block
+            var entry = entries.FirstOrDefault(x => x.Name == "NewFile");
+            Assert.NotNull(entry);
+            Assert.Equal(EntryType.File, entry.Type);
+            Assert.Equal(0U, entry.Size);
+        }
+        
         [Theory]
         [InlineData("dos1.adf")]
         [InlineData("dos2.adf")]
@@ -278,7 +319,7 @@
 
             // act - remote entry from root block
             var entryName = entry.Name;
-            await FileSystems.FastFileSystem.Directory.RemoveEntry(volume, volume.RootBlockOffset, entryName);
+            await FileSystems.FastFileSystem.Directory.RemoveEntry(volume, volume.RootBlockOffset, entryName, true);
 
             // act - read entries recursively from root block
             entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlockOffset, true))

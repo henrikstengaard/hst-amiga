@@ -2,68 +2,46 @@
 {
     using System.Collections.Generic;
     using System.IO;
-    using System.Threading.Tasks;
     using Blocks;
-    using Core.Extensions;
-    using Extensions;
+    using Core.Converters;
 
     public static class DelDirBlockReader
     {
-        public static async Task<deldirblock> Parse(byte[] blockBytes, globaldata g)
+        public static deldirblock Parse(byte[] blockBytes, globaldata g)
         {
-            var blockStream = new MemoryStream(blockBytes);
-
-            var id = await blockStream.ReadBigEndianUInt16();
-            
-            if (id == 0)
+            var id = BigEndianConverter.ConvertBytesToUInt16(blockBytes);
+            if (id != Constants.DELDIRID)
             {
-                return null;
+                throw new IOException($"Invalid del dir block id '{id}'");
             }
             
-            var not_used = await blockStream.ReadBigEndianUInt16();
-            var datestamp = await blockStream.ReadBigEndianUInt32();
-            var seqnr = await blockStream.ReadBigEndianUInt32();
+            var datestamp = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4);
+            var seqnr = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x8);
             
-            // not_used_2 + not_used_3
-            for (var i = 0; i < 3; i++)
-            {
-                await blockStream.ReadBigEndianUInt16();
-            }
-
-            var uid = await blockStream.ReadBigEndianUInt16();
-            var gid = await blockStream.ReadBigEndianUInt16();
-            var protection = await blockStream.ReadBigEndianUInt32();
-            var creationDate = await DateHelper.ReadDate(blockStream);
+            var uid = BigEndianConverter.ConvertBytesToUInt16(blockBytes, 0x12);
+            var gid = BigEndianConverter.ConvertBytesToUInt16(blockBytes, 0x14);
+            var protection = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x16);
+            var creationDate = DateHelper.ReadDate(blockBytes, 0x1a);
 
             var entries = new List<deldirentry>();
+            var offset = 0x20; // first del dir entry offset
             for (var i = 0; i < SizeOf.DelDirBlock.Entries(g); i++)
             {
-                var anodenr = await blockStream.ReadBigEndianUInt32(); // 32
-                var fsize = await blockStream.ReadBigEndianUInt32(); // 36
-                var entryCreationDate = await DateHelper.ReadDate(blockStream); // 40
-                var filename = await blockStream.ReadString(16); // 46
-                var fsizex = await blockStream.ReadBigEndianUInt16(); //
-
-                entries.Add(new deldirentry
-                {
-                    anodenr = anodenr,
-                    fsize = fsize,
-                    CreationDate = entryCreationDate,
-                    filename = filename,
-                    fsizex = fsizex
-                });
+                var delDirEntry = DelDirEntryReader.Read(blockBytes, offset);
+                entries.Add(delDirEntry);
+                offset += SizeOf.DelDirEntry.Struct;
             }
             
             return new deldirblock(g)
             {
                 id = id,
-                not_used_1 = not_used,
                 datestamp = datestamp,
                 seqnr = seqnr,
                 uid = uid,
                 gid = gid,
                 protection = protection,
-                CreationDate = creationDate
+                CreationDate = creationDate,
+                entries = entries.ToArray()
             };
         }
     }

@@ -38,19 +38,21 @@ public class BlockMemoryStream : Stream
         var bytesRead = 0;
         for (var i = offset; i < Math.Min(buffer.Length, offset + count); i += blockSize)
         {
+            // skip position, if block doesn't exist and increase bytes read with block size
             if (!blocks.ContainsKey(position))
             {
-                break;
+                bytesRead += blockSize;
+                continue;
             }
             
             var block = blocks[position];
 
-            var length = i + blockSize < buffer.Length  ? blockSize : buffer.Length - i;
+            var bytesToCopy = i + blockSize < buffer.Length ? blockSize : buffer.Length - i;
             
-            Array.Copy(block, 0, buffer, i, length);
+            Array.Copy(block, 0, buffer, i, bytesToCopy);
             position += blockSize;
 
-            bytesRead += length;
+            bytesRead += bytesToCopy;
         }        
         
         return bytesRead;
@@ -81,9 +83,9 @@ public class BlockMemoryStream : Stream
         {
             var blockBytes = new byte[blockSize];
 
-            var length = i + blockSize < buffer.Length  ? blockSize : buffer.Length - i;
+            var bytesToWrite = i + blockSize < buffer.Length  ? blockSize : buffer.Length - i;
             
-            Array.Copy(buffer, i, blockBytes, 0, length);
+            Array.Copy(buffer, i, blockBytes, 0, bytesToWrite);
             blocks[position] = blockBytes;
             position += blockSize;
         }

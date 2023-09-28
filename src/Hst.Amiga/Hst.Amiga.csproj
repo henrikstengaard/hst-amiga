@@ -4,10 +4,11 @@
     <PackageTags>Hst;Amiga;RDB;FFS</PackageTags>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="..\..\readme.md" Pack="true" PackagePath="\" />
+    <None Include="readme.md" Pack="true" PackagePath="\" />
     <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Hst.Core" Version="0.2.24" />
+    <PackageReference Include="Hst.Core" Version="0.4.57" />
+    <PackageReference Include="Hst.Imaging" Version="0.4.57" />
   </ItemGroup>
 </Project>

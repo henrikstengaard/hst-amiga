@@ -36,6 +36,11 @@
  */
         public static void CheckReadAccess(fileentry file, globaldata g)
         {
+            if (g.IgnoreProtectionBits)
+            {
+                return;
+            }
+            
             /* Test on read-protection, type and volume */
             // #if DELDIR
 	        if (!Macro.IsDelFile(file.le.info))
@@ -61,8 +66,14 @@
  */
         public static void CheckWriteAccess(fileentry file, globaldata g)
         {
+            if (g.IgnoreProtectionBits)
+            {
+                return;
+            }
+            
             CheckChangeAccess(file, g);
 
+            // write protected, if write bit is set
             if ((file.le.info.file.direntry.protection & Constants.FIBF_WRITE) == Constants.FIBF_WRITE)
             {
                 throw new IOException("ERROR_WRITE_PROTECTED");

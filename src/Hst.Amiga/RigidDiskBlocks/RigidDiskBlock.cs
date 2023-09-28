@@ -154,9 +154,9 @@
             ControllerRevision = string.Empty;
             ControllerVendor = string.Empty;
             CylBlocks = 1008;
-            DiskProduct = "HstWB Imager";
+            DiskProduct = "HstAmiga";
             DiskRevision = "0.1";
-            DiskVendor = "HstWB";
+            DiskVendor = "HstAmiga";
             DriveInitCode = BlockIdentifiers.EndOfBlock;
             FileSysHdrList = BlockIdentifiers.EndOfBlock;
             Flags = 7;

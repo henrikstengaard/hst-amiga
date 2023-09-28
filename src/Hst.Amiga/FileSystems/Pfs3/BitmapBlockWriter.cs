@@ -1,28 +1,34 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    using System.IO;
-    using System.Threading.Tasks;
+    using System;
     using Blocks;
-    using Core.Extensions;
+    using Core.Converters;
 
     public static class BitmapBlockWriter
     {
-        public static async Task<byte[]> BuildBlock(BitmapBlock bitmapBlock)
+        public static byte[] BuildBlock(BitmapBlock bitmapBlock, globaldata g)
         {
-            var blockStream = bitmapBlock.BlockBytes == null || bitmapBlock.BlockBytes.Length == 0 ?
-                new MemoryStream() : new MemoryStream(bitmapBlock.BlockBytes);
-                
-            await blockStream.WriteBigEndianUInt16(bitmapBlock.id); // 0
-            await blockStream.WriteBigEndianUInt16(bitmapBlock.not_used_1); // 2
-            await blockStream.WriteBigEndianUInt32(bitmapBlock.datestamp); // 4
-            await blockStream.WriteBigEndianUInt32(bitmapBlock.seqnr); // 8
+            var blocks = Pfs3Helper.CalculateBitmapBlocksCount(bitmapBlock.bitmap.Length, g);
             
-            foreach (var bitmap in bitmapBlock.bitmap)
+            var blockBytes = new byte[g.blocksize * blocks];
+            if (bitmapBlock.BlockBytes != null)
             {
-                await blockStream.WriteBigEndianUInt32(bitmap);
+                Array.Copy(bitmapBlock.BlockBytes, 0, blockBytes, 0,
+                    Math.Min(bitmapBlock.BlockBytes.Length, g.blocksize));
+            }
+
+            BigEndianConverter.ConvertUInt16ToBytes(bitmapBlock.id, blockBytes, 0);
+            BigEndianConverter.ConvertUInt16ToBytes(bitmapBlock.not_used_1, blockBytes, 2);
+            BigEndianConverter.ConvertUInt32ToBytes(bitmapBlock.datestamp, blockBytes, 4);
+            BigEndianConverter.ConvertUInt32ToBytes(bitmapBlock.seqnr, blockBytes, 8);
+
+            var offset = 0xc;
+            for (var i = 0; i < bitmapBlock.bitmap.Length; i++)
+            {
+                BigEndianConverter.ConvertUInt32ToBytes(bitmapBlock.bitmap[i], blockBytes, offset);
+                offset += Amiga.SizeOf.ULong;
             }
             
-            var blockBytes = blockStream.ToArray();
             bitmapBlock.BlockBytes = blockBytes;
 
             return blockBytes;

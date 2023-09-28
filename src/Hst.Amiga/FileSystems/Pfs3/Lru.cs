@@ -40,10 +40,18 @@
             g.uip = false;
             g.locknr = 1;
 
-            g.glob_lrudata.LRUarray = Enumerable.Range(1, (int)g.glob_lrudata.poolsize)
-                    .Select(_ => new LruCachedBlock(new CachedBlock(g))).ToArray();
+            g.glob_lrudata.LRUarray = g.glob_lrudata.useLruArray ? Enumerable.Range(1, (int)g.glob_lrudata.poolsize)
+                    .Select(_ => new LruCachedBlock(new CachedBlock())).ToArray() : Array.Empty<LruCachedBlock>();
         }
 
+        /// <summary>
+        /// check cache using linked list (original pfs3)
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="mask"></param>
+        /// <param name="blocknr"></param>
+        /// <param name="g"></param>
+        /// <returns></returns>
         public static CachedBlock CheckCache(LinkedList<CachedBlock>[] list, ushort mask, uint blocknr, globaldata g)
         {
             for (var block = Macro.HeadOf(list[(blocknr / 2) & mask]);
@@ -60,10 +68,32 @@
             return default;
         }
 
+        /// <summary>
+        /// check cache using dictionary
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="blocknr"></param>
+        /// <param name="g"></param>
+        /// <returns></returns>
+        public static CachedBlock CheckCache(IDictionary<uint, CachedBlock> list, uint blocknr, globaldata g)
+        {
+            if (!list.ContainsKey(blocknr))
+            {
+                return default;
+            }
+
+            var block = list[blocknr];
+            MakeLRU(block, g);
+            return block;
+        }
+        
         public static void MakeLRU(CachedBlock blk, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: MakeLRU cached block nr {blk.blocknr}, block type '{(blk.blk == null ? "null" : blk.blk.GetType().Name)}'");
+#endif
             // MinRemove(LRU_CHAIN(blk));
-            Macro.MinRemove(blk, g);
+            Macro.MinRemoveLru(blk, g);
 
             // MinAddHead(g.glob_lrudata.LRUqueue, LRU_CHAIN(blk));
             Macro.MinAddHead(g.glob_lrudata.LRUqueue, new LruCachedBlock(blk));
@@ -71,10 +101,13 @@
 
         public static void FreeLRU(CachedBlock blk, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: FreeLRU cached block nr {blk.blocknr}, block type '{(blk.blk == null ? "null" : blk.blk.GetType().Name)}'");
+#endif
             //MinRemove(LRU_CHAIN(blk));                          \
             //memset(blk, 0, SIZEOF_CACHEDBLOCK);              \
-            Macro.MinRemove(blk, g);
-            ClearBlock(blk);
+            Macro.MinRemoveLru(blk, g);
+            ClearBlock(blk, g);
 
             //MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(blk));            \
             Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(blk));
@@ -93,6 +126,9 @@
             int j;
 
             //ENTER("AllocLRU");
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Lru: AllocLRU Enter");
+#endif
 
             if (g.glob_lrudata.LRUarray == null)
                 return default;
@@ -113,6 +149,10 @@
                     if (Cache.ISLOCKED(lrunode.Value.cblk, g))
                         continue;
 
+#if DEBUG
+                    Pfs3Logger.Instance.Debug($"Lru: AllocLRU Reuse not locked cached block nr {lrunode.Value.cblk.blocknr}, block type '{(lrunode.Value.cblk.blk == null ? "null" : lrunode.Value.cblk.blk.GetType().Name)}'");
+#endif
+                    
                     if (lrunode.Value.cblk.changeflag)
                     {
                         //DB(Trace(1, "AllocLRU", "ResToBeFreed %lx\n", &lrunode->cblk));
@@ -139,6 +179,18 @@
                 goto ready;
             }
 
+            // if lru array is not used, new entries are added directly to lru pool
+            if (!g.glob_lrudata.useLruArray)
+            {
+                for (j = 0; j < NEW_LRU_ENTRIES; j++)
+                {
+                    //MinAddHead(&g->glob_lrudata.LRUpool, g.glob_lrudata.LRUarray[g.glob_lrudata.poolsize]);
+                    Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(new CachedBlock()));
+                }
+
+                goto retry;
+            }
+            
             /* Attempt to allocate new entries */
             //nlru = AllocVec(sizeof(struct lru_cachedblock *) *(g->glob_lrudata.poolsize + NEW_LRU_ENTRIES), MEMF_CLEAR);
             var nlru = new LruCachedBlock[g.glob_lrudata.poolsize + NEW_LRU_ENTRIES];
@@ -148,13 +200,14 @@
                     break;
                 // nlru[j + g->glob_lrudata.poolsize] = AllocVec((sizeof(struct lru_cachedblock) +SIZEOF_RESBLOCK)
                 //     , g->dosenvec->de_BufMemType | MEMF_CLEAR);
-                nlru[j + g.glob_lrudata.poolsize] = new LruCachedBlock(new CachedBlock(g));
+                nlru[j + g.glob_lrudata.poolsize] = new LruCachedBlock(new CachedBlock());
 
                 if (nlru[j + g.glob_lrudata.poolsize] == null)
                 {
                     while (j >= 0)
                     {
                         // FreeVec(nlru[j + g->glob_lrudata.poolsize]);
+                        nlru[j + g.glob_lrudata.poolsize] = null;
                         j--;
                     }
 
@@ -165,8 +218,8 @@
 
             if (nlru == null)
             {
-            //     /* No suitable block found -> we are in trouble */
-            //     //NormalErrorMsg(AFS_ERROR_OUT_OF_BUFFERS, NULL, 1);
+                //     /* No suitable block found -> we are in trouble */
+                //     //NormalErrorMsg(AFS_ERROR_OUT_OF_BUFFERS, NULL, 1);
                 retries++;
                 if (retries > 3)
                     return null;
@@ -195,11 +248,13 @@
 
             // MinRemove(lrunode);
             // MinAddHead(&g->glob_lrudata.LRUqueue, lrunode);
-            Macro.MinRemove(lrunode.Value, g);
-            Macro.MinRemoveX(lrunode.Value.cblk, g);
+            Macro.MinRemoveLru(lrunode.Value.cblk, g);
             Macro.MinAddHead(g.glob_lrudata.LRUqueue, lrunode.Value);
 
             // DB(Trace(1, "AllocLRU", "Allocated block %lx\n", &lrunode->cblk));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: AllocLRU Allocated block nr {lrunode.Value.cblk.blocknr} ({lrunode.Value.cblk.GetHashCode()})");
+#endif
 
             //  LOCK(&lrunode->cblk);
             Cache.LOCK(lrunode.Value.cblk, g);
@@ -266,67 +321,68 @@
             // lockentry_t *le;
             //
             // DB(Trace(10,"FlushBlock","Flushing block %lx\n", block->blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: FlushBlock block nr {block.blocknr}, block type '{(block.blk == null ? "null" : block.blk.GetType().Name)}' ");
+#endif
 
             /* remove block from blockqueue */
             // MinRemove(block);
             Macro.MinRemove(block, g);
-            Macro.MinRemove(new LruCachedBlock(block), g);
 
             /* decouple references */
             if (Macro.IsDirBlock(block))
             {
-                /* check fileinfo references */
-                for (var node = block.volume.fileentries.First; node != null; node = node.Next)
-                {
-                    /* only dirs and files have fileinfos that need to be updated,
-                    ** but the volume * pointer of volumeinfos never points to
-                    ** a cached block, so the type != ETF_VOLUME check is not
-                    ** necessary. Just check the dirblockpointer
-                    */
-                    var le = node.Value.LockEntry;
-                    if (le.le.info.file.dirblock == block)
-                    {
-                        le.le.dirblocknr = block.blocknr;
-
-                        // le->le.dirblockoffset = (UBYTE *)le->le.info.file.direntry - (UBYTE *)block;
-                        // TODO: How to do calculate dirblockoffset in C#
-                        // le.le.dirblockoffset = le.le.info.file.direntry - block;
-// #if DELDIR
-                        le.le.info.deldir.special = Constants.SPECIAL_FLUSHED; /* flushed reference */
-// #else
-//                      le.Value.le.info.direntry = null;
-// #endif
-                        le.le.info.file.dirblock = null;
-                    }
-
-                    /* exnext references */
-                    if (le.le.type.flags.dir != 0 && le.nextentry.dirblock == block)
-                    {
-                        le.nextdirblocknr = block.blocknr;
-                        // le->nextdirblockoffset = (UBYTE *)le->nextentry.direntry - (UBYTE *)block;
-                        // TODO: How to do calculate dirblockoffset in C#
-                        // le.nextdirblockoffset = le.nextentry.direntry - block;
-// #if DELDIR
-// le->nextentry.direntry = (struct direntry *)SPECIAL_FLUSHED;
-                        le.nextentry.direntry = new direntry
-                        {
-                            next = Constants.SPECIAL_FLUSHED
-                        };
-// #else
-//                         le.Value.le.nextentry.direntry = NULL;
-// #endif
-                        le.nextentry.dirblock = null;
-                    }
-                }
+                // TODO: Examine when it's necessary update volume file entries, related to open files or dirs
+                // /* check fileinfo references */
+//                 for (var node = block.volume.fileentries.First; node != null; node = node.Next)
+//                 {
+//                     /* only dirs and files have fileinfos that need to be updated,
+//                     ** but the volume * pointer of volumeinfos never points to
+//                     ** a cached block, so the type != ETF_VOLUME check is not
+//                     ** necessary. Just check the dirblockpointer
+//                     */
+//                     var le = node.Value.LockEntry;
+//                     if (le.le.info.file.dirblock == block)
+//                     {
+//                         le.le.dirblocknr = block.blocknr;
+//
+//                         // le->le.dirblockoffset = (UBYTE *)le->le.info.file.direntry - (UBYTE *)block;
+//                         le.le.dirblockoffset = (uint)le.le.info.file.direntry.Position;
+// // #if DELDIR
+//                         le.le.info.deldir.special = Constants.SPECIAL_FLUSHED; /* flushed reference */
+// // #else
+// //                      le.Value.le.info.direntry = null;
+// // #endif
+//                         le.le.info.file.dirblock = null;
+//                     }
+//
+//                     /* exnext references */
+//                     if (le.le.type.flags.dir != 0 && le.nextentry.dirblock == block)
+//                     {
+//                         le.nextdirblocknr = block.blocknr;
+//                         // le->nextdirblockoffset = (UBYTE *)le->nextentry.direntry - (UBYTE *)block;
+//                         le.nextdirblockoffset = (uint)le.nextentry.direntry.Position;
+// // #if DELDIR
+// // le->nextentry.direntry = (struct direntry *)SPECIAL_FLUSHED;
+//                         le.nextentry.direntry = new direntry(Constants.SPECIAL_FLUSHED);
+// // #else
+// //                         le.Value.le.nextentry.direntry = NULL;
+// // #endif
+//                         le.nextentry.dirblock = null;
+//                     }
+//                 }
             }
 
             /* wipe memory */
             //memset(block, 0, SIZEOF_CACHEDBLOCK);
-            ClearBlock(block);
+            ClearBlock(block, g);
         }
 
-        private static void ClearBlock(CachedBlock cachedBlock)
+        private static void ClearBlock(CachedBlock cachedBlock, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: ClearBlock block nr {cachedBlock.blocknr}");
+#endif
             cachedBlock.blocknr = 0;
             cachedBlock.changeflag = false;
             cachedBlock.oldblocknr = 0;
@@ -342,29 +398,30 @@
 
             //DB(Trace(1,"UpdateReference","block %lx\n", blocknr));
 
+            // TODO: Examine when it's necessary update volume file entries, related to open files or dirs
             // for (le = (lockentry_t *)HeadOf(&blk->volume->fileentries); le->le.next; le = (lockentry_t *)le->le.next)
-            for (var node = Macro.HeadOf(blk.volume.fileentries); node != null; node = node.Next)
-            {
-                le = node.Value.LockEntry;
-                /* ignoring the fact that not all objectinfos are fileinfos, but the
-                ** 'volumeinfo.volume' and 'deldirinfo.deldir' fields never are NULL anyway, so ...
-                ** maybe better to check for SPECIAL_FLUSHED
-                */
-                if (le.le.info.file.dirblock == null && le.le.dirblocknr == blocknr)
-                {
-                    le.le.info.file.dirblock = blk;
-                    le.le.info.file.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.le.dirblockoffset);
-                    le.le.dirblocknr = le.le.dirblockoffset = 0;
-                }
-
-                /* exnext references */
-                if (le.le.type.flags.dir != 0 && le.nextdirblocknr == blocknr)
-                {
-                    le.nextentry.dirblock = blk;
-                    le.nextentry.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.nextdirblockoffset);
-                    le.nextdirblocknr = le.nextdirblockoffset = 0;
-                }
-            }
+            // for (var node = Macro.HeadOf(blk.volume.fileentries); node != null; node = node.Next)
+            // {
+            //     le = node.Value.LockEntry;
+            //     /* ignoring the fact that not all objectinfos are fileinfos, but the
+            //     ** 'volumeinfo.volume' and 'deldirinfo.deldir' fields never are NULL anyway, so ...
+            //     ** maybe better to check for SPECIAL_FLUSHED
+            //     */
+            //     if (le.le.info.file.dirblock == null && le.le.dirblocknr == blocknr)
+            //     {
+            //         le.le.info.file.dirblock = blk;
+            //         le.le.info.file.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.le.dirblockoffset, g);
+            //         le.le.dirblocknr = le.le.dirblockoffset = 0;
+            //     }
+            //
+            //     /* exnext references */
+            //     if (le.le.type.flags.dir != 0 && le.nextdirblocknr == blocknr)
+            //     {
+            //         le.nextentry.dirblock = blk;
+            //         le.nextentry.direntry = DirEntryReader.Read(blk.dirblock.BlockBytes, (int)le.nextdirblockoffset, g);
+            //         le.nextdirblocknr = le.nextdirblockoffset = 0;
+            //     }
+            // }
         }
         
 /* Updates objectinfo of a listentry (if necessary)
@@ -374,6 +431,9 @@
         public static async Task UpdateLE(listentry le, globaldata g)
         {
             //DB(Trace(1,"UpdateLE","Listentry %lx\n", le));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"Lru: UpdateLE '{le.info.file.direntry.Name}'");
+#endif
 
             /* don't update volumeentries or deldirs!! */
 // #if DELDIR

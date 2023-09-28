@@ -2,10 +2,49 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using Xunit;
 
 public class GivenBlockMemoryStream
 {
+    [Fact]
+    public void WhenWriteDataOver2BlocksAndReadBlocksThenDataIsEqualAndPositionIsIncreasedByCountRead()
+    {
+        // arrange - block bytes to write
+        var blockBytes = new byte[1024];
+        for (var i = 0; i < blockBytes.Length; i++)
+        {
+            blockBytes[i] = (byte)(i < 512 ? 1 : 2);
+        }
+
+        // arrange - block memory stream
+        var stream = new BlockMemoryStream();
+        stream.Write(blockBytes, 0, blockBytes.Length);
+        
+        // act - read first block bytes
+        stream.Seek(0, SeekOrigin.Begin);
+        var actualBlockBytes = new byte[512];
+        var bytesRead = stream.Read(actualBlockBytes, 0, actualBlockBytes.Length);
+
+        // assert - first block bytes area read
+        Assert.Equal(512, bytesRead);
+        Assert.Equal(blockBytes.Take(512), actualBlockBytes);
+
+        // assert - stream position is equal to second block position dividable by block size
+        Assert.Equal(512, stream.Position);
+        
+        // act - read second block bytes
+        stream.Seek(512, SeekOrigin.Begin);
+        bytesRead = stream.Read(actualBlockBytes, 0, actualBlockBytes.Length);
+        
+        // assert - second block bytes area read
+        Assert.Equal(512, bytesRead);
+        Assert.Equal(blockBytes.Skip(512).Take(512), actualBlockBytes);
+
+        // assert - stream position is equal to third block position dividable by block size
+        Assert.Equal(1024, stream.Position);
+    }
+    
     [Fact]
     public void WhenReadBufferThenPositionIsIncreasedByCountRead()
     {

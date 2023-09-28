@@ -1,6 +1,17 @@
 ﻿# Blocks
 
-Following sections describes blocks used by PFS3.
+PFS3 uses following block types:
+
+| Hex id | String id | Type                 |
+|--------|-----------|----------------------|
+| 0x4442 | DB        | Dir block            |
+| 0x4142 | AB        | Anode block          |
+| 0x4942 | IB        | Index block          |
+| 0x424D | BM        | Bitmap block         |
+| 0x4D49 | MI        | Bitmap index block   |
+| 0x4558 | EX        | Root block extension |
+| 0x4444 | DD        | Deldir block         |
+| 0x5342 | SB        | Super block          |
 
 ## Reserved blocks
 
@@ -25,9 +36,10 @@ Experimental feature has been added as part of PFS3AIO.
 | 0x002  | UWORD         | Not used  |         |
 | 0x004  | ULONG         | Datestamp |         |
 | 0x008  | ULONG         | Seq nr    |         |
-| 0x00c  | Anode * nodes | Nodes     |         |
+| 0x00c  | ULONG         | Not used  |         |
+| 0x010  | Anode * nodes | Nodes     |         |
 
-Nodes = (Reserved block size - 0x00c) / anode size
+Nodes = (Reserved block size - 0x010) / anode size
 
 ## Anode
 

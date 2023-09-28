@@ -17,6 +17,9 @@
          */
         public static async Task<CachedBlock> GetIndexBlock(ushort nr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetIndexBlock, seqnr = {nr}");
+#endif
             uint blocknr, temp;
             CachedBlock indexblk;
             CachedBlock superblk;
@@ -24,14 +27,20 @@
             var andata = g.glob_anodedata;
 
             /* check cache (can be empty) */
-            for (var node = volume.indexblks.First; node != null; node = node.Next)
+            // for (var node = volume.indexblks.First; node != null; node = node.Next)
+            // {
+            //     indexblk = node.Value;
+            //     if (indexblk.IndexBlock.seqnr == nr)
+            //     {
+            //         Lru.MakeLRU(indexblk, g);
+            //         return node.Value;
+            //     }
+            // }
+            if (volume.indexblksBySeqNr.ContainsKey(nr))
             {
-                indexblk = node.Value;
-                if (indexblk.IndexBlock.seqnr == nr)
-                {
-                    Lru.MakeLRU(indexblk, g);
-                    return node.Value;
-                }
+                indexblk = volume.indexblksBySeqNr[nr];
+                Lru.MakeLRU(indexblk, g);
+                return indexblk;
             }
 
             /* not in cache, put it in
@@ -55,7 +64,7 @@
             }
             else
             {
-                if (nr > Constants.MAXSMALLINDEXNR || (blocknr = volume.rootblk.idx.small.indexblocks[nr]) == 0)
+                if (nr > Constants.MAXSMALLINDEXNR || (blocknr = g.RootBlock.idx.small.indexblocks[nr]) == 0)
                     return null;
             }
 
@@ -67,6 +76,9 @@
             }
 
             //DBERR(ErrorTrace(10,"GetIndexBlock","seqnr = %lu blocknr = %lu\n", nr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetIndexBlock, seqnr = {nr}, block nr {blocknr}");
+#endif
 
             // if (RawRead ((UBYTE*)&indexblk->blk, RESCLUSTER, blocknr, g) != 0) {
             //     FreeLRU ((struct cachedblock *)indexblk);
@@ -87,7 +99,8 @@
                 indexblk.blocknr = blocknr;
                 indexblk.used = 0;
                 indexblk.changeflag = false;
-                volume.indexblks.AddFirst(indexblk);
+                // volume.indexblks.AddFirst(indexblk);
+                Macro.AddToIndexes(volume.indexblks, volume.indexblksBySeqNr, indexblk);
             }
             else
             {
@@ -107,6 +120,9 @@
 
         public static async Task<CachedBlock> GetSuperBlock(ushort nr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetSuperBlock, seqnr = {nr}");
+#endif
             uint blocknr;
             CachedBlock superblk;
             var volume = g.currentvolume;
@@ -121,16 +137,22 @@
             }
 
             /* check cache (can be empty) */
-            for (var node = volume.superblks.First; node != null; node = node.Next)
+            // for (var node = volume.superblks.First; node != null; node = node.Next)
+            // {
+            //     superblk = node.Value;
+            //     var superblk_blk = superblk.IndexBlock;
+            //     if (superblk_blk.seqnr == nr)
+            //     {
+            //         Lru.MakeLRU(superblk, g);
+            //         return node.Value;
+            //     }
+            // }
+            if (volume.superblksBySeqNr.ContainsKey(nr))
             {
-                superblk = node.Value;
-                var superblk_blk = superblk.IndexBlock;
-                if (superblk_blk.seqnr == nr)
-                {
-                    Lru.MakeLRU(superblk, g);
-                    return node.Value;
-                }
-            }
+                superblk = volume.superblksBySeqNr[nr];
+                Lru.MakeLRU(superblk, g);
+                return superblk;
+            }            
 
             /* not in cache, put it in
              * first, get blocknr
@@ -152,6 +174,9 @@
             }
 
             // DBERR(ErrorTrace(10,"GetSuperBlock","seqnr = %lu blocknr = %lu\n", nr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetSuperBlock, seqnr = {nr}, block nr = {blocknr}");
+#endif
 
             // if (RawRead ((UBYTE*)&superblk->blk, RESCLUSTER, blocknr, g) != 0) {
             //     DBERR(ErrorTrace(1, "GetSuperBlock", "ERR: read error. %lu %lu\n", nr, blocknr));
@@ -174,7 +199,8 @@
                 superblk.blocknr = blocknr;
                 superblk.used = 0;
                 superblk.changeflag = false;
-                Macro.MinAddHead(volume.superblks, superblk);
+                // Macro.MinAddHead(volume.superblks, superblk);
+                Macro.AddToIndexes(volume.superblks, volume.superblksBySeqNr, superblk);
             }
             else
             {
@@ -229,7 +255,8 @@
             blok_cblk.id     = Constants.SBLKID;
             blok_cblk.seqnr  = seqnr;
             blok.changeflag = true;
-            Macro.MinAddHead(volume.superblks, blok);
+            // Macro.MinAddHead(volume.superblks, blok);
+            Macro.AddToIndexes(volume.superblks, volume.superblksBySeqNr, blok);
 
             return blok;
         }
@@ -430,6 +457,9 @@
  */
         public static async Task<uint> AllocAnode(uint connect, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: AllocAnode, connect = {connect}");
+#endif
             int i, j, k = 0;
             CachedBlock ablock = null;
             anode[] anodes = null;
@@ -512,7 +542,9 @@
                 else
                 {
                     if ((ablock = await big_NewAnodeBlock((ushort)seqnr, g)) == null)
+                    {
                         return 0;
+                    }
                     anodes = ablock.ANodeBlock.nodes;
                     k = 0;
                 }
@@ -543,6 +575,9 @@
 */
         public static async Task<CachedBlock> big_GetAnodeBlock(ushort seqnr, globaldata g)
         {
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetAnodeBlock, seqnr = {seqnr}");
+#endif
             uint blocknr;
             uint temp;
             CachedBlock ablock;
@@ -568,7 +603,8 @@
             }
 
             /* check cache */
-            ablock = Lru.CheckCache(volume.anblks, Constants.HASHM_ANODE, blocknr, g);
+            // ablock = Lru.CheckCache(volume.anblks, Constants.HASHM_ANODE, blocknr, g);
+            ablock = Lru.CheckCache(volume.anblks, blocknr, g);
             if (ablock != null)
                 return ablock;
 
@@ -579,6 +615,9 @@
             }
 
             // DBERR(ErrorTrace(10,"GetAnodeBlock", "seqnr = %lu blocknr = %lu\n", seqnr, blocknr));
+#if DEBUG
+            Pfs3Logger.Instance.Debug($"anodes: GetAnodeBlock, seqnr = {seqnr}, blocknr = {blocknr}");
+#endif
 
             /* read it */
             IBlock blk;
@@ -607,7 +646,8 @@
             ablock.blocknr    = blocknr;
             ablock.used       = 0;
             ablock.changeflag = false;
-            Macro.Hash(ablock, volume.anblks, Constants.HASHM_ANODE);
+            // Macro.Hash(ablock, volume.anblks, Constants.HASHM_ANODE);
+            Macro.Hash(ablock, volume.anblks);
 
             return ablock;
         }
@@ -645,6 +685,12 @@
             // DBERR(ErrorTrace(10,"big_NewAnodeBlock", "seqnr = %lu block = %lu\n", seqnr, blocknr));
 
             indexblock.IndexBlock.index[indexoffset] = blocknr;
+            
+            // CHANGE: Original pfs3 code adds new anode block to index block, but the index block does not
+            // set change flag to true indicating it contains changes. The change flag is now set to ensure
+            // the cached index block is properly marked changed to avoid it gets overwritten by other blocks
+            // as it appears unchanged with changed flag set to false.
+            indexblock.changeflag = true;
 
             blok.volume     = volume;
             blok.blocknr    = (uint)blocknr;
@@ -655,7 +701,8 @@
                 seqnr = seqnr
             };
             blok.changeflag = true;
-            Macro.Hash(blok, volume.anblks, Constants.HASHM_ANODE);
+            // Macro.Hash(blok, volume.anblks, Constants.HASHM_ANODE);
+            Macro.Hash(blok, volume.anblks);
             await Update.MakeBlockDirty(indexblock, g);
             indexblock.used = oldlock;         // unlock block
 
@@ -710,7 +757,7 @@
                 superblok.IndexBlock.index[superoffset] = blocknr;
                 await Update.MakeBlockDirty(superblok, g);
             } else {
-                volume.rootblk.idx.small.indexblocks[seqnr] = (uint)blocknr;
+                g.RootBlock.idx.small.indexblocks[seqnr] = (uint)blocknr;
                 volume.rootblockchangeflag = true;
             }
 
@@ -724,7 +771,8 @@
                 seqnr = seqnr
             };
             blok.changeflag = true;
-            Macro.MinAddHead(volume.indexblks, blok);
+            // Macro.MinAddHead(volume.indexblks, blok);
+            Macro.AddToIndexes(volume.indexblks, volume.indexblksBySeqNr, blok);
 
             return blok;
         }
@@ -928,7 +976,7 @@
  * anodechain. Anodeoffset is updated to point to a block within the current
  * anodechainnode.
  */
-        public static bool CorrectAnodeAC(anodechainnode acnode, uint anodeoffset, globaldata g)
+        public static bool CorrectAnodeAC(anodechainnode acnode, ref uint anodeoffset, globaldata g)
         {
             while (anodeoffset >= acnode.an.clustersize)
             {
@@ -967,10 +1015,9 @@
             //     FreeMemP (node, g);
             // }
 
-            if (chain.next != null)
+            if (chain != null)
             {
-                throw new NotImplementedException();
-                //Macro.MinRemove(chain, g); // remove from any list
+                Macro.MinRemove(chain, g); // remove from any list
             }
             //
             // FreeMemP (chain, g);
@@ -984,7 +1031,7 @@
         public static bool NextBlockAC(anodechainnode acnode, ref uint anodeoffset, globaldata g)
         {
             anodeoffset++;
-            return CorrectAnodeAC(acnode, anodeoffset, g);
+            return CorrectAnodeAC(acnode, ref anodeoffset, g);
         }        
     }
 }

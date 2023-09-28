@@ -1,28 +1,34 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    using System.IO;
-    using System.Threading.Tasks;
+    using System;
     using Blocks;
-    using Core.Extensions;
+    using Core.Converters;
 
     public static class IndexBlockWriter
     {
-        public static async Task<byte[]> BuildBlock(indexblock indexBlock)
+        public static byte[] BuildBlock(indexblock indexBlock, globaldata g)
         {
-            var blockStream = indexBlock.BlockBytes == null || indexBlock.BlockBytes.Length == 0 ?
-                new MemoryStream() : new MemoryStream(indexBlock.BlockBytes);
-                
-            await blockStream.WriteBigEndianUInt16(indexBlock.id);
-            await blockStream.WriteBigEndianUInt16(indexBlock.not_used_1);
-            await blockStream.WriteBigEndianUInt32(indexBlock.datestamp);
-            await blockStream.WriteBigEndianUInt32(indexBlock.seqnr);
-
-            foreach (var t in indexBlock.index)
+            var blockBytes = new byte[g.RootBlock.ReservedBlksize];
+            if (indexBlock.BlockBytes != null)
             {
-                await blockStream.WriteBigEndianInt32(t);
+                Array.Copy(indexBlock.BlockBytes, 0, blockBytes, 0,
+                    Math.Min(indexBlock.BlockBytes.Length, g.RootBlock.ReservedBlksize));
             }
                 
-            var blockBytes = blockStream.ToArray();
+            BigEndianConverter.ConvertUInt16ToBytes(indexBlock.id, blockBytes, 0);
+            BigEndianConverter.ConvertUInt16ToBytes(0, blockBytes, 0x2); // not_used 1
+            BigEndianConverter.ConvertUInt32ToBytes(indexBlock.datestamp, blockBytes, 0x4);
+            BigEndianConverter.ConvertUInt32ToBytes(indexBlock.seqnr, blockBytes, 0x8);
+
+            var offset = 0xc;
+            var indexCount = (g.RootBlock.ReservedBlksize - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 2) /
+                             Amiga.SizeOf.Long;
+            for (var i = 0; i < indexCount; i++)
+            {
+                BigEndianConverter.ConvertInt32ToBytes(indexBlock.index[i], blockBytes, offset);
+                offset += Amiga.SizeOf.Long;
+            }
+                
             indexBlock.BlockBytes = blockBytes;
 
             return blockBytes;

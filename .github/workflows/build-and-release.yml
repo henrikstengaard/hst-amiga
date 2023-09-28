@@ -1,21 +1,29 @@
 name: Build and release
 
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      build-package:
+        type: boolean
+        description: Build package
+        required: false
+        default: true
+      build-console:
+        type: boolean
+        description: Build console
+        required: false
+        default: true
 
 jobs:
-  build:
-
+  build-package:
+    if: ${{ github.event.inputs.build-package == 'true' }}
+    timeout-minutes: 5
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
-
-    - name: Git version tag
-      id: version
-      run: |
-        echo "::set-output name=tag::`echo $(git describe --tags --abbrev=0)`"
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
@@ -37,13 +45,245 @@ jobs:
       run: dotnet build ./src/Hst.Amiga.sln --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:AssemblyVersion=${{ env.ASSEMBLY_VERSION }} -p:FileVersion=${{ env.ASSEMBLY_VERSION }}
       
     - name: Test
-      run: dotnet test ./src/Hst.Amiga.sln --configuration Release --no-build --verbosity normal --filter Category!=Integration
+      run: dotnet test ./src/Hst.Amiga.sln --configuration Release --no-build --verbosity normal --filter Category!=PFS3
       
     - name: Pack
       run: dotnet pack ./src/Hst.Amiga.sln --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:PackageVersion=${{ env.PACKAGE_VERSION }} -p:ProjectUrl=https://github.com/${{ github.repository }} -p:RepositoryUrl=https://github.com/${{ github.repository }}
-      
+
     - name: Push
       run: |
         dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.repository_owner }} --password ${{ github.token }} --store-password-in-clear-text
         dotnet nuget push **/bin/Release/*.nupkg --source "github" --skip-duplicate --api-key ${{ secrets.GITHUB_TOKEN }}
         dotnet nuget push **/bin/Release/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key ${{ secrets.NUGET_ORG_API_KEY }}
+
+  build-console:
+    if: ${{ github.event.inputs.build-console == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [win-x64, win-arm64, osx-x64, osx-arm64, linux-x64, linux-arm, linux-arm64]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Update version
+        shell: pwsh
+        run: |
+          $commitCount = git rev-list --count $env:GITHUB_REF
+          $version = (Select-Xml -Path ./src/Directory.Build.props -XPath '/Project/PropertyGroup/Version').Node.InnerXML
+          "VERSION={0}" -f ($version) >> $env:GITHUB_ENV
+          "ASSEMBLY_VERSION={0}" -f ($version -replace '^(.*)\.\d+.*$', "`$1.$commitCount.0") >> $env:GITHUB_ENV
+          "BUILD_VERSION={0}" -f ($version -replace '^(.*)\.\d+.*$', "`$1.$commitCount") >> $env:GITHUB_ENV
+          "BUILD_VERSION_SHA={0}" -f (git log --pretty=format:'%h' -n 1 $env:GITHUB_REF) >> $env:GITHUB_ENV
+
+      - name: Write version and tag
+        shell: pwsh
+        run: |
+          "BUILD_VERSION: ${{ env.BUILD_VERSION }}"
+          "BUILD_VERSION_SHA: ${{ env.BUILD_VERSION_SHA }}"
+          "${{ env.BUILD_VERSION }}" > hst-amiga.release-tag.txt
+          "hst-amiga_v${{ env.BUILD_VERSION }}-${{ env.BUILD_VERSION_SHA }}" > hst-amiga.release-version.txt
+
+      - name: Upload release tag artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: hst-amiga.release-tag
+          path: hst-amiga.release-tag.txt
+          retention-days: 3
+        if: matrix.target == 'win-x64'
+
+      - name: Upload release version artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: hst-amiga.release-version
+          path: hst-amiga.release-version.txt
+          retention-days: 3
+        if: matrix.target == 'win-x64'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 6.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore ./src/Hst.Amiga.sln
+
+      - name: Build console app
+        working-directory: src/Hst.Amiga.ConsoleApp
+        shell: pwsh
+        run: |
+          dotnet publish --configuration Release -p:Version=${{ env.BUILD_VERSION }} -p:AssemblyVersion=${{ env.ASSEMBLY_VERSION }} -p:FileVersion=${{ env.ASSEMBLY_VERSION }} -p:PublishSingleFile=True -p:SelfContained=True -p:RuntimeIdentifier=${{ matrix.target }} -p:PublishReadyToRun=True -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishDir=publish/${{ matrix.target }}
+
+      - name: List console app output
+        working-directory: src/Hst.Amiga.ConsoleApp/publish
+        shell: pwsh
+        run: |
+          Get-ChildItem -recurse
+
+      - name: Build console app artifact
+        id: build_console_app_artifact
+        working-directory: ./src
+        shell: pwsh
+        run: |
+          cd "Hst.Amiga.ConsoleApp/publish/${{ matrix.target }}"
+          $artifactName='hst-amiga.console.${{ matrix.target }}.zip'
+          Remove-Item -Path *.pdb
+          Remove-Item -Path *.so
+          $exeFileName=((Get-ChildItem -Filter 'Hst.Amiga.ConsoleApp*') | Select -First 1).Name
+          Rename-Item -Path $exeFileName -NewName ($exeFileName -replace 'Hst.Amiga.ConsoleApp', 'hst.amiga')
+          zip -r $artifactName *
+          $artifactPath=((Get-ChildItem -Filter $artifactName) | Select -First 1).FullName
+          "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
+          "artifact_path=$artifactPath" >> $env:GITHUB_OUTPUT
+
+      - name: Upload console app artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: "${{ steps.build_console_app_artifact.outputs.artifact_name }}"
+          path: "${{ steps.build_console_app_artifact.outputs.artifact_path }}"
+          retention-days: 3
+  
+  publish-console:
+    needs: [build-console]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release tag artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.release-tag
+
+      - name: Download release version artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.release-version
+
+      - name: Set release tag version
+        shell: pwsh
+        run: |
+          "RELEASE_TAG={0}" -f (gc hst-amiga.release-tag.txt) >> $env:GITHUB_ENV
+          "RELEASE_VERSION={0}" -f (gc hst-amiga.release-version.txt) >> $env:GITHUB_ENV
+        
+        # windows
+      - name: Download Console Windows 64-bit zip artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.console.win-x64.zip
+
+      - name: Download Console Windows arm64-bit zip artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.console.win-arm64.zip
+
+        # macos
+      - name: Download Console macOS 64-bit zip artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.console.osx-x64.zip
+
+      - name: Download Console macOS arm64-bit zip artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.console.osx-arm64.zip
+
+        # linux
+      - name: Download Console Linux 64-bit zip artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.console.linux-x64.zip
+
+      - name: Download Console Linux arm-bit zip artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.console.linux-arm.zip
+
+      - name: Download Console Linux arm64-bit zip artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: hst-amiga.console.linux-arm64.zip
+
+      - name: Create release
+        uses: actions/create-release@v1
+        id: create_release
+        with:
+          draft: true
+          prerelease: true
+          release_name: ${{ env.RELEASE_VERSION }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          body: Prerelease of ${{ env.RELEASE_VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+        # windows
+      - name: Upload Console Windows 64-bit zip artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: hst-amiga.console.win-x64.zip
+          asset_name: '${{ env.RELEASE_VERSION }}_console_windows_x64.zip'
+          asset_content_type: 'application/octet-stream'
+
+      - name: Upload Console Windows arm64-bit zip artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: hst-amiga.console.win-arm64.zip
+          asset_name: '${{ env.RELEASE_VERSION }}_console_windows_arm64.zip'
+          asset_content_type: 'application/octet-stream'
+
+        # macos
+      - name: Upload Console macOS 64-bit zip artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: hst-amiga.console.osx-x64.zip
+          asset_name: '${{ env.RELEASE_VERSION }}_console_macos_x64.zip'
+          asset_content_type: 'application/octet-stream'
+
+      - name: Upload Console macOS arm64-bit zip artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: hst-amiga.console.osx-arm64.zip
+          asset_name: '${{ env.RELEASE_VERSION }}_console_macos_arm64.zip'
+          asset_content_type: 'application/octet-stream'
+
+        # linux
+      - name: Upload Console Linux 64-bit zip artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: hst-amiga.console.linux-x64.zip
+          asset_name: '${{ env.RELEASE_VERSION }}_console_linux_x64.zip'
+          asset_content_type: 'application/octet-stream'
+
+      - name: Upload Console Linux arm zip artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: hst-amiga.console.linux-arm.zip
+          asset_name: '${{ env.RELEASE_VERSION }}_console_linux_arm.zip'
+          asset_content_type: 'application/octet-stream'
+
+      - name: Upload Console Linux arm64-bit zip artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: hst-amiga.console.linux-arm64.zip
+          asset_name: '${{ env.RELEASE_VERSION }}_console_linux_arm64.zip'
+          asset_content_type: 'application/octet-stream'

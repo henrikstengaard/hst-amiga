@@ -1,41 +1,37 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
     using System.Collections.Generic;
-    using System.IO;
-    using System.Threading.Tasks;
     using Blocks;
-    using Core.Extensions;
+    using Core.Converters;
 
     public static class BitmapBlockReader
     {
-        public static async Task<BitmapBlock> Parse(byte[] blockBytes, int longsperbmb)
+        public static BitmapBlock Parse(byte[] blockBytes, int longsPerBmb)
         {
-            var blockStream = new MemoryStream(blockBytes);
-
-            var id = await blockStream.ReadBigEndianUInt16();
-            
+            var id = BigEndianConverter.ConvertBytesToUInt16(blockBytes);
             if (id == 0)
             {
                 return null;
             }
             
-            var not_used = await blockStream.ReadBigEndianUInt16();
-            var datestamp = await blockStream.ReadBigEndianUInt32();
-            var seqnr = await blockStream.ReadBigEndianUInt32();
+            var notUsed1 = BigEndianConverter.ConvertBytesToUInt16(blockBytes, 2);
+            var datestamp = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 4);
+            var seqNr = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 8);
             
             var bitmap = new List<uint>();
-            //var bitmapCount = (blockBytes.Length - Amiga.SizeOf.UWord * 2 - Amiga.SizeOf.ULong * 2) / Amiga.SizeOf.ULong;
-            for (var i = 0; i < longsperbmb; i++)
+            var offset = 0xc;
+            for (var i = 0; i < longsPerBmb; i++)
             {
-                bitmap.Add(await blockStream.ReadBigEndianUInt32());
+                bitmap.Add(BigEndianConverter.ConvertBytesToUInt32(blockBytes, offset));
+                offset += Amiga.SizeOf.ULong;
             }
             
-            return new BitmapBlock(longsperbmb)
+            return new BitmapBlock(longsPerBmb)
             {
                 id = id,
-                not_used_1 = not_used,
+                not_used_1 = notUsed1,
                 datestamp = datestamp,
-                seqnr = seqnr,
+                seqnr = seqNr,
                 bitmap = bitmap.ToArray()
             };
         }

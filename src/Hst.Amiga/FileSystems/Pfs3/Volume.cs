@@ -2,6 +2,7 @@
 {
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
 
@@ -21,7 +22,6 @@
             // volume = AllocMemPR (sizeof(struct volumedata), g);
             var volume = new volumedata
             {
-                rootblk = rootblock,
                 rootblockchangeflag = false
             };
 
@@ -71,7 +71,7 @@
             /* load rootblock extension (if it is present) */
             if (rootblock.Extension > 0 && rootblock.Options.HasFlag(RootBlock.DiskOptionsEnum.MODE_EXTENSION))
             {
-                var rext = new CachedBlock(g);
+                var rext = new CachedBlock();
 
                 // rext = AllocBufmemR(sizeof(struct cachedblock) +rootblock->reserved_blksize, g);
                 // memset(rext, 0, sizeof(struct cachedblock) +rootblock->reserved_blksize);
@@ -140,6 +140,8 @@
             if (volume == null)
                 return;
 
+            // for (list = volume->anblks; list<=&volume->bmindexblks; list++)
+            
             /* start with anblks!, fileentries are to be kept! */
             // for (list = volume->anblks; list<=&volume->bmindexblks; list++)
             // {
@@ -151,21 +153,42 @@
             //         node = next;
             //     }
             // }
-            foreach (var list in volume.anblks)
-            {
-                FreeMinList(list, g);
-            }
+            // foreach (var list in volume.anblks)
+            // {
+            //     FreeMinList(list, g);
+            // }
+            FreeMinList(volume.anblks, g);
 
-            foreach (var list in volume.dirblks)
-            {
-                FreeMinList(list, g);
-            }
+            // foreach (var list in volume.dirblks)
+            // {
+            //     FreeMinList(list, g);
+            // }
+            FreeMinList(volume.dirblks, g);
 
+            // FreeMinList(volume.indexblks, g);
             FreeMinList(volume.indexblks, g);
+            
+            // FreeMinList(volume.bmblks, g);
             FreeMinList(volume.bmblks, g);
+            
+            // FreeMinList(volume.superblks, g);
             FreeMinList(volume.superblks, g);
+            
+            // FreeMinList(volume.deldirblks, g);
             FreeMinList(volume.deldirblks, g);
+            
+            // FreeMinList(volume.bmindexblks, g);
             FreeMinList(volume.bmindexblks, g);
+
+            foreach (var node in g.glob_lrudata.LRUpool.Where(x => x.cblk?.blk == null).ToList())
+            {
+                g.glob_lrudata.LRUpool.Remove(node);
+            }
+            
+            foreach (var node in g.glob_lrudata.LRUqueue.Where(x => x.cblk?.blk == null).ToList())
+            {
+                g.glob_lrudata.LRUqueue.Remove(node);
+            }
         }
 
         private static void FreeMinList(LinkedList<CachedBlock> list, globaldata g)
@@ -177,6 +200,27 @@
             }
         }
 
+        private static void FreeMinList(IDictionary<uint, CachedBlock> list, globaldata g)
+        {
+            var removeKeys = new List<uint>();
+            
+            foreach (var node in list)
+            {
+                if (node.Value != null)
+                {
+                    Lru.FlushBlock(node.Value, g);
+                    Lru.FreeLRU(node.Value, g);
+                }
+                
+                removeKeys.Add(node.Key);
+            }
+
+            foreach (var key in removeKeys)
+            {
+                list.Remove(key);
+            }
+        }
+        
         /* CheckVolume checks if a volume (ve lock) is (still) present.
 ** If volume==NULL (no disk present) then FALSE is returned (@XLII).
 ** result: requested volume present/not present TRUE/FALSE
@@ -241,7 +285,7 @@
         {
             // read boot block
             var blockBytes = await Disk.RawRead(1, Constants.BOOTBLOCK1, g);
-            var rootBlock = await RootBlockReader.Parse(blockBytes);
+            var rootBlock = RootBlockReader.Parse(blockBytes);
 
             if (!(rootBlock.DiskType == Constants.ID_PFS_DISK || rootBlock.DiskType == Constants.ID_PFS2_DISK))
             {
@@ -252,16 +296,14 @@
 
             // read root block
             blockBytes = await Disk.RawRead(1, Constants.ROOTBLOCK, g);
-            rootBlock = await RootBlockReader.Parse(blockBytes);
+            rootBlock = RootBlockReader.Parse(blockBytes);
             
             // read reserved bitmap blocks
             var numReserved = Pfs3Formatter.CalcNumReserved(g, rootBlock.ReservedBlksize);
-            var reservedBitmapBlockCount = Pfs3Formatter.CalculateReservedBitmapBlockCount(rootBlock, numReserved);
-
-            var bytesPerBlock = (ushort)g.blocksize;
-            var resCluster = (ushort)(rootBlock.ReservedBlksize / bytesPerBlock);            
-            blockBytes = await Disk.RawRead((uint)reservedBitmapBlockCount * resCluster, Constants.ROOTBLOCK + 1, g);
-            rootBlock.ReservedBitmapBlock = await BitmapBlockReader.Parse(blockBytes, (int)(numReserved / 32 + 1));
+            var reservedBitmapsCount = (int)(numReserved / 32 + 1);
+            var reservedBitmapBlocksCount = Pfs3Helper.CalculateBitmapBlocksCount(reservedBitmapsCount, g);
+            blockBytes = await Disk.RawRead((uint)reservedBitmapBlocksCount, Constants.ROOTBLOCK + 1, g);
+            rootBlock.ReservedBitmapBlock = BitmapBlockReader.Parse(blockBytes, reservedBitmapsCount);
             
             /* check size and read all rootblock blocks */
             // 17.10: with 1024 byte blocks rblsize can be 1!
@@ -310,7 +352,7 @@
             g.currentvolume = await MakeVolumeData(rootBlock, g);
             
             /* update rootblock */
-            g.RootBlock = g.currentvolume.rootblk = rootBlock;
+            g.RootBlock = rootBlock;
             
             /* Reconfigure modules to new volume */
             await Init.InitModules (g.currentvolume, false, g);
@@ -358,6 +400,9 @@
             g.dirty = true;
         }
         
+/* checks if disk is changed. If so calls NewVolume()
+** NB: new volume might be NOVOLUME or NOTAFDSDISK
+*/
         public static async Task UpdateCurrentDisk(globaldata g)
         {
             await NewVolume(false, g);
@@ -376,6 +421,9 @@
             //     return;
 
             // ENTER("NewVolume");
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Volume: NewVolume Enter");
+#endif
             Disk.FlushDataCache(g);
 
             /* newstate <=> there is a PFS disk present */
@@ -419,6 +467,9 @@
 
             // UpdateAndMotorOff(g);
             //EXIT("NewVolume");
+#if DEBUG
+            Pfs3Logger.Instance.Debug("Volume: NewVolume Exit");
+#endif
         }
         
 /* pre:

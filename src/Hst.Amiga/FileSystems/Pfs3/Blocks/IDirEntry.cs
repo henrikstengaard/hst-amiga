@@ -4,8 +4,8 @@
 
     public interface IDirEntry
     {
-        string Name { get; set; }
-        DateTime CreationDate { get; set; }
-        uint Size { get; set; }
+        string Name { get; }
+        DateTime CreationDate { get; }
+        uint Size { get; }
     }
 }

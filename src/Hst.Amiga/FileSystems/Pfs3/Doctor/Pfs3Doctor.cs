@@ -119,7 +119,7 @@ public static async Task GetRootBlock(Volume volume)
 
 	// read rootblock 
 	var rblBytes = await Device.GetBlock(volume, Constants.ROOTBLOCK + volume.firstblock, volume.blocksize);
-	var rootBlock = await RootBlockReader.Parse(rblBytes);
+	var rootBlock = RootBlockReader.Parse(rblBytes);
 
 // 	// check rootblock type
 // 	if (!IsRootBlock(rbl))
