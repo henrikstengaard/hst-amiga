@@ -189,13 +189,17 @@
                     $"Count '{n}' is larger than buffer size '{buffer.Length}'");
             }
 
-            if (n == 0)
-                return n;
             var blockSize = volume.DataBlockSize;
 /*puts("adfReadFile");*/
             if (pos + n > fileHdr.ByteSize)
+            {
                 n = (int)(fileHdr.ByteSize - pos);
+            }
 
+            if (n <= 0)
+            {
+                return 0;
+            }
 
             if (pos == 0 || posInDataBlk == blockSize)
             {

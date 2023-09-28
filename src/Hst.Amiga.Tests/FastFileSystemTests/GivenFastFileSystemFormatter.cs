@@ -36,7 +36,7 @@
             await using var adfStream = File.Open(adfPath, FileMode.Create, FileAccess.ReadWrite);
             adfStream.SetLength(FloppyDiskConstants.DoubleDensity.Size);
 
-            // act - format first partition
+            // act - format adf
             await FastFileSystemFormatter.Format(adfStream, lowCyl, highCyl, reservedBlocks,
                 surfaces, blocksPerTrack, blockSize, fileSystemBlockSize, dos3DosType, "Workbench");
 

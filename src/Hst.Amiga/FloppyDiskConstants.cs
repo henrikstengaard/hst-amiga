@@ -13,7 +13,7 @@
             public const int HighCyl = 79; // end cylinder = cylinders - 1
             public const int Heads = 2;
             public const int Sectors = 11;
-            public const int ReservedBlocks = 0;
+            public const int ReservedBlocks = 2;
         }
         
         public static class HighDensity
@@ -24,7 +24,7 @@
             public const int HighCyl = 79; // end cylinder = cylinders - 1
             public const int Heads = 2;
             public const int Sectors = 22;
-            public const int ReservedBlocks = 0;
+            public const int ReservedBlocks = 2;
         }
     }
 }

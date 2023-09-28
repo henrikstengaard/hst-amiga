@@ -114,12 +114,12 @@
 
             // assert - root block offset 880 is set 0 (used)
             var mapEntry = Convert.ToInt32(Math.Floor((double)rootBlockOffset / Constants.BitmapsPerULong));
-            var blockOffset = (int)(rootBlockOffset % Constants.BitmapsPerULong);
+            var blockOffset = (int)(rootBlockOffset - FloppyDiskConstants.DoubleDensity.ReservedBlocks % Constants.BitmapsPerULong);
             Assert.Equal(0U, bitmapBlocks[0].Map[mapEntry] & (1 << blockOffset));
 
             // assert - bitmap block offset 881 is set 0 (used)
             mapEntry = Convert.ToInt32(Math.Floor((double)bitmapBlockOffset / Constants.BitmapsPerULong));
-            blockOffset = (int)(bitmapBlockOffset % Constants.BitmapsPerULong);
+            blockOffset = (int)(bitmapBlockOffset - FloppyDiskConstants.DoubleDensity.ReservedBlocks % Constants.BitmapsPerULong);
             Assert.Equal(0U, bitmapBlocks[0].Map[mapEntry] & (1 << blockOffset));
         }
     }
