@@ -55,6 +55,14 @@
             return Iso88591.GetString(bytes, index, stringLength);
         }
         
+        public static void WriteNullTerminatedString(string text, byte[] data, int offset, int maxLength)
+        {
+            var textBytes = Iso88591.GetBytes(text);
+            var length = Math.Min(textBytes.Length, maxLength);
+            Array.Copy(textBytes, 0, data, offset, length);
+            data[offset + length] = 0;
+        }
+
         public static byte[] GetBytes(string value)
         {
             return Iso88591.GetBytes(value);

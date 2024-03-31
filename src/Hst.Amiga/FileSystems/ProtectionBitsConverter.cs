@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.FileSystems
+﻿using System.IO;
+
+namespace Hst.Amiga.FileSystems
 {
     public static class ProtectionBitsConverter
     {
@@ -103,6 +105,30 @@
             }
 
             return protectionValue;
+        }
+        
+        public static ProtectionBits ReadProtectionBitsFromFile(FileInfo fileInfo)
+        {
+            var protectionBits = ProtectionBits.Executable | ProtectionBits.Read;
+
+            if (!fileInfo.Attributes.HasFlag(FileAttributes.Archive))
+            {
+                protectionBits |= ProtectionBits.Archive;
+            }
+            if (!fileInfo.Attributes.HasFlag(FileAttributes.ReadOnly))
+            {
+                protectionBits |= ProtectionBits.Write | ProtectionBits.Delete;
+            }
+            if (fileInfo.Attributes.HasFlag(FileAttributes.System))
+            {
+                protectionBits |= ProtectionBits.Pure;
+            }
+            if (fileInfo.Attributes.HasFlag(FileAttributes.Hidden))
+            {
+                protectionBits |= ProtectionBits.HeldResident;
+            }
+
+            return protectionBits;
         }
     }
 }
