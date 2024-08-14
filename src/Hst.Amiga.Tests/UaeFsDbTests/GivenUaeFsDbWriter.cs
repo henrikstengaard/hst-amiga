@@ -5,7 +5,7 @@ using Hst.Amiga.DataTypes.UaeFsDbs;
 using Hst.Amiga.FileSystems;
 using Xunit;
 
-namespace Hst.Amiga.Tests.DiskObjectTests.UaeFsDbTests;
+namespace Hst.Amiga.Tests.UaeFsDbTests;
 
 public class GivenUaeFsDbWriter
 {

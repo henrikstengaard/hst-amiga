@@ -3,7 +3,7 @@ using System.Text;
 using Hst.Amiga.DataTypes.UaeMetafiles;
 using Xunit;
 
-namespace Hst.Amiga.Tests.DiskObjectTests.UaeMetafileTests;
+namespace Hst.Amiga.Tests.UaeMetafileTests;
 
 public class GivenUaeMetafileWriter
 {

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Hst.Amiga.DataTypes.UaeFsDbs;
 using Xunit;
 
-namespace Hst.Amiga.Tests.DiskObjectTests.UaeFsDbTests;
+namespace Hst.Amiga.Tests.UaeFsDbTests;
 
 public class GivenUaeFsDbReaderAndWriter
 {
@@ -29,7 +29,7 @@ public class GivenUaeFsDbReaderAndWriter
     public async Task When_ReadAndWriteUaeFsDbNodeVersion2_Then_BytesMatch()
     {
         // arrange - uaefsdb bytes to read
-        var uaeFsDbBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "UaeFsDbs", "NTFS", "_UAEFSDB1.___"));
+        var uaeFsDbBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "UaeFsDbs", "NTFS", "_UAEFSDB.___file1_"));
 
         // act - read node
         var uaeFsDbNode = UaeFsDbReader.Read(uaeFsDbBytes, 0, UaeFsDbNode.NodeVersion.Version2);

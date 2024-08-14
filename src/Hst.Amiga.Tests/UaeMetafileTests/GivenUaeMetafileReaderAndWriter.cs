@@ -1,10 +1,9 @@
 ﻿using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using Hst.Amiga.DataTypes.UaeMetafiles;
 using Xunit;
 
-namespace Hst.Amiga.Tests.DiskObjectTests.UaeMetafileTests;
+namespace Hst.Amiga.Tests.UaeMetafileTests;
 
 public class GivenUaeMetafileReaderAndWriter
 {
