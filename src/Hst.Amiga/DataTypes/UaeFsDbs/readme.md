@@ -12,6 +12,13 @@ AmigaOS allows use of special character \, *, ?, ", <, > and | in directories an
 
 UAEFSDB files created as alternative streams per directory and file on NTFS filesystems requires special tools to manage outside WinUAE and are not portable meaning that they will be lost if directories and files are copied from NTFS to FAT filesystem.
 
+## Emulators supporting UAEFSDB's
+
+Following emulators support UAEFSDB metadata files:
+- WinUAE
+- FS-UAE
+- Amiberry
+
 ## File structure
 
 A UAEFSDB node represent metadata for one file in a UAEFSDB file and it can have following sizes:

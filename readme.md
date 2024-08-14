@@ -5,8 +5,10 @@ Hst Amiga is a library for reading and writing Amiga partition table, file syste
 ## Features
 
 Hst Amiga Nuget package contains following features:
-- Data types
-  - Read, write disk objects containing icons and tool types. Supports planer, new icon and color icon images.
+- Data types:
+  - Disk objects: Read, write disk objects containing icons and tool types. Supports planer, new icon and color icon images.
+  - UAEFSDBs: Read and write UAEFSDB metadata files created by WinUAE.
+  - UAE metafiles: Read and write UAE metafiles files created by FS-UAE.
 - Read and write Rigid Disk Block (RDB), Amiga partition table.
 - File systems
   - Read, write and format Fast File System (FFS) partitions. Supports DOS types DOS0-7.

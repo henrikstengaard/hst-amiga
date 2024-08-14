@@ -8,6 +8,11 @@ Regular filesystems like FAT, NTFS and EXT doesn't support storing this kind of 
 
 AmigaOS allows use of special character \, *, ?, ", <, > and | in directories and filenames and these are invalid in most modern filesystems.
 
+## Emulators supporting UAE Metafiles
+
+Following emulators support UAE metafiles:
+- FS-UAE
+
 # File structure
 
 UAE metafile has the following structure:
