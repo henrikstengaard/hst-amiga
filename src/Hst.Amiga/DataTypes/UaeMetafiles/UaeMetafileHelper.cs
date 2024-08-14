@@ -14,7 +14,12 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
 
         public static bool HasSpecialFilenameChars(string filename)
         {
-            return filename.Any(c => SpecialFilenameCharSet.Contains(c));
+            if (string.IsNullOrEmpty(filename))
+            {
+                return false;
+            }
+
+            return filename[filename.Length - 1] == '.' || filename.Any(c => SpecialFilenameCharSet.Contains(c));
         }
 
         public static string EncodeFilenameSpecialChars(string filename)

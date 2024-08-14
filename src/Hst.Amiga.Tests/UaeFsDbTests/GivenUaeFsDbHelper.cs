@@ -113,6 +113,28 @@ public class GivenUaeFsDbHelper
             Directory.Delete(path, true);
         }
     }
+    
+    [Theory]
+    [InlineData("dir1*", true)]
+    [InlineData("dir2", false)]
+    [InlineData("file1*", true)]
+    [InlineData("file2<", true)]
+    [InlineData("file3", false)]
+    [InlineData("file4.", true)]
+    [InlineData("file5..", true)]
+    [InlineData("file6.t", false)]
+    [InlineData("file7..t", false)]
+    [InlineData("file8...", true)]
+    [InlineData(".file9", false)]
+    public void When_DetectingExampleFilenameForSpecialChars_Then_FilenamesWithSpecialCharsAreDetected(
+        string amigaName, bool expectedHasSpecialFilenameChars)
+    {
+        // arrange & act
+        var hasSpecialFilenameChars = UaeFsDbNodeHelper.HasSpecialFilenameChars(amigaName);
+        
+        // assert
+        Assert.Equal(expectedHasSpecialFilenameChars, hasSpecialFilenameChars);
+    }
 
     [Theory]
     [InlineData("dir1*", "dir1_")]
@@ -128,6 +150,7 @@ public class GivenUaeFsDbHelper
     [InlineData(".file9", ".file9")]
     public void When_MakingExampleFilenameWithSpecialCharsSafe_Then_SpecialCharsAreReplacedWithUnderscore(string amigaName, string expectedSafeFilename)
     {
+        // arrange & act
         var safeFilename = UaeFsDbNodeHelper.HasSpecialFilenameChars(amigaName)
             ? UaeFsDbNodeHelper.MakeSafeFilename(amigaName)
             : amigaName;

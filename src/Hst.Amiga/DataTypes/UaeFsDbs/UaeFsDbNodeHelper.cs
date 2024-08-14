@@ -15,7 +15,12 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
         
         public static bool HasSpecialFilenameChars(string filename)
         {
-            return filename.EndsWith("") || filename.Any(c => SpecialFilenameCharSet.Contains(c));
+            if (string.IsNullOrEmpty(filename))
+            {
+                return false;
+            }
+
+            return filename[filename.Length - 1] == '.' || filename.Any(c => SpecialFilenameCharSet.Contains(c));
         }
         
         public static string MakeSafeFilename(string filename)

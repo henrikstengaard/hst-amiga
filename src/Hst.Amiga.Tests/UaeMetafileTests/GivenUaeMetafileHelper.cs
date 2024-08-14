@@ -59,7 +59,29 @@ public class GivenUaeMetafileHelper
         // assert
         Assert.Equal("file1*<", decodedFilename);
     }
-    
+
+    [Theory]
+    [InlineData("dir1*", true)]
+    [InlineData("dir2", false)]
+    [InlineData("file1*", true)]
+    [InlineData("file2<", true)]
+    [InlineData("file3", false)]
+    [InlineData("file4.", true)]
+    [InlineData("file5..", true)]
+    [InlineData("file6.t", false)]
+    [InlineData("file7..t", false)]
+    [InlineData("file8...", true)]
+    [InlineData(".file9", false)]
+    public void When_DetectingExampleFilenameForSpecialChars_Then_FilenamesWithSpecialCharsAreDetected(
+        string amigaName, bool expectedHasSpecialFilenameChars)
+    {
+        // arrange & act
+        var hasSpecialFilenameChars = UaeMetafileHelper.HasSpecialFilenameChars(amigaName);
+        
+        // assert
+        Assert.Equal(expectedHasSpecialFilenameChars, hasSpecialFilenameChars);
+    }
+
     [Theory]
     [InlineData("dir1*", "dir1%2a")]
     [InlineData("dir2", "dir2")]
