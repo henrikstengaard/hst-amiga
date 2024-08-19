@@ -976,7 +976,7 @@
  * anodechain. Anodeoffset is updated to point to a block within the current
  * anodechainnode.
  */
-        public static bool CorrectAnodeAC(anodechainnode acnode, ref uint anodeoffset, globaldata g)
+        public static bool CorrectAnodeAC(ref anodechainnode acnode, ref uint anodeoffset, globaldata g)
         {
             while (anodeoffset >= acnode.an.clustersize)
             {
@@ -1028,10 +1028,10 @@
  * updates anodechainpointer and anodeoffset. If failed, acnode will point to
  * the tail of the anodechain
  */
-        public static bool NextBlockAC(anodechainnode acnode, ref uint anodeoffset, globaldata g)
+        public static bool NextBlockAC(ref anodechainnode acnode, ref uint anodeoffset, globaldata g)
         {
             anodeoffset++;
-            return CorrectAnodeAC(acnode, ref anodeoffset, g);
+            return CorrectAnodeAC(ref acnode, ref anodeoffset, g);
         }        
     }
 }

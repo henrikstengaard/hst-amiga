@@ -39,12 +39,22 @@
 
         public override int Read(byte[] buffer, int offset, int count)
         {
+            if (offset != 0)
+            {
+                throw new System.NotSupportedException("Read only supports offset 0");
+            }
+
             return (int)Directory.ReadFromObject(fileEntry, buffer, (uint)buffer.Length, g).GetAwaiter().GetResult();
         }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
+            if (offset != 0)
+            {
+                throw new System.NotSupportedException("Read only supports offset 0");
+            }
+
             return (int)await Directory.ReadFromObject(fileEntry, buffer, (uint)buffer.Length, g);
         }
 
@@ -75,12 +85,22 @@
 
         public override void Write(byte[] buffer, int offset, int count)
         {
+            if (offset != 0)
+            {
+                throw new System.NotSupportedException("Write only supports offset 0");
+            }
+
             this.dataWritten = true;
             Directory.WriteToObject(fileEntry, buffer, (uint)count, g).GetAwaiter().GetResult();
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
+            if (offset != 0)
+            {
+                throw new System.NotSupportedException("Write only supports offset 0");
+            }
+
             this.dataWritten = true;
             await Directory.WriteToObject(fileEntry, buffer, (uint)count, g);
         }
