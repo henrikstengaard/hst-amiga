@@ -1724,4 +1724,83 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // act & assert - create and overwrite file with same name as directory
         await Assert.ThrowsAsync<NotAFileException>(async () => await pfs3Volume.CreateFile(name, true, true));
     }
+
+    [Fact]
+    public async Task When_AppendingDataToAnExistingFile_Then_FileDataMatches()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - create directory
+        const string name = "Dir";
+        await pfs3Volume.CreateDirectory(name);
+
+        // arrange - create data
+        var data = new byte[24438];
+        var fillSize = 512;
+        var offset = 0;
+        var sector = 0;
+        do
+        {
+            var length = offset + fillSize >= data.Length ? data.Length - offset : fillSize;
+            Array.Fill<byte>(data, (byte)(++sector), offset, length);
+            offset += fillSize;
+        } while (offset < data.Length);
+
+        // act - create file
+        var fileName = $"File";
+        await pfs3Volume.CreateFile(fileName, true);
+
+        // act - write first 800 bytes of data to file
+        await using (var entryStream = await pfs3Volume.OpenFile("File", FileMode.Append))
+        {
+            await entryStream.WriteAsync(data, 0, 800);
+        }
+
+        // act - write remaining bytes of data in chunks of 4096 bytes
+        offset = 800;
+        var writeSize = 4096;
+        var writeBuffer = new byte[writeSize];
+        await using (var entryStream = await pfs3Volume.OpenFile("File", FileMode.Append))
+        {
+            entryStream.Seek(offset, SeekOrigin.Begin);
+            do
+            {
+                var length = offset + writeSize > data.Length ? data.Length - offset : writeSize;
+
+                Array.Copy(data, offset, writeBuffer, 0, length);
+
+                await entryStream.WriteAsync(writeBuffer, 0, length);
+
+                offset += writeSize;
+            } while (offset < data.Length);
+
+            await entryStream.FlushAsync();
+        }
+
+        // act - read data in chunks of 4096 bytes
+        var actualData = new byte[data.Length];
+        offset = 0;
+        var readSize = 4096;
+        var readBuffer = new byte[readSize];
+        await using (var entryStream = await pfs3Volume.OpenFile("File", FileMode.Read))
+        {
+            do
+            {
+                var length = offset + readSize > actualData.Length ? actualData.Length - offset : readSize;
+
+                var bytesRead = await entryStream.ReadAsync(readBuffer, 0, length);
+
+                Array.Copy(readBuffer, 0, actualData, offset, bytesRead);
+
+                offset += readSize;
+            } while (offset < data.Length);
+        }
+
+        // assert - data and actual data is equal
+        Assert.Equal(data, actualData);
+    }
 }

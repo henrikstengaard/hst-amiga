@@ -582,13 +582,14 @@
                 //     goto wtf_error;
                 // }
                 data = new byte[totalblocks << BLOCKSHIFT];
+                dataptr = 0;
 
                 /* first blockpart */
                 if (blockoffset != 0)
                 {
                     //*error = DiskRead(dataptr, 1, chnode.an.blocknr + anodeoffset, g);
                     var dataRead = await RawRead(1, chnode.an.blocknr + anodeoffset, g);
-                    Array.Copy(dataRead, 0, buffer, dataptr, dataRead.Length);
+                    Array.Copy(dataRead, 0, data, dataptr, dataRead.Length);
                     bytestowrite += blockoffset;
                     if (bytestowrite < BLOCKSIZE)
                         bytestowrite = BLOCKSIZE; /* the first could also be the last block */
@@ -596,7 +597,7 @@
 
                 /* copy all 'to be written' to databuffer */
                 //memcpy(dataptr + blockoffset, buffer, size);
-                Array.Copy(buffer, 0, data, dataptr, size);
+                Array.Copy(buffer, 0, data, dataptr + blockoffset, size);
             }
             else
             {
