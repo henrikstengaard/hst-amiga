@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace Hst.Amiga.FileSystems
 {
@@ -129,6 +130,60 @@ namespace Hst.Amiga.FileSystems
             }
 
             return protectionBits;
+        }
+
+        public static ProtectionBits ParseProtectionBits(string protectionBitsText)
+        {
+            if (string.IsNullOrWhiteSpace(protectionBitsText))
+            {
+                return ProtectionBits.Read | ProtectionBits.Write | ProtectionBits.Executable | ProtectionBits.Delete;
+            }
+
+            if (protectionBitsText.Length != 8)
+            {
+                throw new ArgumentException("Protection bits must be 8 characters long", nameof(protectionBitsText));
+            }
+
+            protectionBitsText = protectionBitsText.ToUpperInvariant();
+
+            var parsedProtectionBits = ProtectionBits.None;
+
+            var validProtectionBitChars = "HSPARWED";
+
+            for (var i = 0; i < protectionBitsText.Length; i++)
+            {
+                var protectionBitsChar = protectionBitsText[i];
+
+                if (protectionBitsChar == '-')
+                {
+                    continue;
+                }
+
+                if (protectionBitsChar != validProtectionBitChars[i])
+                {
+                    throw new ArgumentException($"Invalid character '{protectionBitsChar}' in protection bits", nameof(protectionBitsText));
+                }
+
+                parsedProtectionBits |= ParseProtectionBitChar(protectionBitsChar);
+            }
+
+            return parsedProtectionBits;
+        }
+
+        private static ProtectionBits ParseProtectionBitChar(char chr)
+        {
+            return chr switch
+            {
+                'H' => ProtectionBits.HeldResident,
+                'S' => ProtectionBits.Script,
+                'P' => ProtectionBits.Pure,
+                'A' => ProtectionBits.Archive,
+                'R' => ProtectionBits.Read,
+                'W' => ProtectionBits.Write,
+                'E' => ProtectionBits.Executable,
+                'D' => ProtectionBits.Delete,
+                _ => throw new ArgumentException($"Invalid character '{chr}' in protection bits", nameof(chr)),
+            };
         }
     }
 }

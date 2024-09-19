@@ -1,12 +1,24 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Hst.Core.Converters;
 
 namespace Hst.Amiga.DataTypes.UaeFsDbs
 {
     public static class UaeFsDbReader
     {
-        public static UaeFsDbNode Read(byte[] data, int offset = 0, UaeFsDbNode.NodeVersion version = UaeFsDbNode.NodeVersion.Version1)
+        /// <summary>
+        /// Read UAEFSDB node from bytes
+        /// </summary>
+        /// <param name="data">Bytes to read UAEFSDB nodes from</param>
+        /// <param name="offset">Offset in bytes to read from</param>
+        /// <param name="version">UAEFSDB node version to read</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static UaeFsDbNode ReadFromBytes(byte[] data, int offset = 0, UaeFsDbNode.NodeVersion version = UaeFsDbNode.NodeVersion.Version1)
         {
             if (data.Length < Constants.UaeFsDbNodeVersion1Size)
             {
@@ -60,6 +72,51 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
                 AmigaNameUnicode = amigaNameUnicode,
                 NormalNameUnicode = normalNameUnicode 
             };
+        }
+
+        /// <summary>
+        /// Read UAEFSDB nodes from stream.
+        /// </summary>
+        /// <param name="stream">Stream to read from</param>
+        /// <returns>List of UAEFSDB nodes read</returns>
+        public static async Task<IEnumerable<UaeFsDbNode>> ReadFromStream(Stream stream)
+        {
+            var nodes = new List<UaeFsDbNode>();
+
+            var uaeFsDbNodeVersion = UaeFsDbNodeHelper.GetUaeFsDbNodeVersion(stream.Length);
+
+            var uaeFsDbNodeSize = uaeFsDbNodeVersion == UaeFsDbNode.NodeVersion.Version1
+                ? Constants.UaeFsDbNodeVersion1Size
+                : Constants.UaeFsDbNodeVersion2Size;
+
+            var buffer = new byte[uaeFsDbNodeSize];
+            int bytesRead;
+            
+            while ((bytesRead = await stream.ReadAsync(buffer, 0, uaeFsDbNodeSize)) > 0)
+            {
+                if (uaeFsDbNodeSize != bytesRead)
+                {
+                    throw new InvalidOperationException($"Read {bytesRead} bytes, but expected {uaeFsDbNodeSize} bytes");
+                }
+
+                var node = ReadFromBytes(buffer, 0);
+                nodes.Add(node);
+            }
+
+            return nodes;
+        }
+
+        /// <summary>
+        /// Read UAEFSDB nodes from file.
+        /// </summary>
+        /// <param name="path">Path to read UAEFSDB nodes from</param>
+        /// <returns>List of UAEFSDB nodes read</returns>
+        public static async Task<IEnumerable<UaeFsDbNode>> ReadFromFile(string path)
+        {
+            using (var stream = File.OpenRead(path))
+            {
+                return await ReadFromStream(stream);
+            }
         }
     }
 }

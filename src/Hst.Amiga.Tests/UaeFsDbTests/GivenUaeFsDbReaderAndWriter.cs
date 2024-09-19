@@ -15,7 +15,7 @@ public class GivenUaeFsDbReaderAndWriter
         var uaeFsDbBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "UaeFsDbs", "FAT", "_UAEFSDB.___"));
 
         // act - read node
-        var uaeFsDbNode = UaeFsDbReader.Read(uaeFsDbBytes);
+        var uaeFsDbNode = UaeFsDbReader.ReadFromBytes(uaeFsDbBytes);
 
         // act - write node bytes
         var writtenUaeFsFbBytes = UaeFsDbWriter.Build(uaeFsDbNode);
@@ -32,7 +32,7 @@ public class GivenUaeFsDbReaderAndWriter
         var uaeFsDbBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "UaeFsDbs", "NTFS", "_UAEFSDB.___file1_"));
 
         // act - read node
-        var uaeFsDbNode = UaeFsDbReader.Read(uaeFsDbBytes, 0, UaeFsDbNode.NodeVersion.Version2);
+        var uaeFsDbNode = UaeFsDbReader.ReadFromBytes(uaeFsDbBytes, 0, UaeFsDbNode.NodeVersion.Version2);
 
         // act - write node bytes
         var writtenUaeFsFbBytes = UaeFsDbWriter.Build(uaeFsDbNode);

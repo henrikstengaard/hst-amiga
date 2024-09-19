@@ -142,5 +142,20 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
                 NormalNameUnicode = fileInfo.Name
             };
         }
+
+        public static UaeFsDbNode.NodeVersion GetUaeFsDbNodeVersion(long fileSize)
+        {
+            if (fileSize % Constants.UaeFsDbNodeVersion2Size == 0)
+            {
+                return UaeFsDbNode.NodeVersion.Version2;
+            }
+
+            if (fileSize % Constants.UaeFsDbNodeVersion1Size == 0)
+            {
+                return UaeFsDbNode.NodeVersion.Version1;
+            }
+
+            throw new ArgumentException($"File size {fileSize} is not a multiple of UAEFSDB node sizes: {Constants.UaeFsDbNodeVersion1Size} bytes for version 1 or {Constants.UaeFsDbNodeVersion2Size} bytes for version 2", nameof(fileSize));
+        }
     }
 }

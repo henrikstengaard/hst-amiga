@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.Tests.FastFileSystemTests;
 
+using System;
 using FileSystems;
 using Xunit;
 
@@ -110,5 +111,27 @@ public class GivenProtectionBitsConverter
 
         // assert - protection bits is equal to 0 representing attributes: script, read, write, executable, delete
         Assert.Equal(64, protectionValue);
+    }
+
+    [Theory]
+    [InlineData("HSPARWED", ProtectionBits.HeldResident | ProtectionBits.Script | ProtectionBits.Pure | ProtectionBits.Archive | ProtectionBits.Read | ProtectionBits.Write | ProtectionBits.Executable | ProtectionBits.Delete)]
+    [InlineData("----RWED", ProtectionBits.Read | ProtectionBits.Write | ProtectionBits.Executable | ProtectionBits.Delete)]
+    public void When_Parse_ProtectionBits_Text_Then_Value_Matches(string text, ProtectionBits expected)
+    {
+        // act - parse protection bits text
+        var protectionBits = ProtectionBitsConverter.ParseProtectionBits(text);
+
+        // assert - protection bits is equal to expected
+        Assert.Equal(expected, protectionBits);
+    }
+
+    [Theory]
+    [InlineData("-")]
+    [InlineData("----DRWE")]
+    [InlineData("-R------")]
+    public void When_Parse_Invalid_ProtectionBits_Text_Then_Value_Matches(string protectionBitsText)
+    {
+        // act & assert - parse invalid protection bits text throws exception
+        Assert.Throws<ArgumentException>(() => ProtectionBitsConverter.ParseProtectionBits(protectionBitsText));
     }
 }
