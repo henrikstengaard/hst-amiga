@@ -172,18 +172,27 @@ namespace Hst.Amiga.FileSystems
 
         private static ProtectionBits ParseProtectionBitChar(char chr)
         {
-            return chr switch
+            switch (chr)
             {
-                'H' => ProtectionBits.HeldResident,
-                'S' => ProtectionBits.Script,
-                'P' => ProtectionBits.Pure,
-                'A' => ProtectionBits.Archive,
-                'R' => ProtectionBits.Read,
-                'W' => ProtectionBits.Write,
-                'E' => ProtectionBits.Executable,
-                'D' => ProtectionBits.Delete,
-                _ => throw new ArgumentException($"Invalid character '{chr}' in protection bits", nameof(chr)),
-            };
+                case 'H': 
+                    return ProtectionBits.HeldResident;
+                case 'S':
+                    return ProtectionBits.Script;
+                case 'P':
+                    return ProtectionBits.Pure;
+                case 'A':
+                    return ProtectionBits.Archive;
+                case 'R':
+                    return ProtectionBits.Read;
+                case 'W':
+                    return ProtectionBits.Write;
+                case 'E':
+                    return ProtectionBits.Executable;
+                case 'D':
+                    return ProtectionBits.Delete;
+                default:
+                    throw new ArgumentException($"Invalid character '{chr}' in protection bits", nameof(chr));
+            }
         }
     }
 }
