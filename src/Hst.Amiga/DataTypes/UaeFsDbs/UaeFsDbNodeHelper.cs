@@ -68,7 +68,7 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
                 : CreateUniqueDirectoryNormalName(path, filename);
         }
 
-        private static string CreateUniqueFileNormalName(string path, string filename)
+        public static string CreateUniqueFileNormalName(string path, string filename)
         {
             string uniqueFileName;
             string uniquePath;
@@ -82,7 +82,7 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
             return uniqueFileName;
         }
         
-        private static string CreateUniqueDirectoryNormalName(string path, string filename)
+        public static string CreateUniqueDirectoryNormalName(string path, string filename)
         {
             string uniqueFileName;
             string uniquePath;

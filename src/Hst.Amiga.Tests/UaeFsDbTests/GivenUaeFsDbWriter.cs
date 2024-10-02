@@ -107,6 +107,62 @@ public class GivenUaeFsDbWriter
     }
 
     [Fact]
+    public void When_WriteUaeFsDbNodeVersion2WihtoutUnicodeNames_Then_BytesMatch()
+    {
+        // arrange
+        var node = new UaeFsDbNode
+        {
+            Version = UaeFsDbNode.NodeVersion.Version2,
+            Mode = (uint)ProtectionBits.Script,
+            AmigaName = "file2*",
+            NormalName = "__uae___file2_",
+            Comment = "just a simple comment to check if it works",
+            WinMode = (uint)FileAttributes.Archive,
+            AmigaNameUnicode = string.Empty,
+            NormalNameUnicode = string.Empty,
+        };
+
+        // act
+        var bytes = UaeFsDbWriter.Build(node);
+        
+        // assert - bytes size is equal to version 2 siae of 1632 bytes
+        Assert.Equal(1632, bytes.Length);
+        
+        // assert - valid is 1
+        Assert.Equal(1, bytes[0]);
+        
+        // assert - mode matches script protection bit
+        var expectedModeBytes = new byte[] { 0, 0, 0, (byte)ProtectionBits.Script };
+        Assert.Equal(expectedModeBytes, bytes.Skip(1).Take(4));
+        
+        // assert - amiga name matches
+        var expectedAmigaNameBytes = Encoding.ASCII.GetBytes(node.AmigaName).Concat(new byte[] { 0 });
+        Assert.Equal(expectedAmigaNameBytes, bytes.Skip(0x5).Take(node.AmigaName.Length + 1));
+        
+        // assert - normal name matches
+        var expectedNormalNameBytes = Encoding.ASCII.GetBytes(node.NormalName).Concat(new byte[] { 0 });
+        Assert.Equal(expectedNormalNameBytes, bytes.Skip(0x106).Take(node.NormalName.Length + 1));
+        
+        // assert - comment matches
+        var expectedCommentBytes = Encoding.ASCII.GetBytes(node.Comment).Concat(new byte[] { 0 });
+        Assert.Equal(expectedCommentBytes, bytes.Skip(0x207).Take(node.Comment.Length + 1));
+        
+        // assert - win mode matches archive file attribute
+        var expectedWinModeBytes = new byte[] { 0, 0, 0, (byte)FileAttributes.Archive };
+        Assert.Equal(expectedWinModeBytes, bytes.Skip(0x258).Take(4));
+        
+        // assert - amiga name unicode matches
+        var expectedAmigaNameUnicodeBytes =
+            Encoding.Unicode.GetBytes(node.AmigaName).Concat(new byte[] { 0, 0 });
+        Assert.Equal(expectedAmigaNameUnicodeBytes, bytes.Skip(0x25c).Take((node.AmigaNameUnicode.Length + 1) * 2));
+        
+        // assert - normal name unicode matches
+        var expectedNormalNameUnicodeBytes =
+            Encoding.Unicode.GetBytes(node.NormalName).Concat(new byte[] { 0, 0 });
+        Assert.Equal(expectedNormalNameUnicodeBytes, bytes.Skip(0x45e).Take((node.NormalNameUnicode.Length + 1) * 2));
+    }
+
+    [Fact]
     public async Task When_WriteToStream_With_Two_Version1Nodes_Then_Stream_Contains_Both()
     {
         // arrange
