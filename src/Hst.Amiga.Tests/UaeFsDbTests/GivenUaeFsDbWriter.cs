@@ -151,15 +151,15 @@ public class GivenUaeFsDbWriter
         var expectedWinModeBytes = new byte[] { 0, 0, 0, (byte)FileAttributes.Archive };
         Assert.Equal(expectedWinModeBytes, bytes.Skip(0x258).Take(4));
         
-        // assert - amiga name unicode matches
+        // assert - amiga name unicode matches amiga name as it used fallback
         var expectedAmigaNameUnicodeBytes =
             Encoding.Unicode.GetBytes(node.AmigaName).Concat(new byte[] { 0, 0 });
-        Assert.Equal(expectedAmigaNameUnicodeBytes, bytes.Skip(0x25c).Take((node.AmigaNameUnicode.Length + 1) * 2));
+        Assert.Equal(expectedAmigaNameUnicodeBytes, bytes.Skip(0x25c).Take((node.AmigaName.Length + 1) * 2));
         
-        // assert - normal name unicode matches
+        // assert - normal name unicode matches normal name as it used fallback
         var expectedNormalNameUnicodeBytes =
             Encoding.Unicode.GetBytes(node.NormalName).Concat(new byte[] { 0, 0 });
-        Assert.Equal(expectedNormalNameUnicodeBytes, bytes.Skip(0x45e).Take((node.NormalNameUnicode.Length + 1) * 2));
+        Assert.Equal(expectedNormalNameUnicodeBytes, bytes.Skip(0x45e).Take((node.NormalName.Length + 1) * 2));
     }
 
     [Fact]
@@ -347,5 +347,41 @@ public class GivenUaeFsDbWriter
             await Assert.ThrowsAsync<ArgumentException>(async () => 
                 await UaeFsDbWriter.WriteToStream(stream, node2));
         }
+    }
+
+    [Fact]
+    public void When_AmigaName_Is_Empty_Then_Exception_Is_Thrown()
+    {
+        // arrange
+        var node = new UaeFsDbNode
+        {
+            Version = UaeFsDbNode.NodeVersion.Version1,
+            Mode = (uint)ProtectionBits.Script,
+            AmigaName = string.Empty,
+            NormalName = "__uae___file1_",
+            Comment = "comment file1"
+        };
+
+        // act
+        // assert - writing node with empty amiga name throws exception
+        Assert.Throws<ArgumentException>(() => UaeFsDbWriter.Build(node));
+    }
+
+    [Fact]
+    public void When_NormalName_Is_Empty_Then_Exception_Is_Thrown()
+    {
+        // arrange
+        var node = new UaeFsDbNode
+        {
+            Version = UaeFsDbNode.NodeVersion.Version1,
+            Mode = (uint)ProtectionBits.Script,
+            AmigaName = "file1*",
+            NormalName = string.Empty,
+            Comment = "comment file1"
+        };
+
+        // act
+        // assert - writing node with empty normal name throws exception
+        Assert.Throws<ArgumentException>(() => UaeFsDbWriter.Build(node));
     }
 }
