@@ -1,10 +1,6 @@
 ﻿
 InterLeaved bitplane BitMap image with color map
 
-
-https://www.fileformat.info/format/iff/egff.htm
-
-
 Chunks:
 
 
@@ -17,3 +13,8 @@ The interleave bitplane bitmap is structured with the following iff chunks:
     - CMAP
     - CAMG
     - BODY
+
+## References
+
+- https://www.fileformat.info/format/iff/egff.htm
+- https://1fish2.github.io/IFF/IFF%20docs%20with%20Commodore%20revisions/ILBM.pdf
