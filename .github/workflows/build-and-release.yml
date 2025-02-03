@@ -21,14 +21,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v2
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 9.0.x
 
     - name: Update package version
       shell: pwsh
@@ -64,7 +64,7 @@ jobs:
         target: [win-x64, win-arm64, osx-x64, osx-arm64, linux-x64, linux-arm, linux-arm64]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -103,9 +103,9 @@ jobs:
         if: matrix.target == 'win-x64'
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v2
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 6.0.x
+          dotnet-version: 9.0.x
 
       - name: Restore dependencies
         run: dotnet restore ./src/Hst.Amiga.sln
