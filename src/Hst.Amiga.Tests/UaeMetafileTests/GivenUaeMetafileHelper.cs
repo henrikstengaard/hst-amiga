@@ -72,12 +72,25 @@ public class GivenUaeMetafileHelper
     [InlineData("file7..t", false)]
     [InlineData("file8...", true)]
     [InlineData(".file9", false)]
+    [InlineData("", false)]
+    [InlineData("   ", true)]
+    [InlineData(".   ", true)]
+    [InlineData(" .  ", true)]
+    [InlineData("  . ", true)]
+    [InlineData("   .", true)]
+    [InlineData(".  f", false)]
+    [InlineData("f  f", false)]
+    [InlineData("f  f ", true)]
+    [InlineData("f   ", true)]
+    [InlineData("f  .", true)]
+    [InlineData("f . ", true)]
+
     public void When_DetectingExampleFilenameForSpecialChars_Then_FilenamesWithSpecialCharsAreDetected(
         string amigaName, bool expectedHasSpecialFilenameChars)
     {
         // arrange & act
         var hasSpecialFilenameChars = UaeMetafileHelper.HasSpecialFilenameChars(amigaName);
-        
+
         // assert
         Assert.Equal(expectedHasSpecialFilenameChars, hasSpecialFilenameChars);
     }
@@ -94,6 +107,19 @@ public class GivenUaeMetafileHelper
     [InlineData("file7..t", "file7..t")]
     [InlineData("file8...", "file8..%2e")]
     [InlineData(".file9", ".file9")]
+    [InlineData("", "")]
+    [InlineData("   ", "  %20")]
+    [InlineData(".   ", ".  %20")]
+    [InlineData(" .  ", " . %20")]
+    [InlineData("  . ", "  .%20")]
+    [InlineData("   .", "   %2e")]
+    [InlineData(".  f", ".  f")]
+    [InlineData("f  f", "f  f")]
+    [InlineData("f  f ", "f  f%20")]
+    [InlineData("f   ", "f  %20")]
+    [InlineData("f  .", "f  %2e")]
+    [InlineData("f . ", "f .%20")]
+
     public void When_EncodingExampleFilenameWithSpecialChars_Then_SpecialCharsAreReplacedWithHexValues(string amigaName, string expectedEncodedFilename)
     {
         // arrange & act

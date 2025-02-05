@@ -19,27 +19,33 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
                 return false;
             }
 
-            return filename[filename.Length - 1] == '.' || filename.Any(c => SpecialFilenameCharSet.Contains(c));
+            return !filename.Equals(EncodeFilenameSpecialChars(filename));
         }
 
         public static string EncodeFilenameSpecialChars(string filename)
         {
+            if (string.IsNullOrEmpty(filename))
+            {
+                return string.Empty;
+            }
+
             var encodedFilename = new StringBuilder();
 
             for (var i = 0; i < filename.Length; i++)
             {
                 var isLastChar = i == filename.Length - 1;
-                var filenameChar = filename[i];
-                var isDotChar = filenameChar == '.';
+                var chr = filename[i];
+                var isDotChar = chr == '.';
+                var isSpaceChar = chr == ' ';
 
-                if ((isLastChar && isDotChar) || 
-                    SpecialFilenameCharSet.Contains(filenameChar))
+                if ((isLastChar && (isDotChar || isSpaceChar)) || 
+                    SpecialFilenameCharSet.Contains(chr))
                 {
-                    encodedFilename.Append($"%{(int)filenameChar:x2}");
+                    encodedFilename.Append($"%{(int)chr:x2}");
                     continue;
                 }
                 
-                encodedFilename.Append(filenameChar);
+                encodedFilename.Append(chr);
             }
 
             return encodedFilename.ToString();

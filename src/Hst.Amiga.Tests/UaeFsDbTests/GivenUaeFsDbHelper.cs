@@ -113,7 +113,7 @@ public class GivenUaeFsDbHelper
             Directory.Delete(path, true);
         }
     }
-    
+
     [Theory]
     [InlineData("dir1*", true)]
     [InlineData("dir2", false)]
@@ -126,12 +126,24 @@ public class GivenUaeFsDbHelper
     [InlineData("file7..t", false)]
     [InlineData("file8...", true)]
     [InlineData(".file9", false)]
+    [InlineData("", false)]
+    [InlineData("   ", true)]
+    [InlineData(".   ", true)]
+    [InlineData(" .  ", true)]
+    [InlineData("  . ", true)]
+    [InlineData("   .", true)]
+    [InlineData(".  f", false)]
+    [InlineData("f  f", false)]
+    [InlineData("f  f ", true)]
+    [InlineData("f   ", true)]
+    [InlineData("f  .", true)]
+    [InlineData("f . ", true)]
     public void When_DetectingExampleFilenameForSpecialChars_Then_FilenamesWithSpecialCharsAreDetected(
         string amigaName, bool expectedHasSpecialFilenameChars)
     {
         // arrange & act
         var hasSpecialFilenameChars = UaeFsDbNodeHelper.HasSpecialFilenameChars(amigaName);
-        
+
         // assert
         Assert.Equal(expectedHasSpecialFilenameChars, hasSpecialFilenameChars);
     }
@@ -148,12 +160,22 @@ public class GivenUaeFsDbHelper
     [InlineData("file7..t", "file7..t")]
     [InlineData("file8...", "file8___")]
     [InlineData(".file9", ".file9")]
+    [InlineData("", "")]
+    [InlineData("   ", "___")]
+    [InlineData(".   ", "____")]
+    [InlineData(" .  ", "____")]
+    [InlineData("  . ", "____")]
+    [InlineData("   .", "____")]
+    [InlineData(".  f", ".  f")]
+    [InlineData("f  f", "f  f")]
+    [InlineData("f  f ", "f__f_")]
+    [InlineData("f   ", "f___")]
+    [InlineData("f  .", "f___")]
+    [InlineData("f . ", "f___")]
     public void When_MakingExampleFilenameWithSpecialCharsSafe_Then_SpecialCharsAreReplacedWithUnderscore(string amigaName, string expectedSafeFilename)
     {
         // arrange & act
-        var safeFilename = UaeFsDbNodeHelper.HasSpecialFilenameChars(amigaName)
-            ? UaeFsDbNodeHelper.MakeSafeFilename(amigaName)
-            : amigaName;
+        var safeFilename = UaeFsDbNodeHelper.MakeSafeFilename(amigaName);
         
         // assert
         Assert.Equal(expectedSafeFilename, safeFilename);

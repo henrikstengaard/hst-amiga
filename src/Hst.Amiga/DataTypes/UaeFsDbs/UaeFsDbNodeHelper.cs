@@ -12,7 +12,7 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
             { '\\', '/', ':', '*', '?', '"', '<', '>', '|', '#' };
         private static readonly HashSet<char> SpecialFilenameCharSet = 
             new HashSet<char>(SpecialFilenameChars);
-        
+
         public static bool HasSpecialFilenameChars(string filename)
         {
             if (string.IsNullOrEmpty(filename))
@@ -20,30 +20,36 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
                 return false;
             }
 
-            return filename[filename.Length - 1] == '.' || filename.Any(c => SpecialFilenameCharSet.Contains(c));
+            return !filename.Equals(MakeSafeFilename(filename));
         }
-        
+
         public static string MakeSafeFilename(string filename)
         {
+            if (string.IsNullOrEmpty(filename))
+            {
+                return string.Empty;
+            }
+
             var safeFilename = filename.ToCharArray();
 
-            var isPrevDotChar = true;
-            
-            for (var i = safeFilename.Length - 1; i >= 0; i--)
-            {
-                var isLastChar = i == safeFilename.Length - 1;
-                var isDotChar = safeFilename[i] == '.';
+            var isFirstCharIsDot = safeFilename[0] == '.';
 
-                if (isLastChar && isDotChar ||
-                    isDotChar && isPrevDotChar || 
+            var hasHeadingSpecialChars = safeFilename[0] == '.' || safeFilename[0] == ' ';
+            var hasTailingSpecialChars = safeFilename[safeFilename.Length - 1] == '.' || safeFilename[safeFilename.Length - 1] == ' ';
+
+            var replaceSpecialChars = (hasHeadingSpecialChars || hasTailingSpecialChars) &&
+                !(isFirstCharIsDot && !hasTailingSpecialChars);
+
+            for (var i = 0; i < safeFilename.Length; i++)
+            {
+                var chr = safeFilename[i];
+                var isDotChar = chr == '.';
+                var isSpaceChar = chr == ' ';
+
+                if ((replaceSpecialChars && (isDotChar || isSpaceChar)) ||
                     SpecialFilenameCharSet.Contains(safeFilename[i]))
                 {
                     safeFilename[i] = '_';
-                }
-
-                if (isPrevDotChar)
-                {
-                    isPrevDotChar = isDotChar;
                 }
             }
 
