@@ -84,7 +84,6 @@ public class GivenUaeMetafileHelper
     [InlineData("f   ", true)]
     [InlineData("f  .", true)]
     [InlineData("f . ", true)]
-
     public void When_DetectingExampleFilenameForSpecialChars_Then_FilenamesWithSpecialCharsAreDetected(
         string amigaName, bool expectedHasSpecialFilenameChars)
     {
@@ -119,7 +118,6 @@ public class GivenUaeMetafileHelper
     [InlineData("f   ", "f  %20")]
     [InlineData("f  .", "f  %2e")]
     [InlineData("f . ", "f .%20")]
-
     public void When_EncodingExampleFilenameWithSpecialChars_Then_SpecialCharsAreReplacedWithHexValues(string amigaName, string expectedEncodedFilename)
     {
         // arrange & act

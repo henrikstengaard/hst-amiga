@@ -17,7 +17,7 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
         /// <returns>UAEFSDB bytes with UaeFsDbNode data</returns>
         public static byte[] Build(UaeFsDbNode node)
         {
-            if (string.IsNullOrWhiteSpace(node.AmigaName))
+            if (string.IsNullOrEmpty(node.AmigaName))
             {
                 throw new ArgumentException("Amiga name is required", nameof(node));
             }
