@@ -11,6 +11,12 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
         private static readonly HashSet<char> SpecialFilenameCharSet = 
             new HashSet<char>(SpecialFilenameChars);
 
+        private static bool IsPrintableChar(char chr)
+        {
+            var asciiValue = (int)chr;
+            return asciiValue >= 32 && asciiValue <= 127;
+        }
+
         public static bool HasSpecialFilenameChars(string filename)
         {
             if (string.IsNullOrEmpty(filename))
@@ -38,7 +44,8 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
                 var isSpaceChar = chr == ' ';
 
                 if ((isLastChar && (isDotChar || isSpaceChar)) || 
-                    SpecialFilenameCharSet.Contains(chr))
+                    SpecialFilenameCharSet.Contains(chr) ||
+                    !IsPrintableChar(chr))
                 {
                     encodedFilename.Append($"%{(int)chr:x2}");
                     continue;

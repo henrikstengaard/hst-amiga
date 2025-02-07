@@ -1,10 +1,18 @@
 ﻿using Hst.Amiga.DataTypes.UaeMetafiles;
+using System.Text;
 using Xunit;
 
 namespace Hst.Amiga.Tests.UaeMetafileTests;
 
 public class GivenUaeMetafileHelper
 {
+    private readonly Encoding iso88591Encoding;
+
+    public GivenUaeMetafileHelper()
+    {
+        iso88591Encoding = Encoding.GetEncoding("ISO-8859-1");
+    }
+
     [Theory]
     [InlineData('a')]
     [InlineData('Z')]
@@ -94,6 +102,19 @@ public class GivenUaeMetafileHelper
         Assert.Equal(expectedHasSpecialFilenameChars, hasSpecialFilenameChars);
     }
 
+    [Fact]
+    public void When_DetectingFilenameWithNonPrintableChars_Then_SpecialCharsAreDetected()
+    {
+        // arrange
+        var amigaName = Encoding.UTF8.GetString(new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff });
+
+        // act
+        var hasSpecialFilenameChars = UaeMetafileHelper.HasSpecialFilenameChars(amigaName);
+
+        // assert
+        Assert.True(hasSpecialFilenameChars);
+    }
+
     [Theory]
     [InlineData("dir1*", "dir1%2a")]
     [InlineData("dir2", "dir2")]
@@ -125,5 +146,18 @@ public class GivenUaeMetafileHelper
         
         // assert
         Assert.Equal(expectedEncodedFilename, encodedFilename);
+    }
+
+    [Fact]
+    public void When_EncodingFilenameWithNonPrintableChars_Then_SpecialCharsAreReplacedWithHexValues()
+    {
+        // arrange
+        var amigaName = iso88591Encoding.GetString(new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff });
+
+        // act
+        var encodedFilename = UaeMetafileHelper.EncodeFilenameSpecialChars(amigaName);
+
+        // assert
+        Assert.Equal("%ff%ff%ff%ff%ff%ff%ff%ff", encodedFilename);
     }
 }

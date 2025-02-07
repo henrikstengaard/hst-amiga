@@ -32,9 +32,9 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
             
             nodeBytes[0] = node.Valid;
             BigEndianConverter.ConvertUInt32ToBytes(node.Mode, nodeBytes, 0x1);
-            TextHelper.WriteNullTerminatedString(Encoding.ASCII, node.AmigaName, nodeBytes, 0x5, 257);
+            AmigaTextHelper.WriteNullTerminatedString(node.AmigaName, nodeBytes, 0x5, 257);
             TextHelper.WriteNullTerminatedString(Encoding.ASCII, node.NormalName, nodeBytes, 0x106, 257);
-            TextHelper.WriteNullTerminatedString(Encoding.ASCII, node.Comment ?? string.Empty, nodeBytes, 0x207, 81);
+            AmigaTextHelper.WriteNullTerminatedString(node.Comment ?? string.Empty, nodeBytes, 0x207, 81);
 
             if (node.Version != UaeFsDbNode.NodeVersion.Version2)
             {

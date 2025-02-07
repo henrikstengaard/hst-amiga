@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Hst.Amiga.FileSystems;
 
 namespace Hst.Amiga.DataTypes.UaeFsDbs
@@ -12,6 +11,12 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
             { '\\', '/', ':', '*', '?', '"', '<', '>', '|', '#' };
         private static readonly HashSet<char> SpecialFilenameCharSet = 
             new HashSet<char>(SpecialFilenameChars);
+
+        private static bool IsPrintableChar(char chr)
+        {
+            var asciiValue = (int)chr;
+            return asciiValue >= 32 && asciiValue <= 127;
+        }
 
         public static bool HasSpecialFilenameChars(string filename)
         {
@@ -47,7 +52,8 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
                 var isSpaceChar = chr == ' ';
 
                 if ((replaceSpecialChars && (isDotChar || isSpaceChar)) ||
-                    SpecialFilenameCharSet.Contains(safeFilename[i]))
+                    SpecialFilenameCharSet.Contains(safeFilename[i]) ||
+                    !IsPrintableChar(chr))
                 {
                     safeFilename[i] = '_';
                 }

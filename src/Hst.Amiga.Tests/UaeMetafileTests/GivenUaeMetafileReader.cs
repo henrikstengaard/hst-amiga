@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Hst.Amiga.DataTypes.UaeMetafiles;
 using Xunit;
@@ -8,6 +10,14 @@ namespace Hst.Amiga.Tests.UaeMetafileTests;
 
 public class GivenUaeMetafileReader
 {
+    private readonly Encoding iso88591Encoding;
+    private const int MaxCommentLength = 80;
+
+    public GivenUaeMetafileReader()
+    {
+        iso88591Encoding = Encoding.GetEncoding("ISO-8859-1");
+    }
+
     [Fact]
     public async Task When_ReadUaeMetafileWithoutComment_Then_UaeMetafileMatch()
     {
@@ -46,5 +56,28 @@ public class GivenUaeMetafileReader
 
         // assert - comment match
         Assert.Equal("comment on file2", uaeMetafile.Comment);
+    }
+
+    [Fact]
+    public void When_ReadUaeMetafileWithCommentLargerThan79Chars_ThenCommentIsTruncatedTo79Chars()
+    {
+        // arrange
+        var comment = new string('A', 85);
+        var uaeMetafileBytes = iso88591Encoding.GetBytes("----rwed 2024-03-15 19:01:13.84 ")
+            .Concat(iso88591Encoding.GetBytes(comment))
+            .Concat(iso88591Encoding.GetBytes("\n")).ToArray();
+
+        // act - read uae metafile
+        var uaeMetafile = UaeMetafileReader.Read(uaeMetafileBytes);
+
+        // assert - protection bits match
+        Assert.Equal("----rwed", uaeMetafile.ProtectionBits);
+
+        // assert - date match
+        var expectedDate = new DateTime(2024, 3, 15, 19, 1, 13, 840, DateTimeKind.Local);
+        Assert.Equal(expectedDate, uaeMetafile.Date);
+
+        // assert - comment match
+        Assert.Equal(comment.Substring(0, MaxCommentLength), uaeMetafile.Comment);
     }
 }

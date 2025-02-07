@@ -34,7 +34,7 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
             var mode = BigEndianConverter.ConvertBytesToUInt32(data, offset + 0x1);
             var amigaName = AmigaTextHelper.GetNullTerminatedString(data, offset + 0x5, 256);
             var normalName = TextHelper.ReadNullTerminatedString(Encoding.UTF8, data, offset + 0x106, 257);
-            var comment = TextHelper.ReadNullTerminatedString(Encoding.UTF8, data, offset + 0x207, 81);
+            var comment = AmigaTextHelper.GetNullTerminatedString(data, offset + 0x207, 81);
 
             if (version != UaeFsDbNode.NodeVersion.Version2)
             {

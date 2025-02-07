@@ -36,9 +36,10 @@ public class GivenUaeFsDbWriter
         // assert - mode matches script protection bit
         var expectedModeBytes = new byte[] { 0, 0, 0, (byte)ProtectionBits.Script };
         Assert.Equal(expectedModeBytes, bytes.Skip(1).Take(4));
-        
+
         // assert - amiga name matches
-        var expectedAmigaNameBytes = Encoding.ASCII.GetBytes(node.AmigaName).Concat(new byte[] { 0 });
+        var iso88591Encoding = Encoding.GetEncoding("ISO-8859-1");
+        var expectedAmigaNameBytes = iso88591Encoding.GetBytes(node.AmigaName).Concat(new byte[] { 0 });
         Assert.Equal(expectedAmigaNameBytes, bytes.Skip(0x5).Take(node.AmigaName.Length + 1));
         
         // assert - normal name matches
@@ -46,10 +47,51 @@ public class GivenUaeFsDbWriter
         Assert.Equal(expectedNormalNameBytes, bytes.Skip(0x106).Take(node.NormalName.Length + 1));
         
         // assert - comment matches
-        var expectedCommentBytes = Encoding.ASCII.GetBytes(node.Comment).Concat(new byte[] { 0 });
+        var expectedCommentBytes = iso88591Encoding.GetBytes(node.Comment).Concat(new byte[] { 0 });
         Assert.Equal(expectedCommentBytes, bytes.Skip(0x207).Take(node.Comment.Length + 1));
     }
-    
+
+    [Fact]
+    public void When_WriteUaeFsDbNodeVersion1WithAmigaEncoding_Then_BytesMatch()
+    {
+        // arrange
+        var iso88591Encoding = Encoding.GetEncoding("ISO-8859-1");
+        var amigaName = iso88591Encoding.GetString(new byte[] { 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0 });
+        var node = new UaeFsDbNode
+        {
+            Version = UaeFsDbNode.NodeVersion.Version1,
+            Mode = (uint)ProtectionBits.Script,
+            AmigaName = amigaName,
+            NormalName = "__uae_________",
+            Comment = amigaName
+        };
+
+        // act
+        var bytes = UaeFsDbWriter.Build(node);
+
+        // assert - version 1 is 600 bytes in size
+        Assert.Equal(600, bytes.Length);
+
+        // assert - valid is 1
+        Assert.Equal(1, bytes[0]);
+
+        // assert - mode matches script protection bit
+        var expectedModeBytes = new byte[] { 0, 0, 0, (byte)ProtectionBits.Script };
+        Assert.Equal(expectedModeBytes, bytes.Skip(1).Take(4));
+
+        // assert - amiga name matches
+        var expectedAmigaNameBytes = iso88591Encoding.GetBytes(node.AmigaName).Concat(new byte[] { 0 });
+        Assert.Equal(expectedAmigaNameBytes, bytes.Skip(0x5).Take(node.AmigaName.Length + 1));
+
+        // assert - normal name matches
+        var expectedNormalNameBytes = Encoding.ASCII.GetBytes(node.NormalName).Concat(new byte[] { 0 });
+        Assert.Equal(expectedNormalNameBytes, bytes.Skip(0x106).Take(node.NormalName.Length + 1));
+
+        // assert - comment matches
+        var expectedCommentBytes = iso88591Encoding.GetBytes(node.Comment).Concat(new byte[] { 0 });
+        Assert.Equal(expectedCommentBytes, bytes.Skip(0x207).Take(node.Comment.Length + 1));
+    }
+
     [Fact]
     public void When_WriteUaeFsDbNodeVersion2_Then_BytesMatch()
     {
@@ -78,9 +120,10 @@ public class GivenUaeFsDbWriter
         // assert - mode matches script protection bit
         var expectedModeBytes = new byte[] { 0, 0, 0, (byte)ProtectionBits.Script };
         Assert.Equal(expectedModeBytes, bytes.Skip(1).Take(4));
-        
+
         // assert - amiga name matches
-        var expectedAmigaNameBytes = Encoding.ASCII.GetBytes(node.AmigaName).Concat(new byte[] { 0 });
+        var iso88591Encoding = Encoding.GetEncoding("ISO-8859-1");
+        var expectedAmigaNameBytes = iso88591Encoding.GetBytes(node.AmigaName).Concat(new byte[] { 0 });
         Assert.Equal(expectedAmigaNameBytes, bytes.Skip(0x5).Take(node.AmigaName.Length + 1));
         
         // assert - normal name matches
@@ -88,7 +131,7 @@ public class GivenUaeFsDbWriter
         Assert.Equal(expectedNormalNameBytes, bytes.Skip(0x106).Take(node.NormalName.Length + 1));
         
         // assert - comment matches
-        var expectedCommentBytes = Encoding.ASCII.GetBytes(node.Comment).Concat(new byte[] { 0 });
+        var expectedCommentBytes = iso88591Encoding.GetBytes(node.Comment).Concat(new byte[] { 0 });
         Assert.Equal(expectedCommentBytes, bytes.Skip(0x207).Take(node.Comment.Length + 1));
         
         // assert - win mode matches archive file attribute
@@ -107,7 +150,7 @@ public class GivenUaeFsDbWriter
     }
 
     [Fact]
-    public void When_WriteUaeFsDbNodeVersion2WihtoutUnicodeNames_Then_BytesMatch()
+    public void When_WriteUaeFsDbNodeVersion2WithoutUnicodeNames_Then_BytesMatch()
     {
         // arrange
         var node = new UaeFsDbNode
@@ -124,38 +167,39 @@ public class GivenUaeFsDbWriter
 
         // act
         var bytes = UaeFsDbWriter.Build(node);
-        
+
         // assert - bytes size is equal to version 2 siae of 1632 bytes
         Assert.Equal(1632, bytes.Length);
-        
+
         // assert - valid is 1
         Assert.Equal(1, bytes[0]);
-        
+
         // assert - mode matches script protection bit
         var expectedModeBytes = new byte[] { 0, 0, 0, (byte)ProtectionBits.Script };
         Assert.Equal(expectedModeBytes, bytes.Skip(1).Take(4));
-        
+
         // assert - amiga name matches
-        var expectedAmigaNameBytes = Encoding.ASCII.GetBytes(node.AmigaName).Concat(new byte[] { 0 });
+        var iso88591Encoding = Encoding.GetEncoding("ISO-8859-1");
+        var expectedAmigaNameBytes = iso88591Encoding.GetBytes(node.AmigaName).Concat(new byte[] { 0 });
         Assert.Equal(expectedAmigaNameBytes, bytes.Skip(0x5).Take(node.AmigaName.Length + 1));
-        
+
         // assert - normal name matches
         var expectedNormalNameBytes = Encoding.ASCII.GetBytes(node.NormalName).Concat(new byte[] { 0 });
         Assert.Equal(expectedNormalNameBytes, bytes.Skip(0x106).Take(node.NormalName.Length + 1));
-        
+
         // assert - comment matches
-        var expectedCommentBytes = Encoding.ASCII.GetBytes(node.Comment).Concat(new byte[] { 0 });
+        var expectedCommentBytes = iso88591Encoding.GetBytes(node.Comment).Concat(new byte[] { 0 });
         Assert.Equal(expectedCommentBytes, bytes.Skip(0x207).Take(node.Comment.Length + 1));
-        
+
         // assert - win mode matches archive file attribute
         var expectedWinModeBytes = new byte[] { 0, 0, 0, (byte)FileAttributes.Archive };
         Assert.Equal(expectedWinModeBytes, bytes.Skip(0x258).Take(4));
-        
+
         // assert - amiga name unicode matches amiga name as it used fallback
         var expectedAmigaNameUnicodeBytes =
             Encoding.Unicode.GetBytes(node.AmigaName).Concat(new byte[] { 0, 0 });
         Assert.Equal(expectedAmigaNameUnicodeBytes, bytes.Skip(0x25c).Take((node.AmigaName.Length + 1) * 2));
-        
+
         // assert - normal name unicode matches normal name as it used fallback
         var expectedNormalNameUnicodeBytes =
             Encoding.Unicode.GetBytes(node.NormalName).Concat(new byte[] { 0, 0 });

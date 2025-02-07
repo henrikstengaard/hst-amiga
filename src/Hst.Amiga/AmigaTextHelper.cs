@@ -5,7 +5,7 @@
 
     public static class AmigaTextHelper
     {
-        private static readonly Encoding Iso88591 = Encoding.GetEncoding("ISO-8859-1");
+        public static readonly Encoding Iso88591 = Encoding.GetEncoding("ISO-8859-1");
 
         public static string GetString(byte[] bytes)
         {

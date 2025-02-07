@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 using Hst.Amiga.DataTypes.UaeFsDbs;
 using Xunit;
 
@@ -148,6 +149,20 @@ public class GivenUaeFsDbHelper
         Assert.Equal(expectedHasSpecialFilenameChars, hasSpecialFilenameChars);
     }
 
+    [Fact]
+    public void When_DetectingFilenameWithNonPrintableChars_Then_SpecialCharsAreDetected()
+    {
+        // arrange
+        var amigaName = Encoding.UTF8.GetString(new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff });
+
+        // arrange
+        var hasSpecialFilenameChars = UaeFsDbNodeHelper.HasSpecialFilenameChars(amigaName);
+
+        // assert
+        Assert.True(hasSpecialFilenameChars);
+    }
+
+
     [Theory]
     [InlineData("dir1*", "dir1_")]
     [InlineData("dir2", "dir2")]
@@ -179,5 +194,18 @@ public class GivenUaeFsDbHelper
         
         // assert
         Assert.Equal(expectedSafeFilename, safeFilename);
+    }
+
+    [Fact]
+    public void When_MakingFilenameWithNonPrintableChars_Then_SpecialCharsAreReplacedWithUnderscore()
+    {
+        // arrange
+        var amigaName = Encoding.UTF8.GetString(new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff });
+
+        // arrange
+        var safeFilename = UaeFsDbNodeHelper.MakeSafeFilename(amigaName);
+
+        // assert
+        Assert.Equal("________", safeFilename);
     }
 }

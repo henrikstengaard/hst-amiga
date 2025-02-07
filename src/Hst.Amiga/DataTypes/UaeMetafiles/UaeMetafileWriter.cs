@@ -6,10 +6,12 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
 {
     public class UaeMetafileWriter
     {
+        private static Encoding Iso88591Encoding = Encoding.GetEncoding("ISO-8859-1");
         private static readonly int ProtectionBitsSize = "hsparwed".Length;
         private static readonly int DateSize = "yyyy-mm-dd 00:00:00.00".Length;
         private const int DelimiterSize = 1;
         private const int NewlineSize = 1;
+        private const int MaxCommentLength = 80;
         
         public static byte[] Build(UaeMetafile uaeMetafile)
         {
@@ -17,16 +19,16 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
             {
                 throw new ArgumentException("Protection bits must have length of 8 characters", nameof(UaeMetafile.ProtectionBits));
             }
-            
-            var commentBytes = string.IsNullOrWhiteSpace(uaeMetafile.Comment)
-                ? Array.Empty<byte>()
-                : Encoding.ASCII.GetBytes(uaeMetafile.Comment);
-            var size = ProtectionBitsSize + DelimiterSize + DateSize + DelimiterSize + commentBytes.Length +
-                       NewlineSize;
+
+            var truncatedComment = (uaeMetafile.Comment ?? string.Empty).Length > MaxCommentLength
+                ? uaeMetafile.Comment.Substring(0, MaxCommentLength)
+                : uaeMetafile.Comment;
+            var commentBytes = Iso88591Encoding.GetBytes(truncatedComment);
+            var size = ProtectionBitsSize + DelimiterSize + DateSize + DelimiterSize + commentBytes.Length + NewlineSize;
             var uaeMetafileBytes = new byte[size];
 
             // protection bits
-            var protectionBitsBytes = Encoding.ASCII.GetBytes(uaeMetafile.ProtectionBits);
+            var protectionBitsBytes = Iso88591Encoding.GetBytes(uaeMetafile.ProtectionBits);
             Array.Copy(protectionBitsBytes, 0, uaeMetafileBytes, 0, ProtectionBitsSize);
 
             // delimiter
@@ -34,7 +36,7 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
             
             // date
             var dateFormatted = uaeMetafile.Date.ToString("yyyy-MM-dd HH:mm:ss.ff", CultureInfo.InvariantCulture);
-            var dateFormattedBytes = Encoding.ASCII.GetBytes(dateFormatted);
+            var dateFormattedBytes = Iso88591Encoding.GetBytes(dateFormatted);
             Array.Copy(dateFormattedBytes, 0, uaeMetafileBytes, ProtectionBitsSize + DelimiterSize, DateSize);
 
             // delimiter
@@ -43,7 +45,8 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
             // comment
             if (commentBytes.Length > 0)
             {
-                Array.Copy(commentBytes, 0, uaeMetafileBytes, ProtectionBitsSize + DelimiterSize + DateSize + DelimiterSize, commentBytes.Length);
+                Array.Copy(commentBytes, 0, uaeMetafileBytes, ProtectionBitsSize + DelimiterSize + DateSize + DelimiterSize, 
+                    commentBytes.Length);
             }
             
             // newline
