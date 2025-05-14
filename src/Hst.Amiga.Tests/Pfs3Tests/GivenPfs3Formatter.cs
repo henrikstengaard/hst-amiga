@@ -12,7 +12,41 @@ using Xunit;
 public class GivenPfs3Formatter
 {
     private readonly byte[] pfs3DosType = { 0x50, 0x44, 0x53, 0x3 };
-    
+
+    [Theory]
+    [InlineData(1024 * 1024 * 16000L)] // 16GB
+    [InlineData(1024 * 1024 * 32000L)] // 32GB
+    [InlineData(1024 * 1024 * 64000L)] // 64GB
+    // 128GB: Experimental! Size is larger than 512 sector size bytes *
+    // 213021952 sectors (max sectors for super mode and reserved block size of 1K) =
+    // 109067239424 bytes ~ 102.4GB
+    [InlineData(1024 * 1024 * 128000L)] 
+    public async Task When_FormattingLargePartition_Then_PartitionCanBeRead(long size)
+    {
+        var pfs3AioPath = Path.Combine("TestData", "Pfs3", "pfs3aio"); 
+
+        // arrange - create memory block stream
+        await using var stream = new BlockMemoryStream();
+        
+        // arrange - create rigid disk block with 1 partition using pfs3 file system 
+        var rigidDiskBlock = await RigidDiskBlock
+            .Create(size)
+            .AddFileSystem(pfs3DosType, await System.IO.File.ReadAllBytesAsync(pfs3AioPath))
+            .AddPartition("DH0", bootable: true, size: size)
+            .WriteToStream(stream);
+
+        // arrange - get partitions
+        var partition = rigidDiskBlock.PartitionBlocks.First();
+        
+        // act - format partition using pfs3 formatter
+        await Pfs3Formatter.FormatPartition(stream, partition, "Workbench");
+
+        // assert - formatted partition contains pfs3 volume
+        await using var pfs3Volume1 = await Pfs3Volume.Mount(stream, partition);
+        Assert.NotNull(pfs3Volume1);
+        Assert.Equal("Workbench", pfs3Volume1.Name);
+    }
+
     [Fact]
     public async Task WhenFormatting100MbPartitionAtStartOfHardDiskFileThenPfs3BlocksAreCreated()
     {

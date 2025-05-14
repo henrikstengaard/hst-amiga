@@ -11,7 +11,7 @@
         public static RootBlock Parse(byte[] blockBytes)
         {
             var diskType = BigEndianConverter.ConvertBytesToInt32(blockBytes);
-            if (diskType != Constants.ID_PFS_DISK)
+            if (diskType != Constants.ID_PFS_DISK && diskType != Constants.ID_PFS2_DISK)
             {
                 throw new IOException("Invalid root block");
             }
