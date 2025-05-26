@@ -1803,4 +1803,42 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - data and actual data is equal
         Assert.Equal(data, actualData);
     }
+    
+    [Fact]
+    public async Task When_GetCurrentPathFromRoot_Then_CurrentPathIsCorrect()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - get the current path
+        var currentPath = await pfs3Volume.GetCurrentPath();
+        
+        // assert - the current path is correct
+        Assert.Equal("/", currentPath);
+    }
+
+    [Fact]
+    public async Task When_GetCurrentPathFromSubDirectory_Then_CurrentPathIsCorrect()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create directories
+        await pfs3Volume.CreateDirectory("dir1");
+        await pfs3Volume.ChangeDirectory("dir1");
+        await pfs3Volume.CreateDirectory("dir2");
+        await pfs3Volume.ChangeDirectory("dir2");
+
+        // act - get the current path
+        var currentPath = await pfs3Volume.GetCurrentPath();
+        
+        // assert - the current path is correct
+        Assert.Equal("/dir1/dir2", currentPath);
+    }
 }

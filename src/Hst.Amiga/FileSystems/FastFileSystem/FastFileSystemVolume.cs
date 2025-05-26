@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.FileSystems.FastFileSystem
+﻿using Hst.Amiga.FileSystems.FastFileSystem.Blocks;
+
+namespace Hst.Amiga.FileSystems.FastFileSystem
 {
     using System;
     using System.Collections.Generic;
@@ -257,6 +259,39 @@
                 fileSystemBlockSize);
 
             return new FastFileSystemVolume(volume, volume.RootBlockOffset);
+        }
+
+        /// <summary>
+        /// Get the path to the current directory.
+        /// </summary>
+        /// <returns>Path to current directory.</returns>
+        /// <exception cref="IOException"></exception>
+        public async Task<string> GetCurrentPath()
+        {
+            var pathComponents = new LinkedList<string>();
+
+            var directorySector = currentDirectorySector;
+            EntryBlock entryBlock;
+            do
+            {
+                entryBlock = await Disk.ReadEntryBlock(volume, directorySector);
+                
+                if (entryBlock == null)
+                {
+                    throw new IOException($"Entry block not found at sector {directorySector}");
+                }
+                
+                directorySector = entryBlock.Parent;
+
+                if (directorySector == 0)
+                {
+                    continue;
+                }
+                
+                pathComponents.AddFirst(entryBlock.Name);
+            } while (!(entryBlock is RootBlock) && directorySector > 0);
+
+            return string.Concat("/", string.Join("/", pathComponents.ToList()));
         }
     }
 }

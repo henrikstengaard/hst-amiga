@@ -386,5 +386,37 @@
             Pfs3Helper.Flush(g).GetAwaiter().GetResult();
             GC.SuppressFinalize(this);
         }
+
+        /// <summary>
+        /// Get the path to the current directory.
+        /// </summary>
+        /// <returns>Path to current directory.</returns>
+        /// <exception cref="IOException"></exception>
+        public async Task<string> GetCurrentPath()
+        {
+            var currentDirectory = await GetCurrentDirectory();
+            var parentDirectory = new objectinfo();
+            var pathComponents = new LinkedList<string>();
+
+            do
+            {
+                if (!await Directory.GetParent(currentDirectory, parentDirectory, g))
+                {
+                    break;
+                }
+
+                if (parentDirectory.file.dirblock.dirblock == null)
+                {
+                    break;
+                }
+
+                currentDirectory = parentDirectory;
+
+                pathComponents.AddFirst(currentDirectory.file.direntry.Name);
+            } while (currentDirectory.file.dirblock.dirblock != null &&
+                     currentDirectory.file.dirblock.dirblock.anodenr != Constants.ANODE_ROOTDIR);
+
+            return string.Concat("/", string.Join("/", pathComponents.ToList()));
+        }
     }
 }

@@ -1037,4 +1037,42 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         // act & assert - create and overwrite file with same name as directory throws exception
         await Assert.ThrowsAsync<NotAFileException>(async () => await ffsVolume.CreateFile("Dir", true, true));
     }
+
+    [Fact]
+    public async Task When_GetCurrentPathFromRoot_Then_CurrentPathIsCorrect()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - get the current path
+        var currentPath = await ffsVolume.GetCurrentPath();
+        
+        // assert - the current path is correct
+        Assert.Equal("/", currentPath);
+    }
+
+    [Fact]
+    public async Task When_GetCurrentPathFromSubDirectory_Then_CurrentPathIsCorrect()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - create directories
+        await ffsVolume.CreateDirectory("dir1");
+        await ffsVolume.ChangeDirectory("dir1");
+        await ffsVolume.CreateDirectory("dir2");
+        await ffsVolume.ChangeDirectory("dir2");
+
+        // act - get the current path
+        var currentPath = await ffsVolume.GetCurrentPath();
+        
+        // assert - the current path is correct
+        Assert.Equal("/dir1/dir2", currentPath);
+    }
 }

@@ -111,5 +111,11 @@
         /// </summary>
         /// <returns></returns>
         IEnumerable<string> GetStatus();
+
+        /// <summary>
+        /// Get the path to the current directory.
+        /// </summary>
+        /// <returns>Path to current directory.</returns>
+        Task<string> GetCurrentPath();
     }
 }
