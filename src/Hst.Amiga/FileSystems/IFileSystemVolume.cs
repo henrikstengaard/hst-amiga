@@ -113,6 +113,11 @@
         IEnumerable<string> GetStatus();
 
         /// <summary>
+        /// Current directory block number.
+        /// </summary>
+        uint CurrentDirectoryBlockNumber { get; }
+        
+        /// <summary>
         /// Get the path to the current directory.
         /// </summary>
         /// <returns>Path to current directory.</returns>

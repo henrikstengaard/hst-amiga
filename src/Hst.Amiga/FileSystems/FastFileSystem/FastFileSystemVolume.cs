@@ -293,5 +293,10 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
 
             return string.Concat("/", string.Join("/", pathComponents.ToList()));
         }
+        
+        /// <summary>
+        /// Current directory block number.
+        /// </summary>
+        public uint CurrentDirectoryBlockNumber => currentDirectorySector;
     }
 }
