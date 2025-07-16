@@ -20,9 +20,10 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
                 throw new ArgumentException("Protection bits must have length of 8 characters", nameof(UaeMetafile.ProtectionBits));
             }
 
-            var truncatedComment = (uaeMetafile.Comment ?? string.Empty).Length > MaxCommentLength
-                ? uaeMetafile.Comment.Substring(0, MaxCommentLength)
-                : uaeMetafile.Comment;
+            var comment = uaeMetafile.Comment ?? string.Empty;
+            var truncatedComment = comment.Length > MaxCommentLength
+                ? comment.Substring(0, MaxCommentLength)
+                : comment;
             var commentBytes = Iso88591Encoding.GetBytes(truncatedComment);
             var size = ProtectionBitsSize + DelimiterSize + DateSize + DelimiterSize + commentBytes.Length + NewlineSize;
             var uaeMetafileBytes = new byte[size];
