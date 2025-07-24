@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.ConsoleApp;
+﻿using Hst.Amiga.Roms;
+
+namespace Hst.Amiga.ConsoleApp;
 
 using System;
 using System.Threading;
@@ -96,5 +98,41 @@ public static class CommandHandler
     public static async Task IconToolTypesImport(string iconPath, string toolTypesPath, bool preserveNewIcon)
     {
         await Execute(new IconToolTypesImport(GetLogger<IconToolTypesImport>(), iconPath, toolTypesPath, preserveNewIcon));
+    }
+
+    public static async Task EpromBuildA500(string kickstartRomPath, EpromType? epromType, int? size)
+    {
+        await Execute(new EpromBuild16BitCommand("a500", kickstartRomPath, EpromBuilder.RomIcNameA500,
+            epromType, size));
+    }
+
+    public static async Task EpromBuildA600(string kickstartRomPath, EpromType? epromType, int? size)
+    {
+        await Execute(new EpromBuild16BitCommand("a600", kickstartRomPath, EpromBuilder.RomIcNameA600,
+            epromType, size));
+    }
+
+    public static async Task EpromBuildA2000(string kickstartRomPath, EpromType? epromType, int? size)
+    {
+        await Execute(new EpromBuild16BitCommand("a2000", kickstartRomPath, EpromBuilder.RomIcNameA2000,
+            epromType, size));
+    }
+
+    public static async Task EpromBuildA1200(string kickstartRomPath, EpromType? epromType, int? size)
+    {
+        await Execute(new EpromBuild32BitCommand("a1200", kickstartRomPath, EpromBuilder.HiRomIcNameA1200,
+            EpromBuilder.LoRomIcNameA1200, epromType, size));
+    }
+    
+    public static async Task EpromBuildA3000(string kickstartRomPath, EpromType? epromType, int? size)
+    {
+        await Execute(new EpromBuild32BitCommand("a3000", kickstartRomPath, EpromBuilder.HiRomIcNameA3000,
+            EpromBuilder.LoRomIcNameA3000, epromType, size));
+    }
+
+    public static async Task EpromBuildA4000(string kickstartRomPath, EpromType? epromType, int? size)
+    {
+        await Execute(new EpromBuild32BitCommand("a4000", kickstartRomPath, EpromBuilder.HiRomIcNameA4000,
+            EpromBuilder.LoRomIcNameA4000, epromType, size));
     }
 }

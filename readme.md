@@ -20,6 +20,8 @@ Hst Amiga console version comes with following features:
   - Create and update icons.
   - Import and export icon images, supporting iff, png and bmp image formats.
   - Convert icon images between bit plane, new icon and color icons.
+- EPROMs
+  - Build EPROMs from Amiga Kickstart ROMs for A500, A600, A2000, A1200, A3000 and A4000.
 
 ## Versions
 

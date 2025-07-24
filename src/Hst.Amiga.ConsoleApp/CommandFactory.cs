@@ -12,6 +12,7 @@ public static class CommandFactory
         };
 
         rootCommand.AddCommand(IconCommandFactory.CreateIconCommand());
+        rootCommand.AddCommand(EpromCommandFactory.CreateEpromCommand());
 
         return rootCommand;
     }

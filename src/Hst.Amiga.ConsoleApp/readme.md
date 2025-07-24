@@ -272,3 +272,155 @@ Example of updating drawer x position to 100, drawer y position to 100, drawer w
 ```
 hst.amiga icon update disk.info --drawer-x 100 --drawer-y 100 --drawer-width 200 --drawer-height 100
 ```
+
+## EPROM commands
+
+### Build EPROM for A500
+
+Build EPROM `.bin` files for A500 from a kickstart ROM file.
+The kickstart ROM is byte swapped and padded to fit the EPROM size.
+
+Example of displaying usage for build EPROM for A500:
+```
+hst.amiga eprom build a500
+```
+
+Example of building EPROM for A500 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom`:
+```
+hst.amiga eprom build a500 kickCDTVa1000a500a2000a600.rom
+```
+
+Example of building EPROM for A500 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom` for an AM27C800 EPROM:
+```
+hst.amiga eprom build a500 kickCDTVa1000a500a2000a600.rom -e am27c800
+```
+
+Example of building EPROM for A500 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom` for an EPROM of size 1048576 bytes:
+```
+hst.amiga eprom build a500 kickCDTVa1000a500a2000a600.rom -s 1048576
+```
+
+### Build EPROM for A600
+
+Build EPROM `.bin` files for A600 from a kickstart ROM file.
+The kickstart ROM is byte swapped and padded to fit the EPROM size.
+
+Example of displaying usage for build EPROM for A600:
+```
+hst.amiga eprom build a600
+```
+
+Example of building EPROM for A600 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom`:
+```
+hst.amiga eprom build a600 kickCDTVa1000a500a2000a600.rom
+```
+
+Example of building EPROM for A600 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom` for an AM27C800 EPROM:
+```
+hst.amiga eprom build a600 kickCDTVa1000a500a2000a600.rom -e am27c800
+```
+
+Example of building EPROM for A600 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom` for an EPROM of size 1048576 bytes:
+```
+hst.amiga eprom build a600 kickCDTVa1000a500a2000a600.rom -s 1048576
+```
+
+### Build EPROM for A2000
+
+Build EPROM `.bin` files for A2000 from a kickstart ROM file.
+The kickstart ROM is byte swapped and padded to fit the EPROM size.
+
+Example of displaying usage for build EPROM for A2000:
+```
+hst.amiga eprom build a2000
+```
+
+Example of building EPROM for A2000 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom`:
+```
+hst.amiga eprom build a2000 kickCDTVa1000a500a2000a600.rom
+```
+
+Example of building EPROM for A2000 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom` for an AM27C800 EPROM:
+```
+hst.amiga eprom build a2000 kickCDTVa1000a500a2000a600.rom -e am27c800
+```
+
+Example of building EPROM for A2000 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom` for an EPROM of size 1048576 bytes:
+```
+hst.amiga eprom build a2000 kickCDTVa1000a500a2000a600.rom -s 1048576
+```
+
+### Build EPROM for A1200
+
+Build EPROM `.bin` files for A1200 from a kickstart ROM file.
+The kickstart ROM is split into hi and lo EPROMs by word size, byte swapped and padded to fit the EPROM size.
+
+Example of displaying usage for build EPROM for A1200:
+```
+hst.amiga eprom build a1200
+```
+
+Example of building EPROM for A1200 from AmigaOS 3.2 kickstart ROM file `kicka1200.rom`:
+```
+hst.amiga eprom build a1200 kicka1200.rom
+```
+
+Example of building EPROM for A1200 from AmigaOS 3.2 kickstart ROM file `kicka1200.rom` for an AM27C800 EPROM:
+```
+hst.amiga eprom build a1200 kicka1200.rom -e am27c800
+```
+
+Example of building EPROM for A1200 from AmigaOS 3.2 kickstart ROM file `kicka1200.rom` for an EPROM of size 1048576 bytes:
+```
+hst.amiga eprom build a1200 kicka1200.rom -s 1048576
+```
+
+### Build EPROM for A3000
+
+Build EPROM `.bin` files for A3000 from a kickstart ROM file.
+The kickstart ROM is split into hi and lo EPROMs by word size, byte swapped and padded to fit the EPROM size.
+
+Example of displaying usage for build EPROM for A3000:
+```
+hst.amiga eprom build a3000
+```
+
+Example of building EPROM for A3000 from kickstart ROM file `kicka3000.rom`:
+```
+hst.amiga eprom build a3000 kicka3000.rom
+```
+
+Example of building EPROM for A3000 from AmigaOS 3.2 kickstart ROM file `kicka3000.rom` for an AM27C800 EPROM:
+```
+hst.amiga eprom build a3000 kicka3000.rom -e am27c800
+```
+
+Example of building EPROM for A3000 from AmigaOS 3.2 kickstart ROM file `kicka3000.rom` for an EPROM of size 1048576 bytes:
+```
+hst.amiga eprom build a3000 kicka3000.rom -s 1048576
+```
+
+### Build EPROM for A4000
+
+Build EPROM `.bin` files for A4000 from a kickstart ROM file.
+The kickstart ROM is split into hi and lo EPROMs by word size, byte swapped and padded to fit the EPROM size.
+
+Example of displaying usage for build EPROM for A4000:
+```
+hst.amiga eprom build a4000
+```
+
+Example of building EPROM for A4000 from kickstart ROM file `kicka4000.rom`:
+```
+hst.amiga eprom build a4000 kicka4000.rom
+```
+
+Example of building EPROM for A4000 from AmigaOS 3.2 kickstart ROM file `kicka4000.rom` for an AM27C800 EPROM:
+```
+hst.amiga eprom build a4000 kicka4000.rom -e am27c800
+```
+
+Example of building EPROM for A4000 from AmigaOS 3.2 kickstart ROM file `kicka4000.rom` for an EPROM of size 1048576 bytes:
+```
+hst.amiga eprom build a4000 kicka4000.rom -s 1048576
+```

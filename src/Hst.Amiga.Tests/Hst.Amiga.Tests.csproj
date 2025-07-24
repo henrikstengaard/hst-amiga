@@ -30,6 +30,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Hst.Amiga.ConsoleApp\Hst.Amiga.ConsoleApp.csproj" />
       <ProjectReference Include="..\Hst.Amiga\Hst.Amiga.csproj" />
     </ItemGroup>
 
