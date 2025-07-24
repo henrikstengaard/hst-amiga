@@ -18,6 +18,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHubWorkflows", "GitHubWorkflows", "{FBEDA538-3F1E-465C-B8BC-73260378BC56}"
 	ProjectSection(SolutionItems) = preProject
 		..\.github\workflows\build-and-release.yml = ..\.github\workflows\build-and-release.yml
+		..\.github\workflows\build-and-test.yml = ..\.github\workflows\build-and-test.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Amiga.ConsoleApp", "Hst.Amiga.ConsoleApp\Hst.Amiga.ConsoleApp.csproj", "{80C209B8-EB90-4FD7-9F59-36D388C0AC54}"
