@@ -57,9 +57,9 @@ public class EpromBuild32BitCommand : CommandBase
         var kickstartDir = Path.GetDirectoryName(kickstartRomPath) ?? string.Empty;
         var kickstartName = Path.GetFileNameWithoutExtension(kickstartRomPath);
         var hiEpromPath = Path.Combine(kickstartDir, string.Concat(kickstartName, 
-            $".{amigaModel.ToLowerInvariant()}.hi.{hiRomIcName}.{epromName}.bin"));
+            $".{amigaModel.ToLowerInvariant()}.hi.{hiRomIcName.ToLowerInvariant()}.{epromName}.bin"));
         var loEpromPath = Path.Combine(kickstartDir, string.Concat(kickstartName, 
-            $".{amigaModel.ToLowerInvariant()}.lo.{loRomIcName}.{epromName}.bin"));
+            $".{amigaModel.ToLowerInvariant()}.lo.{loRomIcName.ToLowerInvariant()}.{epromName}.bin"));
 
         OnInformationMessage($"Writing {amigaModel} HI {hiRomIcName} EPROM to '{hiEpromPath}'");
         await File.WriteAllBytesAsync(hiEpromPath, hiEpromBytes, token);

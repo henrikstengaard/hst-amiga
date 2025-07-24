@@ -53,7 +53,7 @@ public class GivenEpromBuild16BitCommand
                             nameof(EpromType.Am27C400).ToLowerInvariant();
             epromRomPath = Path.Combine(
                 Path.GetDirectoryName(kickstartRomPath) ?? string.Empty,
-                $"{Path.GetFileNameWithoutExtension(kickstartRomPath)}.{amigaModel}.{romIcName}.{epromName}.bin");
+                $"{Path.GetFileNameWithoutExtension(kickstartRomPath)}.{amigaModel}.{romIcName.ToLowerInvariant()}.{epromName}.bin");
             Assert.True(File.Exists(epromRomPath), $"EPROM file '{epromRomPath}' was not created.");
 
             // arrange - create expected eprom bin bytes
