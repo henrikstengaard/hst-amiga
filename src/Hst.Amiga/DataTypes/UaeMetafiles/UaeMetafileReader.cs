@@ -32,9 +32,19 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
             }
             
             var comment = data.Length > 31 && data.Length > 33
-                ? Iso88591Encoding.GetString(data, 32, data.Length - 32 - (data[data.Length - 1] == '\n' ? 1 : 0))
+                ? Iso88591Encoding.GetString(data, 32, data.Length - 32 > MaxCommentLength ? MaxCommentLength : data.Length - 32)
                 : string.Empty;
 
+            if (data[data.Length - 1] == '\n')
+            {
+                comment = comment.TrimEnd('\n');
+            }
+
+            if (data[data.Length - 1] == '\r')
+            {
+                comment = comment.TrimEnd('\r');
+            }
+            
             return new UaeMetafile
             {
                 ProtectionBits = protectionBits,
