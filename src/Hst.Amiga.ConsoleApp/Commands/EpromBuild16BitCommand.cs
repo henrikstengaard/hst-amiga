@@ -51,7 +51,7 @@ public class EpromBuild16BitCommand : CommandBase
 
         var epromName = epromType?.ToString().ToLowerInvariant() ??
                         size?.ToString().ToLowerInvariant() ??
-                        nameof(EpromType.Am27C400);
+                        nameof(EpromType.Am27C400).ToLowerInvariant();
         var kickstartDir = Path.GetDirectoryName(kickstartRomPath) ?? string.Empty;
         var kickstartName = Path.GetFileNameWithoutExtension(kickstartRomPath);
         var epromPath = Path.Combine(kickstartDir, string.Concat(kickstartName, 

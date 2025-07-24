@@ -50,18 +50,19 @@ public class GivenEpromBuild32BitCommand
             Assert.True(epromBuild32BitCommandResult.IsSuccess);
             
             // assert - hi eprom bin file is created
+            var kickstartName = Path.GetFileNameWithoutExtension(kickstartRomPath);
             var epromName = epromType?.ToString().ToLowerInvariant() ??
                             size?.ToString().ToLowerInvariant() ??
                             nameof(EpromType.Am27C400).ToLowerInvariant();
             hiEpromBinPath = Path.Combine(
                 Path.GetDirectoryName(kickstartRomPath) ?? string.Empty,
-                $"{Path.GetFileNameWithoutExtension(kickstartRomPath)}.{amigaModel}.hi.{hiRomIcName.ToLowerInvariant()}.{epromName}.bin");
+                $"{kickstartName}.{amigaModel}.hi.{hiRomIcName.ToLowerInvariant()}.{epromName}.bin");
             Assert.True(File.Exists(hiEpromBinPath), $"HI EPROM file '{hiEpromBinPath}' was not created.");
             
             // assert - hi eprom bin file is created
             loEpromBinPath = Path.Combine(
                 Path.GetDirectoryName(kickstartRomPath) ?? string.Empty,
-                $"{Path.GetFileNameWithoutExtension(kickstartRomPath)}.{amigaModel}.lo.{loRomIcName.ToLowerInvariant()}.{epromName}.bin");
+                $"{kickstartName}.{amigaModel}.lo.{loRomIcName.ToLowerInvariant()}.{epromName}.bin");
             Assert.True(File.Exists(loEpromBinPath), $"LO EPROM file '{loEpromBinPath}' was not created.");
             
             // arrange - create expected lo eprom bin bytes split from kickstart rom bytes even 16-bit words 
