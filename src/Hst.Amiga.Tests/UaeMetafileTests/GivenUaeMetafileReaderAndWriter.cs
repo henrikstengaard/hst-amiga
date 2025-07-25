@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Hst.Amiga.DataTypes.UaeMetafiles;
 using Xunit;
@@ -11,7 +12,8 @@ public class GivenUaeMetafileReaderAndWriter
     public async Task When_ReadAndWriteUaeMetafile_Then_BytesMatch()
     {
         // arrange - uae metafile bytes to read
-        var uaeMetafileBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "UaeMetafiles", "file2%3c.uaem"));
+        var uaeMetafileBytes = PatchNewline(await File.ReadAllBytesAsync(
+            Path.Combine("TestData", "UaeMetafiles", "file2%3c.uaem")));
 
         // act - read uae metafile
         var uaeMetafile = UaeMetafileReader.Read(uaeMetafileBytes);
@@ -22,7 +24,16 @@ public class GivenUaeMetafileReaderAndWriter
         // assert - uae metafile bytes matches written uae metafile bytes
         Assert.Equal(uaeMetafileBytes.Length, writtenUaeMetafileBytes.Length);
         Assert.Equal(uaeMetafileBytes, writtenUaeMetafileBytes);
+    }
+    
+    private static byte[] PatchNewline(byte[] uaeMetafileBytes) 
+    {
+        if (uaeMetafileBytes[^2] == '\r' &&
+            uaeMetafileBytes[^1] == '\n')
+        {
+            return uaeMetafileBytes.Take(uaeMetafileBytes.Length - 2).ToArray().Concat(new byte[]{ 0xa }).ToArray();
+        }
         
-        
+        return uaeMetafileBytes;
     }
 }
