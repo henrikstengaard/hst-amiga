@@ -35,14 +35,14 @@ namespace Hst.Amiga.DataTypes.UaeMetafiles
                 ? Iso88591Encoding.GetString(data, 32, data.Length - 32 > MaxCommentLength ? MaxCommentLength : data.Length - 32)
                 : string.Empty;
 
-            if (data[data.Length - 1] == '\n')
+            if (comment.Length > 0 && comment[comment.Length - 1] == '\n')
             {
-                comment = comment.TrimEnd('\n');
+                comment = comment.Substring(0, comment.Length - 1);
             }
 
-            if (data[data.Length - 1] == '\r')
+            if (comment.Length > 0 && comment[comment.Length - 1] == '\r')
             {
-                comment = comment.TrimEnd('\r');
+                comment = comment.Substring(0, comment.Length - 1);
             }
             
             return new UaeMetafile

@@ -80,4 +80,29 @@ public class GivenUaeMetafileReader
         // assert - comment match
         Assert.Equal(comment.Substring(0, MaxCommentLength), uaeMetafile.Comment);
     }
+    
+    [Theory]
+    [InlineData("\r\n")]
+    [InlineData("\n")]
+    [InlineData("\r")]
+    [InlineData("")]
+    public void When_ReadUaeMetafileWithCommentEmptyOrEndsWithNewline_ThenCommentIsEmpty(string comment)
+    {
+        // arrange
+        var uaeMetafileBytes = iso88591Encoding.GetBytes("----rwed 2024-03-15 19:01:13.84 ")
+            .Concat(iso88591Encoding.GetBytes(comment)).ToArray();
+
+        // act - read uae metafile
+        var uaeMetafile = UaeMetafileReader.Read(uaeMetafileBytes);
+
+        // assert - protection bits match
+        Assert.Equal("----rwed", uaeMetafile.ProtectionBits);
+
+        // assert - date match
+        var expectedDate = new DateTime(2024, 3, 15, 19, 1, 13, 840, DateTimeKind.Local);
+        Assert.Equal(expectedDate, uaeMetafile.Date);
+
+        // assert - comment match
+        Assert.Equal(string.Empty, uaeMetafile.Comment);
+    }
 }
