@@ -60,7 +60,8 @@ public class IconImageConvert : IconCommandBase
 
         OnInformationMessage($"Writing disk object to icon file '{path}'");
         
-        await WriteIcon(iconStream, diskObject, colorIcon);
+        await WriteIcon(iconStream, diskObject);
+        await WriteColorIcon(iconStream, colorIcon);
 
         return new Result();
     }

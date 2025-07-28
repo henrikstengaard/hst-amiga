@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core;
 using DataTypes.DiskObjects;
-using DataTypes.DiskObjects.ColorIcons;
 using Microsoft.Extensions.Logging;
 using Models;
 
@@ -53,9 +52,6 @@ public class IconUpdateCommand : IconCommandBase
 
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = iconStream.Position < iconStream.Length
-            ? await ColorIconReader.Read(iconStream)
-            : new ColorIcon();
 
         if (!IsDrawerIcon(diskObject) && drawerX.HasValue)
         {
@@ -162,7 +158,7 @@ public class IconUpdateCommand : IconCommandBase
 
         OnInformationMessage($"Writing disk object to icon file '{path}'");
 
-        await WriteIcon(iconStream, diskObject, colorIcon);
+        await WriteIcon(iconStream, diskObject);
 
         return new Result();
     }

@@ -1,3 +1,5 @@
+using Hst.Core.Extensions;
+
 namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
@@ -9,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core;
 using DataTypes.DiskObjects;
-using DataTypes.DiskObjects.ColorIcons;
 using DataTypes.DiskObjects.NewIcons;
 using Microsoft.Extensions.Logging;
 
@@ -40,9 +41,9 @@ public class IconToolTypesImport : IconCommandBase
 
         await using var iconStream = File.Open(iconPath, FileMode.Open, FileAccess.ReadWrite);
         var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = iconStream.Position < iconStream.Length
-            ? await ColorIconReader.Read(iconStream)
-            : new ColorIcon();
+        var colorIconData = iconStream.Position < iconStream.Length
+            ? await iconStream.ReadBytes((int)(iconStream.Length - iconStream.Position))
+            : Array.Empty<byte>();
 
         var preservedNewIconTextDatas = new List<TextData>();
         if (preserveNewIcon)
@@ -106,11 +107,15 @@ public class IconToolTypesImport : IconCommandBase
 
         OnInformationMessage($"Writing disk object to icon file '{iconPath}'");
 
-        await WriteIcon(iconStream, diskObject, colorIcon);
+        await WriteIcon(iconStream, diskObject);
+
+        if (colorIconData.Length > 0)
+        {
+            await iconStream.WriteAsync(colorIconData, 0, colorIconData.Length, token);
+        }
 
         return new Result();
     }
 
-    private static readonly byte[] NewIconHeaderBytes = AmigaTextHelper.GetBytes(Constants.NewIcon.Header);
     private static readonly byte[] NewIconImageHeaderBytes = AmigaTextHelper.GetBytes("IM");
 }

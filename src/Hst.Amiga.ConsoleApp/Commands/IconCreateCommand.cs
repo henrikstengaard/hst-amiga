@@ -119,7 +119,8 @@ public class IconCreateCommand : IconCommandBase
         OnInformationMessage($"Writing disk object to icon file '{path}'");
         
         await using var iconStream = File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-        await WriteIcon(iconStream, diskObject, colorIcon);
+        await WriteIcon(iconStream, diskObject);
+        await WriteColorIcon(iconStream, colorIcon);
 
         return new Result();
     }

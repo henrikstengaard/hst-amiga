@@ -187,17 +187,21 @@ public abstract class IconCommandBase : CommandBase
         }
     }
 
-    protected static async Task WriteIcon(Stream stream, DiskObject diskObject, ColorIcon colorIcon)
+    protected static async Task WriteIcon(Stream stream, DiskObject diskObject)
     {
-        stream.SetLength(0);
+        stream.Position = 0;
         await DiskObjectWriter.Write(diskObject, stream);
+    }
 
-        stream.SetLength(stream.Position);
-        
-        if (colorIcon.Images.Length > 0)
+    protected static async Task WriteColorIcon(Stream stream, ColorIcon colorIcon)
+    {
+        if (colorIcon.Images.Length == 0)
         {
-            await ColorIconWriter.Write(stream, colorIcon, true, true);
-        }        
+            return;
+        }
+        
+        stream.SetLength(stream.Position);
+        await ColorIconWriter.Write(stream, colorIcon, true, true);
     }
     
     protected static void DeleteAllIconImages(DiskObject diskObject, ColorIcon colorIcon)

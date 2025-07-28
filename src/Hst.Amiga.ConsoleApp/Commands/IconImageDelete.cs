@@ -38,11 +38,16 @@ public class IconImageDelete : IconCommandBase
             ? await ColorIconReader.Read(iconStream)
             : new ColorIcon();
 
-        DeleteIconImages(diskObject, colorIcon);
+        var deleteIconImagesResult = DeleteIconImages(diskObject, colorIcon);
+        if (deleteIconImagesResult.IsFaulted)
+        {
+            return deleteIconImagesResult;
+        }
         
         OnInformationMessage($"Writing disk object to icon file '{path}'");
         
-        await WriteIcon(iconStream, diskObject, colorIcon);
+        await WriteIcon(iconStream, diskObject);
+        await WriteColorIcon(iconStream, colorIcon);
 
         return new Result();
     }
