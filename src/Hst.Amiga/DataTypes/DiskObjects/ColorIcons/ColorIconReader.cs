@@ -134,7 +134,7 @@
             return new ColorIconImage
             {
                 Depth = depth,
-                Image = new Image(faceChunk.Width, faceChunk.Height, hasPalette ? 8 : 24, palette, pixels)
+                Image = new Image(faceChunk.Width, faceChunk.Height, 8, palette, pixels)
             };
         }
 
