@@ -26,6 +26,13 @@ public class GivenUaeMetafileReaderAndWriter
         Assert.Equal(uaeMetafileBytes, writtenUaeMetafileBytes);
     }
     
+    /// <summary>
+    /// Patches the newline characters in the uae metafile bytes.
+    /// This is necessary because the original metafile may end with a CRLF sequence (`\r\n`) or LF sequence (`\n`)
+    /// depending on the platform being Windows, macOS or Linux.
+    /// </summary>
+    /// <param name="uaeMetafileBytes"></param>
+    /// <returns></returns>
     private static byte[] PatchNewline(byte[] uaeMetafileBytes) 
     {
         if (uaeMetafileBytes[^2] == '\r' &&
