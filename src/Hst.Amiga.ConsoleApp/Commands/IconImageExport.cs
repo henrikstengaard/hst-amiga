@@ -60,6 +60,12 @@ public class IconImageExport : CommandBase
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
                     OnInformationMessage($"Exporting planar icon image 1 to file '{image1Path}'");
+
+                    if (diskObject.FirstImageData == null)
+                    {
+                        return new Result(new Error("Icon doesn't have planar icon image 1"));
+                    }
+                    
                     var image = ImageDataDecoder.Decode(diskObject.FirstImageData,
                         GetPalette(diskObject.FirstImageData), true);
                     WriteImage(image1Path, image);
@@ -68,6 +74,12 @@ public class IconImageExport : CommandBase
                 if (!string.IsNullOrWhiteSpace(image2Path))
                 {
                     OnInformationMessage($"Exporting planar icon image 2 to file '{image2Path}'");
+
+                    if (diskObject.SecondImageData == null)
+                    {
+                        return new Result(new Error("Icon doesn't have planar icon image 2"));
+                    }
+
                     var image = ImageDataDecoder.Decode(diskObject.SecondImageData,
                         GetPalette(diskObject.SecondImageData), true);
                     WriteImage(image2Path, image);
@@ -78,7 +90,13 @@ public class IconImageExport : CommandBase
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
                     OnInformationMessage($"Exporting new icon image 1 to file '{image1Path}'");
+                    
                     var newIcon = NewIconHelper.GetNewIconImage(diskObject, 1);
+                    if (newIcon == null)
+                    {
+                        return new Result(new Error("Icon doesn't have new icon image 1"));
+                    }
+
                     var image = NewIconConverter.ToImage(newIcon);
                     WriteImage(image1Path, image);
                 }
@@ -86,7 +104,13 @@ public class IconImageExport : CommandBase
                 if (!string.IsNullOrWhiteSpace(image2Path))
                 {
                     OnInformationMessage($"Exporting new icon image 2 to file '{image2Path}'");
+
                     var newIcon = NewIconHelper.GetNewIconImage(diskObject, 2);
+                    if (newIcon == null)
+                    {
+                        return new Result(new Error("Icon doesn't have new icon image 2"));
+                    }
+
                     var image = NewIconConverter.ToImage(newIcon);
                     WriteImage(image2Path, image);
                 }
@@ -96,9 +120,10 @@ public class IconImageExport : CommandBase
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
                     OnInformationMessage($"Exporting color icon image 1 to file '{image1Path}'");
+
                     if (colorIcon.Images.Length < 1)
                     {
-                        throw new ArgumentException("Icon doesn't have color icon image 1", nameof(image1Path));
+                        return new Result(new Error("Icon doesn't have color icon image 1"));
                     }
 
                     WriteImage(image1Path, colorIcon.Images[0].Image);
@@ -107,9 +132,10 @@ public class IconImageExport : CommandBase
                 if (!string.IsNullOrWhiteSpace(image2Path))
                 {
                     OnInformationMessage($"Exporting color icon image 2 to file '{image2Path}'");
+
                     if (colorIcon.Images.Length < 2)
                     {
-                        throw new ArgumentException("Icon doesn't have color icon image 2", nameof(image2Path));
+                        return new Result(new Error("Icon doesn't have color icon image 2"));
                     }
 
                     WriteImage(image2Path, colorIcon.Images[1].Image);
