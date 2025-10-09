@@ -55,9 +55,16 @@ Example of displaying information about icon info "disk.info":
 hst.amiga icon info disk.info
 ```
 
-### Create new icon
+### Create icon
 
-Create a new icon file and optionally import icon images.
+The create icon command creates a new icon file and optionally import icon images.
+
+Hst Amiga can create following icon types:
+- Disk
+- Drawer
+- Tool
+- Project
+- Garbage
 
 Hst Amiga can create following icon image types:
 - Planar
@@ -85,7 +92,7 @@ hst.amiga icon create disk.info disk --image-type planar --image1-path image1.pn
 
 ### Convert icon images
 
-Convert icon images from one type to another.
+The convert icon image command converts icon images from one type to another.
 
 Hst Amiga can convert between following icon image types:
 - Planar
@@ -114,7 +121,7 @@ hst.amiga icon image convert disk.info auto coloricon
 
 ### Delete icon images
 
-Delete icon images from an icon file.
+The delete icon image command deletes icon images from an icon file.
 
 Example of displaying usage for delete icon images:
 ```
@@ -138,7 +145,7 @@ hst.amiga icon image delete disk.info newicon
 
 ### Export icon images
 
-Export icon images from an icon file.
+The export icon image command exports icon images from an icon file.
 
 Hst Amiga can export following icon image types:
 - Planar
@@ -176,7 +183,7 @@ hst.amiga icon image export disk.info coloricon --image1-path image1.png --image
 
 ### Import icon images
 
-Import icon images to an icon file.
+The import icon image command imports icon images to an icon file.
 
 Hst Amiga can import following icon image types:
 - Planar
@@ -209,7 +216,7 @@ hst.amiga icon image import disk.info coloricon --image1-path image1.png --image
 
 ### Import tool types
 
-Import tool types to an icon file.
+The import tool types command imports tool types from a file to an icon file. Any existing tool types are replaced with the imported tool types.
 
 Example of displaying usage for import icon images:
 ```
@@ -228,7 +235,7 @@ hst.amiga icon tooltypes import disk.info tooltypes.txt --preserve-newicon
 
 ### Export tool types
 
-Export tool types from an icon file.
+The export tool types command exports tool types from an icon file to a file.
 
 Example of displaying usage for export icon images:
 ```
@@ -247,7 +254,7 @@ hst.amiga icon tooltypes import disk.info tooltypes.txt --exclude-newicon
 
 ### Update icon
 
-Updates icon properties:
+The update icon command updates properties of an existing icon file:
 - Type
 - X position
 - Y position
@@ -277,7 +284,7 @@ hst.amiga icon update disk.info --drawer-x 100 --drawer-y 100 --drawer-width 200
 
 ### Build EPROM for A500
 
-Build EPROM `.bin` files for A500 from a kickstart ROM file.
+The build EPROM command builds EPROM `.bin` files for A500 from a kickstart ROM file.
 The kickstart ROM is byte swapped and padded to fit the EPROM size.
 
 Example of displaying usage for build EPROM for A500:
@@ -302,7 +309,7 @@ hst.amiga eprom build a500 kickCDTVa1000a500a2000a600.rom -s 1048576
 
 ### Build EPROM for A600
 
-Build EPROM `.bin` files for A600 from a kickstart ROM file.
+The build EPROM command builds EPROM `.bin` files for A600 from a kickstart ROM file.
 The kickstart ROM is byte swapped and padded to fit the EPROM size.
 
 Example of displaying usage for build EPROM for A600:
@@ -327,7 +334,7 @@ hst.amiga eprom build a600 kickCDTVa1000a500a2000a600.rom -s 1048576
 
 ### Build EPROM for A2000
 
-Build EPROM `.bin` files for A2000 from a kickstart ROM file.
+The build EPROM command builds EPROM `.bin` files for A2000 from a kickstart ROM file.
 The kickstart ROM is byte swapped and padded to fit the EPROM size.
 
 Example of displaying usage for build EPROM for A2000:
@@ -352,7 +359,7 @@ hst.amiga eprom build a2000 kickCDTVa1000a500a2000a600.rom -s 1048576
 
 ### Build EPROM for A1200
 
-Build EPROM `.bin` files for A1200 from a kickstart ROM file.
+The build EPROM command builds EPROM `.bin` files for A1200 from a kickstart ROM file.
 The kickstart ROM is split into hi and lo EPROMs by word size, byte swapped and padded to fit the EPROM size.
 
 Example of displaying usage for build EPROM for A1200:
@@ -377,7 +384,7 @@ hst.amiga eprom build a1200 kicka1200.rom -s 1048576
 
 ### Build EPROM for A3000
 
-Build EPROM `.bin` files for A3000 from a kickstart ROM file.
+The build EPROM command builds EPROM `.bin` files for A3000 from a kickstart ROM file.
 The kickstart ROM is split into hi and lo EPROMs by word size, byte swapped and padded to fit the EPROM size.
 
 Example of displaying usage for build EPROM for A3000:
@@ -402,7 +409,7 @@ hst.amiga eprom build a3000 kicka3000.rom -s 1048576
 
 ### Build EPROM for A4000
 
-Build EPROM `.bin` files for A4000 from a kickstart ROM file.
+The build EPROM command builds EPROM `.bin` files for A4000 from a kickstart ROM file.
 The kickstart ROM is split into hi and lo EPROMs by word size, byte swapped and padded to fit the EPROM size.
 
 Example of displaying usage for build EPROM for A4000:
@@ -423,4 +430,40 @@ hst.amiga eprom build a4000 kicka4000.rom -e am27c800
 Example of building EPROM for A4000 from AmigaOS 3.2 kickstart ROM file `kicka4000.rom` for an EPROM of size 1048576 bytes:
 ```
 hst.amiga eprom build a4000 kicka4000.rom -s 1048576
+```
+
+### Fill EPROM
+
+The fill EPROM command fills an EPROM file from kickstart rom by concatenating it until the EPROM size is reached.
+
+The zero fill option fills the EPROM with zeroes until the EPROM size is reached instead of concatenating the kickstart ROM multiple times.
+
+Example of displaying usage for fill EPROM:
+```
+hst.amiga eprom fill
+```
+
+Example of filling EPROM for A500 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom` for an AM27C800 EPROM:
+```
+hst.amiga eprom fill kickCDTVa1000a500a2000a600.rom -e am27c800
+```
+
+Example of filling EPROM for A500 from AmigaOS 3.2 kickstart ROM file `kickCDTVa1000a500a2000a600.rom` for an EPROM of size 1048576 bytes:
+```
+hst.amiga eprom fill kickCDTVa1000a500a2000a600.rom -s 1048576
+```
+
+### Byte swap EPROM
+
+The byte swap EPROM command byte swaps an EPROM file by byte swapping 16-bit words from a kickstart ROM file.
+As an example bytes 0x00, 0x01, 0x02, 0x03 are byte swapped to 0x01, 0x00, 0x03, 0x02.
+
+Example of displaying usage for byte swap EPROM:
+```
+hst.amiga eprom byteswap
+```
+
+Example of byte swapping EPROM for A500 from kickstart ROM file `kickCDTVa1000a500a2000a600.rom`:
+```
+hst.amiga eprom byteswap kickCDTVa1000a500a2000a600.rom
 ```

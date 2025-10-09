@@ -10,6 +10,8 @@ public static class EpromCommandFactory
         var command = new Command("eprom", "EPROM.");
 
         command.AddCommand(CreateEpromBuild());
+        command.AddCommand(CreateEpromFill());
+        command.AddCommand(CreateEpromByteSwap());
 
         return command;
     }
@@ -34,11 +36,11 @@ public static class EpromCommandFactory
     
     private static Option<EpromType?> CreateEpromTypeOption() => new(
         new[] { "--eprom", "-e" },
-        description: $"EPROM type to build for.");
+        description: $"EPROM type to use.");
         
     private static Option<int?> CreateSizeOption() => new(
         new[] { "--size", "-s" },
-        description: $"Size of EPROM in bytes to build for.");
+        description: $"Size of EPROM in bytes to use.");
     
     private static Command CreateEpromBuildA500()
     {
@@ -128,5 +130,37 @@ public static class EpromCommandFactory
         command.AddOption(sizeOption);
 
         return command;
-    } 
+    }
+
+    private static Command CreateEpromFill()
+    {
+        var kickstartRomPathArgument = CreateKickstartRomPathArgument();
+        var epromTypeOption = CreateEpromTypeOption();
+        var sizeOption = CreateSizeOption();
+        
+        var zeroFillOption = new Option<bool?>(
+            new[] { "--zero-fill", "-z" },
+            description: $"Fill zeroes until size of EPROM instead of concatenating Kickstart rom multiple times.");
+        
+        
+        var command = new Command("fill", "Fill EPROM .bin file from kickstart rom file concatenated multiple times.");
+        command.SetHandler(CommandHandler.EpromFill, kickstartRomPathArgument, epromTypeOption, sizeOption, zeroFillOption);
+        command.AddArgument(kickstartRomPathArgument);
+        command.AddOption(epromTypeOption);
+        command.AddOption(sizeOption);
+        command.AddOption(zeroFillOption);
+
+        return command;
+    }
+
+    private static Command CreateEpromByteSwap()
+    {
+        var kickstartRomPathArgument = CreateKickstartRomPathArgument();
+        
+        var command = new Command("byteswap", "Byte swap EPROM .bin file from kickstart rom file.");
+        command.SetHandler(CommandHandler.EpromByteSwap, kickstartRomPathArgument);
+        command.AddArgument(kickstartRomPathArgument);
+
+        return command;
+    }
 }

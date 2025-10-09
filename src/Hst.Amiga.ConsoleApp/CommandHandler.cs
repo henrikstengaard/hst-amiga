@@ -135,4 +135,14 @@ public static class CommandHandler
         await Execute(new EpromBuild32BitCommand("a4000", kickstartRomPath, EpromBuilder.HiRomIcNameA4000,
             EpromBuilder.LoRomIcNameA4000, epromType, size));
     }
+    
+    public static async Task EpromFill(string kickstartRomPath, EpromType? epromType, int? size, bool? zeroFill)
+    {
+        await Execute(new EpromFillCommand(kickstartRomPath, epromType, size, zeroFill));
+    }
+
+    public static async Task EpromByteSwap(string kickstartRomPath)
+    {
+        await Execute(new EpromByteSwapCommand(kickstartRomPath));
+    }
 }

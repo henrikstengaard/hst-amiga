@@ -41,6 +41,84 @@ namespace Hst.Amiga.Roms
         }
 
         /// <summary>
+        /// Fill EPROM from kickstart rom concatenating it until the EPROM size is reached.
+        /// </summary>
+        /// <param name="kickstartRomBytes">Kickstart rom bytes to fill EPROM from.</param>
+        /// <param name="epromType">EPROM type to build for.</param>
+        /// <param name="size">Size of EPROM in bytes to build for.</param>
+        /// <param name="zeroFill">If true fill EPROM with kickstart rom and zeroes, otherwise fill by concatenating kickstart rom.</param>
+        /// <returns>EPROM bytes.</returns>
+        public static Result<byte[]> FillEprom(byte[] kickstartRomBytes, EpromType? epromType, int? size, bool? zeroFill)
+        {
+            var epromSizeResult = GetEpromSize(epromType, size);
+            if (epromSizeResult.IsFaulted)
+            {
+                return new Result<byte[]>(epromSizeResult.Error);
+            }
+
+            var epromSize = epromSizeResult.Value;
+
+
+            if (zeroFill.HasValue && zeroFill.Value)
+            {
+                return FillZeroesToSize(kickstartRomBytes, epromSize);
+            }
+
+            if (epromSize % kickstartRomBytes.Length == 0)
+            {
+                return FillConcatenatedToSize(kickstartRomBytes, epromSize);
+            }
+            
+            return new Result<byte[]>(
+                new Error($"Eprom size {size} is not a multiple of {kickstartRomBytes.Length} bytes."));
+        }
+        
+        private static Result<byte[]> FillConcatenatedToSize(byte[] kickstartRomBytes, int epromSize)
+        {
+            if (kickstartRomBytes.Length % Constants.EpromSize.Eprom256KbSize != 0)
+            {
+                return new Result<byte[]>(new Error(
+                    $"Kickstart rom size {kickstartRomBytes.Length} is not a multiple of {Constants.EpromSize.Eprom256KbSize} bytes."));
+            }
+            
+            var epromBytes = Fill(kickstartRomBytes, epromSize);
+
+            return new Result<byte[]>(epromBytes);
+        }
+        
+        private static Result<byte[]> FillZeroesToSize(byte[] kickstartRomBytes, int epromSize)
+        {
+            if (epromSize < kickstartRomBytes.Length)
+            {
+                return new Result<byte[]>(new Error($"Eprom size {epromSize} doesn't fit Kickstart rom."));
+            }
+
+            var epromBytes = new byte[epromSize];
+            Array.Copy(kickstartRomBytes, epromBytes, kickstartRomBytes.Length);
+
+            return new Result<byte[]>(epromBytes);
+        }
+
+        /// <summary>
+        /// Byte swap EPROM from kickstart rom byte swapping 16-bit words.
+        /// As an example bytes 0x00, 0x01, 0x02, 0x03 are byte swapped to 0x01, 0x00, 0x03, 0x02.
+        /// </summary>
+        /// <param name="kickstartRomBytes">Kickstart rom bytes to byte swap EPROM from.</param>
+        /// <returns>Byte swapped EPROM bytes.</returns>
+        public static Result<byte[]> ByteSwapEprom(byte[] kickstartRomBytes)
+        {
+            if (kickstartRomBytes.Length % 2 != 0)
+            {
+                return new Result<byte[]>(new Error(
+                    $"Kickstart rom size {kickstartRomBytes.Length} is not a multiple of 2 bytes."));
+            }
+
+            var epromBytes = ByteSwap(kickstartRomBytes);
+
+            return new Result<byte[]>(epromBytes);
+        }
+
+        /// <summary>
         /// Build 16-bit EPROM from a kickstart rom used in Amiga 500, 600, 1000 and 2000.
         /// </summary>
         /// <param name="kickstartRomBytes">Kickstart rom bytes to build EPROMs from.</param>
