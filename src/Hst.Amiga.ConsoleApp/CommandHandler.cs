@@ -1,4 +1,8 @@
-﻿using Hst.Amiga.Roms;
+﻿using System.CommandLine;
+using System.CommandLine.Parsing;
+using System.IO;
+using System.Linq;
+using Hst.Amiga.Roms;
 
 namespace Hst.Amiga.ConsoleApp;
 
@@ -144,5 +148,25 @@ public static class CommandHandler
     public static async Task EpromByteSwap(string kickstartRomPath)
     {
         await Execute(new EpromByteSwapCommand(kickstartRomPath));
+    }
+    
+    public static async Task Script(string path)
+    {
+        var lines = await File.ReadAllLinesAsync(path);
+        var scriptLines = lines.Where(x => !string.IsNullOrWhiteSpace(x) && !x.Trim().StartsWith("#"))
+            .Select(x => CommandLineStringSplitter.Instance.Split(x)).ToList();
+
+        var rootCommand = CommandFactory.CreateRootCommand();
+        foreach (var scriptLine in scriptLines)
+        {
+            var args = scriptLine.ToArray();
+
+            Log.Logger.Information($"[CMD] {string.Join(" ", args)}");
+
+            if (await rootCommand.InvokeAsync(args) != 0)
+            {
+                Environment.Exit(1);
+            }
+        }
     }
 }
