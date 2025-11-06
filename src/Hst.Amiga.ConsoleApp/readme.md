@@ -467,3 +467,25 @@ Example of byte swapping EPROM for A500 from kickstart ROM file `kickCDTVa1000a5
 ```
 hst.amiga eprom byteswap kickCDTVa1000a500a2000a600.rom
 ```
+
+### Script
+
+Run multiple commands using a script file.
+It takes a small overhead of time for the operating system to execute Hst Amiga and by supporting multiple commands can be run, it's faster than running Hst Amiga multiple times.
+
+
+Example of displaying usage for script:
+```
+hst.amiga script
+```
+
+Example of a script file:
+```
+icon create drawer.info drawer
+icon update drawer.info -x 100 -y 100
+```
+
+Example of running a script file `example.txt`:
+```
+hst.amiga script example.txt
+```

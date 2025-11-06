@@ -24,6 +24,8 @@ Hst Amiga console version comes with following features:
   - Build EPROMs from Amiga Kickstart ROMs for A500, A600, A2000, A1200, A3000 and A4000.
   - Fill EPROMs by concatenating Kickstart ROM until EPROM size is reached or fill EPROM with zeroes until EPROM size is reached.
   - Byte swap EPROMs.
+- Script
+  - Run multiple commands using a script file.
 
 ## Versions
 
