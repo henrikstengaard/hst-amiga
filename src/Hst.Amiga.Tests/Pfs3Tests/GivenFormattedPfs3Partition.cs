@@ -1841,4 +1841,29 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - the current path is correct
         Assert.Equal("/dir1/dir2", currentPath);
     }
+
+    [Fact]
+    public async Task When_ChangeDirectoryToExistingFile_Then_ExceptionIsThrownAndCurrentDirectoryBlockNumberIsNotChanged()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - get current directory block number
+        var currentDirectoryBlockNumber = pfs3Volume.CurrentDirectoryBlockNumber;
+        
+        // act - create file
+        await pfs3Volume.CreateFile("file1.txt");
+
+        // assert - current directory block number is not changed
+        Assert.Equal(currentDirectoryBlockNumber, pfs3Volume.CurrentDirectoryBlockNumber);
+
+        // act - change directory to file
+        await Assert.ThrowsAsync<PathNotFoundException>(async () => await pfs3Volume.ChangeDirectory("file1.txt"));
+
+        // assert - current directory block number is pfs3 root directory
+        Assert.Equal((uint)Macro.ANODE_ROOTDIR, pfs3Volume.CurrentDirectoryBlockNumber);
+    }
 }

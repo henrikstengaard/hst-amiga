@@ -87,6 +87,13 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             {
                 throw new PathNotFoundException($"Path '{path}' not found");
             }
+
+            // throw exception, if not root path and found entry result has same sector as
+            // current directory sector, meaning path is not a directory
+            if (!isRootPath && currentDirectorySector == findEntryResult.Sector)
+            {
+                throw new PathNotFoundException($"Path '{path}' is not a directory");
+            }
             
             currentDirectorySector = findEntryResult.Sector;
         }

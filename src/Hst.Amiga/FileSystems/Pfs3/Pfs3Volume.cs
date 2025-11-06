@@ -91,6 +91,12 @@
             {
                 throw new PathNotFoundException($"Path '{path}' not found");
             }
+
+            // throw exception, if not root path and path is not a directory
+            if (!isRootPath && currentDirectory.file.direntry != null && !Macro.IsDir(currentDirectory))
+            {
+                throw new PathNotFoundException($"Path '{path}' is not a directory");
+            }
             
             dirNodeNr = Macro.IsRoot(currentDirectory) ? (uint)Macro.ANODE_ROOTDIR : currentDirectory.file.direntry.anode;
         }

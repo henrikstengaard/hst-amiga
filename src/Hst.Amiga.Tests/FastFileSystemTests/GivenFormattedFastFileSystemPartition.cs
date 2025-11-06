@@ -1075,4 +1075,29 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         // assert - the current path is correct
         Assert.Equal("/dir1/dir2", currentPath);
     }
+
+    [Fact]
+    public async Task When_ChangeDirectoryToExistingFile_Then_ExceptionIsThrownAndCurrentDirectoryBlockNumberIsNotChanged()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - get current directory block number
+        var currentDirectoryBlockNumber = ffsVolume.CurrentDirectoryBlockNumber;
+        
+        // act - create file
+        await ffsVolume.CreateFile("file1.txt");
+
+        // assert - current directory block number is pfs3 root directory
+        Assert.Equal(currentDirectoryBlockNumber, ffsVolume.CurrentDirectoryBlockNumber);
+
+        // act - change directory to file
+        await Assert.ThrowsAsync<PathNotFoundException>(async () => await ffsVolume.ChangeDirectory("file1.txt"));
+
+        // assert - current directory block number is pfs3 root directory
+        Assert.Equal(currentDirectoryBlockNumber, ffsVolume.CurrentDirectoryBlockNumber);
+    }
 }
