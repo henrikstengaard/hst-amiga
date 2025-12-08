@@ -5,7 +5,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Hst.Imaging.Pngcs" Version="0.4.57" />
+        <PackageReference Include="Hst.Imaging.Pngcs" Version="0.4.67" />
         <PackageReference Include="LTRData.DiscUtils.Containers" Version="1.0.25" />
         <PackageReference Include="LTRData.DiscUtils.Fat" Version="1.0.25" />
         <PackageReference Include="LTRData.DiscUtils.FileSystems" Version="1.0.25" />
