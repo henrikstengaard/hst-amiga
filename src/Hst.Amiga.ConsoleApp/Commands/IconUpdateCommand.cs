@@ -53,6 +53,67 @@ public class IconUpdateCommand : IconCommandBase
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         var diskObject = await DiskObjectReader.Read(iconStream);
 
+        var isUpdated = false;
+
+        if (type.HasValue)
+        {
+            diskObject.Type = (byte)type.Value;
+
+            switch (diskObject.Type)
+            {
+                case Constants.DiskObjectTypes.DISK:
+                    diskObject.Gadget.Activation = 1;
+                    diskObject.Gadget.Flags = 6;
+                    diskObject.Gadget.GadgetId = 0;
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 1;
+                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
+                    diskObject.DrawerData2 ??= new DrawerData2();
+                    diskObject.DrawerData.Flags = 33559167;
+                    break;
+                case Constants.DiskObjectTypes.DRAWER:
+                    diskObject.Gadget.Activation = 1;
+                    diskObject.Gadget.Flags = 6;
+                    diskObject.Gadget.GadgetId = 0;
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 1;
+                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
+                    diskObject.DrawerData2 ??= new DrawerData2();
+                    diskObject.DrawerData.Flags = 33559103;
+                    break;
+                case Constants.DiskObjectTypes.PROJECT:
+                    diskObject.Gadget.Activation = 1;
+                    diskObject.Gadget.Flags = 6;
+                    diskObject.Gadget.GadgetId = 0;
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 0;
+                    diskObject.DrawerData = null;
+                    diskObject.DrawerData2 = null;
+                    break;
+                case Constants.DiskObjectTypes.TOOL:
+                    diskObject.Gadget.Activation = 1;
+                    diskObject.Gadget.Flags = 6;
+                    diskObject.Gadget.GadgetId = 100;
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 0;
+                    diskObject.DrawerData = null;
+                    diskObject.DrawerData2 = null;
+                    break;
+                case Constants.DiskObjectTypes.GARBAGE:
+                    diskObject.Gadget.Activation = 3;
+                    diskObject.Gadget.Flags = 6;
+                    diskObject.Gadget.GadgetId = 0;
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 1;
+                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
+                    diskObject.DrawerData2 ??= new DrawerData2();
+                    diskObject.DrawerData.Flags = 33554687;
+                    break;
+            }
+            
+            isUpdated = true;
+        }
+
         if (!IsDrawerIcon(diskObject) && drawerX.HasValue)
         {
             if (drawerX.HasValue)
@@ -86,14 +147,6 @@ public class IconUpdateCommand : IconCommandBase
             }
         }
         
-        var isUpdated = false;
-
-        if (type.HasValue)
-        {
-            diskObject.Type = (byte)type.Value;
-            isUpdated = true;
-        }
-
         if (x.HasValue)
         {
             diskObject.CurrentX = x.Value;

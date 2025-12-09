@@ -190,7 +190,38 @@ public abstract class IconCommandBase : CommandBase
     protected static async Task WriteIcon(Stream stream, DiskObject diskObject)
     {
         stream.Position = 0;
+
+        // read existing disk object to find color icon data position
+        if (stream.Length > 0)
+        {
+            await DiskObjectReader.Read(stream);
+        }
+
+        // calculate color icon size
+        var colorIconSize = Convert.ToInt32(stream.Length - stream.Position);
+
+        // write disk object and update length, if no color icon data exists
+        if (colorIconSize == 0)
+        {
+            stream.Position = 0;
+            await DiskObjectWriter.Write(diskObject, stream);
+            stream.SetLength(stream.Position);
+            return;
+        }
+        
+        // read existing color icon data
+        var colorIconBytes = new byte[colorIconSize];
+        var bytesRead = await stream.ReadAsync(colorIconBytes, 0, colorIconSize);
+        if (bytesRead != colorIconSize)
+        {
+            throw new IOException($"Failed to read color icon data, expected size {colorIconSize}, bytes read {bytesRead}");
+        }
+        
+        // write disk object, color icon data and update length
+        stream.Position = 0;
         await DiskObjectWriter.Write(diskObject, stream);
+        await stream.WriteAsync(colorIconBytes, 0, colorIconSize);
+        stream.SetLength(stream.Position);
     }
 
     protected static async Task WriteColorIcon(Stream stream, ColorIcon colorIcon)

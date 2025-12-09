@@ -4,7 +4,6 @@
     using System.Collections.Generic;
     using System.Linq;
     using Amiga;
-    using Core;
 
     public static class DiskObjectHelper
     {
@@ -154,7 +153,6 @@
             diskObject.Gadget.Flags = 6;
             diskObject.Gadget.GadgetId = 0;
             diskObject.Type = Constants.DiskObjectTypes.GARBAGE;
-            diskObject.DrawerDataPointer = 0;
             diskObject.DrawerData = CreateDrawerData(10, 10, 460, 200);
             diskObject.DrawerData.Flags = 33554687;
             diskObject.DrawerDataPointer = 1;
