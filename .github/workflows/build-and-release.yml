@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [win-x64, win-arm64, osx-x64, osx-arm64, linux-x64, linux-arm, linux-arm64]
+        target: [win-x64, win-x86, win-arm64, osx-x64, osx-arm64, linux-x64, linux-arm, linux-arm64]
 
     steps:
       - uses: actions/checkout@v4
@@ -177,6 +177,11 @@ jobs:
         with:
           name: hst-amiga.console.win-x64.zip
 
+      - name: Download Console Windows 32-bit zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hst-amiga.console.win-x86.zip
+
       - name: Download Console Windows arm64-bit zip artifact
         uses: actions/download-artifact@v4
         with:
@@ -213,6 +218,7 @@ jobs:
         shell: pwsh
         run: |
           Rename-Item -Path hst-amiga.console.win-x64.zip -NewName "${{ env.RELEASE_VERSION }}_console_windows_x64.zip"
+          Rename-Item -Path hst-amiga.console.win-x86.zip -NewName "${{ env.RELEASE_VERSION }}_console_windows_x86.zip"
           Rename-Item -Path hst-amiga.console.win-arm64.zip -NewName "${{ env.RELEASE_VERSION }}_console_windows_arm64.zip"
           Rename-Item -Path hst-amiga.console.osx-x64.zip -NewName "${{ env.RELEASE_VERSION }}_console_macos_x64.zip"
           Rename-Item -Path hst-amiga.console.osx-arm64.zip -NewName "${{ env.RELEASE_VERSION }}_console_macos_arm64.zip"
@@ -225,6 +231,7 @@ jobs:
         with:
           files: |
             ${{ env.RELEASE_VERSION }}_console_windows_x64.zip
+            ${{ env.RELEASE_VERSION }}_console_windows_x86.zip
             ${{ env.RELEASE_VERSION }}_console_windows_arm64.zip
             ${{ env.RELEASE_VERSION }}_console_macos_x64.zip
             ${{ env.RELEASE_VERSION }}_console_macos_arm64.zip
