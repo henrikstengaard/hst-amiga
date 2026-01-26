@@ -1866,4 +1866,55 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         // assert - current directory block number is pfs3 root directory
         Assert.Equal((uint)Macro.ANODE_ROOTDIR, pfs3Volume.CurrentDirectoryBlockNumber);
     }
+    
+    [Theory]
+    [InlineData("file1.txt")]
+    [InlineData("FILE1.TXT")]
+    public async Task When_FindEntryInRootDirectory_Then_ThenFileIsFound(string fileName)
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - create directory and file
+        await pfs3Volume.CreateFile("file1.txt");
+        await pfs3Volume.CreateDirectory("dir1");
+
+        // act - find file entry
+        var result = await pfs3Volume.FindEntry(fileName);
+        
+        // assert - file entry is found and matches
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.Equal("file1.txt", result.Entry.Name);
+    }
+
+    [Theory]
+    [InlineData("dir1", "file2.txt")]
+    [InlineData("DIR1", "FILE2.TXT")]
+    public async Task When_FindEntryInSubDirectory_Then_ThenFileIsFound(string directoryName, string fileName)
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // act - create directories and files
+        await pfs3Volume.CreateFile("file1.txt");
+        await pfs3Volume.CreateDirectory("dir1");
+        await pfs3Volume.ChangeDirectory("dir1");
+        await pfs3Volume.CreateFile("file2.txt");
+
+        // act - change directory and find file entry
+        await pfs3Volume.CreateDirectory(directoryName);
+        var result = await pfs3Volume.FindEntry(fileName);
+        
+        // assert - file entry is found and matches
+        Assert.NotNull(result);
+        Assert.Empty(result.PartsNotFound);
+        Assert.Equal("file2.txt", result.Entry.Name);
+    }
 }
