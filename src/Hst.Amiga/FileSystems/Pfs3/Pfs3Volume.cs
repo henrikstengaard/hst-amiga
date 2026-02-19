@@ -52,6 +52,11 @@
             return (await Directory.GetDirEntries(dirNodeNr, g)).Select(DirEntryConverter.ToEntry).ToList();
         }
 
+        public async Task<IEnumerable<direntry>> ListRawDirEntries()
+        {
+            return await Directory.GetDirEntries(dirNodeNr, g);
+        }
+
         /// <summary>
         /// Find entry in current directory
         /// </summary>
