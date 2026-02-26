@@ -42,6 +42,7 @@
 
         /// <summary>
         /// link anodenr
+        /// set when dir entry is linked to another directory or file.
         /// </summary>
         public uint link { get; private set; }
 

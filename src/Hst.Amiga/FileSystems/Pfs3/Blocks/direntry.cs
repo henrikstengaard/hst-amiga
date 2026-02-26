@@ -66,6 +66,20 @@
         public uint Size => fsize;
 
         public direntry(byte next, sbyte type, uint anode, uint fsize, byte protection, DateTime date, string name,
+            string comment, extrafields extraFields)
+        {
+            this.type = type;
+            this.anode = anode;
+            this.fsize = fsize;
+            this.protection = protection;
+            this.CreationDate = date;
+            Name = name;
+            this.comment = comment;
+            ExtraFields = extraFields;
+            Next = next;
+        }
+        
+        public direntry(byte next, sbyte type, uint anode, uint fsize, byte protection, DateTime date, string name,
             string comment, extrafields extraFields, globaldata g)
         {
             this.type = type;
@@ -84,6 +98,10 @@
             dirEntry.ExtraFields, g)
         {
         }
+
+        public direntry Clone() =>
+            new direntry(Next, type, anode, fsize, protection, CreationDate, Name, comment,
+                new extrafields(ExtraFields));
 
         public void SetType(sbyte type)
         {
@@ -109,6 +127,8 @@
         {
             this.protection = prot;
         }
+
+        public extrafields GetExtraFields() => new extrafields(ExtraFields);
 
         public void SetExtraFields(extrafields extraFields, globaldata g)
         {

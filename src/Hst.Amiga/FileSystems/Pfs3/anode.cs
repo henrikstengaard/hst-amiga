@@ -6,7 +6,9 @@
         public uint blocknr;
         public uint next;
 
-        // pfsdoctor only
+        /// <summary>
+        /// pfsdoctor only
+        /// </summary>
         public uint nr;
 
         public const int Size = Amiga.SizeOf.ULong * 3;

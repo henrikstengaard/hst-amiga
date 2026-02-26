@@ -122,15 +122,15 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         }
 
         /// <summary>
-        /// Open file for reading or writing data
+        /// Open file for reading or writing data. File is created if it doesn't exist.
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="mode"></param>
         /// <param name="ignoreProtectionBits"></param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits = false)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false, bool ignoreProtectionBits = false)
         {
-            return await File.Open(volume, currentDirectorySector, fileName, mode, false, ignoreProtectionBits);
+            return await File.Open(volume, currentDirectorySector, fileName, mode, overwrite, ignoreProtectionBits);
         }
 
         /// <summary>

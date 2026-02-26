@@ -859,7 +859,7 @@
             }
 
             await SaveAnode(anode, anodenr, g);
-            andata.anblkbitmap[(anodenr>>16)/32] |= (uint)(1 << (31 - (int)(((anodenr>>16) % 32))));
+            andata.anblkbitmap[(anodenr>>16)/32] |= (uint)(1 << (31 - (int)((anodenr>>16) % 32)));
         }
         
 /*

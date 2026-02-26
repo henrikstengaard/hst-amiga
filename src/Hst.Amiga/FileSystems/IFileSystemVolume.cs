@@ -60,9 +60,10 @@
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="mode"></param>
+        /// <param name="overwrite"></param>
         /// <param name="ignoreProtectionBits"></param>
         /// <returns></returns>
-        Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits);
+        Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite, bool ignoreProtectionBits);
 
         /// <summary>
         /// Rename or move a file or directory

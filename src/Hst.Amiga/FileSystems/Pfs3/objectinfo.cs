@@ -29,6 +29,14 @@ union objectinfo
 	        delfile = new delfileinfo();
         }
 
+        public void OverwriteWith(objectinfo other)
+		{
+	        file = other.file;
+	        volume = other.volume;
+	        deldir = other.deldir;
+	        delfile = other.delfile;
+		}
+	
         public objectinfo Clone()
         {
 	        return new objectinfo
@@ -36,7 +44,7 @@ union objectinfo
 		        file = new fileinfo
 		        {
 			        dirblock = file.dirblock,
-			        direntry = file.direntry
+			        direntry = file.direntry?.Clone()
 		        },
 		        volume = new volumeinfo
 		        {
