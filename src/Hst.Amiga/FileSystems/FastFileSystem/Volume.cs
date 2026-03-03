@@ -43,6 +43,7 @@
         public int OffsetsPerBitmapBlock { get; set; }
         
         public uint NextFreeBlock { get; set; }
+        public bool ResolveLinkPaths { get; set; }
 
         public Volume()
         {
@@ -51,6 +52,7 @@
             BitmapTable = Array.Empty<BitmapBlock>();
             BitmapBlocks = Array.Empty<uint>();
             BitmapBlocksChg = Array.Empty<bool>();
+            ResolveLinkPaths = true;
         }
     }
 }

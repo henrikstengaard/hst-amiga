@@ -497,7 +497,7 @@
             {
                 fileHdr.ByteSize = pos;
                 fileHdr.Date = DateTime.Now;
-                await Disk.WriteFileHdrBlock(volume, fileHdr.HeaderKey, fileHdr as FileHeaderBlock);
+                await Disk.WriteEntryBlock(volume, fileHdr.HeaderKey, fileHdr);
 
                 if (volume.UseDirCache)
                 {

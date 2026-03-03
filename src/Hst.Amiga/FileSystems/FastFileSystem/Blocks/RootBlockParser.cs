@@ -70,7 +70,8 @@
                 FileSystemCreationDate = fileSystemCreationDate,
                 NextSameHash = 0,
                 Parent = 0,
-                Extension = extension
+                Extension = extension,
+                SecType = secType
             };
         }
     }

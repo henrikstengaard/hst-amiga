@@ -8,7 +8,7 @@ using FileSystems.FastFileSystem;
 using FileSystems.FastFileSystem.Blocks;
 using Xunit;
 
-public class GivenLongNameFileSystemDirBlockWriter
+public class GivenLongNameEntryBlockWriterWithDirBlocks
 {
     [Theory]
     [InlineData(512)]
@@ -19,7 +19,7 @@ public class GivenLongNameFileSystemDirBlockWriter
         var dirBlock = CreateDirBlock(blockSize);
         
         // act - write long name file system dir block
-        var blockBytes = LongNameFileSystemDirBlockWriter.Build(dirBlock, blockSize);
+        var blockBytes = LongNameEntryBlockWriter.Build(dirBlock, blockSize);
 
         // act - read dir block properties from block bytes
         var type = BigEndianConverter.ConvertBytesToInt32(blockBytes);
@@ -81,10 +81,10 @@ public class GivenLongNameFileSystemDirBlockWriter
         var dirBlock = CreateDirBlock(blockSize);
         
         // act - write long name file system dir block
-        var blockBytes = LongNameFileSystemDirBlockWriter.Build(dirBlock, blockSize);
+        var blockBytes = LongNameEntryBlockWriter.Build(dirBlock, blockSize);
 
         // act - read long name file system dir block
-        var actualDirBlock = LongNameFileSystemDirBlockReader.Read(blockBytes);
+        var actualDirBlock = LongNameEntryBlockReader.Read(blockBytes);
 
         // assert - block read is equal to block written
         var expectedDataSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockSize);
@@ -109,7 +109,7 @@ public class GivenLongNameFileSystemDirBlockWriter
         Assert.Equal(Constants.ST_DIR, actualDirBlock.SecType);
     }
     
-    private static DirBlock CreateDirBlock(int blockSize) => new DirBlock(blockSize)
+    private static EntryBlock CreateDirBlock(int blockSize) => new EntryBlock(blockSize)
     {
         HeaderKey = 1U,
         HighSeq = 2U,
@@ -124,6 +124,7 @@ public class GivenLongNameFileSystemDirBlockWriter
         NextLink = 5U,
         NextSameHash = 6U,
         Parent = 7U,
-        Extension = 8U
+        Extension = 8U,
+        SecType = Constants.ST_DIR
     };
 }

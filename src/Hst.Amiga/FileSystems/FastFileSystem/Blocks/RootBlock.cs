@@ -5,9 +5,6 @@
 
     public class RootBlock : EntryBlock
     {
-        public override int Type => Constants.T_HEADER;
-        public override int SecType => Constants.ST_ROOT;
-        
         public uint BitmapFlags { get; set; }
         public uint[] BitmapBlockOffsets { get; set; } // bmPages
         public uint BitmapBlocksOffset { get; set; }
@@ -48,6 +45,8 @@
             BitmapBlockOffsets = Array.Empty<uint>();
             BitmapBlocks = new List<BitmapBlock>();
             BitmapExtensionBlocks = new List<BitmapExtensionBlock>();
+            
+            SecType = Constants.ST_ROOT;
         }
     }
 }

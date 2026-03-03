@@ -21,7 +21,7 @@ public class GivenPfs3VolumeUsingRaw : Pfs3TestBase
         await pfs3Volume.CreateFile("file2", true, true);
 
         // act - list raw dir entries
-        var dirEntries = (await pfs3Volume.ListRawDirEntries()).ToList();
+        var dirEntries = (await pfs3Volume.ListRawEntries()).ToList();
 
         // assert - 3 dir entries exist
         Assert.Equal(3, dirEntries.Count);

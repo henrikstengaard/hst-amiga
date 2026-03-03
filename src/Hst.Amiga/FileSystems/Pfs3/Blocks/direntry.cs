@@ -65,6 +65,11 @@
 
         public uint Size => fsize;
 
+        /// <summary>
+        /// Link path is the path of the linked file or directory. Link path is null if entry is not a link entry.
+        /// </summary>
+        public string LinkPath { get; private set; }
+
         public direntry(byte next, sbyte type, uint anode, uint fsize, byte protection, DateTime date, string name,
             string comment, extrafields extraFields)
         {
@@ -138,6 +143,11 @@
             {
                 Next = (byte)CalculateSize(Name, comment, extraFields, g);
             }
+        }
+        
+        public void SetLinkPath(string linkPath)
+        {
+            LinkPath = linkPath;
         }
 
         public direntry() :

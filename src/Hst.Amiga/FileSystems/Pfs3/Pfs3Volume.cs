@@ -52,7 +52,7 @@
             return (await Directory.GetDirEntries(dirNodeNr, g)).Select(DirEntryConverter.ToEntry).ToList();
         }
 
-        public async Task<IEnumerable<direntry>> ListRawDirEntries()
+        public async Task<IEnumerable<direntry>> ListRawEntries()
         {
             return await Directory.GetDirEntries(dirNodeNr, g);
         }
@@ -155,7 +155,7 @@
             var linkFromDir = currentDirectory;
             
             var linkTo = currentDirectory.Clone();
-            var linkToFound = !(await Directory.Find(linkTo, name, g)).Any();
+            var linkToFound = await Directory.FindObject(currentDirectory, name, linkTo, g);
             
             if (!linkToFound)
             {
@@ -347,18 +347,19 @@
                 }
             };
         }
-        
+
         /// <summary>
         /// Mount pfs3 volume in stream using partition block information
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="partitionBlock"></param>
+        /// <param name="resolveLinkPaths"></param>
         /// <returns></returns>
-        public static async Task<Pfs3Volume> Mount(Stream stream, PartitionBlock partitionBlock)
+        public static async Task<Pfs3Volume> Mount(Stream stream, PartitionBlock partitionBlock, bool resolveLinkPaths = true)
         {
             var g = await Pfs3Helper.Mount(stream, partitionBlock);
+            g.ResolveLinkPaths = resolveLinkPaths;
             
-            //var root = (await Directory.GetRoot(g)).Clone();
             var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
             
             return new Pfs3Volume(g, dirNodeNr);

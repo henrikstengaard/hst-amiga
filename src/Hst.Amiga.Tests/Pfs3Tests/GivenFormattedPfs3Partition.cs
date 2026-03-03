@@ -1964,4 +1964,46 @@ public class GivenFormattedPfs3Disk : Pfs3TestBase
         Assert.Empty(result.PartsNotFound);
         Assert.Equal("file2.txt", result.Entry.Name);
     }
+    
+    [Fact]
+    public async Task When_CreateFileAndOpenAppendWriteDataToFile_Then_FileSizeHasDataMatches()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create file
+        await pfs3Volume.CreateFile("file", true, true);
+
+        // arrange - data to write
+        var data = new byte[10];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - append data to file
+        using (var fileStream = await pfs3Volume.OpenFile("file", FileMode.Append, true))
+        {
+            await fileStream.WriteAsync(data);
+        }
+
+        // assert - 1 entry exist
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        Assert.Single(entries);
+        
+        // assert - file entry exists and matches data size
+        var fileEntry = entries.FirstOrDefault(x => x.Name == "file" && x.Type == EntryType.File);
+        Assert.NotNull(fileEntry);
+        Assert.Equal(data.Length, fileEntry.Size);
+        
+        // assert - file has data
+        var actualData = new byte[10];
+        int bytesRead;
+        using (var fileStream = await pfs3Volume.OpenFile("file", FileMode.Read))
+        {
+            bytesRead = await fileStream.ReadAsync(actualData, 0, actualData.Length);
+        }
+        Assert.Equal(10, bytesRead);
+        Assert.Equal(data, actualData);
+    }
 }

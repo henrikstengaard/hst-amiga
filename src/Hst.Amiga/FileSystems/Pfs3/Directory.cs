@@ -10,6 +10,60 @@
 
     public static class Directory
     {
+        /// <summary>
+        /// Get path to entry.
+        /// </summary>
+        /// <param name="g">Pfs3 global data.</param>
+        /// <param name="entry">Entry to get path for.</param>
+        /// <param name="directory">Directory to get path from. If directory is encountered while iterating parent directories, it will stop iterating resulting in a relative path.</param>
+        /// <returns></returns>
+        public static async Task<string> GetPath(globaldata g, objectinfo entry, objectinfo directory = null)
+        {
+            var currentDirectory = entry;
+            
+            // return empty path, if directory is defined and entry is the same as directory
+            if (directory != null &&
+                directory.file.dirblock.dirblock != null &&
+                currentDirectory.file.dirblock.dirblock != null &&
+                currentDirectory.file.dirblock.dirblock.anodenr == directory.file.dirblock.dirblock.anodenr)
+            {
+                return string.Empty;
+            }
+            
+            var parentDirectory = new objectinfo();
+            var pathComponents = new LinkedList<string>();
+
+            var isRelative = false;
+            do
+            {
+                if (!await GetParent(currentDirectory, parentDirectory, g))
+                {
+                    break;
+                }
+                
+                if (parentDirectory.file.dirblock.dirblock == null)
+                {
+                    break;
+                }
+
+                currentDirectory = parentDirectory;
+
+                pathComponents.AddFirst(currentDirectory.file.direntry.Name);
+                
+                if (directory != null &&
+                    directory.file.dirblock.dirblock != null &&
+                    currentDirectory.file.dirblock.dirblock != null &&
+                    currentDirectory.file.dirblock.dirblock.anodenr == directory.file.dirblock.dirblock.anodenr)
+                {
+                    isRelative = true;
+                    break;
+                }
+            } while (currentDirectory.file.dirblock.dirblock != null &&
+                     currentDirectory.file.dirblock.dirblock.anodenr != Constants.ANODE_ROOTDIR);
+
+            return string.Concat(isRelative ? string.Empty : "/", string.Join("/", pathComponents.ToList()));
+        }
+        
         public static async Task<CachedBlock> MakeDirBlock(uint blocknr, uint anodenr, uint rootanodenr, uint parentnr,
             globaldata g)
         {
@@ -1559,7 +1613,8 @@
             //ENTER("GetFullPath");
             //g.unparsed = NULL;
             /* Set base path */
-            fullpath.OverwriteWith(Macro.IsDirEntry(basispath) ? basispath : await GetRoot(g));
+            fullpath.OverwriteWith(Macro.IsDirEntry(basispath) && !filename.StartsWith("/")
+                ? basispath : await GetRoot(g));
 
             /* The basispath should not be a file
              * BTW: softlink is illegal too, but not possible
@@ -1634,65 +1689,28 @@
             // }
             //
             // return filename;            
-            var pathpart = filename;
-            for (var index = 0; index < filename.Length; index++)
+
+            if (filename.IndexOf(':') >= 0)
             {
-                var parttype = filename[index];
+                return null;
+            }
 
-                if (parttype != '/' && parttype != ':')
+            var isRoot = filename.StartsWith("/");
+            if (isRoot)
+            {
+                filename = filename.Substring(1);
+            }
+            
+            var pathParts = filename.Split('/');
+            foreach (var pathPart in pathParts.Take(pathParts.Length - 1))
+            {
+                if (!await GetDir(pathPart, fullpath, g))
                 {
-                    continue;
-                }
-                
-                //     pathpart = filename;
-                //     index = strcspn(filename, "/:");
-                //     parttype = filename[index];
-                //     filename[index] = 0x0;
-
-                pathpart = filename.Substring(index);
-                
-                switch (parttype)
-                {
-                    case ':':
-                        success = false;
-                        break;
-                    case '/':
-                        // use get parent of, if fullname starts with '/'
-                        if (index == 0)
-                        {
-                            // if already at root, fail with an error
-                            if (Macro.IsVolume(fullpath))
-                            {
-                                // *error = ERROR_OBJECT_NOT_FOUND;
-                                // success = false;
-                                // break;
-                                throw new IOException("ERROR_OBJECT_NOT_FOUND");
-
-                            }
-                            success = await GetParentOf(fullpath, g);
-                        }
-                        else
-                        {
-                            success = await GetDir(pathpart, fullpath, g);
-                        }
-
-                        break;
-                    default:
-                        continue;
-                }
-
-                if (!success)
-                {
-                    /* return pathrest for readlink() */
-                    // if (*error == ERROR_IS_SOFT_LINK)
-                    //     g->unparsed = filename + index;
-                    // else if (*error == ERROR_OBJECT_NOT_FOUND)
-                    //     g->unparsed = filename;
                     return null;
                 }
             }
 
-            return pathpart;
+            return pathParts[pathParts.Length - 1];
         }
 
         /// <summary>
@@ -2047,7 +2065,54 @@
             
             while (blk != null && !eod) /* eod stands for end-of-dir */
             {
-                dirEntries.AddRange(blk.DirEntries);
+                foreach(var dirEntry in blk.DirEntries)
+                {
+                    if (g.ResolveLinkPaths &&
+                        (dirEntry.type == Constants.ST_LINKFILE || dirEntry.type == Constants.ST_LINKDIR))
+                    {
+                        // create link object from dir entry
+                        var linkObject = new objectinfo
+                        {
+                            file = new fileinfo
+                            {
+                                direntry = dirEntry,
+                                dirblock = dirblock
+                            }
+                        };
+
+                        var type = new ListType
+                        {
+                            value = Constants.ET_FILEENTRY
+                        };
+
+                        // get object the dir entry links to
+                        IEntry fileFe;
+                        if ((fileFe = await Lock.MakeListEntry(linkObject, type, g)) == null)
+                        {
+                            throw new IOException("make list entry error");
+                        }
+                        Lock.RemoveListEntry(fileFe, g);
+
+                        // create current dir object
+                        var currentDirEntry = new direntry(0);
+                        currentDirEntry.SetAnode(dirnodenr);
+                        var currentDirObject = new objectinfo
+                        {
+                            file = new fileinfo
+                            {
+                                direntry = currentDirEntry,
+                                dirblock = dirblock
+                            }
+                        };
+
+                        // get path of linked object
+                        var linkPath = await GetPath(g, fileFe.ListEntry.info, currentDirObject);
+                        dirEntry.SetLinkPath(string.Concat(linkPath, string.IsNullOrEmpty(linkPath) ? string.Empty : "/",
+                            fileFe.ListEntry.info.file.direntry.Name));
+                    }
+                    
+                    dirEntries.Add(dirEntry);
+                }
                 
                 /* load next block */
                 var result = await anodes.NextBlock(anode, anodeoffset, g);

@@ -13,7 +13,8 @@
                 Size = dirEntry.fsize,
                 ProtectionBits = ProtectionBitsConverter.ToProtectionBits(dirEntry.protection),
                 Date = dirEntry.CreationDate,
-                Comment = dirEntry.comment
+                Comment = dirEntry.comment,
+                LinkPath = dirEntry.LinkPath
             };
         }
 

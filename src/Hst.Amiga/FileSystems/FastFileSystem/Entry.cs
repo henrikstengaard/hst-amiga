@@ -17,5 +17,7 @@
         public uint Sector { get; set; }
         public IEnumerable<Entry> SubDir { get; set; }
         public EntryBlock EntryBlock { get; set; }
+        public EntryBlock LinkEntryBlock { get; set; }
+        public string LinkPath { get; set; }
     }
 }

@@ -12,6 +12,7 @@
         public lru_data_s glob_lrudata;
 
         public bool IgnoreProtectionBits { get; set; }
+        public bool ResolveLinkPaths { get; set; }
         
         /* LRU stuff */
         public bool uip;                           /* update in progress flag              */
@@ -66,6 +67,7 @@
             glob_allocdata = new allocation_data_s();
             dc = new diskcache();
             SearchInDirCache = new Dictionary<uint, SearchInDirCacheItem>();
+            ResolveLinkPaths = true;
         }
 
         public uint TotalSectors { get; set; }

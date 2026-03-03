@@ -9,7 +9,7 @@ using FileSystems.FastFileSystem.Blocks;
 using Xunit;
 using File = System.IO.File;
 
-public class GivenLongNameFileSystemDirBlockReader
+public class GivenLongNameEntryBlockReaderWithDirBlocks
 {
     [Theory]
     [InlineData("dos7_dir-block-1.bin")]
@@ -21,7 +21,7 @@ public class GivenLongNameFileSystemDirBlockReader
             await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems", blockFilename));
 
         // act - read long name file system dir block
-        var longNameFileSystemDirBlock = LongNameFileSystemDirBlockReader.Read(blockBytes);
+        var longNameFileSystemDirBlock = LongNameEntryBlockReader.Read(blockBytes);
 
         // assert - long name file system file header block is equal
         var expectedIndexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
@@ -47,7 +47,7 @@ public class GivenLongNameFileSystemDirBlockReader
             await File.ReadAllBytesAsync(Path.Combine("TestData", "FastFileSystems", blockFilename));
 
         // act - read long name file system dir block
-        var longNameFileSystemDirBlock = LongNameFileSystemDirBlockReader.Read(blockBytes);
+        var longNameFileSystemDirBlock = LongNameEntryBlockReader.Read(blockBytes);
         
         // assert - long name file system file header block is equal
         var expectedIndexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
