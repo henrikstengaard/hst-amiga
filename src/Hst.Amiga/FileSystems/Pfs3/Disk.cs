@@ -861,7 +861,7 @@
 
             // var dirBlock = file.le.info.file.dirblock.dirblock;
             // var extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
-            var extrafields = direntry_m.ExtraFields; 
+            var extrafields = direntry_m.GetExtraFields(); 
 
             /* limit access to end of file */
             virtualoffset = (int)(file.offset - extrafields.rollpointer);
@@ -935,7 +935,7 @@
 #endif
             //var dirBlock = file.le.info.file.dirblock.dirblock;
             //extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
-            extrafields = new extrafields(direntry_m.ExtraFields);
+            extrafields = direntry_m.GetExtraFields();
             end = (int)(file.offset + size);
 
             /* new virtual size */
@@ -1023,7 +1023,7 @@
 		        return SeekInRollover(file,offset,mode,g);
 	        else
                 // #endif
-            return await SeekInFile(file,offset,mode,g);
+                return await SeekInFile(file,offset,mode,g);
         }
         
         static int SeekInRollover(fileentry file, int offset, int mode, globaldata g)
@@ -1046,7 +1046,7 @@
 #endif
             // var dirBlock = file.le.info.file.dirblock.dirblock;
             // extrafields = Directory.GetExtraFields(dirBlock.entries, direntry_m);
-            extrafields = direntry_m.ExtraFields;
+            extrafields = direntry_m.GetExtraFields();
 
             /* do the seeking */
             oldvirtualoffset = (int)(file.offset - extrafields.rollpointer);

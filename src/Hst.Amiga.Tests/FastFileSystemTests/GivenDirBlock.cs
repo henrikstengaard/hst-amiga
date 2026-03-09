@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.Tests.FastFileSystemTests
+﻿using Hst.Amiga.FileSystems.FastFileSystem;
+
+namespace Hst.Amiga.Tests.FastFileSystemTests
 {
     using System.Linq;
     using FileSystems.FastFileSystem.Blocks;
@@ -10,7 +12,7 @@
         public void WhenReadAsEntryBlockThenBlocksAreEqual()
         {
             const int fileSystemBlockSize = 512;
-            var dirBlock = new DirBlock(fileSystemBlockSize)
+            var dirBlock = new EntryBlock(fileSystemBlockSize)
             {
                 HeaderKey = 887,
                 HighSeq = 0,
@@ -19,6 +21,7 @@
                 Comment = "Comment",
                 Name = "DirEntry",
                 Parent = 880,
+                SecType = Constants.ST_DIR
             };
 
             var dirBlockBytes = EntryBlockBuilder.Build(dirBlock, fileSystemBlockSize);

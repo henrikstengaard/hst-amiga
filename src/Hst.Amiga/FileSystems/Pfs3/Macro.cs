@@ -108,10 +108,11 @@ BPTR
          */
 
         // (IPTR)(oi).file.direntry > 2 && 
-        public static bool IsSoftLink(objectinfo oi) =>oi.file.direntry.type == Constants.ST_SOFTLINK;
-        public static bool IsRealDir(objectinfo oi) => oi.file.direntry.type == Constants.ST_USERDIR;
-        public static bool IsDir(objectinfo oi) => oi.file.direntry.type > 0;
-        public static bool IsFile(objectinfo oi) => oi.file.direntry.type <= 0;
+        public static bool IsDirEntry(objectinfo oi) => oi?.file.direntry != null;
+        public static bool IsSoftLink(objectinfo oi) => IsDirEntry(oi) && oi.file.direntry.type == Constants.ST_SOFTLINK;
+        public static bool IsRealDir(objectinfo oi) => IsDirEntry(oi) && oi.file.direntry.type == Constants.ST_USERDIR;
+        public static bool IsDir(objectinfo oi) => IsDirEntry(oi) && oi.file.direntry.type > 0;
+        public static bool IsFile(objectinfo oi) => IsDirEntry(oi) && oi.file.direntry.type <= 0;
         public static bool IsVolume(objectinfo oi) => oi.volume.root == 0;
         
 /* macros on cachedblocks */

@@ -8,7 +8,7 @@ using FileSystems.FastFileSystem;
 using FileSystems.FastFileSystem.Blocks;
 using Xunit;
 
-public class GivenLongNameFileSystemFileHeaderBlockWriter
+public class GivenLongNameEntryBlockWriterWithFileBlocks
 {
     [Theory]
     [InlineData(512)]
@@ -16,10 +16,10 @@ public class GivenLongNameFileSystemFileHeaderBlockWriter
     public void WhenWriteBlockAndReadPropertiesFromBytesThenPropertiesAreEqualToBlock(int blockSize)
     {
         // arrange - create file header block
-        var fileHeaderBlock = CreateFileHeaderBlock(blockSize);
+        var fileEntryBlock = CreateFileEntryBlock(blockSize);
         
         // act - write long name file system file header block
-        var blockBytes = LongNameFileSystemFileHeaderBlockWriter.Build(fileHeaderBlock, blockSize);
+        var blockBytes = LongNameEntryBlockWriter.Build(fileEntryBlock, blockSize);
 
         // act - read file header block properties from block bytes
         var type = BigEndianConverter.ConvertBytesToInt32(blockBytes);
@@ -52,23 +52,23 @@ public class GivenLongNameFileSystemFileHeaderBlockWriter
         // assert - dir block properties read from block bytes are equal to dir block
         var expectedDataSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockSize);
         Assert.Equal(Constants.T_HEADER, type);
-        Assert.Equal(fileHeaderBlock.HeaderKey, headerKey);
-        Assert.Equal(fileHeaderBlock.HighSeq, highSeq);
+        Assert.Equal(fileEntryBlock.HeaderKey, headerKey);
+        Assert.Equal(fileEntryBlock.HighSeq, highSeq);
         Assert.Equal(expectedDataSize, dataSize);
-        Assert.Equal(fileHeaderBlock.FirstData, firstData);
-        Assert.Equal(fileHeaderBlock.Checksum, checksum);
-        Assert.Equal(fileHeaderBlock.DataBlocks, dataBlocks);
-        Assert.Equal(fileHeaderBlock.Access, access);
-        Assert.Equal(fileHeaderBlock.ByteSize, byteSize);
-        Assert.Equal(fileHeaderBlock.Name, name);
-        Assert.Equal(fileHeaderBlock.Comment, comment);
-        Assert.Equal(fileHeaderBlock.CommentBlock, commentBlock);
-        Assert.Equal(fileHeaderBlock.Date, date);
-        Assert.Equal(fileHeaderBlock.RealEntry, realEntry);
-        Assert.Equal(fileHeaderBlock.NextLink, nextLink);
-        Assert.Equal(fileHeaderBlock.NextSameHash, nextSameHash);
-        Assert.Equal(fileHeaderBlock.Parent, parent);
-        Assert.Equal(fileHeaderBlock.Extension, extension);
+        Assert.Equal(fileEntryBlock.FirstData, firstData);
+        Assert.Equal(fileEntryBlock.Checksum, checksum);
+        Assert.Equal(fileEntryBlock.DataBlocks, dataBlocks);
+        Assert.Equal(fileEntryBlock.Access, access);
+        Assert.Equal(fileEntryBlock.ByteSize, byteSize);
+        Assert.Equal(fileEntryBlock.Name, name);
+        Assert.Equal(fileEntryBlock.Comment, comment);
+        Assert.Equal(fileEntryBlock.CommentBlock, commentBlock);
+        Assert.Equal(fileEntryBlock.Date, date);
+        Assert.Equal(fileEntryBlock.RealEntry, realEntry);
+        Assert.Equal(fileEntryBlock.NextLink, nextLink);
+        Assert.Equal(fileEntryBlock.NextSameHash, nextSameHash);
+        Assert.Equal(fileEntryBlock.Parent, parent);
+        Assert.Equal(fileEntryBlock.Extension, extension);
         Assert.Equal(Constants.ST_FILE, secType);
     }
 
@@ -78,38 +78,38 @@ public class GivenLongNameFileSystemFileHeaderBlockWriter
     public void WhenWriteAndReadBlockThenBlockIsEqual(int blockSize)
     {
         // arrange - create file header block
-        var fileHeaderBlock = CreateFileHeaderBlock(blockSize);
+        var fileHeaderBlock = CreateFileEntryBlock(blockSize);
         
         // act - write long name file system file header block
-        var blockBytes = LongNameFileSystemFileHeaderBlockWriter.Build(fileHeaderBlock, blockSize);
+        var blockBytes = LongNameEntryBlockWriter.Build(fileHeaderBlock, blockSize);
 
         // act - read long name file system file header block
-        var actualFileHeaderBlock = LongNameFileSystemFileHeaderBlockReader.Parse(blockBytes);
+        var actualEntryBlock = LongNameEntryBlockReader.Read(blockBytes);
 
         // assert - block read is equal to block written
         var expectedDataSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockSize);
-        Assert.Equal(Constants.T_HEADER, actualFileHeaderBlock.Type);
-        Assert.Equal(fileHeaderBlock.HeaderKey, actualFileHeaderBlock.HeaderKey);
-        Assert.Equal(fileHeaderBlock.HighSeq, actualFileHeaderBlock.HighSeq);
-        Assert.Equal(expectedDataSize, actualFileHeaderBlock.HashTableSize);
-        Assert.Equal(fileHeaderBlock.FirstData, actualFileHeaderBlock.FirstData);
-        Assert.Equal(fileHeaderBlock.Checksum, actualFileHeaderBlock.Checksum);
-        Assert.Equal(fileHeaderBlock.HashTable, actualFileHeaderBlock.HashTable);
-        Assert.Equal(fileHeaderBlock.Access, actualFileHeaderBlock.Access);
-        Assert.Equal(fileHeaderBlock.ByteSize, actualFileHeaderBlock.ByteSize);
-        Assert.Equal(fileHeaderBlock.Name, actualFileHeaderBlock.Name);
-        Assert.Equal(fileHeaderBlock.Comment, actualFileHeaderBlock.Comment);
-        Assert.Equal(fileHeaderBlock.CommentBlock, actualFileHeaderBlock.CommentBlock);
-        Assert.Equal(fileHeaderBlock.Date, actualFileHeaderBlock.Date);
-        Assert.Equal(fileHeaderBlock.RealEntry, actualFileHeaderBlock.RealEntry);
-        Assert.Equal(fileHeaderBlock.NextLink, actualFileHeaderBlock.NextLink);
-        Assert.Equal(fileHeaderBlock.NextSameHash, actualFileHeaderBlock.NextSameHash);
-        Assert.Equal(fileHeaderBlock.Parent, actualFileHeaderBlock.Parent);
-        Assert.Equal(fileHeaderBlock.Extension, actualFileHeaderBlock.Extension);
-        Assert.Equal(Constants.ST_FILE, actualFileHeaderBlock.SecType);
+        Assert.Equal(Constants.T_HEADER, actualEntryBlock.Type);
+        Assert.Equal(fileHeaderBlock.HeaderKey, actualEntryBlock.HeaderKey);
+        Assert.Equal(fileHeaderBlock.HighSeq, actualEntryBlock.HighSeq);
+        Assert.Equal(expectedDataSize, actualEntryBlock.HashTableSize);
+        Assert.Equal(fileHeaderBlock.FirstData, actualEntryBlock.FirstData);
+        Assert.Equal(fileHeaderBlock.Checksum, actualEntryBlock.Checksum);
+        Assert.Equal(fileHeaderBlock.HashTable, actualEntryBlock.HashTable);
+        Assert.Equal(fileHeaderBlock.Access, actualEntryBlock.Access);
+        Assert.Equal(fileHeaderBlock.ByteSize, actualEntryBlock.ByteSize);
+        Assert.Equal(fileHeaderBlock.Name, actualEntryBlock.Name);
+        Assert.Equal(fileHeaderBlock.Comment, actualEntryBlock.Comment);
+        Assert.Equal(fileHeaderBlock.CommentBlock, actualEntryBlock.CommentBlock);
+        Assert.Equal(fileHeaderBlock.Date, actualEntryBlock.Date);
+        Assert.Equal(fileHeaderBlock.RealEntry, actualEntryBlock.RealEntry);
+        Assert.Equal(fileHeaderBlock.NextLink, actualEntryBlock.NextLink);
+        Assert.Equal(fileHeaderBlock.NextSameHash, actualEntryBlock.NextSameHash);
+        Assert.Equal(fileHeaderBlock.Parent, actualEntryBlock.Parent);
+        Assert.Equal(fileHeaderBlock.Extension, actualEntryBlock.Extension);
+        Assert.Equal(Constants.ST_FILE, actualEntryBlock.SecType);
     }
     
-    private static FileHeaderBlock CreateFileHeaderBlock(int blockSize) => new FileHeaderBlock(blockSize)
+    private static EntryBlock CreateFileEntryBlock(int blockSize) => new EntryBlock(blockSize)
     {
         HeaderKey = 1U,
         HighSeq = 2U,
@@ -124,6 +124,7 @@ public class GivenLongNameFileSystemFileHeaderBlockWriter
         NextLink = 5U,
         NextSameHash = 6U,
         Parent = 7U,
-        Extension = 8U
+        Extension = 8U,
+        SecType = Constants.ST_FILE
     };
 }

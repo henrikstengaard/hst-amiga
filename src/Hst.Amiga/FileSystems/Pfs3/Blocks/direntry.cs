@@ -65,6 +65,25 @@
 
         public uint Size => fsize;
 
+        /// <summary>
+        /// Link path is the path of the linked file or directory. Link path is null if entry is not a link entry.
+        /// </summary>
+        public string LinkPath { get; private set; }
+
+        public direntry(byte next, sbyte type, uint anode, uint fsize, byte protection, DateTime date, string name,
+            string comment, extrafields extraFields)
+        {
+            this.type = type;
+            this.anode = anode;
+            this.fsize = fsize;
+            this.protection = protection;
+            this.CreationDate = date;
+            Name = name;
+            this.comment = comment;
+            ExtraFields = extraFields;
+            Next = next;
+        }
+        
         public direntry(byte next, sbyte type, uint anode, uint fsize, byte protection, DateTime date, string name,
             string comment, extrafields extraFields, globaldata g)
         {
@@ -84,6 +103,10 @@
             dirEntry.ExtraFields, g)
         {
         }
+
+        public direntry Clone() =>
+            new direntry(Next, type, anode, fsize, protection, CreationDate, Name, comment,
+                new extrafields(ExtraFields));
 
         public void SetType(sbyte type)
         {
@@ -110,6 +133,8 @@
             this.protection = prot;
         }
 
+        public extrafields GetExtraFields() => new extrafields(ExtraFields);
+
         public void SetExtraFields(extrafields extraFields, globaldata g)
         {
             var updateSize = this.ExtraFields.ExtraFieldsSize != extraFields.ExtraFieldsSize;
@@ -118,6 +143,11 @@
             {
                 Next = (byte)CalculateSize(Name, comment, extraFields, g);
             }
+        }
+        
+        public void SetLinkPath(string linkPath)
+        {
+            LinkPath = linkPath;
         }
 
         public direntry() :

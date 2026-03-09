@@ -2,12 +2,12 @@
 {
     using System;
 
-    public abstract class EntryBlock : IBlock, IHeaderBlock, IEntryBlock
+    public class EntryBlock : IBlock, IHeaderBlock, IEntryBlock
     {
         public uint Offset { get; set; }
         public byte[] BlockBytes { get; set; }
         
-        public abstract int Type { get; } // 0x000
+        public int Type { get; } // 0x000
         public uint HeaderKey { get; set; } // 0x004
         public uint HighSeq { get; set; } // 0x008
 
@@ -43,10 +43,11 @@
         public uint NextSameHash { get; set; } // 0x1f0
         public uint Parent { get; set; } // 0x1f4
         public uint Extension { get; set; } // 0x1f8
-        public abstract int SecType { get;} // 0x1fc
+        public int SecType { get; set; } // 0x1fc
 
-        protected EntryBlock(int fileSystemBlockSize)
+        public EntryBlock(int fileSystemBlockSize)
         {
+            Type = Constants.T_HEADER;
             var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)fileSystemBlockSize);
             IndexSize = indexSize;
             Index = new uint[indexSize];

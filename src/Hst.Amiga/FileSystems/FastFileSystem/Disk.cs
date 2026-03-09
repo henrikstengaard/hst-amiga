@@ -123,9 +123,9 @@
             return fileExtBlock;
         }
 
-        public static async Task WriteFileHdrBlock(Volume vol, uint nSect, FileHeaderBlock fileHeaderBlock)
+        public static async Task WriteEntryBlock(Volume vol, uint nSect, EntryBlock entryBlock)
         {
-            var blockBytes = EntryBlockBuilder.Build(fileHeaderBlock, vol.FileSystemBlockSize, vol.UseLnfs);
+            var blockBytes = EntryBlockBuilder.Build(entryBlock, vol.FileSystemBlockSize, vol.UseLnfs);
             await WriteBlock(vol, nSect, blockBytes);
         }
         

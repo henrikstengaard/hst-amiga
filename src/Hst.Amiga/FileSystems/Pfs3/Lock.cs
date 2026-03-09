@@ -92,7 +92,7 @@
                  */
                 // var dirBlock = info.file.dirblock.dirblock;
                 // extrafields = Directory.GetExtraFields(dirBlock.entries, info.file.direntry);
-                extrafields = info.file.direntry.ExtraFields;
+                extrafields = info.file.direntry.GetExtraFields();
                 await anodes.GetAnode(linknode, info.file.direntry.anode, g);
                 if (!await FetchObject(linknode.clustersize, extrafields.link, newinfo, g))
                 {
@@ -182,7 +182,7 @@
                     {
                         // var dirBlock = newinfo.file.dirblock.dirblock;
                         // extrafields = Directory.GetExtraFields(dirBlock.entries, newinfo.file.direntry);
-                        extrafields = newinfo.file.direntry.ExtraFields;
+                        extrafields = newinfo.file.direntry.GetExtraFields();
                         await Disk.SeekInFile(fileentry, (int)extrafields.rollpointer, Constants.OFFSET_BEGINNING, g);
                     }
 

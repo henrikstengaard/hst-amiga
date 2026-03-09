@@ -50,6 +50,8 @@ public class IconImageImport : IconCommandBase
             return result;
         }
 
+        DiskObjectHelper.UpdateGadgetFlags(diskObject);
+
         OnInformationMessage($"Writing disk object to icon file '{path}'");
 
         await WriteIcon(iconStream, diskObject);

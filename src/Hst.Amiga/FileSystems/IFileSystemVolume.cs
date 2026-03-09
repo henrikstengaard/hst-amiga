@@ -42,27 +42,38 @@
         Task ChangeDirectory(string path);
 
         /// <summary>
-        /// Create directory in current directory
+        /// Create directory in current directory.
         /// </summary>
-        /// <param name="dirName"></param>
+        /// <param name="dirName">Name of directory to create.</param>
         Task CreateDirectory(string dirName);
 
         /// <summary>
-        /// Create file in current directory
+        /// Create file in current directory.
         /// </summary>
-        /// <param name="fileName"></param>
-        /// <param name="overwrite"></param>
-        /// <param name="ignoreProtectionBits"></param>
+        /// <param name="fileName">Name of file to create.</param>
+        /// <param name="overwrite">Overwrite file, if it exists.</param>
+        /// <param name="ignoreProtectionBits">Ignore protection bits, if file exists.</param>
         Task CreateFile(string fileName, bool overwrite, bool ignoreProtectionBits);
 
         /// <summary>
-        /// Open file for reading or writing data
+        /// Create link in current directory.
+        /// </summary>
+        /// <param name="linkName">Name of link entry to create.</param>
+        /// <param name="name">Name of entry to link to with path. Both absolute and relative paths are supported, e.g. "dir/file" and "/dir/file" depending on location of link.</param>
+        /// <param name="overwrite">Overwrite link, if it exists.</param>
+        /// <param name="ignoreProtectionBits">Ignore protection bits, if link exists.</param>
+        /// <returns></returns>
+        Task CreateLink(string linkName, string name, bool overwrite = false, bool ignoreProtectionBits = false);
+        
+        /// <summary>
+        /// Open file for reading or writing data.
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="mode"></param>
-        /// <param name="ignoreProtectionBits"></param>
+        /// <param name="overwrite">Overwrite file, if it exists.</param>
+        /// <param name="ignoreProtectionBits">Ignore protection bits, if file exists.</param>
         /// <returns></returns>
-        Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits);
+        Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite, bool ignoreProtectionBits);
 
         /// <summary>
         /// Rename or move a file or directory

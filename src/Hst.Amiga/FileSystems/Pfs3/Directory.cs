@@ -10,6 +10,60 @@
 
     public static class Directory
     {
+        /// <summary>
+        /// Get path to entry.
+        /// </summary>
+        /// <param name="g">Pfs3 global data.</param>
+        /// <param name="entry">Entry to get path for.</param>
+        /// <param name="directory">Directory to get path from. If directory is encountered while iterating parent directories, it will stop iterating resulting in a relative path.</param>
+        /// <returns></returns>
+        public static async Task<string> GetPath(globaldata g, objectinfo entry, objectinfo directory = null)
+        {
+            var currentDirectory = entry;
+            
+            // return empty path, if directory is defined and entry is the same as directory
+            if (directory != null &&
+                directory.file.dirblock.dirblock != null &&
+                currentDirectory.file.dirblock.dirblock != null &&
+                currentDirectory.file.dirblock.dirblock.anodenr == directory.file.dirblock.dirblock.anodenr)
+            {
+                return string.Empty;
+            }
+            
+            var parentDirectory = new objectinfo();
+            var pathComponents = new LinkedList<string>();
+
+            var isRelative = false;
+            do
+            {
+                if (!await GetParent(currentDirectory, parentDirectory, g))
+                {
+                    break;
+                }
+                
+                if (parentDirectory.file.dirblock.dirblock == null)
+                {
+                    break;
+                }
+
+                currentDirectory = parentDirectory;
+
+                pathComponents.AddFirst(currentDirectory.file.direntry.Name);
+                
+                if (directory != null &&
+                    directory.file.dirblock.dirblock != null &&
+                    currentDirectory.file.dirblock.dirblock != null &&
+                    currentDirectory.file.dirblock.dirblock.anodenr == directory.file.dirblock.dirblock.anodenr)
+                {
+                    isRelative = true;
+                    break;
+                }
+            } while (currentDirectory.file.dirblock.dirblock != null &&
+                     currentDirectory.file.dirblock.dirblock.anodenr != Constants.ANODE_ROOTDIR);
+
+            return string.Concat(isRelative ? string.Empty : "/", string.Join("/", pathComponents.ToList()));
+        }
+        
         public static async Task<CachedBlock> MakeDirBlock(uint blocknr, uint anodenr, uint rootanodenr, uint parentnr,
             globaldata g)
         {
@@ -265,9 +319,9 @@
             anodechain achain;
 // #endif
 
-            if (found && overwrite && newfile.file.direntry.type != Constants.ST_FILE)
+            if (found && overwrite && !Macro.IsFile(newfile)) 
             {
-                throw new NotAFileException($"Overwrite existing file '{filename}' failed, not a file");
+                throw new NotAFileException($"Overwrite existing file '{filename}' failed, entry is not a file or link");
             }
 
             //DB(Trace(10, "NewFile", "%s\n", filename));
@@ -331,7 +385,7 @@
 
                     // var dirBlock = info.file.dirblock.dirblock;
                     // extrafields = GetExtraFields(dirBlock.entries, info.file.direntry);
-                    extrafields = info.file.direntry.ExtraFields;
+                    extrafields = info.file.direntry.GetExtraFields();
                     anodenr = extrafields.link;
                     await anodes.GetAnode(linknode, info.file.direntry.anode, g);
                     if (!await Lock.FetchObject(linknode.clustersize, anodenr, info, g))
@@ -414,15 +468,13 @@
                 // destentry = DirEntryReader.Read(info.file.dirblock.dirblock.entries, info.file.direntry.Offset);
                 destentry = info.file.direntry;
                 // extrafields = GetExtraFields(info.file.dirblock.dirblock.entries, info.file.direntry);
-                extrafields = new extrafields(info.file.direntry.ExtraFields);
+                extrafields = info.file.direntry.GetExtraFields();
                 extrafields.SetVirtualSize(0);
                 extrafields.SetRollPointer(0);
                 //AddExtraFields(info.file.dirblock.dirblock.entries, destentry, extrafields);
                 destentry.SetExtraFields(extrafields, g);
-                var fileInfo = new fileinfo();
-                await ChangeDirEntry(info, destentry, directory, fileInfo, g);
-                newfile.file = fileInfo;
-                newfile.volume.root = 1;
+                await ChangeDirEntry(info, destentry, directory, info.file, g);
+                newfile.file = info.file;
                 return;
             }
 
@@ -707,15 +759,16 @@
             // var movelen = endofblok - startofblok;
             // var temp = new byte[movelen];
 
-            // /* makes info invalid!! */
-            // if (info.file.direntry.next != 0)
-            // {
-            //     //memset(startofclear, 0, clearlen);
-            //     // for (var i = 0; i < clearlen; i++)
-            //     // {
-            //     //     blk.entries[startofclear + i] = 0;
-            //     // }
-            // }
+            /* makes info invalid!! */
+            if (info.file.direntry.Next != 0)
+            {
+                //memset(startofclear, 0, clearlen);
+                // for (var i = 0; i < clearlen; i++)
+                // {
+                //     blk.entries[startofclear + i] = 0;
+                // }
+                info.file.direntry = new direntry();
+            }
 
             await Update.MakeBlockDirty(info.file.dirblock, g); // %6.2
         }
@@ -740,34 +793,30 @@
 //  * If only a partial path is found, a pointer to the unparsed part
 //  * will be stored in g->unparsed.
 //  */
-//         public static async Task FindObject(objectinfo directory, string objectname,
-//             objectinfo object_, globaldata g)
-//         {
-//             string filename;
-//             bool ok;
-//
-//             *error = 0;
-//             filename = GetFullPath(directory, objectname, object_, error, g);
-//
-//             if (!filename)
-//             {
-//                 //DB(Trace(2, "FindObject !filename %s\n", objectname));
-//                 return false;
-//             }
-//
-//             /* path only (dir or volume) */
-//             if (!*filename)
-//             {
-//                 return true;
-//             }
-//
-//             /* there is a filepart (file or dir)  */
-//             ok = await GetObject(filename, object_, g);
-//             if (!ok && (*error == ERROR_OBJECT_NOT_FOUND))
-//                 g->unparsed = filename;
-//
-//             return ok;
-//         }
+         public static async Task<bool> FindObject(objectinfo directory, string objectname,
+             objectinfo obj, globaldata g)
+         {
+             var filename = await GetFullPath(directory, objectname, obj, g);
+
+             if (filename == null)
+             {
+                 //DB(Trace(2, "FindObject !filename %s\n", objectname));
+                 return false;
+             }
+
+             /* path only (dir or volume) */
+             if (string.IsNullOrEmpty(filename))
+             {
+                 return true;
+             }
+
+             /* there is a filepart (file or dir)  */
+             // var ok = await GetObject(filename, obj, g);
+             // if (!ok && (*error == ERROR_OBJECT_NOT_FOUND))
+             //     g->unparsed = filename;
+
+             return await GetObject(filename, obj, g);
+         }
 
 /* GetParent
  *
@@ -1500,6 +1549,12 @@
         //     return extrafields;
         // }
 
+        /// <summary>
+        /// Get del dir entry file size
+        /// </summary>
+        /// <param name="dde"></param>
+        /// <param name="g"></param>
+        /// <returns></returns>
         public static uint GetDDFileSize(deldirentry dde, globaldata g)
         {
             if (!Constants.LARGE_FILE_SIZE || !g.largefile || dde.filename[0] > Constants.DELENTRYFNSIZE)
@@ -1511,6 +1566,12 @@
             return 0;
         }
 
+        /// <summary>
+        /// Get dir entry file size
+        /// </summary>
+        /// <param name="direntry"></param>
+        /// <param name="g"></param>
+        /// <returns></returns>
         public static uint GetDEFileSize(direntry direntry, globaldata g)
         {
             if (!Constants.LARGE_FILE_SIZE || !g.largefile)
@@ -1543,114 +1604,114 @@
  * If only a partial path is found, a pointer to the unparsed part
  * will be stored in g->unparsed.
  */
-// public static async Task<byte> GetFullPath(objectinfo basispath, string filename, objectinfo fullpath, globaldata g)
-// {
-//     byte pathpart;
-//     char parttype;
-// 	COUNT index;
-// 	bool eop = false, success = true;
-// 	volumedata volume;
-//
-// 	// VVV Init:getrootvolume
-// 	//ENTER("GetFullPath");
-// 	//g.unparsed = NULL;
-//
-// 	/* Set base path */
-//     if (basispath != null)
-//     {
-//         fullpath = basispath;
-//     }
-//     else
-//     {
-//         fullpath = await GetRoot(g);
-//     }
-//
-// 	/* The basispath should not be a file
-// 	 * BTW: softlink is illegal too, but not possible
-// 	 */
-// 	if (Macro.IsFile(fullpath) || Macro.IsDelFile(fullpath))
-// 	{
-// 		throw new IOException("ERROR_OBJECT_WRONG_TYPE");
-// 	}
-//
-// 	/* check if device present */
-//     if (Macro.IsVolume(fullpath) || Macro.IsDelDir(fullpath))
-//     {
-//         volume = fullpath.volume.volume;
-//     }
-//     else
-//     {
-//         volume = fullpath.file.dirblock.volume;
-//     }
-//
-//     if (!Volume.CheckVolume(volume, false, g))
-//     {
-//         return 0; // false
-//     }
-//
-//
-//     if (filename.IndexOf("/", StringComparison.OrdinalIgnoreCase))
-//     {
-//         
-//     }
-//     
-//     var parts = filename.Split('/');
-//     
-// 	/* extend base-path using filename and
-// 	 * continue until path complete (eop = end of path)
-// 	 */
-//     
-// 	while (!eop)
-// 	{
-// 		pathpart = filename;
-// 		index = filename.IndexOf(new char []{ '/', ':'}, StringComparison.OrdinalIgnoreCase);
-//         index = filename.IndexOf("/", StringComparison.OrdinalIgnoreCase);
-// 		parttype = filename[index];
-// 		filename[index] = 0x0;
-//
-// 		switch (parttype)
-// 		{
-// 			case ':':
-// 				success = false;
-// 				break;
-//
-// 			case '/':
-// 				if (pathpart == 0x0)
-// 				{
-// 					// if already at root, fail with an error
-// 					if (Macro.IsVolume(fullpath))
-// 					{
-// 						throw new IOException("ERROR_OBJECT_NOT_FOUND");
-// 					}
-// 					success = await GetParentOf(fullpath, g);
-// 				}
-// 				else
-// 					success = await GetDir(pathpart, fullpath, g);
-// 				break;
-//
-// 			default:
-// 				eop = true;
-//                 break;
-// 		}
-//
-// 		filename[index] = parttype;
-//
-// 		if (!success)
-// 		{
-// 			/* return pathrest for readlink() */
-// 			if (*error == ERROR_IS_SOFT_LINK)
-// 				g->unparsed = filename + index;
-// 			else if (*error == ERROR_OBJECT_NOT_FOUND)
-// 				g->unparsed = filename;
-// 			return NULL;
-// 		}
-//
-// 		if (!eop)
-// 			filename += index + 1;
-// 	}
-//
-// 	return filename;
-// }
+        public static async Task<string> GetFullPath(objectinfo basispath, string filename, objectinfo fullpath, globaldata g)
+        {
+	        bool eop = false, success;
+	        volumedata volume;
+
+            // VVV Init:getrootvolume
+            //ENTER("GetFullPath");
+            //g.unparsed = NULL;
+            /* Set base path */
+            fullpath.OverwriteWith(Macro.IsDirEntry(basispath) && !filename.StartsWith("/")
+                ? basispath : await GetRoot(g));
+
+            /* The basispath should not be a file
+             * BTW: softlink is illegal too, but not possible
+             */
+            if (Macro.IsFile(fullpath) || Macro.IsDelFile(fullpath))
+	        {
+		        throw new IOException("ERROR_OBJECT_WRONG_TYPE");
+	        }
+
+	        /* check if device present */
+            if (Macro.IsVolume(fullpath) || Macro.IsDelDir(fullpath))
+            {
+                volume = fullpath.volume.volume;
+            }
+            else
+            {
+                volume = fullpath.file.dirblock.volume;
+            }
+
+            Volume.CheckVolume(volume, false, g);
+
+            /* extend base-path using filename and
+             * continue until path complete (eop = end of path)
+             */
+            // while (!eop)
+            // {
+            //     pathpart = filename;
+            //     index = strcspn(filename, "/:");
+            //     parttype = filename[index];
+            //     filename[index] = 0x0;
+            //
+            //     switch (parttype)
+            //     {
+            //         case ':':
+            //             success = FALSE;
+            //             break;
+            //
+            //         case '/':
+            //             if (*pathpart == 0x0)
+            //             {
+            //                 // if already at root, fail with an error
+            //                 if (IsVolume(*fullpath))
+            //                 {
+            //                     *error = ERROR_OBJECT_NOT_FOUND;
+            //                     success = FALSE;
+            //                     break;
+            //                 }
+            //                 success = GetParentOf(fullpath, error, g);
+            //             }
+            //             else
+            //                 success = GetDir(pathpart, fullpath, error, g);
+            //             break;
+            //
+            //         default:
+            //             eop = TRUE;
+            //     }
+            //
+            //     filename[index] = parttype;
+            //
+            //     if (!success)
+            //     {
+            //         /* return pathrest for readlink() */
+            //         if (*error == ERROR_IS_SOFT_LINK)
+            //             g->unparsed = filename + index;
+            //         else if (*error == ERROR_OBJECT_NOT_FOUND)
+            //             g->unparsed = filename;
+            //         return NULL;
+            //     }
+            //
+            //     if (!eop)
+            //         filename += index + 1;
+            // }
+            //
+            // return filename;            
+
+            if (filename.IndexOf(':') >= 0)
+            {
+                return null;
+            }
+
+            var isRoot = filename.StartsWith("/");
+            if (isRoot)
+            {
+                filename = filename.Substring(1);
+            }
+            
+            var pathParts = filename.Split('/');
+            foreach (var pathPart in pathParts.Take(pathParts.Length - 1))
+            {
+                if (!await GetDir(pathPart, fullpath, g))
+                {
+                    return null;
+                }
+            }
+
+            return pathParts[pathParts.Length - 1];
+        }
 
         /// <summary>
         /// Find object info for path. Returns remaining parts not found
@@ -1752,7 +1813,7 @@
 
                 // var dirBlock = path.file.dirblock.dirblock;
                 // extrafields = GetExtraFields(dirBlock.entries, path.file.direntry);
-                extrafields = path.file.direntry.ExtraFields;
+                extrafields = path.file.direntry.GetExtraFields();
                 await anodes.GetAnode(linknode, path.file.direntry.anode, g);
                 if (!await Lock.FetchObject(linknode.clustersize, extrafields.link, path, g))
                     return false;
@@ -2004,7 +2065,54 @@
             
             while (blk != null && !eod) /* eod stands for end-of-dir */
             {
-                dirEntries.AddRange(blk.DirEntries);
+                foreach(var dirEntry in blk.DirEntries)
+                {
+                    if (g.ResolveLinkPaths &&
+                        (dirEntry.type == Constants.ST_LINKFILE || dirEntry.type == Constants.ST_LINKDIR))
+                    {
+                        // create link object from dir entry
+                        var linkObject = new objectinfo
+                        {
+                            file = new fileinfo
+                            {
+                                direntry = dirEntry,
+                                dirblock = dirblock
+                            }
+                        };
+
+                        var type = new ListType
+                        {
+                            value = Constants.ET_FILEENTRY
+                        };
+
+                        // get object the dir entry links to
+                        IEntry fileFe;
+                        if ((fileFe = await Lock.MakeListEntry(linkObject, type, g)) == null)
+                        {
+                            throw new IOException("make list entry error");
+                        }
+                        Lock.RemoveListEntry(fileFe, g);
+
+                        // create current dir object
+                        var currentDirEntry = new direntry(0);
+                        currentDirEntry.SetAnode(dirnodenr);
+                        var currentDirObject = new objectinfo
+                        {
+                            file = new fileinfo
+                            {
+                                direntry = currentDirEntry,
+                                dirblock = dirblock
+                            }
+                        };
+
+                        // get path of linked object
+                        var linkPath = await GetPath(g, fileFe.ListEntry.info, currentDirObject);
+                        dirEntry.SetLinkPath(string.Concat(linkPath, string.IsNullOrEmpty(linkPath) ? string.Empty : "/",
+                            fileFe.ListEntry.info.file.direntry.Name));
+                    }
+                    
+                    dirEntries.Add(dirEntry);
+                }
                 
                 /* load next block */
                 var result = await anodes.NextBlock(anode, anodeoffset, g);
@@ -2366,9 +2474,9 @@
  */
         public static async Task RenameInPlace(objectinfo from, direntry to, fileinfo result, globaldata g)
         {
-            int dest, start, end;
-            int movelen;
-            int diff;
+            // int dest, start, end;
+            // int movelen;
+            // int diff;
             objectinfo parent = new objectinfo();
 
             Macro.Lock(from.file.dirblock, g);
@@ -2389,11 +2497,6 @@
             //
             // // memmove(dest, start, movelen);
             var dirBlock = from.file.dirblock.dirblock;
-
-            /* fill in new entry */
-            // memcpy((UBYTE *)from.direntry, to, to.next);
-
-            /* fill in result and make block dirty */
             // replace from with to by removing existing from dir entries and add new to dir entries 
             var existingDirEntry = dirBlock.DirEntries.FirstOrDefault(x => x.Name == from.file.direntry.Name);
             if (existingDirEntry == null)
@@ -2403,7 +2506,12 @@
             }
             dirBlock.DirEntries.Remove(existingDirEntry);
             dirBlock.DirEntries.Add(to);
-            
+
+            /* fill in new entry */
+            // memcpy((UBYTE *)from.direntry, to, to.next);
+            from.file.direntry = to;
+
+            /* fill in result and make block dirty */
             result.direntry = from.file.direntry;
             result.dirblock = from.file.dirblock;
             await Update.MakeBlockDirty(from.file.dirblock, g);
@@ -2426,24 +2534,19 @@
             await RemoveDirEntry(from, g);
             if (to != null)
             {
+                // removing the direntry from the dirblock is handled by "RemoveDirEntry"
+                // which only has a simple list of entries.
+                // the original pfs3 code modifies the dirblock bytes using pointers.
+
                 /* test on volume is not necessary, because file.dirblock = volume.volume !=
                  * from.dirblock
                  * restore 'destdir' (can be invalidated by RemoveDirEntry)
                  */
-                // TODO: Examine when this is nessecary
-                // if (destdir.file.dirblock == from.file.dirblock &&
-                //     destdir.file.direntry.Position > from.file.direntry.Position)
+                // if (destdir->file.dirblock == from.dirblock &&
+                //     destdir->file.direntry > from.direntry)
                 // {
-                //     // destdir->file.direntry = (struct direntry *)((UBYTE *)destdir->file.direntry - removedlen);
-                //     var dirBlock = destdir.file.dirblock.dirblock;
-                //     // destdir.file.direntry =
-                //     //     DirEntryReader.Read(dirBlock.entries, destdir.file.direntry.Offset - removedlen);
-                //     destdir.file.direntry =
-                //         dirBlock.DirEntries.FirstOrDefault(x => x.Position == destdir.file.direntry.Position - 1);
-                //     if (destdir.file.direntry == null)
-                //     {
-                //         throw new IOException("RenameAcrossDirs: destdir.file.direntry is null");
-                //     }
+                //     destdir->file.direntry = (struct direntry *)
+                //     ((UBYTE *)destdir->file.direntry - removedlen);
                 // }
 
                 /* add new entry */
@@ -2513,7 +2616,7 @@
 /*
  * Updates size field of links
  */
-        public static async Task UpdateLinks(direntry object_, globaldata g)
+        public static async Task UpdateLinks(direntry obj, globaldata g)
         {
             canode linklist = new canode();
             objectinfo loi = new objectinfo();
@@ -2521,14 +2624,14 @@
 
             //ENTER("UpdateLinks");
             // extrafields = GetExtraFields(entries, object_);
-            var extrafields = object_.ExtraFields;
+            var extrafields = obj.GetExtraFields();
             linknr = extrafields.link;
             while (linknr != 0)
             {
                 /* Update link: get link object info and update size */
                 await anodes.GetAnode(linklist, linknr, g);
                 await Lock.FetchObject(linklist.blocknr, linklist.nr, loi, g);
-                loi.file.direntry.SetFSize(object_.fsize);
+                loi.file.direntry.SetFSize(obj.fsize);
                 await Update.MakeBlockDirty(loi.file.dirblock, g);
                 linknr = linklist.next;
             }
@@ -2554,6 +2657,10 @@
  */
         public static async Task DeleteObject(objectinfo info, globaldata g)
         {
+            // ARG1 = Lock to which ARG2 is relative (BPTR)
+            // ARG2 = BSTR Name of object to be deleted
+            // RES1 = BOOL Success/failure (DOSTRUE/DOSFALSE)
+            // RES2 = failurecode (if res1 = DOSFALSE)            
             uint anodenr;
 
             //ENTER("DeleteObject");
@@ -2573,6 +2680,7 @@
                 (info.file.direntry.type == Constants.ST_LINKDIR))
             {
                 await DeleteLink(info, g);
+                return;
             }
 
             anodenr = Macro.FIANODENR(info.file);
@@ -2724,18 +2832,22 @@
  */
         public static async Task DeleteLink(objectinfo link, globaldata g)
         {
-            canode linknode = new canode();
-            canode linklist = new canode();
-            extrafields extrafields = new extrafields();
-            objectinfo object_ = new objectinfo();
-            objectinfo directory = new objectinfo();
-            //var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
+            // struct canode linknode, linklist;
+            // struct extrafields extrafields;
+            // union objectinfo object, directory;
+            // UBYTE entrybuffer[MAX_ENTRYSIZE];
+            
+            var linknode = new canode();
+            var linklist = new canode();
+            var extrafields = new extrafields();
+            var object_ = new objectinfo();
+            var directory = new objectinfo();
 
             /* get node to remove */
             await anodes.GetAnode(linknode, link.file.direntry.anode, g);
             // var linkDirBlock = link.file.dirblock.dirblock;
             // extrafields = GetExtraFields(linkDirBlock.entries, link.file.direntry);
-            extrafields = link.file.direntry.ExtraFields;
+            extrafields = link.file.direntry.GetExtraFields();
 
             /* delete old entry */
             await ChangeDirEntry(link, null, null, null, g);
@@ -2744,16 +2856,17 @@
             await Lock.FetchObject(linknode.clustersize, extrafields.link, object_, g);
             // var objectDirBlock = object_.file.dirblock.dirblock;
             // extrafields = GetExtraFields(objectDirBlock.entries, object_.file.direntry);
-            extrafields = new extrafields(object_.file.direntry.ExtraFields);
+            extrafields = object_.file.direntry.GetExtraFields();
 
             /* if the object lists our link as the first link, redirect it to the next one */
             if (extrafields.link == linknode.nr)
             {
                 extrafields.SetLink(linknode.next);
-                //memcpy(entrybuffer, object_.file.direntry, object_.file.direntry->next);
-                //DirEntryWriter.Write(entrybuffer, 0, object_.file.direntry, g);
-                //AddExtraFields(entrybuffer, object_.file.direntry, extrafields);
-                object_.file.direntry.SetExtraFields(extrafields, g);
+                // memcpy(entrybuffer, object.file.direntry, object.file.direntry->next);
+                // AddExtraFields((struct direntry *)entrybuffer, &extrafields);
+                var entryBuffer = new direntry(object_.file.direntry, g);
+                entryBuffer.SetExtraFields(extrafields, g);
+                
                 if (!await GetParent(object_, directory, g))
                 {
                     throw new IOException("ERROR_DISK_NOT_VALIDATED");
@@ -2761,7 +2874,7 @@
                 }
                 else
                 {
-                    await ChangeDirEntry(object_, object_.file.direntry, directory, object_.file, g);
+                    await ChangeDirEntry(object_, entryBuffer, directory, object_.file, g);
                 }
             }
             /* otherwise simply remove the link from the list of links */
@@ -2793,15 +2906,13 @@
             objectinfo link = new objectinfo();
             objectinfo directory = new objectinfo();
             direntry destentry;
-            var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
 
             Cache.ClearSearchInDirCache(object_.file.dirblock.blocknr, g);
             
             //ENTER("RemapLinks");
             /* get head of linklist */
-            var dirBlock = object_.file.dirblock.dirblock;
             // extrafields = GetExtraFields(dirBlock.entries, object_.file.direntry);
-            extrafields = object_.file.direntry.ExtraFields;
+            extrafields = object_.file.direntry.GetExtraFields();
             if (extrafields.link == 0)
             {
                 return false;
@@ -2822,7 +2933,7 @@
             destentry = link.file.direntry;
             // var linkDirBlock = link.file.dirblock.dirblock;
             // extrafields = GetExtraFields(linkDirBlock.entries, link.file.direntry);
-            extrafields = new extrafields(link.file.direntry.ExtraFields);
+            extrafields = link.file.direntry.GetExtraFields();
             destentry.SetType(object_.file.direntry.type); // is this necessary?
             destentry.SetFSize(object_.file.direntry.fsize); // is this necessary?
             destentry.SetAnode(object_.file.direntry.anode); // is this necessary?
@@ -2830,8 +2941,6 @@
             extrafields.SetLink(linknode.next);
             //AddExtraFields(linkDirBlock.entries, destentry, extrafields);
             destentry.SetExtraFields(extrafields, g);
-
-            // DirEntryWriter.Write(entrybuffer, 0, destentry);
 
             /* Free old linklist node */
             await anodes.FreeAnode(linknode.nr, g);
@@ -2863,7 +2972,7 @@
 
             //ENTER("UpdateLinkDir");
             // extrafields = GetExtraFields(entries, object_);
-            var extrafields = object_.ExtraFields;
+            var extrafields = object_.GetExtraFields();
             linknr = extrafields.link;
             while (linknr != 0)
             {
@@ -3083,7 +3192,7 @@
 
             //ENTER("MoveLink");
             // extrafields = GetExtraFields(entries, object_);
-            var extrafields = object_.ExtraFields;
+            var extrafields = object_.GetExtraFields();
 
             /* check if is link or linked to */
             if ((linknr = extrafields.link) == 0)
@@ -3203,6 +3312,175 @@
                 return true;
             }
         }
+
+        /*
+         * linkdir: directory (in) 
+         * linkname: name (in)
+         * object: object to link to (in) (dir must be locked)
+         * newlink: result (out)
+         */
+        /// <summary>
+        /// Create a link to an entry.
+        /// </summary>
+        /// <param name="linkdir">Directory to create the link in.</param>
+        /// <param name="linkname">Name of the link to create.</param>
+        /// <param name="obj">Object to link to.</param>
+        /// <param name="newlink">Newlink created.</param>
+        /// <param name="g">Globaldata</param>
+        /// <exception cref="IOException">Exception thrown.</exception>
+        public static async Task CreateLink(objectinfo linkdir, string linkname, objectinfo obj,
+				        objectinfo newlink, globaldata g)
+        {
+	        var info = new objectinfo();
+            var odi = new objectinfo();
+	        uint anodenr, linklist;
+            direntry objectentry;
+            direntry destentry;
+	        //byte[] entrybuffer = new byte[MAX_ENTRYSIZE];
+	        extrafields extrafields;
+            canode linknode = new canode();
+	        int l;
+
+	        //ENTER("CreateLink");
+            // #if DELDIR
+            if (Macro.IsDelDir(linkdir) || Macro.IsDelDir(obj) || Macro.IsDelFile(obj))
+            {
+                throw new IOException("ERROR_WRITE_PROTECTED");
+            }
+            // #endif
+
+	        /* check if operation possible */
+	        if (!g.dirextension)
+	        {
+                throw new IOException("ERROR_ACTION_NOT_KNOWN");
+	        }
+
+	        /* check disk-writeprotection etc */
+            Volume.CheckVolume(g.currentvolume, true, g);
+
+	        /* get anodenr */
+	        if (!Macro.IsDirEntry(linkdir) || Macro.IsVolume(linkdir))
+	        {
+		        anodenr = (uint)Macro.ANODE_ROOTDIR;
+	        }
+	        else
+	        {
+		        anodenr = Macro.FIANODENR(linkdir.file);
+		        Cache.LOCK(linkdir.file.dirblock, g);
+	        }
+            
+            /* truncate filename to 31 characters */
+            if ((l = linkname.Length) == 0)
+            {
+                throw new IOException("ERROR_INVALID_COMPONENT_NAME");
+            }
+
+            var fileNameSize = Macro.FILENAMESIZE(g);
+            if (l > fileNameSize - 1)
+            {
+                linkname = linkname.Substring(fileNameSize - 1);
+            }
+            
+	        /* check reserved area lock */
+	        if (Macro.ReservedAreaIsLocked(g))
+	        {
+                throw new IOException("ERROR_DISK_FULL");
+	        }
+
+	        /* check if a file by that name already exists */
+	        if (await SearchInDir(anodenr, linkname, info, g))
+	        {
+                throw new IOException("ERROR_OBJECT_EXISTS");
+	        }
+
+	        /* make directory entry 
+	         * the anode allocated is the link list element
+	         */
+            destentry = await MakeDirEntry(Constants.ST_LINKDIR, linkname, g);
+            if (destentry == null)
+            {
+                throw new IOException("Failed to make dir entry");
+            }
+
+	        /* add link info */
+	        //destentry = (struct direntry *)entrybuffer;
+	        objectentry = obj.file.direntry;
+        // #if MULTIUSER
+	       //  //GetExtraFields(destentry, &extrafields);
+        //     extrafields = new extrafields(destentry.ExtraFields);
+        // #else
+            // memset(&extrafields, 0, sizeof(struct extrafields));
+            extrafields = new extrafields();
+        // #endif
+	        extrafields.SetLink(objectentry.anode);
+	        //AddExtraFields(destentry, extrafields);
+            destentry.SetExtraFields(extrafields, g);
+
+	        /* copy object info */
+	        destentry.SetFSize(objectentry.fsize);
+	        switch (objectentry.type)
+	        {
+		        case Constants.ST_FILE:
+		        case Constants.ST_SOFTLINK:
+		        case Constants.ST_ROLLOVERFILE:
+		        case Constants.ST_LINKFILE:
+			        destentry.SetType(Constants.ST_LINKFILE);
+			        break;
+		        default:
+			        destentry.SetType(Constants.ST_LINKDIR);
+			        break;
+	        }
+
+	        /* store directoryentry */
+	        if (!await AddDirectoryEntry(linkdir, destentry, newlink.file, g))
+	        {
+                //return DOSFALSE;
+		        await anodes.FreeAnode(destentry.anode, g);
+                return;
+            }
+
+	        /* make linknode */
+	        linknode.clustersize = obj.file.dirblock.dirblock.anodenr;
+	        linknode.blocknr = newlink.file.dirblock.dirblock.anodenr;
+	        linknode.next = 0;
+	        await anodes.SaveAnode(linknode, newlink.file.direntry.anode, g);
+
+	        /* change objectentry */
+	        //GetExtraFields(objectentry, &extrafields);
+            extrafields = objectentry.GetExtraFields();
+	        if (extrafields.link == 0)
+	        {
+		        /* there were no links yet ->
+		         * add link field. Use entrybuffer and destentry pointer
+		         */
+		        extrafields.SetLink(newlink.file.direntry.anode);
+		        //memcpy(entrybuffer, objectentry, objectentry->next);
+                destentry = new direntry(objectentry, g);
+		        //AddExtraFields(destentry, &extrafields);
+                destentry.SetExtraFields(extrafields, g);
+                
+                if (!await GetParent(obj, odi, g))
+                {
+                    //return DOSFALSE;    /* serious! should not happen */
+                    throw new IOException("Failed to get parent");
+                }
+
+		        await ChangeDirEntry(obj, destentry, odi, obj.file, g);
+	        }
+	        else
+	        {
+		        /* add new link to chain */
+		        await anodes.GetAnode(linknode, extrafields.link, g);
+                while (linknode.next != 0)
+                {
+                    await anodes.GetAnode(linknode, linknode.next, g);
+                }
+		        linknode.next = newlink.file.direntry.anode;
+		        await anodes.SaveAnode(linknode, linknode.nr, g);
+	        }
+
+	        //return DOSTRUE;
+        }
         
 /* ProtectFile, SetDate
  *
@@ -3278,7 +3556,7 @@
                 /* set new extrafields */
                 //var dirBlock = file.file.dirblock.dirblock;
                 // extrafields = GetExtraFields(dirBlock.entries, sourceentry);
-                var extraFields = new extrafields(file.file.direntry.ExtraFields);
+                var extraFields = file.file.direntry.GetExtraFields();
                 extraFields.SetProtection(protection);
 
                 // AddExtraFields(dirBlock.entries, destentry, extrafields);

@@ -58,13 +58,12 @@ public class IconUpdateCommand : IconCommandBase
         if (type.HasValue)
         {
             diskObject.Type = (byte)type.Value;
+            diskObject.Gadget.Activation = (ushort)DiskObjectHelper.DefaultGadgetActivationFlags;
+            DiskObjectHelper.UpdateGadgetFlags(diskObject);
 
             switch (diskObject.Type)
             {
                 case Constants.DiskObjectTypes.DISK:
-                    diskObject.Gadget.Activation = 1;
-                    diskObject.Gadget.Flags = 6;
-                    diskObject.Gadget.GadgetId = 0;
                     diskObject.Gadget.UserDataPointer = 1;
                     diskObject.DrawerDataPointer = 1;
                     diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
@@ -72,9 +71,6 @@ public class IconUpdateCommand : IconCommandBase
                     diskObject.DrawerData.Flags = 33559167;
                     break;
                 case Constants.DiskObjectTypes.DRAWER:
-                    diskObject.Gadget.Activation = 1;
-                    diskObject.Gadget.Flags = 6;
-                    diskObject.Gadget.GadgetId = 0;
                     diskObject.Gadget.UserDataPointer = 1;
                     diskObject.DrawerDataPointer = 1;
                     diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
@@ -82,27 +78,18 @@ public class IconUpdateCommand : IconCommandBase
                     diskObject.DrawerData.Flags = 33559103;
                     break;
                 case Constants.DiskObjectTypes.PROJECT:
-                    diskObject.Gadget.Activation = 1;
-                    diskObject.Gadget.Flags = 6;
-                    diskObject.Gadget.GadgetId = 0;
                     diskObject.Gadget.UserDataPointer = 1;
                     diskObject.DrawerDataPointer = 0;
                     diskObject.DrawerData = null;
                     diskObject.DrawerData2 = null;
                     break;
                 case Constants.DiskObjectTypes.TOOL:
-                    diskObject.Gadget.Activation = 1;
-                    diskObject.Gadget.Flags = 6;
-                    diskObject.Gadget.GadgetId = 100;
                     diskObject.Gadget.UserDataPointer = 1;
                     diskObject.DrawerDataPointer = 0;
                     diskObject.DrawerData = null;
                     diskObject.DrawerData2 = null;
                     break;
                 case Constants.DiskObjectTypes.GARBAGE:
-                    diskObject.Gadget.Activation = 3;
-                    diskObject.Gadget.Flags = 6;
-                    diskObject.Gadget.GadgetId = 0;
                     diskObject.Gadget.UserDataPointer = 1;
                     diskObject.DrawerDataPointer = 1;
                     diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);

@@ -281,7 +281,7 @@ public class CanSalvage
                     },
                 };
 
-                var fileEntryX = await FileSystems.Pfs3.File.Open(objectInfo, false, g) as fileentry;
+                var fileEntryX = await FileSystems.Pfs3.File.Open(objectInfo, dirEntry.Name, FileSystems.FileMode.Read, false, g) as fileentry;
                 //return new EntryStream(fileEntry, g);
 
                 var buffer = new byte[dirEntry.fsize];

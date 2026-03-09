@@ -52,8 +52,13 @@
             return (await Directory.GetDirEntries(dirNodeNr, g)).Select(DirEntryConverter.ToEntry).ToList();
         }
 
+        public async Task<IEnumerable<direntry>> ListRawEntries()
+        {
+            return await Directory.GetDirEntries(dirNodeNr, g);
+        }
+
         /// <summary>
-        /// Find entry in current directory
+        /// Find entry in current directory.
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
@@ -110,7 +115,7 @@
             var currentDirectory = await GetCurrentDirectory();
             var entry = await Directory.NewDir(currentDirectory, dirName, g);
 
-            // TODO: Examine when it's necessary to keep entyr in volume file entries after creating new dir
+            // TODO: Examine when it's necessary to keep entry in volume file entries after creating new dir
             for (var node = g.currentvolume.fileentries.First; node != null; node = node.Next)
             {
                 if (node.Value != entry)
@@ -122,7 +127,7 @@
         }
 
         /// <summary>
-        /// Create file in current directory
+        /// Create file in current directory.
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="overwrite"></param>
@@ -130,20 +135,37 @@
         public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
         {
             g.IgnoreProtectionBits = ignoreProtectionBits;
-            var currentDirectory = await GetCurrentDirectory();
-            var objectInfo = currentDirectory.Clone();
-            var found = !(await Directory.Find(objectInfo, fileName, g)).Any();
-            await Directory.NewFile(found, currentDirectory, fileName, objectInfo, overwrite, g);
-
-            foreach (var fileEntry in g.currentvolume.fileentries)
+            using (await OpenFile(fileName, FileMode.Write, overwrite, ignoreProtectionBits))
             {
-                fileEntry.ListEntry.type.flags.access = Constants.ET_FILEENTRY;
-                fileEntry.ListEntry.filelock.fl_Access = Constants.ET_FILEENTRY;
             }
-
-            g.currentvolume.fileentries.Clear();
         }
         
+        /// <summary>
+        /// Create link in current directory.
+        /// </summary>
+        /// <param name="linkName">Link name to create.</param>
+        /// <param name="name">Name of entry to create link to.</param>
+        /// <param name="overwrite">Overwrite link, if it exists.</param>
+        /// <param name="ignoreProtectionBits">Ignore protection bits, if link exists.</param>
+        public async Task CreateLink(string linkName, string name, bool overwrite = false, bool ignoreProtectionBits = false)
+        {
+            g.IgnoreProtectionBits = ignoreProtectionBits;
+
+            var currentDirectory = await GetCurrentDirectory();
+            var linkFromDir = currentDirectory;
+            
+            var linkTo = currentDirectory.Clone();
+            var linkToFound = await Directory.FindObject(currentDirectory, name, linkTo, g);
+            
+            if (!linkToFound)
+            {
+                throw new PathNotFoundException($"Path not found '{name}'");
+            }
+            
+            var newLink = new objectinfo();
+            await Directory.CreateLink(linkFromDir, linkName, linkTo, newLink, g);
+        }
+
         public void ClearCachedData()
         {
             foreach (var fileentry in g.currentvolume.fileentries)
@@ -183,38 +205,20 @@
         }
 
         /// <summary>
-        /// Open file for reading or writing data
+        /// Open file for reading or writing data.
+        /// If a file is opened in write or append mode and file does not exist, it will be created.
         /// </summary>
         /// <param name="fileName"></param>
         /// <param name="mode"></param>
+        /// <param name="overwrite"></param>
         /// <param name="ignoreProtectionBits"></param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool ignoreProtectionBits = false)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false, bool ignoreProtectionBits = false)
         {
             g.IgnoreProtectionBits = ignoreProtectionBits;
             var currentDirectory = await GetCurrentDirectory();
-            var objectInfo = currentDirectory.Clone();
-            if ((await Directory.Find(objectInfo, fileName, g)).Any())
-            {
-                // remaining parts of path is returned, not found
-                if (mode == FileMode.Read)
-                {
-                    throw new PathNotFoundException($"Path '{fileName}' not found");
-                }
-
-                // create new file
-                await Directory.NewFile(false, currentDirectory, fileName, objectInfo, true, g);
-            }
-
-            var hasReadProtectionBit =
-                (objectInfo.file.direntry.protection & Constants.FIBF_READ) == 0;
-
-            if (!ignoreProtectionBits && !hasReadProtectionBit)
-            {
-                throw new FileSystemException($"File '{fileName}' does not have read protection bits set");
-            }
             
-            var fileEntry = await File.Open(objectInfo, mode == FileMode.Write || mode == FileMode.Append, g) as fileentry;
+            var fileEntry = await File.Open(currentDirectory, fileName, mode, overwrite, g) as fileentry;
             
             File.MakeSharedFileEntriesAndClear(g);
             
@@ -343,18 +347,19 @@
                 }
             };
         }
-        
+
         /// <summary>
         /// Mount pfs3 volume in stream using partition block information
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="partitionBlock"></param>
+        /// <param name="resolveLinkPaths"></param>
         /// <returns></returns>
-        public static async Task<Pfs3Volume> Mount(Stream stream, PartitionBlock partitionBlock)
+        public static async Task<Pfs3Volume> Mount(Stream stream, PartitionBlock partitionBlock, bool resolveLinkPaths = true)
         {
             var g = await Pfs3Helper.Mount(stream, partitionBlock);
+            g.ResolveLinkPaths = resolveLinkPaths;
             
-            //var root = (await Directory.GetRoot(g)).Clone();
             var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
             
             return new Pfs3Volume(g, dirNodeNr);

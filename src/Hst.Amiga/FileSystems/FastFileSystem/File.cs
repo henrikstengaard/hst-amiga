@@ -37,13 +37,21 @@
                 volume.Logs.Add($"ERROR: File \"{name}\" not found.");
             }
 
+            var entry = result.EntryBlock;
+            
+            if (entry != null && entry.SecType == Constants.ST_LFILE)
+            {
+                nSect = entry.RealEntry;
+                entry = await Disk.ReadEntryBlock(volume, entry.RealEntry);
+            }
+            
             // free entry file blocks, if write and overwrite existing entry
             if (write && overwrite && nSect != uint.MaxValue)
             {
-                await AdfFreeFileBlocks(volume, result.EntryBlock);
+                await AdfFreeFileBlocks(volume, entry);
             }
             
-            if (!write && result.EntryBlock == null)
+            if (!write && entry == null)
             {
                 if (!volume.IgnoreErrors)
                 {
@@ -54,11 +62,9 @@
                 return null;
             }
 
-            var entry = result.EntryBlock;
-
-            if (overwrite && entry != null && entry.SecType != Constants.ST_FILE)
+            if (overwrite && entry != null && entry.SecType != Constants.ST_FILE && entry.SecType != Constants.ST_LFILE)
             {
-                throw new NotAFileException($"Entry '{name}' is not a file, expected secondary type {entry.SecType}");
+                throw new NotAFileException($"Entry '{name}' has secondary type {entry.SecType} and is not a file or link file");
             }
             
             switch (mode)
@@ -73,7 +79,9 @@
                     throw new PathAlreadyExistsException($"Path '{name}' already exists");
             }
 
-            var fileHdr = mode == FileMode.Write ? new FileHeaderBlock(volume.FileSystemBlockSize) : entry;
+            var fileHdr = mode == FileMode.Write
+                ? new EntryBlock(volume.FileSystemBlockSize) {  SecType = Constants.ST_FILE }
+                : entry;
 
             var eof = mode == FileMode.Write || mode == FileMode.Append;
 

@@ -180,6 +180,8 @@
             // FreeMinList(volume.bmindexblks, g);
             FreeMinList(volume.bmindexblks, g);
 
+            volume.anodechainlist.Clear();
+
             foreach (var node in g.glob_lrudata.LRUpool.Where(x => x.cblk?.blk == null).ToList())
             {
                 g.glob_lrudata.LRUpool.Remove(node);
