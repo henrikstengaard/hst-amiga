@@ -12,6 +12,8 @@
     {
         public static async Task<ColorIcon> Read(Stream stream)
         {
+            var startPosition = stream.Position;
+            
             var formChunkIdentifier = BitConverter.ToUInt32(await stream.ReadBytes(4), 0);
             if (formChunkIdentifier != ColorIconChunkIdentifiers.FORM)
             {
@@ -19,6 +21,8 @@
             }
 
             var formChunkSize = await stream.ReadBigEndianUInt32();
+            
+            var endOfFormChunk = startPosition + formChunkSize + 8;
 
             var iconChunkIdentifier = BitConverter.ToUInt32(await stream.ReadBytes(4), 0);
             if (iconChunkIdentifier != ColorIconChunkIdentifiers.ICON)
@@ -29,11 +33,14 @@
             FaceChunk faceChunk = null;
             var colorIconImages = new List<ColorIconImage>();
 
-            while (stream.Position < stream.Length)
+            while (stream.Position < endOfFormChunk && stream.Position < stream.Length)
             {
-                var chunkIdentifier = BitConverter.ToUInt32(await stream.ReadBytes(4), 0);
+                var chunkIdentifierBytes = await stream.ReadBytes(4);
+                var chunkIdentifier = BitConverter.ToUInt32(chunkIdentifierBytes, 0);
                 var chunkSize = await stream.ReadBigEndianUInt32();
 
+                var chunkStartPosition = stream.Position;
+                
                 switch (chunkIdentifier)
                 {
                     case ColorIconChunkIdentifiers.FACE:
@@ -51,6 +58,28 @@
                         // unknown chunk, skip
                         stream.Seek(chunkSize, SeekOrigin.Current);
                         break;
+                }
+                
+                var chunkEndPosition = chunkStartPosition + chunkSize;
+                if (stream.Position != chunkEndPosition)
+                {
+                    throw new IOException($"Invalid chunk size for chunk 0x{chunkIdentifier:x2}, expected end position {chunkEndPosition}, actual position {stream.Position}");
+                }
+                
+                // continue, if chunk size is even, otherwise read pad byte.
+                // chunk sizes must be even due to Motorola 68000 processor, which cound not address quantities larger than 1 byte on odd addresses.
+                // if chunk size is odd, a pad byte is added at the end of the chunk to make it even.
+                if (chunkSize % 2 == 0)
+                {
+                    continue;
+                }
+
+                // read pad byte, if chunk size is odd.
+                var offset = stream.Position;
+                var pad = stream.ReadByte();
+                if (pad != 0)
+                {
+                    throw new IOException($"Invalid pad byte at the end of chunk 0x{chunkIdentifier:x2} offset {offset}");
                 }
             }
 
@@ -101,12 +130,6 @@
             var imageSize = (await stream.ReadBigEndianUInt16()) + 1;
             var paletteSize = (await stream.ReadBigEndianUInt16()) + 1;
 
-            // pad uneven to even
-            if (imageSize + paletteSize % 2 != 0)
-            {
-                paletteSize++;
-            }
-
             var pixels =
                 (imageCompressed
                     ? ReadCompressedPixels(stream, faceChunk.Width, faceChunk.Height, depth, imageSize)
@@ -116,7 +139,7 @@
             var colors = Array.Empty<Color>();
 
             var hasTransparentColor = (flags & 1) == 1;
-            var hasPalette = (flags & (1 << 1)) == 1 << 1;
+            var hasPalette = (flags & 2) == 2;
 
             if (hasPalette)
             {

@@ -20,8 +20,8 @@
                 DrawerData2 = null,
                 Gadget = new Gadget
                 {
-                    Activation = 1,
-                    Flags = 6,
+                    Activation = (ushort)DefaultGadgetActivationFlags,
+                    Flags = (ushort)DefaultGadgetFlags,
                     GadgetId = 0,
                     // GadgetRenderPointer = 1, // indicate first image is present
                     GadgetTextPointer = 0,
@@ -79,7 +79,7 @@
         public static DiskObject CreateDiskInfo()
         {
             var diskObject = CreateInfo();
-            diskObject.Gadget.Activation = 1;
+            diskObject.Gadget.Activation = (ushort)DefaultGadgetActivationFlags;
             diskObject.Type = Constants.DiskObjectTypes.DISK;
             diskObject.DrawerData = CreateDrawerData(10, 10, 460, 200);
             diskObject.DrawerData.Flags = 33559167;
@@ -109,8 +109,8 @@
         public static DiskObject CreateProjectInfo()
         {
             var diskObject = CreateInfo();
-            diskObject.Gadget.Activation = 1;
-            diskObject.Gadget.Flags = 6;
+            diskObject.Gadget.Activation = (ushort)DefaultGadgetActivationFlags;
+            diskObject.Gadget.Flags = (ushort)DefaultGadgetFlags;
             diskObject.Type = Constants.DiskObjectTypes.PROJECT;
             return diskObject;
         }
@@ -118,8 +118,8 @@
         public static DiskObject CreateDrawerInfo()
         {
             var diskObject = CreateInfo();
-            diskObject.Gadget.Activation = 1;
-            diskObject.Gadget.Flags = 6;
+            diskObject.Gadget.Activation = (ushort)DefaultGadgetActivationFlags;
+            diskObject.Gadget.Flags = (ushort)DefaultGadgetFlags;
             diskObject.Type = Constants.DiskObjectTypes.DRAWER;
             diskObject.DrawerData = CreateDrawerData(10, 10, 460, 200);
             diskObject.DrawerData.Flags = 33559103;
@@ -135,9 +135,9 @@
         public static DiskObject CreateToolInfo()
         {
             var diskObject = CreateInfo();
-            diskObject.Gadget.Activation = 1;
-            diskObject.Gadget.Flags = 6;
-            diskObject.Gadget.GadgetId = 100;
+            diskObject.Gadget.Activation = (ushort)DefaultGadgetActivationFlags;
+            diskObject.Gadget.Flags = (ushort)DefaultGadgetFlags;
+            diskObject.Gadget.GadgetId = 0;
             diskObject.Gadget.UserDataPointer = 1;
             diskObject.Type = Constants.DiskObjectTypes.TOOL;
             diskObject.DrawerDataPointer = 0;
@@ -149,8 +149,8 @@
         public static DiskObject CreateGarbageInfo()
         {
             var diskObject = CreateInfo();
-            diskObject.Gadget.Activation = 3;
-            diskObject.Gadget.Flags = 6;
+            diskObject.Gadget.Activation = (ushort)DefaultGadgetActivationFlags;
+            diskObject.Gadget.Flags = (ushort)DefaultGadgetFlags;
             diskObject.Gadget.GadgetId = 0;
             diskObject.Type = Constants.DiskObjectTypes.GARBAGE;
             diskObject.DrawerData = CreateDrawerData(10, 10, 460, 200);
@@ -227,6 +227,27 @@
             }
 
             diskObject.DrawerData2.ViewModes = (ushort)viewMode;
+        }
+
+        /// <summary>
+        /// From Amiga Developer CD v2.1: The activation should have only RELVERIFY and GADGIMMEDIATE set.
+        /// </summary>
+        public static Constants.GadgetActivationFlags DefaultGadgetActivationFlags =>
+            Constants.GadgetActivationFlags.GactRelverify | Constants.GadgetActivationFlags.GactImmediate;
+
+        public static Constants.GadgetFlags DefaultGadgetFlags => Constants.GadgetFlags.GflgGadgimage;
+        
+        public static void UpdateGadgetFlags(DiskObject diskObject)
+        {
+            // by default gadget flag is set to GflgGadgimage, which indicates only 1 planar image is present and
+            // it will be shown for render (normal) and select (selected).
+            diskObject.Gadget.Flags = (ushort)Constants.GadgetFlags.GflgGadgimage;
+            if (diskObject.SecondImageData != null)
+            {
+                // if second image is present, set gadget flag to GflgGadghimage, which indicates 2 planar images are
+                // present and first image will be shown for render (normal) and second image will be shown for select (selected).
+                diskObject.Gadget.Flags |= (ushort)Constants.GadgetFlags.GflgGadghimage;
+            }
         }
     }
 }

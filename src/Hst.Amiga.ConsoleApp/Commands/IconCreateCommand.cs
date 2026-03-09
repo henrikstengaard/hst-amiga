@@ -116,6 +116,8 @@ public class IconCreateCommand : IconCommandBase
             }
         }
 
+        DiskObjectHelper.UpdateGadgetFlags(diskObject);
+
         OnInformationMessage($"Writing disk object to icon file '{path}'");
         
         await using var iconStream = File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);

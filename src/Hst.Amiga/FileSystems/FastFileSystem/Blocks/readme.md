@@ -81,6 +81,10 @@ The caller must then execute the correct DOS call, ReadLink(), to find out what 
 
 If a soft link is deleted then its file header block is free. If the object a soft link points to is deleted then the soft link is left pointing at a nonexistent file. Subsequent references to the soft link will return the "object not found" error from AmigaDOS.
 
+## Copying hard links
+
+When a hard link to a file is copied to another directory, it is treated as a file and will copy as a regular file without the hard link.
+
 ## Bitmap block
 
 A bitmap block contain information about free and allocated blocks.

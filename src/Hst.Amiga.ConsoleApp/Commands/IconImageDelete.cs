@@ -44,6 +44,8 @@ public class IconImageDelete : IconCommandBase
             return deleteIconImagesResult;
         }
         
+        DiskObjectHelper.UpdateGadgetFlags(diskObject);
+        
         OnInformationMessage($"Writing disk object to icon file '{path}'");
         
         await WriteIcon(iconStream, diskObject);

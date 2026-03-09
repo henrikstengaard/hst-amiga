@@ -12,12 +12,14 @@
         public ushort GadgetType { get; set; }
 
         /// <summary>
-        /// pointer to gadget render, first image
+        /// pointer to gadget render, first image.
+        /// (Set this to an appropriate Image structure.)
         /// </summary>
         public uint GadgetRenderPointer { get; set; }
 
         /// <summary>
-        /// pointer to select render, second image. if zero, second image is not defined
+        /// pointer to select render, second image. if zero, second image is not defined.
+        /// Set this to an appropriate alternate Image structure if and only if the highlight mode is GADGHIMAGE.
         /// </summary>
         public uint SelectRenderPointer { get; set; }
         

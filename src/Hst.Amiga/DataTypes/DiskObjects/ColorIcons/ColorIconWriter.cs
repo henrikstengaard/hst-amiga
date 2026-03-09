@@ -56,11 +56,6 @@
 
             iconBytes.AddRange(imagBytes);
             
-            // foreach (var colorIconImage in colorIcon.Images)
-            // {
-            //     iconBytes.AddRange(BuildChunk(ColorIconChunkIdentifiers.IMAG, BuildImagChunk(colorIconImage, compressImage, compressPalette)));
-            // }
-
             await stream.WriteBytes(BuildChunk(ColorIconChunkIdentifiers.FORM, iconBytes.ToArray()));
         }
 
@@ -76,6 +71,12 @@
             chunkBytes.AddRange(sizeBytes);
 
             chunkBytes.AddRange(bytes);
+            
+            // add odd byte pad, if data has odd length
+            if (bytes.Length % 2 != 0)
+            {
+                chunkBytes.Add(0);
+            }
             
             return chunkBytes.ToArray();
         }
@@ -132,12 +133,6 @@
 
             chunkBytes.AddRange(pixelBytes);
             chunkBytes.AddRange(paletteBytes);
-
-            // pad uneven to even
-            if (pixelBytes.Length - 1 + paletteBytes.Length - 1 % 2 != 0)
-            {
-                chunkBytes.Add(0);
-            }
 
             return chunkBytes.ToArray();
         }

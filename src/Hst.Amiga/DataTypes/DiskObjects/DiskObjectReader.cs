@@ -16,13 +16,15 @@
             }
 
             var version = await stream.ReadBigEndianUInt16();
+            var gadget = await GadgetReader.Read(stream);
+            var type = (byte)stream.ReadByte();
 
             var diskObject = new DiskObject
             {
                 Magic = magic,
                 Version = version,
-                Gadget = await GadgetReader.Read(stream),
-                Type = (byte)stream.ReadByte()
+                Gadget = gadget,
+                Type = type
             };
 
             diskObject.Pad = (byte)stream.ReadByte();
