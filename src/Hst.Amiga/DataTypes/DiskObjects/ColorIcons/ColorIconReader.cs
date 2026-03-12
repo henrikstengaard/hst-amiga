@@ -10,6 +10,24 @@
 
     public static class ColorIconReader
     {
+        public static async Task<bool> HasColorIcon(Stream stream)
+        {
+            var position = stream.Position;
+            
+            var formChunkBytes = await stream.ReadBytes(4);
+            
+            stream.Position = position;
+
+            if (formChunkBytes.Length < 4)
+            {
+                return false;
+            }
+            
+            var formChunkIdentifier = BitConverter.ToUInt32(formChunkBytes, 0);
+            
+            return formChunkIdentifier == ColorIconChunkIdentifiers.FORM;
+        }
+        
         public static async Task<ColorIcon> Read(Stream stream)
         {
             var startPosition = stream.Position;

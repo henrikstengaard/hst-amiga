@@ -34,7 +34,7 @@ public class IconImageDelete : IconCommandBase
         
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = iconStream.Position < iconStream.Length
+        var colorIcon = await ColorIconReader.HasColorIcon(iconStream)
             ? await ColorIconReader.Read(iconStream)
             : new ColorIcon();
 
@@ -58,7 +58,7 @@ public class IconImageDelete : IconCommandBase
     {
         if (!imageType.HasValue)
         {
-            OnInformationMessage($"Deleting all icon images");
+            OnInformationMessage("Deleting all icon images");
             DeleteAllIconImages(diskObject, colorIcon);
             return new Result();
         }
@@ -66,15 +66,15 @@ public class IconImageDelete : IconCommandBase
         switch (imageType)
         {
             case ImageType.Planar:
-                OnInformationMessage($"Deleting planar icon images");
+                OnInformationMessage("Deleting planar icon images");
                 CreateDummyPlanarImages(diskObject);
                 break;
             case ImageType.NewIcon:
-                OnInformationMessage($"Deleting new icon images");
+                OnInformationMessage("Deleting new icon images");
                 NewIconHelper.RemoveNewIconImages(diskObject);
                 break;
             case ImageType.ColorIcon:
-                OnInformationMessage($"Deleting color icon images");
+                OnInformationMessage("Deleting color icon images");
                 colorIcon.Images = Array.Empty<ColorIconImage>();
                 break;
             default:

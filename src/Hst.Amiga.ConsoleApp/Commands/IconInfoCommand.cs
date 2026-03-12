@@ -28,8 +28,23 @@ public class IconInfoCommand : CommandBase
     public override async Task<Result> Execute(CancellationToken token)
     {
         await using var iconStream = File.OpenRead(path);
+
+        OnDebugMessage("Icon size: " + iconStream.Length);
+        
         var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = iconStream.Position < iconStream.Length 
+
+        OnDebugMessage($"Disk object size: {iconStream.Position}");
+        OnDebugMessage($"Gadget, Flags: {diskObject.Gadget.Flags}");
+        OnDebugMessage($"Gadget, Activation: {diskObject.Gadget.Activation}");
+        OnDebugMessage($"Gadget, User data pointer: {diskObject.Gadget.UserDataPointer}");
+        OnDebugMessage($"Gadget, Gadget render pointer: {diskObject.Gadget.GadgetRenderPointer}");
+        OnDebugMessage($"Gadget, Select render pointer: {diskObject.Gadget.SelectRenderPointer}");
+        OnDebugMessage($"Drawer data pointer: {diskObject.DrawerDataPointer}");
+        OnDebugMessage($"Default tool pointer: {diskObject.DefaultToolPointer}");
+        OnDebugMessage($"ToolTypesPointer: {diskObject.ToolTypesPointer}");
+        OnDebugMessage($"ToolWindowPointer: {diskObject.ToolWindowPointer}");
+        
+        var colorIcon = await ColorIconReader.HasColorIcon(iconStream) 
             ? await ColorIconReader.Read(iconStream)
             : null;
 

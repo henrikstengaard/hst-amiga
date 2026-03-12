@@ -1,4 +1,7 @@
-﻿namespace Hst.Amiga.ConsoleApp.Commands;
+﻿using System;
+using Hst.Core.Extensions;
+
+namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System.IO;
 using System.Threading;
@@ -52,6 +55,9 @@ public class IconUpdateCommand : IconCommandBase
 
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         var diskObject = await DiskObjectReader.Read(iconStream);
+        var colorIconData = iconStream.Position < iconStream.Length
+            ? await iconStream.ReadBytes((int)(iconStream.Length - iconStream.Position))
+            : Array.Empty<byte>();
 
         var isUpdated = false;
 
@@ -199,6 +205,11 @@ public class IconUpdateCommand : IconCommandBase
         OnInformationMessage($"Writing disk object to icon file '{path}'");
 
         await WriteIcon(iconStream, diskObject);
+
+        if (colorIconData.Length > 0)
+        {
+            await iconStream.WriteAsync(colorIconData, 0, colorIconData.Length, token);
+        }
 
         return new Result();
     }
