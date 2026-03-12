@@ -7,7 +7,7 @@ public static class CommandFactory
     public static readonly Option<bool> VerboseOption = new(
         new []{ "--verbose" },
         description: "Verbose output.");
-    
+
     public static Command CreateRootCommand()
     {
         var rootCommand = new RootCommand

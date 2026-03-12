@@ -14,6 +14,7 @@ public static class IconCommandFactory
         command.AddCommand(CreateIconImage());
         command.AddCommand(CreateIconUpdate());
         command.AddCommand(CreateIconToolTypes());
+        command.AddCommand(CreateIconFix());
 
         return command;
     }
@@ -403,4 +404,17 @@ public static class IconCommandFactory
         
         return command;
     }
+    
+    private static Command CreateIconFix()
+    {
+        var pathArgument = new Argument<string>(
+            name: "Path",
+            description: "Path to icon file.");
+
+        var command = new Command("fix", "Fix icon file.");
+        command.SetHandler(CommandHandler.IconFix, pathArgument);
+        command.AddArgument(pathArgument);
+
+        return command;
+    }    
 }

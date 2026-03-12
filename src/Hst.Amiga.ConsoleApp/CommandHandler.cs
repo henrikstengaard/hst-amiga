@@ -103,6 +103,11 @@ public static class CommandHandler
     {
         await Execute(new IconToolTypesImport(GetLogger<IconToolTypesImport>(), iconPath, toolTypesPath, preserveNewIcon));
     }
+    
+    public static async Task IconFix(string path)
+    {
+        await Execute(new IconFixCommand(GetLogger<IconFixCommand>(), path));
+    }
 
     public static async Task EpromBuildA500(string kickstartRomPath, EpromType? epromType, int? size)
     {

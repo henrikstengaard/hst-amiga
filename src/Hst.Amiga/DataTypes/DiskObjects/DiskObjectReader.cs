@@ -6,7 +6,7 @@
 
     public static class DiskObjectReader
     {
-        public static async Task<DiskObject> Read(Stream stream)
+        public static async Task<DiskObject> Read(Stream stream, bool allowErrors = false)
         {
             var magic = await stream.ReadBigEndianUInt16();
 
@@ -53,12 +53,12 @@
             
             if (diskObject.DefaultToolPointer != 0)
             {
-                diskObject.DefaultTool = await TextDataReader.Read(stream);
+                diskObject.DefaultTool = await TextDataReader.Read(stream, allowErrors);
             }
 
             if (diskObject.ToolTypesPointer != 0)
             {
-                diskObject.ToolTypes = await ToolTypesReader.Read(stream);
+                diskObject.ToolTypes = await ToolTypesReader.Read(stream, allowErrors);
             }
 
             if (diskObject.ToolWindowPointer != 0)

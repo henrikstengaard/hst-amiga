@@ -197,7 +197,7 @@ public abstract class IconCommandBase : CommandBase
 
     protected static async Task WriteColorIcon(Stream stream, ColorIcon colorIcon)
     {
-        if (colorIcon.Images.Length == 0)
+        if (colorIcon == null || colorIcon.Images.Length == 0)
         {
             return;
         }
