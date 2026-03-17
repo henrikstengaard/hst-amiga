@@ -1,4 +1,10 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects
+﻿using System.IO;
+using System.Threading.Tasks;
+using Hst.Amiga.DataTypes.DiskObjects.ColorIcons;
+using Hst.Amiga.DataTypes.DiskObjects.PngIcons;
+using Hst.Core.Extensions;
+
+namespace Hst.Amiga.DataTypes.DiskObjects
 {
     using System;
     using System.Collections.Generic;
@@ -248,6 +254,190 @@
                 // present and first image will be shown for render (normal) and second image will be shown for select (selected).
                 diskObject.Gadget.Flags |= (ushort)Constants.GadgetFlags.GflgGadghimage;
             }
+        }
+
+        public static void UpdateDiskObjectBasedOnType(DiskObject diskObject)
+        {
+            switch (diskObject.Type)
+            {
+                case Constants.DiskObjectTypes.DISK:
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 1;
+                    diskObject.DrawerData ??= CreateDrawerData(10, 10, 460, 460);
+                    diskObject.DrawerData2 ??= new DrawerData2();
+                    diskObject.DrawerData.Flags = 33559167;
+                    break;
+                case Constants.DiskObjectTypes.DRAWER:
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 1;
+                    diskObject.DrawerData ??= CreateDrawerData(10, 10, 460, 460);
+                    diskObject.DrawerData2 ??= new DrawerData2();
+                    diskObject.DrawerData.Flags = 33559103;
+                    break;
+                case Constants.DiskObjectTypes.PROJECT:
+                case Constants.DiskObjectTypes.TOOL:
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 0;
+                    diskObject.DrawerData = null;
+                    diskObject.DrawerData2 = null;
+                    break;
+                case Constants.DiskObjectTypes.GARBAGE:
+                    diskObject.Gadget.UserDataPointer = 1;
+                    diskObject.DrawerDataPointer = 1;
+                    diskObject.DrawerData ??= CreateDrawerData(10, 10, 460, 460);
+                    diskObject.DrawerData2 ??= new DrawerData2();
+                    diskObject.DrawerData.Flags = 33554687;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Read amiga icon from stream.
+        /// This is usually a disk object followed by a color icon.
+        /// In case it's a PNG file, it will be converted to a disk object and a color icon.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public static async Task<AmigaIcon> ReadAmigaIcon(Stream stream)
+        {
+            stream.Position = 0;
+
+            var magicBytes = await stream.ReadBytes(4);
+
+            if (magicBytes.Length < 4)
+            {
+                return null;
+            }
+
+            stream.Position = 0;
+
+            if (magicBytes.SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47}))
+            {
+                var pngIcons = (await PngIconReader.Read(stream)).ToList();
+                
+                return new AmigaIcon
+                {
+                    Kind = AmigaIcon.IconKind.PngIcon,
+                    DiskObject = GetDiskObject(pngIcons),
+                    ColorIcon = null,
+                    PngIcons = pngIcons
+                };
+            }
+            
+            var diskObject = await DiskObjectReader.Read(stream);
+            var colorIcon = await ColorIconReader.HasColorIcon(stream) 
+                ? await ColorIconReader.Read(stream)
+                : null;
+
+            return new AmigaIcon
+            {
+                Kind = AmigaIcon.IconKind.Normal,
+                DiskObject = diskObject,
+                ColorIcon = colorIcon,
+                PngIcons = null
+            };
+        }
+
+        public static DiskObject GetDiskObject(IEnumerable<PngIcon> pngIcons)
+        {
+            if (pngIcons == null)
+            {
+                return null;
+            }
+
+            var pngIconsList = pngIcons.ToList();
+            
+            var pngIcon = pngIconsList.FirstOrDefault();
+            
+            if (pngIcon == null)
+            {
+                return null;
+            }
+
+            var iHdrChunk = pngIconsList.SelectMany(x => x.Chunks)
+                .FirstOrDefault(c => c.Type.SequenceEqual(PngIcons.Constants.PngChunkTypes.Ihdr));
+            
+            if (iHdrChunk == null)
+            {
+                return null;
+            }
+            
+            var pngHeader = PngIconReader.ReadPngHeader(iHdrChunk.Data);
+            
+            var iconChunk = pngIconsList.SelectMany(x => x.Chunks)
+                .FirstOrDefault(c => c.Type.SequenceEqual(PngIcons.Constants.PngChunkTypes.Icon));
+            
+            if (iconChunk == null)
+            {
+                return null;
+            }
+            
+            var iconData = PngIconReader.ReadIconData(iconChunk.Data);
+
+            var diskObject = CreateProjectInfo();
+            
+            diskObject.Gadget.Width = (short)pngHeader.Width;
+            diskObject.Gadget.Height = (short)pngHeader.Height;
+
+            if (!string.IsNullOrEmpty(iconData.DefaultTool))
+            {
+                diskObject.DefaultTool = CreateTextData(iconData.DefaultTool);
+                diskObject.DefaultToolPointer = 1;
+            }
+
+            if (!string.IsNullOrEmpty(iconData.ToolType))
+            {
+                var toolTypes = iconData.ToolType.Split(new []{'\r', '\n'}, StringSplitOptions.RemoveEmptyEntries);
+
+                diskObject.ToolTypes = new ToolTypes
+                {
+                    TextDatas = ConvertStringsToTextDatas(toolTypes)
+                };
+                diskObject.ToolTypesPointer = 1;
+            }
+            
+            var typeTag = iconData.IconAttributeTags.FirstOrDefault(t => t.Tag == PngIcons.Constants.IconAttributeTags.ATTR_TYPE);
+            if (typeTag != null)
+            {
+                diskObject.Type = (byte)typeTag.Value;
+                UpdateDiskObjectBasedOnType(diskObject);
+            }
+
+            foreach (var iconAttributeTag in iconData.IconAttributeTags)
+            {
+                switch (iconAttributeTag.Tag)
+                {
+                    case PngIcons.Constants.IconAttributeTags.ATTR_ICONX:
+                        diskObject.CurrentX = (int)iconAttributeTag.Value;
+                        break;
+                    case PngIcons.Constants.IconAttributeTags.ATTR_ICONY:
+                        diskObject.CurrentY = (int)iconAttributeTag.Value;
+                        break;
+                    case PngIcons.Constants.IconAttributeTags.ATTR_STACKSIZE:
+                        diskObject.StackSize = (int)iconAttributeTag.Value;
+                        break;
+                    case PngIcons.Constants.IconAttributeTags.ATTR_DRAWERWIDTH:
+                        diskObject.DrawerData.Width = (short)iconAttributeTag.Value;
+                        break;
+                    case PngIcons.Constants.IconAttributeTags.ATTR_DRAWERHEIGHT:
+                        diskObject.DrawerData.Height = (short)iconAttributeTag.Value;
+                        break;
+                    case PngIcons.Constants.IconAttributeTags.ATTR_DD_CURRENTX:
+                        diskObject.DrawerData.CurrentX = (ushort)iconAttributeTag.Value;
+                        break;
+                    case PngIcons.Constants.IconAttributeTags.ATTR_DD_CURRENTY:
+                        diskObject.DrawerData.CurrentY = (ushort)iconAttributeTag.Value;
+                        break;
+                    case PngIcons.Constants.IconAttributeTags.ATTR_DRAWERFLAGS:
+                        diskObject.DrawerData2.Flags = (ushort)iconAttributeTag.Value;
+                        break;
+                    case PngIcons.Constants.IconAttributeTags.ATTR_VIEWMODES:
+                        diskObject.DrawerData2.ViewModes = (ushort)iconAttributeTag.Value;
+                        break;
+                }
+            }
+            
+            return diskObject;
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.ConsoleApp.Commands;
+﻿using Hst.Amiga.DataTypes.DiskObjects.PngIcons;
+
+namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
 using System.Collections.Generic;
@@ -8,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core;
 using DataTypes.DiskObjects;
-using DataTypes.DiskObjects.ColorIcons;
 using DataTypes.DiskObjects.NewIcons;
 using Microsoft.Extensions.Logging;
 
@@ -31,9 +32,10 @@ public class IconInfoCommand : CommandBase
 
         OnDebugMessage("Icon size: " + iconStream.Length);
         
-        var diskObject = await DiskObjectReader.Read(iconStream);
+        var amigaIcon = await DiskObjectHelper.ReadAmigaIcon(iconStream);
+        var diskObject = amigaIcon.DiskObject;
+        var colorIcon = amigaIcon.ColorIcon;
 
-        OnDebugMessage($"Disk object size: {iconStream.Position}");
         OnDebugMessage($"Gadget, Flags: {diskObject.Gadget.Flags}");
         OnDebugMessage($"Gadget, Activation: {diskObject.Gadget.Activation}");
         OnDebugMessage($"Gadget, User data pointer: {diskObject.Gadget.UserDataPointer}");
@@ -44,10 +46,6 @@ public class IconInfoCommand : CommandBase
         OnDebugMessage($"ToolTypesPointer: {diskObject.ToolTypesPointer}");
         OnDebugMessage($"ToolWindowPointer: {diskObject.ToolWindowPointer}");
         
-        var colorIcon = await ColorIconReader.HasColorIcon(iconStream) 
-            ? await ColorIconReader.Read(iconStream)
-            : null;
-
         OnInformationMessage("Icon:");
         OnInformationMessage($"- Type: {diskObject.Type} ({GetIconType(diskObject)})");
         OnInformationMessage($"- Position x: {diskObject.CurrentX}");
@@ -126,16 +124,51 @@ public class IconInfoCommand : CommandBase
                 OnInformationMessage($"- Transparent: {colorIconImage.Image.IsTransparent}");
             }
         }
+
+        var pngIcons = amigaIcon.PngIcons?.ToList() ?? new List<PngIcon>();
+        if (amigaIcon.Kind == AmigaIcon.IconKind.PngIcon && pngIcons.Any())
+        {
+            OnInformationMessage($"PNG Icon 1:");
+            
+            var pngIcon1 = pngIcons[0];
+            var pngImage1 = Imaging.Pngcs.PngReader.Read(new MemoryStream(pngIcon1.PngData));
+            OnInformationMessage($"- Width: {pngImage1.Width}");
+            OnInformationMessage($"- Height: {pngImage1.Height}");
+            OnInformationMessage($"- Depth: {pngImage1.BitsPerPixel} bpp");
+            var isTransparent = pngImage1.BitsPerPixel is >= 24 and 32 || pngImage1.IsTransparent;
+            OnInformationMessage($"- Transparent: {isTransparent}");
+            
+            if (pngIcons.Count > 1)
+            {
+                OnInformationMessage($"PNG Icon 2:");
+                
+                var pngIcon2 = pngIcons[1];
+                var pngImage2 = Imaging.Pngcs.PngReader.Read(new MemoryStream(pngIcon2.PngData));
+                OnInformationMessage($"- Width: {pngImage2.Width}");
+                OnInformationMessage($"- Height: {pngImage2.Height}");
+                OnInformationMessage($"- Depth: {pngImage2.BitsPerPixel} bpp");
+                isTransparent = pngImage2.BitsPerPixel is >= 24 and 32 || pngImage2.IsTransparent;
+                OnInformationMessage($"- Transparent: {isTransparent}");
+            }
+        }
+
+        if (diskObject.DefaultToolPointer != 0 && diskObject.DefaultTool != null)
+        {
+            OnInformationMessage($"Default tool: {AmigaTextHelper.GetString(diskObject.DefaultTool.Data)}");
+        }
         
-        var decodedTextDatas = textDatas.Select(x => AmigaTextHelper.GetString(x.Data));
+        var decodedTextDatas = textDatas.Select(x => AmigaTextHelper.GetString(x.Data)).ToList();
 
         if (!all)
         {
-            decodedTextDatas = decodedTextDatas.Where(x => !x.StartsWith("IM1=") && !x.StartsWith("IM2="));
+            decodedTextDatas = decodedTextDatas.Where(x => !x.StartsWith("IM1=") && !x.StartsWith("IM2=")).ToList();
+        }
+
+        if (decodedTextDatas.Any())
+        {
+            OnInformationMessage($"Tool types:{Environment.NewLine}{string.Join(Environment.NewLine, decodedTextDatas)}");
         }
         
-        OnInformationMessage($"Tool types:{Environment.NewLine}{string.Join(Environment.NewLine, decodedTextDatas)}");
-
         return new Result();
     }
 

@@ -66,43 +66,7 @@ public class IconUpdateCommand : IconCommandBase
             diskObject.Type = (byte)type.Value;
             diskObject.Gadget.Activation = (ushort)DiskObjectHelper.DefaultGadgetActivationFlags;
             DiskObjectHelper.UpdateGadgetFlags(diskObject);
-
-            switch (diskObject.Type)
-            {
-                case Constants.DiskObjectTypes.DISK:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 1;
-                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
-                    diskObject.DrawerData2 ??= new DrawerData2();
-                    diskObject.DrawerData.Flags = 33559167;
-                    break;
-                case Constants.DiskObjectTypes.DRAWER:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 1;
-                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
-                    diskObject.DrawerData2 ??= new DrawerData2();
-                    diskObject.DrawerData.Flags = 33559103;
-                    break;
-                case Constants.DiskObjectTypes.PROJECT:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 0;
-                    diskObject.DrawerData = null;
-                    diskObject.DrawerData2 = null;
-                    break;
-                case Constants.DiskObjectTypes.TOOL:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 0;
-                    diskObject.DrawerData = null;
-                    diskObject.DrawerData2 = null;
-                    break;
-                case Constants.DiskObjectTypes.GARBAGE:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 1;
-                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
-                    diskObject.DrawerData2 ??= new DrawerData2();
-                    diskObject.DrawerData.Flags = 33554687;
-                    break;
-            }
+            DiskObjectHelper.UpdateDiskObjectBasedOnType(diskObject);
             
             isUpdated = true;
         }
