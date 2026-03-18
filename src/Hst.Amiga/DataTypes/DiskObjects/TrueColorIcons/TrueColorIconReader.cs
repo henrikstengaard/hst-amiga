@@ -5,35 +5,34 @@ using System.Linq;
 using System.Threading.Tasks;
 using Hst.Core.Converters;
 using Hst.Core.Extensions;
-using Hst.Imaging;
 
-namespace Hst.Amiga.DataTypes.DiskObjects.PngIcons
+namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
 {
-    public static class PngIconReader
+    public static class TrueColorIconReader
     {
-        public static async Task<IEnumerable<PngIcon>> Read(Stream stream)
+        public static async Task<IEnumerable<TrueColorIcon>> ReadTrueColorIcons(Stream stream)
         {
-            var pngIcon1 = await ReadPngIcon(stream);
+            var trueColorIcon1 = await ReadTrueColorIcon(stream);
 
             if (stream.Position == stream.Length)
             {
 #if !NETSTANDARD2_1_OR_GREATER
-                return [pngIcon1];
+                return [trueColorIcon1];
 #else
-                return new[] { pngIcon1 };
+                return new[] { trueColorIcon1 };
 #endif
             }
             
-            var pngIcon2 = await ReadPngIcon(stream);
+            var trueColorIcon2 = await ReadTrueColorIcon(stream);
             
 #if !NETSTANDARD2_1_OR_GREATER
-            return [pngIcon1, pngIcon2];
+            return [trueColorIcon1, trueColorIcon2];
 #else
-            return new[] { pngIcon1, pngIcon2 };
+            return new[] { trueColorIcon1, trueColorIcon2 };
 #endif
         }
 
-        private static async Task<PngIcon> ReadPngIcon(Stream stream)
+        private static async Task<TrueColorIcon> ReadTrueColorIcon(Stream stream)
         {
             var pngData = new MemoryStream();
             
@@ -55,7 +54,7 @@ namespace Hst.Amiga.DataTypes.DiskObjects.PngIcons
             } while(stream.Position < stream.Length &&
                     !chunk.Type.SequenceEqual(Constants.PngChunkTypes.Iend));
 
-            return new PngIcon(pngData.ToArray(), header, chunks.ToArray());
+            return new TrueColorIcon(pngData.ToArray(), header, chunks.ToArray());
         }
 
         private static async Task<PngChunk> ReadPngChunk(Stream stream)

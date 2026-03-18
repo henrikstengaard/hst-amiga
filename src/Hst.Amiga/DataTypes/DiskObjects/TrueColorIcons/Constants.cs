@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Hst.Amiga.DataTypes.DiskObjects.PngIcons
+namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
 {
     public static class Constants
     {

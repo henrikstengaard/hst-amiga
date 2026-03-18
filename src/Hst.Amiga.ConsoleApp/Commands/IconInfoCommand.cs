@@ -1,4 +1,4 @@
-﻿using Hst.Amiga.DataTypes.DiskObjects.PngIcons;
+﻿using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
 
 namespace Hst.Amiga.ConsoleApp.Commands;
 
@@ -125,29 +125,20 @@ public class IconInfoCommand : CommandBase
             }
         }
 
-        var pngIcons = amigaIcon.PngIcons?.ToList() ?? new List<PngIcon>();
-        if (amigaIcon.Kind == AmigaIcon.IconKind.PngIcon && pngIcons.Any())
+        var trueColorIcons = amigaIcon.TrueColorIcons?.ToList() ?? new List<TrueColorIcon>();
+        if (amigaIcon.Kind == AmigaIcon.IconKind.TrueColor && trueColorIcons.Any())
         {
-            OnInformationMessage($"PNG Icon 1:");
-            
-            var pngIcon1 = pngIcons[0];
-            var pngImage1 = Imaging.Pngcs.PngReader.Read(new MemoryStream(pngIcon1.PngData));
-            OnInformationMessage($"- Width: {pngImage1.Width}");
-            OnInformationMessage($"- Height: {pngImage1.Height}");
-            OnInformationMessage($"- Depth: {pngImage1.BitsPerPixel} bpp");
-            var isTransparent = pngImage1.BitsPerPixel is >= 24 and 32 || pngImage1.IsTransparent;
-            OnInformationMessage($"- Transparent: {isTransparent}");
-            
-            if (pngIcons.Count > 1)
+            for (var i = 0; i < trueColorIcons.Count; i++)
             {
-                OnInformationMessage($"PNG Icon 2:");
-                
-                var pngIcon2 = pngIcons[1];
-                var pngImage2 = Imaging.Pngcs.PngReader.Read(new MemoryStream(pngIcon2.PngData));
-                OnInformationMessage($"- Width: {pngImage2.Width}");
-                OnInformationMessage($"- Height: {pngImage2.Height}");
-                OnInformationMessage($"- Depth: {pngImage2.BitsPerPixel} bpp");
-                isTransparent = pngImage2.BitsPerPixel is >= 24 and 32 || pngImage2.IsTransparent;
+                OnInformationMessage($"TrueColor Icon {i + 1}:");
+
+                var trueColorIcon = trueColorIcons[i];
+                var trueColorImage = Imaging.Pngcs.PngReader.Read(new MemoryStream(trueColorIcon.PngData));
+
+                OnInformationMessage($"- Width: {trueColorImage.Width}");
+                OnInformationMessage($"- Height: {trueColorImage.Height}");
+                OnInformationMessage($"- Depth: {trueColorImage.BitsPerPixel} bpp");
+                var isTransparent = trueColorImage.BitsPerPixel is >= 24 and 32 || trueColorImage.IsTransparent;
                 OnInformationMessage($"- Transparent: {isTransparent}");
             }
         }

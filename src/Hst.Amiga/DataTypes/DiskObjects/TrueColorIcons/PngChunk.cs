@@ -1,4 +1,4 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects.PngIcons
+﻿namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
 {
 #if !NETSTANDARD2_1_OR_GREATER
     public record PngChunk(byte[] ChunkData, uint Length, byte[] Type, byte[] Data, uint Crc)

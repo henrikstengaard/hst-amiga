@@ -1,18 +1,22 @@
 ﻿using System.Collections.Generic;
 using Hst.Amiga.DataTypes.DiskObjects.ColorIcons;
-using Hst.Amiga.DataTypes.DiskObjects.PngIcons;
+using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
 
 namespace Hst.Amiga.DataTypes.DiskObjects
 {
     /// <summary>
-    /// Amiga icon containing a disk object and an optional color icon. The disk object contains the basic information about the icon, such as its type, position, and stack size. The color icon contains the image data for the icon, if it has a color icon.
+    /// Amiga icon containing a disk object and an optional color icon.
+    /// The disk object contains the basic information about the icon, such as its type, position, and stack size.
+    /// The color icon contains the image data for the icon, if it has a color icon.
+    /// The true color icons contain the image data for the icon, if it has a true color icon.
+    /// The true color icons are stored in PNG format and can be used to display the icon on modern systems that support PNG images.
     /// </summary>
     public class AmigaIcon
     {
         public enum IconKind
         {
             Normal,
-            PngIcon
+            TrueColor
         }
         
         public IconKind Kind { get; set; }
@@ -28,8 +32,8 @@ namespace Hst.Amiga.DataTypes.DiskObjects
         public ColorIcon ColorIcon { get; set; }
         
         /// <summary>
-        /// Png icons.
+        /// TrueColor icons.
         /// </summary>
-        public IEnumerable<PngIcon> PngIcons { get; set; }
+        public IEnumerable<TrueColorIcon> TrueColorIcons { get; set; }
     }
 }
