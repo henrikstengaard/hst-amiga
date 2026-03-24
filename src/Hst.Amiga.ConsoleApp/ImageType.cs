@@ -5,5 +5,6 @@ public enum ImageType
     Auto,
     Planar,
     NewIcon,
-    ColorIcon
+    ColorIcon,
+    TrueColorIcon
 }

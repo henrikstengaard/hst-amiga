@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.1;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.1;net10.0;net9.0;net8.0</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup>
     <Authors>Henrik Nørfjand Stengaard</Authors>

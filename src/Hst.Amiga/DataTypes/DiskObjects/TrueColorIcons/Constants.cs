@@ -4,6 +4,9 @@ namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
 {
     public static class Constants
     {
+        public static readonly byte[] PngMagicBytes = new byte[] { 0x89, 0x50, 0x4e, 0x47 };
+        public static readonly byte[] PngSignature = new byte[] { 0x89, 0x50, 0x4e, 0x47, 0xd, 0xa, 0x1a, 0xa };
+        
         public static class PngChunkTypes
         {
             public static readonly byte[] Ihdr = { 0x49, 0x48, 0x44, 0x52 };

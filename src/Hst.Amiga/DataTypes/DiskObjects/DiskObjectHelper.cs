@@ -1,8 +1,5 @@
-﻿using System.IO;
-using System.Threading.Tasks;
-using Hst.Amiga.DataTypes.DiskObjects.ColorIcons;
+﻿using System.Threading.Tasks;
 using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
-using Hst.Core.Extensions;
 
 namespace Hst.Amiga.DataTypes.DiskObjects
 {
@@ -170,12 +167,15 @@ namespace Hst.Amiga.DataTypes.DiskObjects
         {
             return strings.Select(CreateTextData).ToList();
         }
-        
+
         public static IEnumerable<string> ConvertToolTypesToStrings(ToolTypes toolTypes)
         {
             return (toolTypes?.TextDatas ?? new List<TextData>())
                 .Select(x => AmigaTextHelper.GetString(x.Data, 0, x.Data.Length - 1)).ToList();
         }
+
+        public static string ConvertTextDataToString(TextData textData) =>
+            AmigaTextHelper.GetString(textData.Data, 0, textData.Data.Length - 1);
 
         public static TextData CreateTextData(string text)
         {
@@ -199,7 +199,9 @@ namespace Hst.Amiga.DataTypes.DiskObjects
 
         public static void SetDrawerData2Flags(DiskObject diskObject, DrawerData2.FlagEnum flags)
         {
-            if (diskObject.Type != Constants.DiskObjectTypes.DISK && diskObject.Type != Constants.DiskObjectTypes.DRAWER && diskObject.Type != Constants.DiskObjectTypes.GARBAGE)
+            if (diskObject.Type != Constants.DiskObjectTypes.DISK &&
+                diskObject.Type != Constants.DiskObjectTypes.DRAWER &&
+                diskObject.Type != Constants.DiskObjectTypes.GARBAGE)
             {
                 return;
             }
@@ -208,17 +210,24 @@ namespace Hst.Amiga.DataTypes.DiskObjects
             {
                 diskObject.DrawerData2 = new DrawerData2
                 {
-                    Flags = (uint)(DrawerData2.FlagEnum.ViewIcons | DrawerData2.FlagEnum.AllFiles),
-                    ViewModes = (ushort)DrawerData2.ViewModesEnum.ShowIconsOs1X
+                    Flags = (uint)DefaultDrawerData2Flags,
+                    ViewModes = (ushort)DefaultDrawerData2ViewMode
                 };
             }
 
             diskObject.DrawerData2.Flags = (uint)flags;
         }
 
+        public const DrawerData2.FlagEnum DefaultDrawerData2Flags =
+            DrawerData2.FlagEnum.ViewIcons | DrawerData2.FlagEnum.AllFiles;
+
+        public const DrawerData2.ViewModesEnum DefaultDrawerData2ViewMode = DrawerData2.ViewModesEnum.ShowIconsOs1X;
+
         public static void SetDrawerData2ViewMode(DiskObject diskObject, DrawerData2.ViewModesEnum viewMode)
         {
-            if (diskObject.Type != Constants.DiskObjectTypes.DISK && diskObject.Type != Constants.DiskObjectTypes.DRAWER && diskObject.Type != Constants.DiskObjectTypes.GARBAGE)
+            if (diskObject.Type != Constants.DiskObjectTypes.DISK &&
+                diskObject.Type != Constants.DiskObjectTypes.DRAWER &&
+                diskObject.Type != Constants.DiskObjectTypes.GARBAGE)
             {
                 return;
             }
@@ -242,7 +251,7 @@ namespace Hst.Amiga.DataTypes.DiskObjects
             Constants.GadgetActivationFlags.GactRelverify | Constants.GadgetActivationFlags.GactImmediate;
 
         public static Constants.GadgetFlags DefaultGadgetFlags => Constants.GadgetFlags.GflgGadgimage;
-        
+
         public static void UpdateGadgetFlags(DiskObject diskObject)
         {
             // by default gadget flag is set to GflgGadgimage, which indicates only 1 planar image is present and
@@ -291,53 +300,16 @@ namespace Hst.Amiga.DataTypes.DiskObjects
             }
         }
 
+        public static bool IsDrawerIcon(DiskObject diskObject) =>
+            diskObject.Type == Constants.DiskObjectTypes.DISK ||
+            diskObject.Type == Constants.DiskObjectTypes.DRAWER ||
+            diskObject.Type == Constants.DiskObjectTypes.GARBAGE;
+
         /// <summary>
-        /// Read amiga icon from stream.
-        /// This is usually a disk object followed by a color icon.
-        /// In case it's a PNG file, it will be converted to a disk object and a color icon.
+        /// Get disk object converts true color icons to disk object properties based on icon chunk data and icon attribute tags.
         /// </summary>
-        /// <param name="stream">Stream with Amiga icon.</param>
-        /// <returns>Amiga icon.</returns>
-        public static async Task<AmigaIcon> ReadAmigaIcon(Stream stream)
-        {
-            stream.Position = 0;
-
-            var magicBytes = await stream.ReadBytes(4);
-
-            if (magicBytes.Length < 4)
-            {
-                return null;
-            }
-
-            stream.Position = 0;
-
-            if (magicBytes.SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47}))
-            {
-                var trueColorIcons = (await TrueColorIconReader.ReadTrueColorIcons(stream)).ToList();
-                
-                return new AmigaIcon
-                {
-                    Kind = AmigaIcon.IconKind.TrueColor,
-                    DiskObject = GetDiskObject(trueColorIcons),
-                    ColorIcon = null,
-                    TrueColorIcons = trueColorIcons
-                };
-            }
-            
-            var diskObject = await DiskObjectReader.Read(stream);
-            var colorIcon = await ColorIconReader.HasColorIcon(stream) 
-                ? await ColorIconReader.Read(stream)
-                : null;
-
-            return new AmigaIcon
-            {
-                Kind = AmigaIcon.IconKind.Normal,
-                DiskObject = diskObject,
-                ColorIcon = colorIcon,
-                TrueColorIcons = null
-            };
-        }
-
+        /// <param name="trueColorIcons">True color icons to convert to disk object properties.</param>
+        /// <returns>Disk object with properties set based on true color icon data and icon attribute tags.</returns>
         public static DiskObject GetDiskObject(IEnumerable<TrueColorIcon> trueColorIcons)
         {
             if (trueColorIcons == null)
@@ -346,9 +318,9 @@ namespace Hst.Amiga.DataTypes.DiskObjects
             }
 
             var trueColorIconsList = trueColorIcons.ToList();
-            
+
             var trueColorIcon = trueColorIconsList.FirstOrDefault();
-            
+
             if (trueColorIcon == null)
             {
                 return null;
@@ -356,26 +328,26 @@ namespace Hst.Amiga.DataTypes.DiskObjects
 
             var iHdrChunk = trueColorIconsList.SelectMany(x => x.Chunks)
                 .FirstOrDefault(c => c.Type.SequenceEqual(TrueColorIcons.Constants.PngChunkTypes.Ihdr));
-            
+
             if (iHdrChunk == null)
             {
                 return null;
             }
-            
+
             var pngHeader = TrueColorIconReader.ReadPngHeader(iHdrChunk.Data);
-            
+
             var iconChunk = trueColorIconsList.SelectMany(x => x.Chunks)
                 .FirstOrDefault(c => c.Type.SequenceEqual(TrueColorIcons.Constants.PngChunkTypes.Icon));
-            
+
             if (iconChunk == null)
             {
                 return null;
             }
-            
-            var iconData = TrueColorIconReader.ReadIconData(iconChunk.Data);
+
+            var iconData = IconChunkReader.ReadIconChunkData(iconChunk.Data);
 
             var diskObject = CreateProjectInfo();
-            
+
             diskObject.Gadget.Width = (short)pngHeader.Width;
             diskObject.Gadget.Height = (short)pngHeader.Height;
 
@@ -387,7 +359,7 @@ namespace Hst.Amiga.DataTypes.DiskObjects
 
             if (!string.IsNullOrEmpty(iconData.ToolType))
             {
-                var toolTypes = iconData.ToolType.Split(new []{'\r', '\n'}, StringSplitOptions.RemoveEmptyEntries);
+                var toolTypes = iconData.ToolType.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
                 diskObject.ToolTypes = new ToolTypes
                 {
@@ -395,15 +367,8 @@ namespace Hst.Amiga.DataTypes.DiskObjects
                 };
                 diskObject.ToolTypesPointer = 1;
             }
-            
-            var typeTag = iconData.IconAttributeTags.FirstOrDefault(t => t.Tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_TYPE);
-            if (typeTag != null)
-            {
-                diskObject.Type = (byte)typeTag.Value;
-                UpdateDiskObjectBasedOnType(diskObject);
-            }
 
-            foreach (var iconAttributeTag in iconData.IconAttributeTags)
+            foreach (var iconAttributeTag in iconData.IconTags)
             {
                 switch (iconAttributeTag.Tag)
                 {
@@ -440,10 +405,166 @@ namespace Hst.Amiga.DataTypes.DiskObjects
                     case TrueColorIcons.Constants.IconAttributeTags.ATTR_VIEWMODES:
                         diskObject.DrawerData2.ViewModes = (ushort)iconAttributeTag.Value;
                         break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_TYPE:
+                        diskObject.Type = (byte)iconAttributeTag.Value;
+                        UpdateDiskObjectBasedOnType(diskObject);
+                        break;
+                    default:
+                        // ignore unknown icon attribute tags
+                        break;
                 }
             }
-            
+
             return diskObject;
+        }
+
+        /// <summary>
+        /// Update true color icons based on disk object properties.
+        /// </summary>
+        /// <param name="diskObject">Disk object with properties to update true color icons with.</param>
+        /// <param name="trueColorIcons">True color icons to update based on disk object properties.</param>
+        public static async Task UpdateTrueColorIcons(DiskObject diskObject, IEnumerable<TrueColorIcon> trueColorIcons)
+        {
+            if (trueColorIcons == null)
+            {
+                return;
+            }
+
+            var trueColorIconsList = trueColorIcons.ToList();
+
+            var trueColorIcon = trueColorIconsList.FirstOrDefault();
+
+            if (trueColorIcon == null)
+            {
+                return;
+            }
+
+            var iconChunk = trueColorIconsList.SelectMany(x => x.Chunks)
+                .FirstOrDefault(c => c.Type.SequenceEqual(TrueColorIcons.Constants.PngChunkTypes.Icon));
+
+            var hasIconChunk = iconChunk != null;
+            var iconData = hasIconChunk
+                ? IconChunkReader.ReadIconChunkData(iconChunk.Data)
+                : new IconData(
+                    new List<IconTag>(),
+                    null,
+                    null,
+                    null);
+
+            var iconTagsIndex = new Dictionary<TrueColorIcons.Constants.IconAttributeTags, IconTag>();
+
+            foreach (var iconAttributeTag in iconData.IconTags)
+            {
+                iconTagsIndex[iconAttributeTag.Tag] = iconAttributeTag;
+            }
+
+            foreach (TrueColorIcons.Constants.IconAttributeTags tag in
+                     Enum.GetValues(typeof(TrueColorIcons.Constants.IconAttributeTags)))
+            {
+                if (!IsDrawerIcon(diskObject) &&
+                    (tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERWIDTH ||
+                     tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERHEIGHT ||
+                     tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERX ||
+                     tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERY ||
+                     tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_DD_CURRENTX ||
+                     tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_DD_CURRENTY ||
+                     tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERFLAGS ||
+                     tag == TrueColorIcons.Constants.IconAttributeTags.ATTR_VIEWMODES))
+                {
+                    iconTagsIndex.Remove(tag);
+                    continue;
+                }
+
+                uint value;
+
+                switch (tag)
+                {
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_ICONX:
+                        value = (uint)diskObject.CurrentX;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_ICONY:
+                        value = (uint)diskObject.CurrentY;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_STACKSIZE:
+                        value = (uint)diskObject.StackSize;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERWIDTH:
+                        value = (uint)diskObject.DrawerData.Width;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERHEIGHT:
+                        value = (uint)diskObject.DrawerData.Height;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERX:
+                        value = (uint)diskObject.DrawerData.LeftEdge;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERY:
+                        value = (uint)diskObject.DrawerData.TopEdge;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_DD_CURRENTX:
+                        value = (uint)diskObject.DrawerData.CurrentX;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_DD_CURRENTY:
+                        value = (uint)diskObject.DrawerData.CurrentY;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_DRAWERFLAGS:
+                        value = diskObject.DrawerData2?.Flags ?? (uint)DefaultDrawerData2Flags;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_VIEWMODES:
+                        value = diskObject.DrawerData2?.ViewModes ?? (uint)DefaultDrawerData2ViewMode;
+                        break;
+                    case TrueColorIcons.Constants.IconAttributeTags.ATTR_TYPE:
+                        value = diskObject.Type;
+                        break;
+                    default:
+                        continue;
+                }
+
+                iconTagsIndex[tag] = new IconTag(tag, value);
+            }
+
+            var defaultTool = iconData.DefaultTool;
+            var toolType = iconData.ToolType;
+            var toolWindow = iconData.ToolWindow;
+
+            if (diskObject.DefaultToolPointer != 0 && diskObject.DefaultTool != null && diskObject.DefaultTool.Size > 0)
+            {
+                defaultTool = ConvertTextDataToString(diskObject.DefaultTool);
+            }
+
+            if (diskObject.ToolTypesPointer != 0 && diskObject.ToolTypes != null)
+            {
+                var toolTypes = ConvertToolTypesToStrings(diskObject.ToolTypes).ToList();
+                toolType = string.Join("\n", toolTypes);
+            }
+
+            iconData = new IconData(iconTagsIndex.Values.OrderBy(iconTag => (uint)iconTag.Tag).ToList(),
+                string.IsNullOrEmpty(defaultTool) ? null : defaultTool,
+                string.IsNullOrEmpty(toolType) ? null : toolType,
+                string.IsNullOrEmpty(toolWindow) ? null : toolWindow);
+
+            var iconChunkData = IconChunkWriter.WriteIconChunkData(iconData);
+
+            iconChunk = await TrueColorIconWriter.CreatePngChunk(TrueColorIcons.Constants.PngChunkTypes.Icon,
+                iconChunkData);
+
+            var chunks = new List<PngChunk>();
+            foreach (var chunk in trueColorIcon.Chunks)
+            {
+                if (chunk.Type.SequenceEqual(TrueColorIcons.Constants.PngChunkTypes.Icon))
+                {
+                    chunks.Add(iconChunk);
+                    continue;
+                }
+
+                if (!hasIconChunk && chunk.Type.SequenceEqual(TrueColorIcons.Constants.PngChunkTypes.Iend))
+                {
+                    chunks.Add(iconChunk);
+                }
+
+                chunks.Add(chunk);
+            }
+            
+            trueColorIcon.UpdateChunks(chunks);
         }
     }
 }

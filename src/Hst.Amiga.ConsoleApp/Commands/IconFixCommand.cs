@@ -21,9 +21,10 @@ public class IconFixCommand : IconCommandBase
 
     public override async Task<Result> Execute(CancellationToken token)
     {
-        OnInformationMessage($"Reading disk object from icon file '{path}'");
+        OnInformationMessage($"Reading icon from file '{path}'");
 
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
+        
         var diskObject = await DiskObjectReader.Read(iconStream, true);
 
         ColorIcon colorIcon = null;
@@ -42,12 +43,13 @@ public class IconFixCommand : IconCommandBase
 
         var fixedPath = Path.Combine(Path.GetDirectoryName(path) ?? string.Empty,
             string.Concat(Path.GetFileNameWithoutExtension(path), ".fixed.info"));
-        OnInformationMessage($"Writing disk object to icon file '{fixedPath}'");
+        
+        OnInformationMessage($"Writing icon to file '{fixedPath}'");
 
         await using var fixedIconStream = File.OpenWrite(fixedPath);
 
-        await WriteIcon(fixedIconStream, diskObject);
-        await WriteColorIcon(fixedIconStream, colorIcon);
+        await AmigaIconHelper.WriteDiskObject(diskObject, fixedIconStream);
+        await AmigaIconHelper.WriteColorIcon(colorIcon, fixedIconStream);
 
         return new Result();
     }

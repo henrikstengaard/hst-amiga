@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.ConsoleApp.Commands;
+﻿using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
+
+namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core;
 using DataTypes.DiskObjects;
-using DataTypes.DiskObjects.ColorIcons;
 using DataTypes.DiskObjects.NewIcons;
 using Imaging;
 using Microsoft.Extensions.Logging;
@@ -46,13 +47,10 @@ public class IconImageExport : CommandBase
             return new Result(new Error("Image 1 and Image 2 not defined, no icon image to export"));
         }
 
-        OnInformationMessage($"Reading disk object from icon file '{path}'");
+        OnInformationMessage($"Reading icon from file '{path}'");
         
         await using var iconStream = File.OpenRead(path);
-        var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = await ColorIconReader.HasColorIcon(iconStream) 
-            ? await ColorIconReader.Read(iconStream)
-            : new ColorIcon();
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
 
         switch (imageType)
         {
@@ -61,13 +59,13 @@ public class IconImageExport : CommandBase
                 {
                     OnInformationMessage($"Exporting planar icon image 1 to file '{image1Path}'");
 
-                    if (diskObject.FirstImageData == null)
+                    if (amigaIcon.DiskObject.FirstImageData == null)
                     {
                         return new Result(new Error("Icon doesn't have planar icon image 1"));
                     }
                     
-                    var image = ImageDataDecoder.Decode(diskObject.FirstImageData,
-                        GetPalette(diskObject.FirstImageData), true);
+                    var image = ImageDataDecoder.Decode(amigaIcon.DiskObject.FirstImageData,
+                        GetPalette(amigaIcon.DiskObject.FirstImageData), true);
                     WriteImage(image1Path, image);
                 }
 
@@ -75,13 +73,13 @@ public class IconImageExport : CommandBase
                 {
                     OnInformationMessage($"Exporting planar icon image 2 to file '{image2Path}'");
 
-                    if (diskObject.SecondImageData == null)
+                    if (amigaIcon.DiskObject.SecondImageData == null)
                     {
                         return new Result(new Error("Icon doesn't have planar icon image 2"));
                     }
 
-                    var image = ImageDataDecoder.Decode(diskObject.SecondImageData,
-                        GetPalette(diskObject.SecondImageData), true);
+                    var image = ImageDataDecoder.Decode(amigaIcon.DiskObject.SecondImageData,
+                        GetPalette(amigaIcon.DiskObject.SecondImageData), true);
                     WriteImage(image2Path, image);
                 }
 
@@ -91,7 +89,7 @@ public class IconImageExport : CommandBase
                 {
                     OnInformationMessage($"Exporting new icon image 1 to file '{image1Path}'");
                     
-                    var newIcon = NewIconHelper.GetNewIconImage(diskObject, 1);
+                    var newIcon = NewIconHelper.GetNewIconImage(amigaIcon.DiskObject, 1);
                     if (newIcon == null)
                     {
                         return new Result(new Error("Icon doesn't have new icon image 1"));
@@ -105,7 +103,7 @@ public class IconImageExport : CommandBase
                 {
                     OnInformationMessage($"Exporting new icon image 2 to file '{image2Path}'");
 
-                    var newIcon = NewIconHelper.GetNewIconImage(diskObject, 2);
+                    var newIcon = NewIconHelper.GetNewIconImage(amigaIcon.DiskObject, 2);
                     if (newIcon == null)
                     {
                         return new Result(new Error("Icon doesn't have new icon image 2"));
@@ -117,30 +115,66 @@ public class IconImageExport : CommandBase
 
                 break;
             case ImageType.ColorIcon:
+                if (amigaIcon.ColorIcon == null)
+                {
+                    return new Result(new Error("Icon doesn't have color icon"));
+                }
+
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
                     OnInformationMessage($"Exporting color icon image 1 to file '{image1Path}'");
 
-                    if (colorIcon.Images.Length < 1)
+                    if (amigaIcon.ColorIcon.Images.Length < 1)
                     {
                         return new Result(new Error("Icon doesn't have color icon image 1"));
                     }
 
-                    WriteImage(image1Path, colorIcon.Images[0].Image);
+                    WriteImage(image1Path, amigaIcon.ColorIcon.Images[0].Image);
                 }
 
                 if (!string.IsNullOrWhiteSpace(image2Path))
                 {
                     OnInformationMessage($"Exporting color icon image 2 to file '{image2Path}'");
 
-                    if (colorIcon.Images.Length < 2)
+                    if (amigaIcon.ColorIcon.Images.Length < 2)
                     {
                         return new Result(new Error("Icon doesn't have color icon image 2"));
                     }
 
-                    WriteImage(image2Path, colorIcon.Images[1].Image);
+                    WriteImage(image2Path, amigaIcon.ColorIcon.Images[1].Image);
                 }
 
+                break;
+            case ImageType.TrueColorIcon:
+                var trueColorIcons = amigaIcon.TrueColorIcons?.ToList() ?? new List<TrueColorIcon>();
+                if (!trueColorIcons.Any())
+                {
+                    return new Result(new Error("Icon doesn't have true color icon"));
+                }
+
+                if (!string.IsNullOrWhiteSpace(image1Path))
+                {
+                    OnInformationMessage($"Exporting true color icon image 1 to file '{image1Path}'");
+
+                    if (trueColorIcons.Count < 1)
+                    {
+                        return new Result(new Error("Icon doesn't have true color icon image 1"));
+                    }
+                    
+                    WriteImage(image1Path, trueColorIcons[0].Image);
+                }
+                
+                if (!string.IsNullOrWhiteSpace(image2Path))
+                {
+                    OnInformationMessage($"Exporting true color icon image 2 to file '{image2Path}'");
+
+                    if (trueColorIcons.Count < 2)
+                    {
+                        return new Result(new Error("Icon doesn't have true color icon image 2"));
+                    }
+
+                    WriteImage(image2Path, trueColorIcons[1].Image);
+                }
                 break;
         }
 

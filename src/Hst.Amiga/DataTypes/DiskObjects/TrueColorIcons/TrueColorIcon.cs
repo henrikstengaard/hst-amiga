@@ -1,22 +1,29 @@
-﻿namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
+﻿using System.Collections.Generic;
+using System.Linq;
+using Hst.Imaging;
+
+namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
 {
-#if !NETSTANDARD2_1_OR_GREATER
-    public record TrueColorIcon(byte[] PngData, byte[] Header, PngChunk[] Chunks)
-    {
-    }
-#else
     public class TrueColorIcon
     {
-        public readonly byte[] PngData;
+        public byte[] PngData { get; private set; }
         public readonly byte[] Header;
-        public readonly PngChunk[] Chunks;
-        
-        public TrueColorIcon(byte[] pngData, byte[] header, PngChunk[] chunks)
+        public PngChunk[] Chunks { get; private set; }
+        public Image Image { get; private set; }
+
+        public TrueColorIcon(byte[] pngData, byte[] header, PngChunk[] chunks, Image image)
         {
             PngData = pngData;
             Header = header;
             Chunks = chunks;
+            Image = image;
+        }
+
+        public void UpdateChunks(IEnumerable<PngChunk> chunks)
+        {
+            var pngChunks = chunks as PngChunk[] ?? chunks.ToArray();
+            PngData = Constants.PngSignature.Concat(pngChunks.SelectMany(chunk => chunk.ChunkData)).ToArray();
+                Chunks = pngChunks.ToArray();
         }
     }
-#endif
 }

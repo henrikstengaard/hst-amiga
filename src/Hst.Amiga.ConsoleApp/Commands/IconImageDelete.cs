@@ -1,3 +1,5 @@
+using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
+
 namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
@@ -30,36 +32,32 @@ public class IconImageDelete : IconCommandBase
             return new Result(new Error("Auto image type is not supported for icon image import"));
         }
 
-        OnInformationMessage($"Reading disk object from icon file '{path}'");
+        OnInformationMessage($"Reading icon from file '{path}'");
         
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-        var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = await ColorIconReader.HasColorIcon(iconStream)
-            ? await ColorIconReader.Read(iconStream)
-            : new ColorIcon();
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
 
-        var deleteIconImagesResult = DeleteIconImages(diskObject, colorIcon);
+        var deleteIconImagesResult = DeleteIconImages(amigaIcon);
         if (deleteIconImagesResult.IsFaulted)
         {
             return deleteIconImagesResult;
         }
         
-        DiskObjectHelper.UpdateGadgetFlags(diskObject);
+        DiskObjectHelper.UpdateGadgetFlags(amigaIcon.DiskObject);
         
-        OnInformationMessage($"Writing disk object to icon file '{path}'");
+        OnInformationMessage($"Writing icon to file '{path}'");
         
-        await WriteIcon(iconStream, diskObject);
-        await WriteColorIcon(iconStream, colorIcon);
+        await AmigaIconHelper.WriteAmigaIcon(amigaIcon, iconStream);
 
         return new Result();
     }
 
-    private Result DeleteIconImages(DiskObject diskObject, ColorIcon colorIcon)
+    private Result DeleteIconImages(AmigaIcon amigaIcon)
     {
         if (!imageType.HasValue)
         {
             OnInformationMessage("Deleting all icon images");
-            DeleteAllIconImages(diskObject, colorIcon);
+            DeleteAllIconImages(amigaIcon);
             return new Result();
         }
         
@@ -67,15 +65,29 @@ public class IconImageDelete : IconCommandBase
         {
             case ImageType.Planar:
                 OnInformationMessage("Deleting planar icon images");
-                CreateDummyPlanarImages(diskObject);
+                CreateDefaultPlanarImages(amigaIcon.DiskObject);
                 break;
             case ImageType.NewIcon:
                 OnInformationMessage("Deleting new icon images");
-                NewIconHelper.RemoveNewIconImages(diskObject);
+                CreateDefaultPlanarImages(amigaIcon.DiskObject);
+                NewIconHelper.RemoveNewIconImages(amigaIcon.DiskObject);
                 break;
             case ImageType.ColorIcon:
                 OnInformationMessage("Deleting color icon images");
-                colorIcon.Images = Array.Empty<ColorIconImage>();
+                CreateDefaultPlanarImages(amigaIcon.DiskObject);
+                if (amigaIcon.ColorIcon.Images != null)
+                {
+                    amigaIcon.ColorIcon.Images = Array.Empty<ColorIconImage>();
+                }
+                break;
+            case ImageType.TrueColorIcon:
+                OnInformationMessage("Deleting true color icon images");
+                CreateDefaultPlanarImages(amigaIcon.DiskObject);
+                amigaIcon.Kind = AmigaIcon.IconKind.Normal;
+                if (amigaIcon.TrueColorIcons != null)
+                {
+                    amigaIcon.TrueColorIcons = Array.Empty<TrueColorIcon>();
+                }
                 break;
             default:
                 return new Result(new Error($"Image type '{imageType}' is not supported for icon image delete"));

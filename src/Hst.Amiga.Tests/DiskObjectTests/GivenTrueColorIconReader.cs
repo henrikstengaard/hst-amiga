@@ -55,26 +55,26 @@ public class GivenTrueColorIconReader
         Assert.Equal(2, trueColorIcons.Count);
 
         // arrange - get icon chunk from true color icon 1
-        var pngIcon1 = trueColorIcons[0];
-        var iconChunk = pngIcon1.Chunks.FirstOrDefault(c => c.Type.SequenceEqual(Constants.PngChunkTypes.Icon));
+        var trueColorIcon1 = trueColorIcons[0];
+        var iconChunk = trueColorIcon1.Chunks.FirstOrDefault(c => c.Type.SequenceEqual(Constants.PngChunkTypes.Icon));
         Assert.NotNull(iconChunk);
 
         // act - read icon data from true color icon 1
-        var iconData = TrueColorIconReader.ReadIconData(iconChunk.Data);
+        var iconData = IconChunkReader.ReadIconChunkData(iconChunk.Data);
         Assert.NotNull(iconData);
 
         // assert - icon data contain 4 icon attribute tags
-        Assert.Equal(4, iconData.IconAttributeTags.Count);
+        Assert.Equal(4, iconData.IconTags.Count);
         
         // assert - iconx, icony, stacksize and type tags are present in icon data with expected values
-        Assert.Equal(Constants.IconAttributeTags.ATTR_ICONX, iconData.IconAttributeTags[0].Tag);
-        Assert.Equal(22U, iconData.IconAttributeTags[0].Value);
-        Assert.Equal(Constants.IconAttributeTags.ATTR_ICONY, iconData.IconAttributeTags[1].Tag);
-        Assert.Equal(4U, iconData.IconAttributeTags[1].Value);
-        Assert.Equal(Constants.IconAttributeTags.ATTR_STACKSIZE, iconData.IconAttributeTags[2].Tag);
-        Assert.Equal(4096U, iconData.IconAttributeTags[2].Value);
-        Assert.Equal(Constants.IconAttributeTags.ATTR_TYPE, iconData.IconAttributeTags[3].Tag);
-        Assert.Equal(4U, iconData.IconAttributeTags[3].Value);
+        Assert.Equal(Constants.IconAttributeTags.ATTR_ICONX, iconData.IconTags[0].Tag);
+        Assert.Equal(22U, iconData.IconTags[0].Value);
+        Assert.Equal(Constants.IconAttributeTags.ATTR_ICONY, iconData.IconTags[1].Tag);
+        Assert.Equal(4U, iconData.IconTags[1].Value);
+        Assert.Equal(Constants.IconAttributeTags.ATTR_STACKSIZE, iconData.IconTags[2].Tag);
+        Assert.Equal(4096U, iconData.IconTags[2].Value);
+        Assert.Equal(Constants.IconAttributeTags.ATTR_TYPE, iconData.IconTags[3].Tag);
+        Assert.Equal(4U, iconData.IconTags[3].Value);
 
         // assert - default tool is read from icon data
         Assert.Equal("Multiview", iconData.DefaultTool);

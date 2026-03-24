@@ -4,15 +4,18 @@ namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
 {
     public class IconData
     {
-        public readonly IList<IconAttributeTag> IconAttributeTags;
+        public readonly IList<IconTag> IconTags;
         public readonly string DefaultTool;
         public readonly string ToolType;
+        public readonly string ToolWindow;
     
-        public IconData(IList<IconAttributeTag> iconAttributeTags, string defaultTool, string toolType)
+        public IconData(IList<IconTag> iconTags, string defaultTool, string toolType,
+            string toolWindow)
         {
-            IconAttributeTags = iconAttributeTags;
+            IconTags = iconTags;
             DefaultTool = defaultTool;
             ToolType = toolType;
+            ToolWindow = toolWindow;
         }
     }
 }

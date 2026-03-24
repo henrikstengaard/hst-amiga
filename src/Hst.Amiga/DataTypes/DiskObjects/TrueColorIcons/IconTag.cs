@@ -1,11 +1,11 @@
 ﻿namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
 {
-    public class IconAttributeTag
+    public class IconTag
     {
         public readonly Constants.IconAttributeTags Tag;
         public readonly uint Value;
         
-        public IconAttributeTag(Constants.IconAttributeTags tag, uint value)
+        public IconTag(Constants.IconAttributeTags tag, uint value)
         {
             Tag = tag;
             Value = value;

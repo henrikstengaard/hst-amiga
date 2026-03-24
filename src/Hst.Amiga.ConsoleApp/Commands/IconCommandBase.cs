@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
+using Hst.Imaging.Pngcs;
+
 namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
@@ -13,10 +17,16 @@ using Models;
 
 public abstract class IconCommandBase : CommandBase
 {
-    protected static void CreateDummyPlanarImages(DiskObject diskObject)
+    protected static Image CreateDefault8BppImage()
     {
         var image = new Image(1, 1, 8);
         image.Palette.AddColor(0, 0, 0);
+        return image;
+    }
+    
+    protected static void CreateDefaultPlanarImages(DiskObject diskObject)
+    {
+        var image =  CreateDefault8BppImage();
         var imageData = ImageDataEncoder.Encode(image, 2);
         diskObject.Gadget.Width = 1;
         diskObject.Gadget.Height = 1;
@@ -25,11 +35,25 @@ public abstract class IconCommandBase : CommandBase
         diskObject.Gadget.SelectRenderPointer = 0;
     }
 
-    protected async Task<Result> ImportIconImages(DiskObject diskObject, ColorIcon colorIcon, ImageType type, string image1Path, string image2Path)
+    protected async Task<Result> ImportIconImages(AmigaIcon amigaIcon, ImageType type, string image1Path,
+        string image2Path, bool force)
     {
+        var diskObject = amigaIcon.DiskObject;
+        var colorIcon = amigaIcon.ColorIcon;
+        
+        if (!force &&
+            amigaIcon.Kind == AmigaIcon.IconKind.TrueColor &&
+            type is ImageType.Planar or ImageType.NewIcon or ImageType.ColorIcon)
+        {
+            return new Result(new Error("Icon is true color, use force option to loose true color icons and import images"));
+        }
+        
         switch (type)
         {
             case ImageType.Planar:
+                amigaIcon.Kind = AmigaIcon.IconKind.Normal;
+                amigaIcon.TrueColorIcons = null;
+                
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
                     OnInformationMessage($"Importing planar icon image 1 from file '{image1Path}'");
@@ -76,9 +100,12 @@ public abstract class IconCommandBase : CommandBase
                 }
                 break;
             case ImageType.NewIcon:
+                amigaIcon.Kind = AmigaIcon.IconKind.Normal;
+                amigaIcon.TrueColorIcons = null;
+                
                 if (diskObject.FirstImageData == null)
                 {
-                    CreateDummyPlanarImages(diskObject);
+                    CreateDefaultPlanarImages(diskObject);
                 }
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
@@ -92,9 +119,12 @@ public abstract class IconCommandBase : CommandBase
                 }
                 break;
             case ImageType.ColorIcon:
+                amigaIcon.Kind = AmigaIcon.IconKind.Normal;
+                amigaIcon.TrueColorIcons = null;
+                
                 if (diskObject.FirstImageData == null)
                 {
-                    CreateDummyPlanarImages(diskObject);
+                    CreateDefaultPlanarImages(diskObject);
                 }
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
@@ -129,6 +159,45 @@ public abstract class IconCommandBase : CommandBase
                             break;
                     }
                 }
+                break;
+            case ImageType.TrueColorIcon:
+                if (!string.IsNullOrWhiteSpace(image1Path))
+                {
+                    OnInformationMessage($"Importing true color icon image 1 from file '{image1Path}'");
+                    
+                    var trueColorIcon = await ImportTrueColorIconImage(image1Path);
+                    var trueColorIcons = amigaIcon.TrueColorIcons?.ToList() ?? new List<TrueColorIcon>();
+                    
+                    if (trueColorIcons.Count == 0)
+                    {
+                        trueColorIcons.Add(trueColorIcon);
+                    }
+                    else
+                    {
+                        trueColorIcons[0] = trueColorIcon;
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(image2Path))
+                {
+                    OnInformationMessage($"Importing true color icon image 2 from file '{image2Path}'");
+                    
+                    var trueColorIcon = await ImportTrueColorIconImage(image1Path);
+                    var trueColorIcons = amigaIcon.TrueColorIcons?.ToList() ?? new List<TrueColorIcon>();
+
+                    switch (trueColorIcons.Count)
+                    {
+                        case 0:
+                            throw new ArgumentException("Icon doesn't have 1st true color icon image", nameof(image2Path));
+                        case 1:
+                            trueColorIcons.Add(trueColorIcon);
+                            break;
+                        default:
+                            trueColorIcons[1] = trueColorIcon;
+                            break;
+                    }
+                }
+
                 break;
         }
 
@@ -168,6 +237,20 @@ public abstract class IconCommandBase : CommandBase
             Depth = DiskObjectHelper.CalculateDepth(image.Palette.Colors.Count)
         };
     }
+
+    protected static async Task<TrueColorIcon> ImportTrueColorIconImage(string imagePath)
+    {
+        var image = await ReadImage(imagePath);
+        if (image.BitsPerPixel < 24)
+        {
+            image = ImageConverter.ToTrueColor(image);
+        }
+        using var writeStream = new MemoryStream();
+        PngWriter.Write(writeStream, image);
+        var pngData = writeStream.ToArray();
+        using var readStream = new MemoryStream(pngData);
+        return (await TrueColorIconReader.ReadTrueColorIcons(readStream)).FirstOrDefault();
+    }
     
     protected static Task<Image> ReadImage(string imagePath)
     {
@@ -187,30 +270,13 @@ public abstract class IconCommandBase : CommandBase
         }
     }
 
-    protected static async Task WriteIcon(Stream stream, DiskObject diskObject)
+    protected static void DeleteAllIconImages(AmigaIcon amigaIcon)
     {
-        // write disk object and update length
-        stream.Position = 0;
-        await DiskObjectWriter.Write(diskObject, stream);
-        stream.SetLength(stream.Position);
-    }
-
-    protected static async Task WriteColorIcon(Stream stream, ColorIcon colorIcon)
-    {
-        if (colorIcon == null || colorIcon.Images.Length == 0)
-        {
-            return;
-        }
-        
-        stream.SetLength(stream.Position);
-        await ColorIconWriter.Write(stream, colorIcon, true, true);
-    }
-    
-    protected static void DeleteAllIconImages(DiskObject diskObject, ColorIcon colorIcon)
-    {
-        CreateDummyPlanarImages(diskObject);
-        NewIconHelper.RemoveNewIconImages(diskObject);
-        colorIcon.Images = Array.Empty<ColorIconImage>();
+        amigaIcon.Kind = AmigaIcon.IconKind.Normal;
+        CreateDefaultPlanarImages(amigaIcon.DiskObject);
+        NewIconHelper.RemoveNewIconImages(amigaIcon.DiskObject);
+        amigaIcon.ColorIcon.Images = Array.Empty<ColorIconImage>();
+        amigaIcon.TrueColorIcons = null;
     }
 
     protected static void SetDrawerFlags(DiskObject diskObject, DrawerFlags drawerFlags)

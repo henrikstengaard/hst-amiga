@@ -37,20 +37,18 @@ public class IconToolTypesImport : IconCommandBase
             return new Result(new Error("Icon path not defined"));
         }
 
-        OnInformationMessage($"Reading disk object from icon file '{iconPath}'");
+        OnInformationMessage($"Reading icon from file '{iconPath}'");
 
         await using var iconStream = File.Open(iconPath, FileMode.Open, FileAccess.ReadWrite);
-        var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIconData = iconStream.Position < iconStream.Length
-            ? await iconStream.ReadBytes((int)(iconStream.Length - iconStream.Position))
-            : Array.Empty<byte>();
+
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream, false);
 
         var preservedNewIconTextDatas = new List<TextData>();
         if (preserveNewIcon)
         {
             OnInformationMessage($"Preserving new icon images in tool types");
 
-            var dataTypes = (diskObject.ToolTypes?.TextDatas ?? new List<TextData>()).ToList();
+            var dataTypes = (amigaIcon.DiskObject.ToolTypes?.TextDatas ?? new List<TextData>()).ToList();
             var newIconHeaderBytes = AmigaTextHelper.GetBytes(Constants.NewIcon.Header);
             var newIconHeaderStart = -1;
             for (var i = 0; i < dataTypes.Count; i++)
@@ -99,20 +97,15 @@ public class IconToolTypesImport : IconCommandBase
 
         var textDatas = DiskObjectHelper.ConvertStringsToTextDatas(toolTypesLines)
             .Concat(preservedNewIconTextDatas).ToList();
-        diskObject.ToolTypes = new ToolTypes
+        amigaIcon.DiskObject.ToolTypes = new ToolTypes
         {
             TextDatas = textDatas
         };
-        diskObject.ToolTypesPointer = textDatas.Any() ? 1U : 0U;
+        amigaIcon.DiskObject.ToolTypesPointer = textDatas.Any() ? 1U : 0U;
 
-        OnInformationMessage($"Writing disk object to icon file '{iconPath}'");
+        OnInformationMessage($"Writing icon to file '{iconPath}'");
 
-        await WriteIcon(iconStream, diskObject);
-
-        if (colorIconData.Length > 0)
-        {
-            await iconStream.WriteAsync(colorIconData, 0, colorIconData.Length, token);
-        }
+        await AmigaIconHelper.WriteAmigaIcon(amigaIcon, iconStream);
 
         return new Result();
     }

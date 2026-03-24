@@ -28,11 +28,13 @@ public class IconInfoCommand : CommandBase
 
     public override async Task<Result> Execute(CancellationToken token)
     {
+        OnInformationMessage($"Reading icon from file '{path}'");
+        
         await using var iconStream = File.OpenRead(path);
 
         OnDebugMessage("Icon size: " + iconStream.Length);
         
-        var amigaIcon = await DiskObjectHelper.ReadAmigaIcon(iconStream);
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
         var diskObject = amigaIcon.DiskObject;
         var colorIcon = amigaIcon.ColorIcon;
 

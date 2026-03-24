@@ -15,15 +15,17 @@ public class IconImageImport : IconCommandBase
     private readonly ImageType imageType;
     private readonly string image1Path;
     private readonly string image2Path;
+    private readonly bool force;
 
     public IconImageImport(ILogger<IconImageImport> logger, string path, ImageType imageType, string image1Path,
-        string image2Path)
+        string image2Path, bool force)
     {
         this.logger = logger;
         this.path = path;
         this.imageType = imageType;
         this.image1Path = image1Path;
         this.image2Path = image2Path;
+        this.force = force;
     }
 
     public override async Task<Result> Execute(CancellationToken token)
@@ -33,29 +35,28 @@ public class IconImageImport : IconCommandBase
             return new Result(new Error("Auto image type is not supported for icon image import"));
         }
 
+        OnInformationMessage($"Reading icon from file '{path}'");
+        
         if (string.IsNullOrWhiteSpace(image1Path) && string.IsNullOrWhiteSpace(image2Path))
         {
             return new Result(new Error("Image 1 and Image 2 not defined, no icon image to import"));
         }
 
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-        var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = await ColorIconReader.HasColorIcon(iconStream) 
-            ? await ColorIconReader.Read(iconStream)
-            : new ColorIcon();
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
+        amigaIcon.ColorIcon ??= new ColorIcon();
 
-        var result = await ImportIconImages(diskObject, colorIcon, imageType, image1Path, image2Path);
+        var result = await ImportIconImages(amigaIcon, imageType, image1Path, image2Path, force);
         if (result.IsFaulted)
         {
             return result;
         }
 
-        DiskObjectHelper.UpdateGadgetFlags(diskObject);
+        DiskObjectHelper.UpdateGadgetFlags(amigaIcon.DiskObject);
 
-        OnInformationMessage($"Writing disk object to icon file '{path}'");
+        OnInformationMessage($"Writing icon to file '{path}'");
 
-        await WriteIcon(iconStream, diskObject);
-        await WriteColorIcon(iconStream, colorIcon);
+        await AmigaIconHelper.WriteAmigaIcon(amigaIcon, iconStream);
 
         return new Result();
     }

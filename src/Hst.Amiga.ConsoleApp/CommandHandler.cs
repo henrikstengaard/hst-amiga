@@ -89,9 +89,11 @@ public static class CommandHandler
         await Execute(new IconImageDelete(GetLogger<IconImageDelete>(), iconPath, imageType));
     }
     
-    public static async Task IconImageImport(string iconPath, ImageType imageType, string image1Path, string image2Path)
+    public static async Task IconImageImport(string iconPath, ImageType imageType, string image1Path, string image2Path,
+        bool force)
     {
-        await Execute(new IconImageImport(GetLogger<IconImageImport>(), iconPath, imageType, image1Path, image2Path));
+        await Execute(new IconImageImport(GetLogger<IconImageImport>(), iconPath, imageType, image1Path, image2Path,
+            force));
     }
 
     public static async Task IconToolTypesExport(string iconPath, string toolTypesPath, bool excludeNewIcon)

@@ -302,13 +302,19 @@ public static class IconCommandFactory
             new[] { "--image2-path", "-i2" },
             description: "Path to icon image 2.");
         
+        var forceOption = new Option<bool>(
+            new[] { "--force", "-f" },
+            description: "Force icon image import.");
+        
         var command = new Command("import", "Import icon image.");
-        command.SetHandler(CommandHandler.IconImageImport, iconPathArgument, imageTypeArgument, image1PathOption, image2PathOption);
+        command.SetHandler(CommandHandler.IconImageImport, iconPathArgument, imageTypeArgument, image1PathOption,
+            image2PathOption, forceOption);
         
         command.AddArgument(iconPathArgument);
         command.AddArgument(imageTypeArgument);
         command.AddOption(image1PathOption);
         command.AddOption(image2PathOption);
+        command.AddOption(forceOption);
         
         return command;
     }

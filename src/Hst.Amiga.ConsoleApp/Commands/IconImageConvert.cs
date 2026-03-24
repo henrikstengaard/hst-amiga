@@ -34,34 +34,30 @@ public class IconImageConvert : IconCommandBase
 
     public override async Task<Result> Execute(CancellationToken token)
     {
-        OnInformationMessage($"Reading disk object from icon file '{path}'");
+        OnInformationMessage($"Reading icon from file '{path}'");
         
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-        var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = await ColorIconReader.HasColorIcon(iconStream) 
-            ? await ColorIconReader.Read(iconStream)
-            : new ColorIcon();
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream, false);
 
         if (srcType == destType)
         {
             return new Result(new Error("Source type is the same as destination type"));
         }
 
-        var images = DecodeIconImages(diskObject, colorIcon).ToList();
+        var images = DecodeIconImages(amigaIcon.DiskObject, amigaIcon.ColorIcon).ToList();
 
         if (!images.Any())
         {
             return new Result(new Error($"No images to convert from source type '{srcType}'"));
         }
         
-        DeleteAllIconImages(diskObject, colorIcon);
+        DeleteAllIconImages(amigaIcon);
         
-        EncodeIconImages(diskObject, colorIcon, images);
+        EncodeIconImages(amigaIcon.DiskObject, amigaIcon.ColorIcon, images);
 
-        OnInformationMessage($"Writing disk object to icon file '{path}'");
-        
-        await WriteIcon(iconStream, diskObject);
-        await WriteColorIcon(iconStream, colorIcon);
+        OnInformationMessage($"Writing icon to file '{path}'");
+
+        await AmigaIconHelper.WriteAmigaIcon(amigaIcon, iconStream);
 
         return new Result();
     }

@@ -35,5 +35,11 @@ namespace Hst.Amiga.DataTypes.DiskObjects
         /// TrueColor icons.
         /// </summary>
         public IEnumerable<TrueColorIcon> TrueColorIcons { get; set; }
+        
+        /// <summary>
+        /// Tailing data contains data read after disk object and color icon.
+        /// If color icons are not present, tailing data contains data read after disk object.
+        /// </summary>
+        public byte[] TailingData { get; set; }
     }
 }

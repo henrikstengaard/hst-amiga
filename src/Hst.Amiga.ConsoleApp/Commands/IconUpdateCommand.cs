@@ -54,10 +54,8 @@ public class IconUpdateCommand : IconCommandBase
         OnInformationMessage($"Reading disk object from icon file '{path}'");
 
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-        var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIconData = iconStream.Position < iconStream.Length
-            ? await iconStream.ReadBytes((int)(iconStream.Length - iconStream.Position))
-            : Array.Empty<byte>();
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream, false);
+        var diskObject = amigaIcon.DiskObject;
 
         var isUpdated = false;
 
@@ -71,7 +69,7 @@ public class IconUpdateCommand : IconCommandBase
             isUpdated = true;
         }
 
-        if (!IsDrawerIcon(diskObject) && drawerX.HasValue)
+        if (!DiskObjectHelper.IsDrawerIcon(diskObject) && drawerX.HasValue)
         {
             if (drawerX.HasValue)
             {
@@ -122,7 +120,7 @@ public class IconUpdateCommand : IconCommandBase
             isUpdated = true;
         }
 
-        if (IsDrawerIcon(diskObject) && diskObject.DrawerData != null)
+        if (DiskObjectHelper.IsDrawerIcon(diskObject) && diskObject.DrawerData != null)
         {
             if (drawerX.HasValue)
             {
@@ -166,21 +164,12 @@ public class IconUpdateCommand : IconCommandBase
             return new Result();
         }
 
-        OnInformationMessage($"Writing disk object to icon file '{path}'");
+        await DiskObjectHelper.UpdateTrueColorIcons(diskObject, amigaIcon.TrueColorIcons);
 
-        await WriteIcon(iconStream, diskObject);
+        OnInformationMessage($"Writing icon to file '{path}'");
 
-        if (colorIconData.Length > 0)
-        {
-            await iconStream.WriteAsync(colorIconData, 0, colorIconData.Length, token);
-        }
+        await AmigaIconHelper.WriteAmigaIcon(amigaIcon, iconStream);
 
         return new Result();
-    }
-
-    private static bool IsDrawerIcon(DiskObject diskObject)
-    {
-        return diskObject.Type is Constants.DiskObjectTypes.DISK or Constants.DiskObjectTypes.DRAWER
-            or Constants.DiskObjectTypes.GARBAGE;
     }
 }
