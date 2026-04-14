@@ -97,6 +97,7 @@
                     fileHdr.Access = 0;
                     fileHdr.Comment = string.Empty;
                     fileHdr.FirstData = 0;
+                    fileHdr.Extension = 0;
                     for (var i = 0; i < fileHdr.Index.Length; i++)
                     {
                         fileHdr.Index[i] = 0;
@@ -134,6 +135,11 @@
             for(var i=0; i < fileBlocks.nbExtens; i++)
             {
                 Bitmap.AdfSetBlockFree(vol, fileBlocks.extens[i]);
+            }
+            
+            if (entry.Extension != 0)
+            {
+                Bitmap.AdfSetBlockFree(vol, entry.Extension);
             }
 
             // free(fileBlocks.data);

@@ -119,5 +119,5 @@ public class GivenDos7FormattedFastFileSystemPartition : FastFileSystemTestBase
         Assert.NotNull(entry);
         Assert.Equal(EntryType.File, entry.Type);
         Assert.Equal(comment, entry.Comment);
-    }    
+    }
 }
