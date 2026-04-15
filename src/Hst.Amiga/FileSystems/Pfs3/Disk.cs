@@ -71,34 +71,44 @@
             var buffer = await RawRead(blocks, blocknr, g);
 
             var type = typeof(T);
-            if (type == typeof(anodeblock))
+            try
             {
-                return AnodeBlockReader.Parse(buffer, g);
-            }
+                if (type == typeof(anodeblock))
+                {
+                    return AnodeBlockReader.Parse(buffer, g);
+                }
 
-            if (type == typeof(dirblock))
-            {
-                return DirBlockReader.Parse(buffer, g);
-            }
+                if (type == typeof(dirblock))
+                {
+                    return DirBlockReader.Parse(buffer, g);
+                }
 
-            if (type == typeof(indexblock))
-            {
-                return IndexBlockReader.Parse(buffer, g);
-            }
+                if (type == typeof(indexblock))
+                {
+                    return IndexBlockReader.Parse(buffer, g);
+                }
 
-            if (type == typeof(BitmapBlock))
-            {
-                return BitmapBlockReader.Parse(buffer, (int)g.glob_allocdata.longsperbmb);
-            }
+                if (type == typeof(BitmapBlock))
+                {
+                    return BitmapBlockReader.Parse(buffer, (int)g.glob_allocdata.longsperbmb);
+                }
 
-            if (type == typeof(deldirblock))
-            {
-                return DelDirBlockReader.Parse(buffer, g);
-            }
+                if (type == typeof(deldirblock))
+                {
+                    return DelDirBlockReader.Parse(buffer, g);
+                }
 
-            if (type == typeof(rootblockextension))
+                if (type == typeof(rootblockextension))
+                {
+                    return RootBlockExtensionReader.Parse(buffer);
+                }
+            }
+            catch (IOException)
             {
-                return RootBlockExtensionReader.Parse(buffer);
+                // Block id did not match the expected type (e.g. uninitialised/stale sector on a
+                // physical disk). Callers already treat a null return as "no valid block here" and
+                // handle it gracefully, so surface it as null instead of propagating the exception.
+                return null;
             }
 
             return default;

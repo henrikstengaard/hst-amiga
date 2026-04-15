@@ -664,7 +664,17 @@
             bool first;
             canode anode = new canode();
 
-            await anodes.GetAnode(anode, blk.dirblock.anodenr, g);
+            try
+            {
+                await anodes.GetAnode(anode, blk.dirblock.anodenr, g);
+            }
+            catch (IOException)
+            {
+                // The anode block backing this dir block could not be read (e.g. an
+                // uninitialised sector on a physical disk during format). Treat the
+                // block as first-in-chain so RemoveEmptyDBlocks leaves it alone.
+                return true;
+            }
             first = (anode.blocknr == blk.blocknr);
 
             return first;
