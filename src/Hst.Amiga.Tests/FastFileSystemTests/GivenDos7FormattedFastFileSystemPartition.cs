@@ -120,4 +120,47 @@ public class GivenDos7FormattedFastFileSystemPartition : FastFileSystemTestBase
         Assert.Equal(EntryType.File, entry.Type);
         Assert.Equal(comment, entry.Comment);
     }
+    
+    [Fact]
+    public async Task When_DeletingFileWithLongFilenameAndComment_Then_FileIsDeletedAndBlocksAreFreed()
+    {
+        var longFilename = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890.txt";
+        var comment = "1234567890123456789012345678901234567890123456789012345678901234567890123456789";
+
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk(dosType: Dos7DosType);
+        
+        // act - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - get free bytes for empty disk
+        var freeBytesEmptyDisk = ffsVolume.Free;
+        
+        // arrange - create file in root directory
+        await ffsVolume.CreateFile(longFilename);
+        
+        // arrange - set comment for file in root directory
+        await ffsVolume.SetComment(longFilename, comment);
+
+        // arrange - get free bytes after creating file and comment
+        var freeBytesCreatedFileAndComment = ffsVolume.Free;
+
+        // act - delete file in root directory
+        await ffsVolume.Delete(longFilename);
+
+        // arrange - get free bytes after deleting file and comment
+        var freeBytesDeleteFileAndComment = ffsVolume.Free;
+        
+        // assert - no entries in root directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Empty(entries);
+
+        // assert - blocks with file and comment are freed by comparing
+        // free bytes with empty disk and after deleting file and comment are equal 
+        Assert.Equal(freeBytesEmptyDisk, freeBytesDeleteFileAndComment);
+        
+        // assert - blocks was allocated when created file and comment by comparing
+        // free bytes after creating file and comment is less than free bytes empty disk 
+        Assert.True(freeBytesCreatedFileAndComment < freeBytesEmptyDisk);
+    }
 }
