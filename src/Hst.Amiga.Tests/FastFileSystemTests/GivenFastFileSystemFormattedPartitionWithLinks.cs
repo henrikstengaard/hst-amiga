@@ -108,7 +108,7 @@ public class GivenFastFileSystemFormattedPartitionWithLinks : FastFileSystemTest
     }
 
     [Fact]
-    public async Task When_CreatingLinkToDir_Then_FileAndLinkAreCrossLinked()
+    public async Task When_CreatingLinkToDir_Then_DirAndLinkAreCrossLinked()
     {
         // arrange - create fast file system formatted disk
         var stream = await CreateFastFileSystemFormattedDisk();
@@ -145,6 +145,55 @@ public class GivenFastFileSystemFormattedPartitionWithLinks : FastFileSystemTest
         Assert.Equal(0U, linkEntry.Size);
         Assert.Equal(dirEntry.EntryBlock.HeaderKey, linkEntry.EntryBlock.RealEntry);
         Assert.Equal("dir", linkEntry.LinkPath);
+    }
+
+    [Fact]
+    public async Task When_CreatingLinkToExistingDirLink_Then_DirAndLinksAreCrossLinked()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - create dir
+        await ffsVolume.CreateDirectory("dir");
+        
+        // arrange - create link to dir
+        await ffsVolume.CreateLink("link", "dir");
+
+        // act - create link2 to link
+        await ffsVolume.CreateLink("link2", "link");
+        
+        // assert - 3 entries exists
+        var dirEntries = (await ffsVolume.ListRawEntries()).ToList();
+        Assert.Equal(3, dirEntries.Count);
+        
+        // assert - dir, link and link2 exists
+        var dirEntry = dirEntries.FirstOrDefault(x => x.Name == "dir");
+        var linkEntry = dirEntries.FirstOrDefault(x => x.Name == "link");
+        var link2Entry = dirEntries.FirstOrDefault(x => x.Name == "link2");
+        Assert.NotNull(dirEntry);
+        Assert.NotNull(linkEntry);
+        Assert.NotNull(link2Entry);
+
+        // assert - dir has type dir, size, link to link entry
+        Assert.Equal(Constants.ST_DIR, dirEntry.Type);
+        Assert.Equal(0U, dirEntry.Size);
+        Assert.Equal(0U, dirEntry.Real);
+        Assert.Null(dirEntry.LinkPath);
+        
+        // assert - link has type link dir, no size and link to dir entry
+        Assert.Equal(Constants.ST_LDIR, linkEntry.Type);
+        Assert.Equal(0U, linkEntry.Size);
+        Assert.Equal(dirEntry.Sector, linkEntry.Real);
+        Assert.Equal("dir", linkEntry.LinkPath);
+        
+        // assert - link2 has type link dir, no size and size link to dir entry
+        Assert.Equal(Constants.ST_LDIR, link2Entry.Type);
+        Assert.Equal(0U, link2Entry.Size);
+        Assert.Equal(dirEntry.Sector, link2Entry.Real);
+        Assert.Equal("dir", link2Entry.LinkPath);
     }
 
     [Fact]
@@ -710,6 +759,105 @@ public class GivenFastFileSystemFormattedPartitionWithLinks : FastFileSystemTest
         Assert.Equal(0U, fileEntry.Size);
         Assert.Equal(0U, fileEntry.EntryBlock.NextLink);
         Assert.Null(fileEntry.LinkEntryBlock);
+        Assert.Null(fileEntry.LinkPath);
+    }
+        
+    [Fact]
+    public async Task When_ChangingDirToLinkDir_Then_DirectoryIsChanged()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - create directory with file
+        await ffsVolume.CreateDirectory("dir");
+        await ffsVolume.ChangeDirectory("dir");
+        await ffsVolume.CreateFile("file", true, true);
+
+        // arrange - data to write
+        var data = new byte[10];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - append data to file
+        using (var fileStream = await ffsVolume.OpenFile("file", FileMode.Append, true))
+        {
+            await fileStream.WriteAsync(data);
+        }
+        
+        // arrange - create link in root directory to directory
+        await ffsVolume.ChangeDirectory("/");
+        await ffsVolume.CreateLink("link", "dir");
+        
+        // act - change directory to link directory
+        await ffsVolume.ChangeDirectory("link");
+        
+        // assert - current path is dir directory
+        var currentPath = await ffsVolume.GetCurrentPath();
+        Assert.Equal("/dir", currentPath);
+        
+        // assert - 1 entry exists in dir directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Single(entries);
+
+        // assert - file entry exists
+        var fileEntry = entries.FirstOrDefault(e => e.Name == "file");
+        Assert.NotNull(fileEntry);
+        
+        // assert - file entry is a file type, has size of 10 bytes and no link path
+        Assert.Equal(EntryType.File, fileEntry.Type);
+        Assert.Equal(10, fileEntry.Size);
+        Assert.Null(fileEntry.LinkPath);
+    }
+
+    [Fact]
+    public async Task When_ChangingDirToSecondLinkDir_Then_DirectoryIsChanged()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // arrange - create directory with file
+        await ffsVolume.CreateDirectory("dir");
+        await ffsVolume.ChangeDirectory("dir");
+        await ffsVolume.CreateFile("file", true, true);
+
+        // arrange - data to write
+        var data = new byte[10];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - append data to file
+        using (var fileStream = await ffsVolume.OpenFile("file", FileMode.Append, true))
+        {
+            await fileStream.WriteAsync(data);
+        }
+        
+        // arrange - create links in root directory to directory
+        await ffsVolume.ChangeDirectory("/");
+        await ffsVolume.CreateLink("link", "dir");
+        await ffsVolume.CreateLink("link2", "link");
+
+        // act - change directory to link2 directory
+        await ffsVolume.ChangeDirectory("link2");
+
+        // assert - current path is dir directory
+        var currentPath = await ffsVolume.GetCurrentPath();
+        Assert.Equal("/dir", currentPath);
+        
+        // assert - 1 entry exists in dir directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Single(entries);
+
+        // assert - file entry exists
+        var fileEntry = entries.FirstOrDefault(e => e.Name == "file");
+        Assert.NotNull(fileEntry);
+        
+        // assert - file entry is a file type, has size of 10 bytes and no link path
+        Assert.Equal(EntryType.File, fileEntry.Type);
+        Assert.Equal(10, fileEntry.Size);
         Assert.Null(fileEntry.LinkPath);
     }
 }

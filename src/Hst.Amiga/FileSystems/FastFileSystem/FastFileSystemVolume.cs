@@ -93,14 +93,27 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
                 throw new PathNotFoundException($"Path '{path}' not found");
             }
 
-            // throw exception, if not root path and found entry result has same sector as
-            // current directory sector, meaning path is not a directory
-            if (!isRootPath && currentDirectorySector == findEntryResult.Sector)
+            // return if path is root path, otherwise find entry result should have at least one entry, which is the last entry in path
+            if (!findEntryResult.Entries.Any())
+            {
+                return;
+            }
+
+            var entry = findEntryResult.Entries.LastOrDefault();
+            if (entry == null)
+            {
+                throw new PathNotFoundException($"Path '{path}' not found");
+            }
+
+            if (entry.Type != Constants.ST_DIR &&
+                entry.Type != Constants.ST_LDIR)
             {
                 throw new PathNotFoundException($"Path '{path}' is not a directory");
             }
+
+            entry = await Directory.ResolveLinkEntry(volume, entry);
             
-            currentDirectorySector = findEntryResult.Sector;
+            currentDirectorySector = entry.Sector;
         }
 
         /// <summary>

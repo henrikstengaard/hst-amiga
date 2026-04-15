@@ -87,7 +87,7 @@
                 var entryBlock = await Disk.ReadEntryBlock(volume, hashTable[i]);
 
                 // convert entry block to entry and add to list
-                var entry = ConvertEntryBlockToEntry(entryBlock);
+                var entry = ConvertEntryBlockToEntry(volume, entryBlock);
 
                 if (volume.ResolveLinkPaths && entry.Type == Constants.ST_LFILE || entry.Type == Constants.ST_LDIR)
                 {
@@ -115,7 +115,7 @@
                     entryBlock = await Disk.ReadEntryBlock(volume, nextSector);
 
                     // convert entry block to entry and add to list
-                    entry = ConvertEntryBlockToEntry(entryBlock);
+                    entry = ConvertEntryBlockToEntry(volume, entryBlock);
                     entry.Sector = nextSector;
                     entries.Add(entry);
 
@@ -138,7 +138,7 @@
         /// <param name="entryBlock"></param>
         /// <returns></returns>
         /// <exception cref="IOException"></exception>
-        public static Entry ConvertEntryBlockToEntry(EntryBlock entryBlock)
+        public static Entry ConvertEntryBlockToEntry(Volume volume, EntryBlock entryBlock)
         {
             var entry = new Entry
             {
@@ -150,6 +150,7 @@
                 Access = uint.MaxValue, //-1
                 Size = 0,
                 Real = 0,
+                Sector = GetSector(volume, entryBlock),
                 EntryBlock = entryBlock,
             };
 
@@ -440,6 +441,36 @@
             await Bitmap.AdfUpdateBitmap(vol);
         }
 
+        /// <summary>
+        /// Resolve link entry.
+        /// </summary>
+        /// <param name="volume">Volume.</param>
+        /// <param name="entry">Link entry.</param>
+        /// <returns>Real entry link points to.</returns>
+        /// <exception cref="IOException">Exception thrown, if loop detected in links.</exception>
+        public static async Task<Entry> ResolveLinkEntry(Volume volume, Entry entry)
+        {
+            if (entry.Type != Constants.ST_LFILE && entry.Type != Constants.ST_LDIR)
+            {
+                return entry;
+            }
+            
+            var sectorsVisited = new HashSet<uint>(new []{entry.Sector});
+            
+            while(entry.Type == Constants.ST_LFILE || entry.Type == Constants.ST_LDIR)
+            {
+                var entryBlock = await Disk.ReadEntryBlock(volume, entry.Real);
+                entry = ConvertEntryBlockToEntry(volume, entryBlock);
+
+                if (!sectorsVisited.Add(entry.Sector))
+                {
+                    throw new IOException($"Loop detected at sector {entry.Sector} while resolving entry for '{entry.Name}'");
+                }
+            }
+
+            return entry;
+        }
+
         public static async Task<EntryBlock> CreateLink(Volume volume, uint parentSector, string linkName, string realName)
         {
             var findEntryResult = await FindEntry(parentSector, realName, volume);
@@ -448,11 +479,13 @@
                 throw new PathNotFoundException($"Path '{realName}' not found");
             }
 
-            var realEntry = findEntryResult.Entries.LastOrDefault();
-            if (realEntry == null)
+            var entry = findEntryResult.Entries.LastOrDefault();
+            if (entry == null)
             {
                 throw new PathNotFoundException($"Path '{realName}' not found");
             }
+
+            entry = await ResolveLinkEntry(volume, entry);
             
             var parentEntryBlock = await Disk.ReadEntryBlock(volume, parentSector);
 
@@ -465,7 +498,7 @@
                 throw new DiskFullException("No sector available");
             }
             
-            var realEntrySector = GetSector(volume, realEntry.EntryBlock);
+            var realEntrySector = GetSector(volume, entry.EntryBlock);
             
             var linkEntryBlock = new EntryBlock(volume.FileSystemBlockSize)
             {
@@ -473,8 +506,8 @@
                 Name = linkName,
                 Parent = GetSector(volume, parentEntryBlock),
                 RealEntry = realEntrySector,
-                NextLink = realEntry.EntryBlock.NextLink,
-                SecType = realEntry.EntryBlock.SecType == Constants.ST_FILE ? Constants.ST_LFILE : Constants.ST_LDIR,
+                NextLink = entry.EntryBlock.NextLink,
+                SecType = entry.EntryBlock.SecType == Constants.ST_FILE ? Constants.ST_LFILE : Constants.ST_LDIR,
                 Date = DateTime.Now
             };
             
@@ -488,10 +521,10 @@
             await Bitmap.AdfUpdateBitmap(volume);
 
             // update real entry next link to new link entry block
-            realEntry.EntryBlock.NextLink = linkEntryBlock.HeaderKey;
+            entry.EntryBlock.NextLink = linkEntryBlock.HeaderKey;
             
             // write real entry block with updated next link to disk
-            await Disk.WriteEntryBlock(volume, realEntrySector, realEntry.EntryBlock);
+            await Disk.WriteEntryBlock(volume, realEntrySector, entry.EntryBlock);
             
             return linkEntryBlock;
         }
