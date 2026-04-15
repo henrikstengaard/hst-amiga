@@ -102,6 +102,13 @@
             {
                 throw new PathNotFoundException($"Path '{path}' is not a directory");
             }
+
+            if (currentDirectory.file.direntry != null &&
+                currentDirectory.file.direntry.type == Constants.ST_LINKDIR)
+            {
+                dirNodeNr = currentDirectory.file.direntry.ExtraFields.link;
+                return;
+            }
             
             dirNodeNr = Macro.IsRoot(currentDirectory) ? (uint)Macro.ANODE_ROOTDIR : currentDirectory.file.direntry.anode;
         }
@@ -154,7 +161,7 @@
             var currentDirectory = await GetCurrentDirectory();
             var linkFromDir = currentDirectory;
             
-            var linkTo = currentDirectory.Clone();
+            var linkTo = new objectinfo();
             var linkToFound = await Directory.FindObject(currentDirectory, name, linkTo, g);
             
             if (!linkToFound)
@@ -162,8 +169,22 @@
                 throw new PathNotFoundException($"Path not found '{name}'");
             }
             
+            var type = new ListType
+            {
+                value = Constants.ET_FILEENTRY
+            };
+
+            // make list entry resolves link to entry to real entry, if link to entry is a link dir or file
+            IEntry fileFe;
+            if ((fileFe = await Lock.MakeListEntry(linkTo, type, g)) == null)
+            {
+                throw new IOException("make list entry error");
+            }
+            
             var newLink = new objectinfo();
-            await Directory.CreateLink(linkFromDir, linkName, linkTo, newLink, g);
+            await Directory.CreateLink(linkFromDir, linkName, fileFe.ListEntry.info, newLink, g);
+            
+            Lock.FreeListEntry(fileFe, g);
         }
 
         public void ClearCachedData()

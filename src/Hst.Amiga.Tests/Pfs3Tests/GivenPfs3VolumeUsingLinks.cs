@@ -99,7 +99,7 @@ public class GivenPfs3VolumeUsingLinks : Pfs3TestBase
     }
 
     [Fact]
-    public async Task When_CreatingLinkToDir_Then_FileAndLinkAreCrossLinked()
+    public async Task When_CreatingLinkToDir_Then_DirAndLinkAreCrossLinked()
     {
         // arrange - create pfs3 formatted disk
         var stream = await CreatePfs3FormattedDisk();
@@ -129,11 +129,60 @@ public class GivenPfs3VolumeUsingLinks : Pfs3TestBase
         Assert.Equal(linkEntry.anode, dirEntry.ExtraFields.link);
         Assert.Null(dirEntry.LinkPath);
         
-        // assert - link has type link file, size link to dir entry
+        // assert - link has type link dir, no size and link to dir entry
         Assert.Equal(Constants.ST_LINKDIR, linkEntry.type);
         Assert.Equal(0U, linkEntry.Size);
         Assert.Equal(dirEntry.anode, linkEntry.ExtraFields.link);
         Assert.Equal("dir", linkEntry.LinkPath);
+    }
+
+    [Fact]
+    public async Task When_CreatingLinkToExistingDirLink_Then_DirAndLinksAreCrossLinked()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create dir
+        await pfs3Volume.CreateDirectory("dir");
+        
+        // arrange - create link to dir
+        await pfs3Volume.CreateLink("link", "dir");
+
+        // act - create link2 to link
+        await pfs3Volume.CreateLink("link2", "link");
+        
+        // assert - 3 entries exists
+        var dirEntries = (await pfs3Volume.ListRawEntries()).ToList();
+        Assert.Equal(3, dirEntries.Count);
+        
+        // assert - dir, link and link2 exists
+        var dirEntry = dirEntries.FirstOrDefault(x => x.Name == "dir");
+        var linkEntry = dirEntries.FirstOrDefault(x => x.Name == "link");
+        var link2Entry = dirEntries.FirstOrDefault(x => x.Name == "link2");
+        Assert.NotNull(dirEntry);
+        Assert.NotNull(linkEntry);
+        Assert.NotNull(link2Entry);
+
+        // assert - dir has type dir, size, link to link entry
+        Assert.Equal(Constants.ST_USERDIR, dirEntry.type);
+        Assert.Equal(0U, dirEntry.Size);
+        Assert.Equal(linkEntry.anode, dirEntry.ExtraFields.link);
+        Assert.Null(dirEntry.LinkPath);
+        
+        // assert - link has type link dir, no size and link to dir entry
+        Assert.Equal(Constants.ST_LINKDIR, linkEntry.type);
+        Assert.Equal(0U, linkEntry.Size);
+        Assert.Equal(dirEntry.anode, linkEntry.ExtraFields.link);
+        Assert.Equal("dir", linkEntry.LinkPath);
+        
+        // assert - link2 has type link dir, no size and size link to dir entry
+        Assert.Equal(Constants.ST_LINKDIR, link2Entry.type);
+        Assert.Equal(0U, link2Entry.Size);
+        Assert.Equal(dirEntry.anode, link2Entry.ExtraFields.link);
+        Assert.Equal("dir", link2Entry.LinkPath);
     }
 
     [Fact]
@@ -515,5 +564,104 @@ public class GivenPfs3VolumeUsingLinks : Pfs3TestBase
         // assert - file entry has type file and has no link
         Assert.Equal(Constants.ST_FILE, fileEntry.type);
         Assert.Equal(0U, fileEntry.ExtraFields.link);
+    }
+    
+    [Fact]
+    public async Task When_ChangingDirToLinkDir_Then_DirectoryIsChanged()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create directory with file
+        await pfs3Volume.CreateDirectory("dir");
+        await pfs3Volume.ChangeDirectory("dir");
+        await pfs3Volume.CreateFile("file", true, true);
+
+        // arrange - data to write
+        var data = new byte[10];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - append data to file
+        using (var fileStream = await pfs3Volume.OpenFile("file", FileMode.Append, true))
+        {
+            await fileStream.WriteAsync(data);
+        }
+        
+        // arrange - create link in root directory to directory
+        await pfs3Volume.ChangeDirectory("/");
+        await pfs3Volume.CreateLink("link", "dir");
+        
+        // act - change directory to link directory
+        await pfs3Volume.ChangeDirectory("link");
+        
+        // assert - current path is dir directory
+        var currentPath = await pfs3Volume.GetCurrentPath();
+        Assert.Equal("/dir", currentPath);
+        
+        // assert - 1 entry exists in dir directory
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        Assert.Single(entries);
+
+        // assert - file entry exists
+        var fileEntry = entries.FirstOrDefault(e => e.Name == "file");
+        Assert.NotNull(fileEntry);
+        
+        // assert - file entry is a file type, has size of 10 bytes and no link path
+        Assert.Equal(EntryType.File, fileEntry.Type);
+        Assert.Equal(10, fileEntry.Size);
+        Assert.Null(fileEntry.LinkPath);
+    }
+
+    [Fact]
+    public async Task When_ChangingDirToSecondLinkDir_Then_DirectoryIsChanged()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+
+        // arrange - create directory with file
+        await pfs3Volume.CreateDirectory("dir");
+        await pfs3Volume.ChangeDirectory("dir");
+        await pfs3Volume.CreateFile("file", true, true);
+
+        // arrange - data to write
+        var data = new byte[10];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - append data to file
+        using (var fileStream = await pfs3Volume.OpenFile("file", FileMode.Append, true))
+        {
+            await fileStream.WriteAsync(data);
+        }
+        
+        // arrange - create links in root directory to directory
+        await pfs3Volume.ChangeDirectory("/");
+        await pfs3Volume.CreateLink("link", "dir");
+        await pfs3Volume.CreateLink("link2", "link");
+
+        // act - change directory to link2 directory
+        await pfs3Volume.ChangeDirectory("link2");
+
+        // assert - current path is dir directory
+        var currentPath = await pfs3Volume.GetCurrentPath();
+        Assert.Equal("/dir", currentPath);
+        
+        // assert - 1 entry exists in dir directory
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        Assert.Single(entries);
+
+        // assert - file entry exists
+        var fileEntry = entries.FirstOrDefault(e => e.Name == "file");
+        Assert.NotNull(fileEntry);
+        
+        // assert - file entry is a file type, has size of 10 bytes and no link path
+        Assert.Equal(EntryType.File, fileEntry.Type);
+        Assert.Equal(10, fileEntry.Size);
+        Assert.Null(fileEntry.LinkPath);
     }
 }
