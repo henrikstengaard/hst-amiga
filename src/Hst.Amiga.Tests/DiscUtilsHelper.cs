@@ -11,9 +11,9 @@ public static class DiscUtilsHelper
         DiscUtils.FileSystems.SetupHelper.SetupFileSystems();
     }
 
-    public static Stream OpenVhd(string path)
+    public static Stream OpenVhd(string path, bool writable = false)
     {
-        var vhdDisk = VirtualDisk.OpenDisk(path, FileAccess.Read);
+        var vhdDisk = VirtualDisk.OpenDisk(path, writable ? FileAccess.ReadWrite : FileAccess.Read);
         vhdDisk.Content.Position = 0;
         return vhdDisk.Content;        
     }

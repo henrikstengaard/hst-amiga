@@ -462,6 +462,8 @@
             //     goto l1;            
             var l1 = size != 0;
 
+            anodechainnode lastChNode = null;
+            
             /* reverse order freeloop */
             while (size != 0 && !empty)
             {
@@ -474,6 +476,12 @@
                 }
 
                 // l1: 
+                l1 = false;
+                if (lastChNode != null && lastChNode == chnode)
+                {
+                    throw new IndexOutOfRangeException($"Loop detected in 'FreeBlocksAC', chnode didn't change from chnode nr = {chnode.an.nr}");
+                }
+
                 /* get blocks to free */
                 if (chnode.an.clustersize <= size)
                 {
@@ -537,6 +545,8 @@
                     await Update.UpdateDisk(g);
                     i = alloc_data.tobefreed_index;
                 }
+
+                lastChNode = chnode;
             }
 
             /* restore anode chain (both cached and on disk) */
