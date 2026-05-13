@@ -126,4 +126,98 @@ public class GivenFastFileSystemFormattedPartitionRenamingMoving : FastFileSyste
         Assert.Equal("file.txt", entries[0].Name);
         Assert.Equal(EntryType.File, entries[0].Type);
     }
+
+    [Fact]
+    public async Task When_MovingFileFromSubDirectoryToRootDirectory_Then_FileIsMoved()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // arrange - create dir1 directory in root directory
+        await ffsVolume.CreateDirectory("dir1");
+
+        // arrange - create dir2 directory in dir1 directory
+        await ffsVolume.ChangeDirectory("dir1");
+        await ffsVolume.CreateDirectory("dir2");
+        
+        // arrange - create file.txt file in dir2 directory
+        await ffsVolume.ChangeDirectory("dir2");
+        await ffsVolume.CreateFile("file.txt", true, true);
+
+        // act - rename file.txt to file.txt in root directory
+        await ffsVolume.Rename("file.txt", "/file.txt");
+
+        // assert - dir2 directory is empty
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Empty(entries);
+        
+        // assert - root directory contains 2 entries
+        await ffsVolume.ChangeDirectory("/");
+        entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Equal(2, entries.Count);
+
+        // assert - root directory contains dir1 entry
+        var dir1Entry = entries.FirstOrDefault(x => x.Name == "dir1");
+        Assert.NotNull(dir1Entry);
+        Assert.Equal(EntryType.Dir, dir1Entry.Type);
+
+        // assert - root directory contains file.txt entry
+        var fileTxtEntry = entries.FirstOrDefault(x => x.Name == "file.txt");
+        Assert.NotNull(fileTxtEntry);
+        Assert.Equal(EntryType.File, fileTxtEntry.Type);
+    }
+    
+    [Fact]
+    public async Task When_MovingDirectoryFromSubDirectoryToRootDirectory_Then_DirectoryIsMoved()
+    {
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+        
+        // arrange - create dir1 directory in root directory
+        await ffsVolume.CreateDirectory("dir1");
+
+        // arrange - create dir2 directory in dir1 directory
+        await ffsVolume.ChangeDirectory("dir1");
+        await ffsVolume.CreateDirectory("dir2");
+        
+        // arrange - create file.txt file in dir2 directory
+        await ffsVolume.ChangeDirectory("dir2");
+        await ffsVolume.CreateFile("file.txt", true, true);
+
+        // act - rename dir2 in dir1 to root directory
+        await ffsVolume.ChangeDirectory("/dir1");
+        await ffsVolume.Rename("dir2", "/dir2");
+
+        // assert - dir1 directory is empty
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Empty(entries);
+        
+        // assert - root directory contains 2 entries
+        await ffsVolume.ChangeDirectory("/");
+        entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Equal(2, entries.Count);
+
+        // assert - root directory contains dir1 entry
+        var dir1Entry = entries.FirstOrDefault(x => x.Name == "dir1");
+        Assert.NotNull(dir1Entry);
+        Assert.Equal(EntryType.Dir, dir1Entry.Type);
+
+        // assert - root directory contains dir2 entry
+        var dir2Entry = entries.FirstOrDefault(x => x.Name == "dir2");
+        Assert.NotNull(dir2Entry);
+        Assert.Equal(EntryType.Dir, dir2Entry.Type);
+
+        // assert - dir2 directory contains file.txt entry
+        await ffsVolume.ChangeDirectory("dir2");
+        entries = (await ffsVolume.ListEntries()).ToList();
+        var fileTxtEntry = entries.FirstOrDefault(x => x.Name == "file.txt");
+        Assert.NotNull(fileTxtEntry);
+        Assert.Equal(EntryType.File, fileTxtEntry.Type);
+    }
 }

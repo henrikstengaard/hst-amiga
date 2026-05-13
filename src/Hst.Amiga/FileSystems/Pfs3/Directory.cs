@@ -1722,7 +1722,13 @@
         /// <exception cref="IOException"></exception>
         public static async Task<string[]> Find(objectinfo current, string path, globaldata g)
         {
-            var parts = (path.StartsWith("/") ? path.Substring(1) : path).Split('/');
+            var isRoot = path.StartsWith("/");
+            if (isRoot)
+            {
+                current.OverwriteWith(await GetRoot(g));
+            }
+            
+            var parts = (isRoot ? path.Substring(1) : path).Split('/');
 
             int i;
             for (i = 0; i < parts.Length; i++)

@@ -539,7 +539,8 @@
             oldName = TrimName(vol, oldName);
             newName = TrimName(vol, newName);
             
-            if (oldName == newName)
+            // return, if name and sector are the same
+            if (oldName == newName && pSect == nPSect)
             {
                 return;
             }

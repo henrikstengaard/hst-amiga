@@ -91,7 +91,6 @@ public class GivenPfs3FormattedPartitionRenamingMoving : Pfs3TestBase
 
         // arrange - mount pfs3 volume
         await using var pfs3Volume = await MountVolume(stream);
-
         
         // arrange - create dir1 directory in root directory
         await pfs3Volume.CreateDirectory("dir1");
@@ -126,5 +125,100 @@ public class GivenPfs3FormattedPartitionRenamingMoving : Pfs3TestBase
         Assert.Single(entries);
         Assert.Equal("file.txt", entries[0].Name);
         Assert.Equal(EntryType.File, entries[0].Type);
+    }
+    
+    [Fact]
+    public async Task When_MovingFileFromSubDirectoryToRootDirectory_Then_FileIsMoved()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+        
+        // arrange - create dir1 directory in root directory
+        await pfs3Volume.CreateDirectory("dir1");
+
+        // arrange - create dir2 directory in dir1 directory
+        await pfs3Volume.ChangeDirectory("dir1");
+        await pfs3Volume.CreateDirectory("dir2");
+        
+        // arrange - create file.txt file in dir2 directory
+        await pfs3Volume.ChangeDirectory("dir2");
+        await pfs3Volume.CreateFile("file.txt", true, true);
+
+        // act - rename file.txt to file.txt in root directory
+        await pfs3Volume.Rename("file.txt", "/file.txt");
+
+        // assert - dir2 directory is empty
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        Assert.Empty(entries);
+        
+        // assert - root directory contains 2 entries
+        await pfs3Volume.ChangeDirectory("/");
+        entries = (await pfs3Volume.ListEntries()).ToList();
+        Assert.Equal(2, entries.Count);
+
+        // assert - root directory contains dir1 entry
+        var dir1Entry = entries.FirstOrDefault(x => x.Name == "dir1");
+        Assert.NotNull(dir1Entry);
+        Assert.Equal(EntryType.Dir, dir1Entry.Type);
+
+        // assert - root directory contains file.txt entry
+        var fileTxtEntry = entries.FirstOrDefault(x => x.Name == "file.txt");
+        Assert.NotNull(fileTxtEntry);
+        Assert.Equal(EntryType.File, fileTxtEntry.Type);
+    }
+    
+    [Fact]
+    public async Task When_MovingDirectoryFromSubDirectoryToRootDirectory_Then_DirectoryIsMoved()
+    {
+        // arrange - create pfs3 formatted disk
+        var stream = await CreatePfs3FormattedDisk();
+
+        // arrange - mount pfs3 volume
+        await using var pfs3Volume = await MountVolume(stream);
+        
+        // arrange - create dir1 directory in root directory
+        await pfs3Volume.CreateDirectory("dir1");
+
+        // arrange - create dir2 directory in dir1 directory
+        await pfs3Volume.ChangeDirectory("dir1");
+        await pfs3Volume.CreateDirectory("dir2");
+        
+        // arrange - create file.txt file in dir2 directory
+        await pfs3Volume.ChangeDirectory("dir2");
+        await pfs3Volume.CreateFile("file.txt", true, true);
+
+        // act - rename dir2 in dir1 to root directory
+        await pfs3Volume.ChangeDirectory("/");
+        await pfs3Volume.ChangeDirectory("dir1");
+        await pfs3Volume.Rename("dir2", "/dir2");
+
+        // assert - dir1 directory is empty
+        var entries = (await pfs3Volume.ListEntries()).ToList();
+        Assert.Empty(entries);
+        
+        // assert - root directory contains 2 entries
+        await pfs3Volume.ChangeDirectory("/");
+        entries = (await pfs3Volume.ListEntries()).ToList();
+        Assert.Equal(2, entries.Count);
+
+        // assert - root directory contains dir1 entry
+        var dir1Entry = entries.FirstOrDefault(x => x.Name == "dir1");
+        Assert.NotNull(dir1Entry);
+        Assert.Equal(EntryType.Dir, dir1Entry.Type);
+
+        // assert - root directory contains dir2 entry
+        var dir2Entry = entries.FirstOrDefault(x => x.Name == "dir2");
+        Assert.NotNull(dir2Entry);
+        Assert.Equal(EntryType.Dir, dir2Entry.Type);
+
+        // assert - dir2 directory contains file.txt entry
+        await pfs3Volume.ChangeDirectory("dir2");
+        entries = (await pfs3Volume.ListEntries()).ToList();
+        var fileTxtEntry = entries.FirstOrDefault(x => x.Name == "file.txt");
+        Assert.NotNull(fileTxtEntry);
+        Assert.Equal(EntryType.File, fileTxtEntry.Type);
     }
 }
