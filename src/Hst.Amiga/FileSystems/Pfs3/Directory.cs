@@ -2754,7 +2754,7 @@
             anode.nr = Macro.FIANODENR(info.file);
             if (!await DirIsEmpty(anode.nr, g))
             {
-                throw new IOException("ERROR_DIRECTORY_NOT_EMPTY");
+                throw new DirectoryNotEmptyException("ERROR_DIRECTORY_NOT_EMPTY");
             }
             else
             {

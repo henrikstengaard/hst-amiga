@@ -10,7 +10,8 @@
     {
         public static bool IsSameOI(objectinfo oi1, objectinfo oi2)
         {
-            return oi1.file.direntry.Equals(oi2.file.direntry) && 
+            return oi1.file?.direntry != null && oi2.file?.direntry != null &&
+                   oi1.file.direntry.Equals(oi2.file.direntry) && 
                    oi1.file.dirblock.blocknr == oi2.file.dirblock.blocknr;
         }
         

@@ -203,7 +203,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
                 throw new PathNotFoundException($"Path '{partsNotFound[0]}' not found");
             }
 
-            await Directory.RenameEntry(volume, srcEntryResult.Sector, srcEntryResult.Name, destEntryResult.Sector,
+            await Directory.RenameEntry(volume, currentDirectorySector, srcEntryResult.Name, destEntryResult.Sector,
                 destEntryResult.Name);
         }
 
