@@ -1151,4 +1151,56 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         Assert.Empty(result.PartsNotFound);
         Assert.Equal("file2.txt", result.Entry.Name);
     }
+
+    [Fact]
+    public async Task When_OverwritingFileLargerThanBlockSize_Then_FileIsOverwritten()
+    {
+        // arrange - data to write
+        var data = new byte[1024 * 60];
+        Array.Fill<byte>(data, 1);
+
+        // arrange - create fast file system formatted disk
+        var stream = await CreateFastFileSystemFormattedDisk();
+        
+        // arrange - mount fast file system volume
+        await using var ffsVolume = await MountVolume(stream);
+
+        // act - create and overwrite file
+        await ffsVolume.CreateFile("file.bin", true, true);
+
+        // act - write data to file
+        await using (var entryStream = await ffsVolume.OpenFile("file.bin", FileMode.Append, true, true))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+        
+        // act - create and overwrite file
+        await ffsVolume.CreateFile("file.bin", true, true);
+        
+        // act - write data to file
+        await using (var entryStream = await ffsVolume.OpenFile("file.bin", FileMode.Append, true, true))
+        {
+            await entryStream.WriteAsync(data, 0, data.Length);
+        }
+        
+        // assert - 1 entry exists in root directory
+        var entries = (await ffsVolume.ListEntries()).ToList();
+        Assert.Single(entries);
+        
+        // assert - file.bin entry exists
+        var fileEntry = entries.FirstOrDefault(x => x.Name == "file.bin" && x.Type == EntryType.File);
+        Assert.NotNull(fileEntry);
+        Assert.Equal("file.bin", fileEntry.Name);
+        Assert.Equal(EntryType.File, fileEntry.Type);
+        Assert.Equal(data.Length, fileEntry.Size);
+        
+        // assert - read data from file
+        var actualData = new byte[data.Length];
+        await using (var entryStream = await ffsVolume.OpenFile("file.bin", FileMode.Read, true, true))
+        {
+            var bytesRead = await entryStream.ReadAsync(actualData, 0, actualData.Length);
+            Assert.Equal(data.Length, bytesRead);
+        }
+        Assert.Equal(data, actualData);
+    }
 }
