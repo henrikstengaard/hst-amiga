@@ -50,11 +50,11 @@ public static class IconCommandFactory
         
         var xOption = new Option<int?>(
             new[] { "--current-x", "-x" },
-            description: "Update x position of icon.");
+            description: "Update x position of icon (0 = auto).");
 
         var yOption = new Option<int?>(
             new[] { "--current-y", "-y" },
-            description: "Update y position of icon.");
+            description: "Update y position of icon (0 = auto).");
 
         var stackSizeOption = new Option<int?>(
             new[] { "--stack-size", "-s" },
@@ -151,11 +151,11 @@ public static class IconCommandFactory
 
         var xOption = new Option<int?>(
             new[] { "--current-x", "-x" },
-            description: "Update x position of icon.");
+            description: "Update x position of icon (0 = auto).");
 
         var yOption = new Option<int?>(
             new[] { "--current-y", "-y" },
-            description: "Update y position of icon.");
+            description: "Update y position of icon (0 = auto).");
 
         var stackSizeOption = new Option<int?>(
             new[] { "--stack-size", "-s" },
@@ -252,8 +252,13 @@ public static class IconCommandFactory
             new[] { "--palette-path", "-p" },
             description: "Path to JSON palette for converting planar images.");
 
+        var deleteIconsOption = new Option<bool>(
+            new[] { "--delete-icons", "-d" },
+            description: "Delete icons when converted preserving only destination type.");
+        
         var command = new Command("convert", "Convert icon image.");
-        command.SetHandler(CommandHandler.IconImageConvert, iconPathArgument, srcTypeArgument, destTypeArgument, jsonPalettePathOption);
+        command.SetHandler(CommandHandler.IconImageConvert, iconPathArgument, srcTypeArgument,
+            destTypeArgument, jsonPalettePathOption, deleteIconsOption);
         
         command.AddArgument(iconPathArgument);
         command.AddArgument(srcTypeArgument);

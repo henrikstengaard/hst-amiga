@@ -132,7 +132,7 @@ public class GivenIconImageImportCommand
             Assert.Null(amigaIcon.DiskObject.ToolTypes);
             
             // assert - true color icons are not present
-            Assert.Null(amigaIcon.TrueColorIcons);
+            Assert.Empty(amigaIcon.TrueColorIcons);
         }
         finally
         {
@@ -153,6 +153,14 @@ public class GivenIconImageImportCommand
             // arrange - copy the true color icon to icon path
             File.Copy(trueColorIconPath, iconPath, true);
 
+            // assert - read icon
+            AmigaIcon amigaIcon;
+            using (var iconStream = File.OpenRead(iconPath))
+            {
+                amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
+            }
+            
+            // arrange - create image to import
             var image = new Image(1, 1, 32);
             using (var imageStream = File.OpenWrite(image1Path))
             {
@@ -168,6 +176,19 @@ public class GivenIconImageImportCommand
 
             // assert - result is successful
             Assert.True(result.IsSuccess);
+            
+            // assert - read updated icon
+            AmigaIcon updatedAmigaIcon;
+            using (var iconStream = File.OpenRead(iconPath))
+            {
+                updatedAmigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
+            }
+
+            // assert - icon position, stack size and type are preserved
+            Assert.Equal(amigaIcon.DiskObject.CurrentX, updatedAmigaIcon.DiskObject.CurrentX);
+            Assert.Equal(amigaIcon.DiskObject.CurrentY, updatedAmigaIcon.DiskObject.CurrentY);
+            Assert.Equal(amigaIcon.DiskObject.StackSize, updatedAmigaIcon.DiskObject.StackSize);
+            Assert.Equal(amigaIcon.DiskObject.Type, updatedAmigaIcon.DiskObject.Type);
         }
         finally
         {

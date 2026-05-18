@@ -146,7 +146,7 @@ public class IconImageExport : CommandBase
 
                 break;
             case ImageType.TrueColorIcon:
-                var trueColorIcons = amigaIcon.TrueColorIcons?.ToList() ?? new List<TrueColorIcon>();
+                var trueColorIcons = amigaIcon.TrueColorIcons ?? new List<TrueColorIcon>();
                 if (!trueColorIcons.Any())
                 {
                     return new Result(new Error("Icon doesn't have true color icon"));

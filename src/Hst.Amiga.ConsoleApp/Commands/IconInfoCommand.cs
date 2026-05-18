@@ -50,8 +50,8 @@ public class IconInfoCommand : CommandBase
         
         OnInformationMessage("Icon:");
         OnInformationMessage($"- Type: {diskObject.Type} ({GetIconType(diskObject)})");
-        OnInformationMessage($"- Position x: {diskObject.CurrentX}");
-        OnInformationMessage($"- Position y: {diskObject.CurrentY}");
+        OnInformationMessage($"- Position x: {(diskObject.CurrentX == Constants.IconPosition.Auto ? "Auto" : diskObject.CurrentX.ToString())}");
+        OnInformationMessage($"- Position y: {(diskObject.CurrentY == Constants.IconPosition.Auto ? "Auto" : diskObject.CurrentY.ToString())}");
         OnInformationMessage($"- Width: {diskObject.Gadget.Width}");
         OnInformationMessage($"- Height: {diskObject.Gadget.Height}");
         OnInformationMessage($"- Stack size: {diskObject.StackSize}");
@@ -127,7 +127,7 @@ public class IconInfoCommand : CommandBase
             }
         }
 
-        var trueColorIcons = amigaIcon.TrueColorIcons?.ToList() ?? new List<TrueColorIcon>();
+        var trueColorIcons = amigaIcon.TrueColorIcons ?? new List<TrueColorIcon>();
         if (amigaIcon.Kind == AmigaIcon.IconKind.TrueColor && trueColorIcons.Any())
         {
             for (var i = 0; i < trueColorIcons.Count; i++)
@@ -140,7 +140,7 @@ public class IconInfoCommand : CommandBase
                 OnInformationMessage($"- Width: {trueColorImage.Width}");
                 OnInformationMessage($"- Height: {trueColorImage.Height}");
                 OnInformationMessage($"- Depth: {trueColorImage.BitsPerPixel} bpp");
-                var isTransparent = trueColorImage.BitsPerPixel is >= 24 and 32 || trueColorImage.IsTransparent;
+                var isTransparent = trueColorImage.BitsPerPixel is 32 || trueColorImage.IsTransparent;
                 OnInformationMessage($"- Transparent: {isTransparent}");
             }
         }

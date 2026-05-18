@@ -17,29 +17,16 @@ using Models;
 
 public abstract class IconCommandBase : CommandBase
 {
-    protected static Image CreateDefault8BppImage()
-    {
-        var image = new Image(1, 1, 8);
-        image.Palette.AddColor(0, 0, 0);
-        return image;
-    }
-    
-    protected static void CreateDefaultPlanarImages(DiskObject diskObject)
-    {
-        var image =  CreateDefault8BppImage();
-        var imageData = ImageDataEncoder.Encode(image, 2);
-        diskObject.Gadget.Width = 1;
-        diskObject.Gadget.Height = 1;
-        diskObject.FirstImageData = imageData;
-        diskObject.Gadget.GadgetRenderPointer = 1;
-        diskObject.Gadget.SelectRenderPointer = 0;
-    }
-
     protected async Task<Result> ImportIconImages(AmigaIcon amigaIcon, ImageType type, string image1Path,
         string image2Path, bool force)
     {
         var diskObject = amigaIcon.DiskObject;
         var colorIcon = amigaIcon.ColorIcon;
+        var trueColorIcons = amigaIcon.TrueColorIcons ?? new List<TrueColorIcon>();
+        if (amigaIcon.TrueColorIcons == null)
+        {
+            amigaIcon.TrueColorIcons = trueColorIcons;
+        }
         
         if (!force &&
             amigaIcon.Kind == AmigaIcon.IconKind.TrueColor &&
@@ -52,7 +39,7 @@ public abstract class IconCommandBase : CommandBase
         {
             case ImageType.Planar:
                 amigaIcon.Kind = AmigaIcon.IconKind.Normal;
-                amigaIcon.TrueColorIcons = null;
+                amigaIcon.TrueColorIcons = new List<TrueColorIcon>();
                 
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
@@ -101,11 +88,11 @@ public abstract class IconCommandBase : CommandBase
                 break;
             case ImageType.NewIcon:
                 amigaIcon.Kind = AmigaIcon.IconKind.Normal;
-                amigaIcon.TrueColorIcons = null;
+                amigaIcon.TrueColorIcons = new List<TrueColorIcon>();
                 
                 if (diskObject.FirstImageData == null)
                 {
-                    CreateDefaultPlanarImages(diskObject);
+                    AmigaIconHelper.CreateDefaultPlanarImages(diskObject);
                 }
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
@@ -120,11 +107,11 @@ public abstract class IconCommandBase : CommandBase
                 break;
             case ImageType.ColorIcon:
                 amigaIcon.Kind = AmigaIcon.IconKind.Normal;
-                amigaIcon.TrueColorIcons = null;
+                amigaIcon.TrueColorIcons = new List<TrueColorIcon>();
                 
                 if (diskObject.FirstImageData == null)
                 {
-                    CreateDefaultPlanarImages(diskObject);
+                    AmigaIconHelper.CreateDefaultPlanarImages(diskObject);
                 }
                 if (!string.IsNullOrWhiteSpace(image1Path))
                 {
@@ -166,7 +153,6 @@ public abstract class IconCommandBase : CommandBase
                     OnInformationMessage($"Importing true color icon image 1 from file '{image1Path}'");
                     
                     var trueColorIcon = await ImportTrueColorIconImage(image1Path);
-                    var trueColorIcons = amigaIcon.TrueColorIcons?.ToList() ?? new List<TrueColorIcon>();
                     
                     if (trueColorIcons.Count == 0)
                     {
@@ -183,7 +169,6 @@ public abstract class IconCommandBase : CommandBase
                     OnInformationMessage($"Importing true color icon image 2 from file '{image2Path}'");
                     
                     var trueColorIcon = await ImportTrueColorIconImage(image1Path);
-                    var trueColorIcons = amigaIcon.TrueColorIcons?.ToList() ?? new List<TrueColorIcon>();
 
                     switch (trueColorIcons.Count)
                     {
@@ -273,10 +258,10 @@ public abstract class IconCommandBase : CommandBase
     protected static void DeleteAllIconImages(AmigaIcon amigaIcon)
     {
         amigaIcon.Kind = AmigaIcon.IconKind.Normal;
-        CreateDefaultPlanarImages(amigaIcon.DiskObject);
+        AmigaIconHelper.CreateDefaultPlanarImages(amigaIcon.DiskObject);
         NewIconHelper.RemoveNewIconImages(amigaIcon.DiskObject);
-        amigaIcon.ColorIcon.Images = Array.Empty<ColorIconImage>();
-        amigaIcon.TrueColorIcons = null;
+        amigaIcon.ColorIcon = null;
+        amigaIcon.TrueColorIcons = new List<TrueColorIcon>();
     }
 
     protected static void SetDrawerFlags(DiskObject diskObject, DrawerFlags drawerFlags)

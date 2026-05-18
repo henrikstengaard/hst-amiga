@@ -201,4 +201,61 @@ public class GivenIconUpdateCommand
             }
         }
     }
+    
+    [Fact]
+    public async Task When_UpdatingIconWithAutoPosition_Then_PositionIsAuto()
+    {
+        // arrange - paths
+        var iconPath = $"{Guid.NewGuid()}.info";
+        const int x = 0;
+        const int y = 0;
+        
+        try
+        {
+            // arrange - create disk object
+            var diskObject = DiskObjectHelper.CreateDiskInfo();
+            
+            // arrange - write icon
+            await using (var iconStream = File.OpenWrite(iconPath))
+            {
+                await DiskObjectWriter.Write(diskObject, iconStream);
+            }
+
+            // arrange - set the current x position in the disk object
+            var iconUpdateCommand = new IconUpdateCommand(
+                new NullLogger<IconUpdateCommand>(),
+                iconPath,
+                null,
+                x, 
+                y,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+
+            // act - execute the command to update the current x position
+            var iconUpdateResult = await iconUpdateCommand.Execute(CancellationToken.None);
+            
+            // assert - icon update command was successful
+            Assert.True(iconUpdateResult.IsSuccess);
+            
+            // assert - read icon
+            DiskObject updatedDiskObject;
+            await using (var iconStream = File.OpenRead(iconPath))
+            {
+                updatedDiskObject = await DiskObjectReader.Read(iconStream);
+            }
+            
+            // assert - disk object contains icon position x and y is auto (int min value)
+            Assert.Equal(Constants.IconPosition.Auto, updatedDiskObject.CurrentX);
+            Assert.Equal(Constants.IconPosition.Auto, updatedDiskObject.CurrentY);
+        }
+        finally
+        {
+            TestHelper.DeletePaths(iconPath);
+        }
+    }
 }

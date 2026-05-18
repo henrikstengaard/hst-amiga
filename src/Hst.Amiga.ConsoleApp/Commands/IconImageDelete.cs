@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
 
 namespace Hst.Amiga.ConsoleApp.Commands;
@@ -65,16 +66,16 @@ public class IconImageDelete : IconCommandBase
         {
             case ImageType.Planar:
                 OnInformationMessage("Deleting planar icon images");
-                CreateDefaultPlanarImages(amigaIcon.DiskObject);
+                AmigaIconHelper.CreateDefaultPlanarImages(amigaIcon.DiskObject);
                 break;
             case ImageType.NewIcon:
                 OnInformationMessage("Deleting new icon images");
-                CreateDefaultPlanarImages(amigaIcon.DiskObject);
+                AmigaIconHelper.CreateDefaultPlanarImages(amigaIcon.DiskObject);
                 NewIconHelper.RemoveNewIconImages(amigaIcon.DiskObject);
                 break;
             case ImageType.ColorIcon:
                 OnInformationMessage("Deleting color icon images");
-                CreateDefaultPlanarImages(amigaIcon.DiskObject);
+                AmigaIconHelper.CreateDefaultPlanarImages(amigaIcon.DiskObject);
                 if (amigaIcon.ColorIcon.Images != null)
                 {
                     amigaIcon.ColorIcon.Images = Array.Empty<ColorIconImage>();
@@ -82,11 +83,11 @@ public class IconImageDelete : IconCommandBase
                 break;
             case ImageType.TrueColorIcon:
                 OnInformationMessage("Deleting true color icon images");
-                CreateDefaultPlanarImages(amigaIcon.DiskObject);
+                AmigaIconHelper.CreateDefaultPlanarImages(amigaIcon.DiskObject);
                 amigaIcon.Kind = AmigaIcon.IconKind.Normal;
                 if (amigaIcon.TrueColorIcons != null)
                 {
-                    amigaIcon.TrueColorIcons = Array.Empty<TrueColorIcon>();
+                    amigaIcon.TrueColorIcons = new List<TrueColorIcon>();
                 }
                 break;
             default:

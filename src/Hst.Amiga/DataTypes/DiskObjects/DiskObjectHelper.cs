@@ -14,8 +14,8 @@ namespace Hst.Amiga.DataTypes.DiskObjects
         {
             return new DiskObject
             {
-                CurrentX = Int32.MinValue,
-                CurrentY = Int32.MinValue,
+                CurrentX = Constants.IconPosition.Auto,
+                CurrentY = Constants.IconPosition.Auto,
                 DefaultTool = null,
                 DefaultToolPointer = 0,
                 DrawerDataPointer = 0,
@@ -108,6 +108,13 @@ namespace Hst.Amiga.DataTypes.DiskObjects
             diskObject.Gadget.SelectRenderPointer = 1;
             diskObject.SecondImageData = imageData;
         }
+
+        public static Gadget CreateDefaultGadget() =>
+            new Gadget
+            {
+                Activation = (ushort)DefaultGadgetActivationFlags,
+                Flags = (ushort)DefaultGadgetFlags
+            };
 
         public static DiskObject CreateProjectInfo()
         {
@@ -337,12 +344,8 @@ namespace Hst.Amiga.DataTypes.DiskObjects
             var pngHeader = TrueColorIconReader.ReadPngHeader(iHdrChunk.Data);
 
             var iconChunk = trueColorIconsList.SelectMany(x => x.Chunks)
-                .FirstOrDefault(c => c.Type.SequenceEqual(TrueColorIcons.Constants.PngChunkTypes.Icon));
-
-            if (iconChunk == null)
-            {
-                return null;
-            }
+                .FirstOrDefault(c => c.Type.SequenceEqual(TrueColorIcons.Constants.PngChunkTypes.Icon)) ??
+                            new PngChunk(Array.Empty<byte>(), 0U, new byte[4], Array.Empty<byte>(), 0U);
 
             var iconData = IconChunkReader.ReadIconChunkData(iconChunk.Data);
 
@@ -367,6 +370,9 @@ namespace Hst.Amiga.DataTypes.DiskObjects
                 };
                 diskObject.ToolTypesPointer = 1;
             }
+            
+            diskObject.DrawerData ??= new DrawerData();
+            diskObject.DrawerData2 ??= new DrawerData2();
 
             foreach (var iconAttributeTag in iconData.IconTags)
             {

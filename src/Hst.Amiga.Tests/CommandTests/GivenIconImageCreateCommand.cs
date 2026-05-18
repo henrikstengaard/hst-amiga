@@ -71,7 +71,7 @@ public class GivenIconImageCreateCommand
             Assert.Null(amigaIcon.ColorIcon);
             
             // assert - true color icons are not present
-            Assert.Null(amigaIcon.TrueColorIcons);
+            Assert.Empty(amigaIcon.TrueColorIcons);
         }
         finally
         {
@@ -129,7 +129,7 @@ public class GivenIconImageCreateCommand
             Assert.Null(amigaIcon.ColorIcon);
             
             // assert - true color icons are not present
-            Assert.Null(amigaIcon.TrueColorIcons);
+            Assert.Empty(amigaIcon.TrueColorIcons);
         }
         finally
         {
@@ -184,7 +184,7 @@ public class GivenIconImageCreateCommand
             Assert.Null(amigaIcon.ColorIcon);
             
             // assert - true color icons are not present
-            Assert.Null(amigaIcon.TrueColorIcons);
+            Assert.Empty(amigaIcon.TrueColorIcons);
         }
         finally
         {
@@ -258,6 +258,55 @@ public class GivenIconImageCreateCommand
             Assert.Equal(1, trueColorIcons[0].Image.Width);
             Assert.Equal(1, trueColorIcons[0].Image.Height);
             Assert.Equal(32, trueColorIcons[0].Image.BitsPerPixel);
+        }
+        finally
+        {
+            TestHelper.DeletePaths(iconPath);
+        }
+    }
+    
+    [Fact]
+    public async Task When_CreatingPlanarIconWithAutoPosition_Then_PositionIsAuto()
+    {
+        // arrange - paths
+        var iconPath = $"{Guid.NewGuid()}.info";
+        const int x = 0;
+        const int y = 0;
+        
+        try
+        {
+            // arrange - create icon create command
+            var iconCreateCommand = new IconCreateCommand(
+                new NullLogger<IconCreateCommand>(),
+                iconPath,
+                IconType.Project,
+                x,
+                y,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                ImageType.Planar,
+                null,
+                null);
+            
+            // act - execute icon create command
+            var result = await iconCreateCommand.Execute(CancellationToken.None);
+
+            // assert - result is successful
+            Assert.True(result.IsSuccess);
+            
+            // assert - read icon
+            await using var iconStream = File.OpenRead(iconPath);
+            var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
+            Assert.NotNull(amigaIcon);
+            
+            // assert - disk object contains icon position x and y is auto (int min value)
+            Assert.Equal(Amiga.DataTypes.DiskObjects.Constants.IconPosition.Auto, amigaIcon.DiskObject.CurrentX);
+            Assert.Equal(Amiga.DataTypes.DiskObjects.Constants.IconPosition.Auto, amigaIcon.DiskObject.CurrentY);
         }
         finally
         {

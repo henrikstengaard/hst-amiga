@@ -104,13 +104,13 @@ public class IconUpdateCommand : IconCommandBase
         
         if (x.HasValue)
         {
-            diskObject.CurrentX = x.Value;
+            diskObject.CurrentX = x.Value == 0 ? Constants.IconPosition.Auto : x.Value;
             isUpdated = true;
         }
 
         if (y.HasValue)
         {
-            diskObject.CurrentY = y.Value;
+            diskObject.CurrentY = y.Value == 0 ? Constants.IconPosition.Auto : y.Value;
             isUpdated = true;
         }
 
@@ -163,8 +163,6 @@ public class IconUpdateCommand : IconCommandBase
         {
             return new Result();
         }
-
-        await DiskObjectHelper.UpdateTrueColorIcons(diskObject, amigaIcon.TrueColorIcons);
 
         OnInformationMessage($"Writing icon to file '{path}'");
 

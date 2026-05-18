@@ -1,3 +1,4 @@
+using System.Linq;
 using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
 using Hst.Imaging;
 using Hst.Imaging.Pngcs;
@@ -67,12 +68,12 @@ public class IconCreateCommand : IconCommandBase
 
         if (x.HasValue)
         {
-            diskObject.CurrentX = x.Value;
+            diskObject.CurrentX = x.Value == 0 ? Constants.IconPosition.Auto : x.Value;
         }
 
         if (y.HasValue)
         {
-            diskObject.CurrentY = y.Value;
+            diskObject.CurrentY = y.Value == 0 ? Constants.IconPosition.Auto : y.Value;
         }
 
         if (stackSize.HasValue)
@@ -114,7 +115,7 @@ public class IconCreateCommand : IconCommandBase
             }
         }
         
-        CreateDefaultPlanarImages(diskObject);
+        AmigaIconHelper.CreateDefaultPlanarImages(diskObject);
 
         if (amigaIcon.Kind == AmigaIcon.IconKind.TrueColor)
         {
@@ -122,8 +123,7 @@ public class IconCreateCommand : IconCommandBase
             using var pngWriteStream = new  MemoryStream();
             PngWriter.Write(pngWriteStream, image);
             using var pngReadStream = new MemoryStream(pngWriteStream.ToArray());
-            amigaIcon.TrueColorIcons = await TrueColorIconReader.ReadTrueColorIcons(pngReadStream);
-            await DiskObjectHelper.UpdateTrueColorIcons(diskObject, amigaIcon.TrueColorIcons);
+            amigaIcon.TrueColorIcons = (await TrueColorIconReader.ReadTrueColorIcons(pngReadStream)).ToList();
         }
 
         if (!string.IsNullOrWhiteSpace(image1Path) || !string.IsNullOrWhiteSpace(image2Path))

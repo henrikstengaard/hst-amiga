@@ -79,9 +79,9 @@ public static class CommandHandler
         await Execute(new IconImageExport(GetLogger<IconImageExport>(), iconPath, imageType, image1Path, image2Path, jsonPalettePath));
     }
 
-    public static async Task IconImageConvert(string iconPath, ImageType srcType, ImageType destType, string jsonPalettePath)
+    public static async Task IconImageConvert(string iconPath, ImageType srcType, ImageType destType, string jsonPalettePath, bool deleteIcons)
     {
-        await Execute(new IconImageConvert(GetLogger<IconImageConvert>(), iconPath, srcType, destType, jsonPalettePath));
+        await Execute(new IconImageConvert(GetLogger<IconImageConvert>(), iconPath, srcType, destType, jsonPalettePath, deleteIcons));
     }
 
     public static async Task IconImageDelete(string iconPath, ImageType? imageType)

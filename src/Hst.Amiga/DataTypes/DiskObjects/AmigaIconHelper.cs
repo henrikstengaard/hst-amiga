@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Hst.Amiga.DataTypes.DiskObjects.ColorIcons;
 using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
 using Hst.Core.Extensions;
+using Hst.Imaging;
 
 namespace Hst.Amiga.DataTypes.DiskObjects
 {
@@ -59,7 +61,7 @@ namespace Hst.Amiga.DataTypes.DiskObjects
                 Kind = AmigaIcon.IconKind.Normal,
                 DiskObject = diskObject,
                 ColorIcon = colorIcon,
-                TrueColorIcons = null,
+                TrueColorIcons = new List<TrueColorIcon>(),
                 TailingData = tailingData
             };
         }
@@ -89,6 +91,8 @@ namespace Hst.Amiga.DataTypes.DiskObjects
             
             if (amigaIcon.Kind == AmigaIcon.IconKind.TrueColor)
             {
+                await DiskObjectHelper.UpdateTrueColorIcons(amigaIcon.DiskObject, amigaIcon.TrueColorIcons);
+            
                 await TrueColorIconWriter.WriteTrueColorIcons(amigaIcon.TrueColorIcons, stream);
             }
             else
@@ -103,9 +107,35 @@ namespace Hst.Amiga.DataTypes.DiskObjects
                 if (amigaIcon.TailingData != null && amigaIcon.TailingData.Length > 0)
                 {
                     await stream.WriteAsync(amigaIcon.TailingData, 0, amigaIcon.TailingData.Length);
-                    stream.SetLength(stream.Position);
                 }
             }
+
+            stream.SetLength(stream.Position);
+        }
+        
+        public static Image CreateDefault32BppImage()
+        {
+            var image = new Image(1, 1, 32);
+            return image;
+        }
+
+        public static Image CreateDefault8BppImage()
+        {
+            var image = new Image(1, 1, 8);
+            image.Palette.AddColor(0, 0, 0);
+            return image;
+        }
+        
+        public static void CreateDefaultPlanarImages(DiskObject diskObject)
+        {
+            var image =  CreateDefault8BppImage();
+            var imageData = ImageDataEncoder.Encode(image, 2);
+            diskObject.Gadget ??= DiskObjectHelper.CreateDefaultGadget();
+            diskObject.Gadget.Width = 1;
+            diskObject.Gadget.Height = 1;
+            diskObject.FirstImageData = imageData;
+            diskObject.Gadget.GadgetRenderPointer = 1;
+            diskObject.Gadget.SelectRenderPointer = 0;
         }
     }
 }

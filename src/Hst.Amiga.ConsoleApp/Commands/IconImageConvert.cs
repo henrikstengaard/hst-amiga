@@ -1,3 +1,5 @@
+using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
+
 namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
@@ -21,15 +23,17 @@ public class IconImageConvert : IconCommandBase
     private readonly ImageType srcType;
     private readonly ImageType destType;
     private readonly string palettePath;
+    private readonly bool deleteIcons;
 
     public IconImageConvert(ILogger<IconImageConvert> logger, string path, ImageType srcType, ImageType destType,
-        string palettePath)
+        string palettePath, bool deleteIcons)
     {
         this.logger = logger;
         this.path = path;
         this.srcType = srcType;
         this.destType = destType;
         this.palettePath = palettePath;
+        this.deleteIcons = deleteIcons;
     }
 
     public override async Task<Result> Execute(CancellationToken token)
@@ -37,23 +41,26 @@ public class IconImageConvert : IconCommandBase
         OnInformationMessage($"Reading icon from file '{path}'");
         
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream, false);
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
 
         if (srcType == destType)
         {
             return new Result(new Error("Source type is the same as destination type"));
         }
 
-        var images = DecodeIconImages(amigaIcon.DiskObject, amigaIcon.ColorIcon).ToList();
+        var images = DecodeIconImages(amigaIcon).ToList();
 
         if (!images.Any())
         {
             return new Result(new Error($"No images to convert from source type '{srcType}'"));
         }
+
+        if (deleteIcons)
+        {
+            DeleteAllIconImages(amigaIcon);
+        }
         
-        DeleteAllIconImages(amigaIcon);
-        
-        EncodeIconImages(amigaIcon.DiskObject, amigaIcon.ColorIcon, images);
+        await EncodeIconImages(amigaIcon, images);
 
         OnInformationMessage($"Writing icon to file '{path}'");
 
@@ -62,36 +69,34 @@ public class IconImageConvert : IconCommandBase
         return new Result();
     }
 
-    private IEnumerable<Image> DecodeIconImages(DiskObject diskObject, ColorIcon colorIcon)
+    private IEnumerable<Image> DecodeIconImages(AmigaIcon amigaIcon)
     {
         var images = new List<Image>();
 
-        var imageType = DetectSrcImageType(diskObject, colorIcon);
-        
-        switch (imageType)
+        switch (srcType)
         {
             case ImageType.Planar:
-                if (diskObject.FirstImageData != null)
+                if (amigaIcon.DiskObject?.FirstImageData != null)
                 {
                     OnInformationMessage("Reading planar icon image 1");
-                    images.Add(ImageDataDecoder.Decode(diskObject.FirstImageData,
-                        GetPalette(diskObject.FirstImageData), true));
+                    images.Add(ImageDataDecoder.Decode(amigaIcon.DiskObject.FirstImageData,
+                        GetPalette(amigaIcon.DiskObject.FirstImageData), true));
                 }
-                if (diskObject.SecondImageData != null)
+                if (amigaIcon.DiskObject?.SecondImageData != null)
                 {
                     OnInformationMessage("Reading planar icon image 2");
-                    images.Add(ImageDataDecoder.Decode(diskObject.SecondImageData,
-                        GetPalette(diskObject.SecondImageData), true));
+                    images.Add(ImageDataDecoder.Decode(amigaIcon.DiskObject.SecondImageData,
+                        GetPalette(amigaIcon.DiskObject.SecondImageData), true));
                 }
                 break;
             case ImageType.NewIcon:
-                var newIcon1 = NewIconHelper.GetNewIconImage(diskObject, 1);
+                var newIcon1 = NewIconHelper.GetNewIconImage(amigaIcon.DiskObject, 1);
                 if (newIcon1 != null)
                 {
                     OnInformationMessage("Reading new icon image 1");
                     images.Add(NewIconConverter.ToImage(newIcon1));
                 }
-                var newIcon2 = NewIconHelper.GetNewIconImage(diskObject, 2);
+                var newIcon2 = NewIconHelper.GetNewIconImage(amigaIcon.DiskObject, 2);
                 if (newIcon2 != null)
                 {
                     OnInformationMessage("Reading new icon image 2");
@@ -99,70 +104,134 @@ public class IconImageConvert : IconCommandBase
                 }
                 break;
             case ImageType.ColorIcon:
-                if (colorIcon.Images.Length > 0)
+                if (amigaIcon.ColorIcon.Images.Length > 0)
                 {
-                    for (var i = 0; i < (colorIcon.Images.Length > 2 ? 2 : 1); i++)
+                    for (var i = 0; i < (amigaIcon.ColorIcon.Images.Length > 2 ? 2 : 1); i++)
                     {
                         OnInformationMessage($"Reading color icon image {i + 1}");
                     }
-                    images.AddRange(colorIcon.Images.Select(x => x.Image));
+                    images.AddRange(amigaIcon.ColorIcon.Images.Select(x => x.Image));
                 }
+                break;                
+            case ImageType.TrueColorIcon:
+                if (amigaIcon.TrueColorIcons.Count > 0)
+                {
+                    for (var i = 0; i < (amigaIcon.TrueColorIcons.Count > 2 ? 2 : 1); i++)
+                    {
+                        OnInformationMessage($"Reading true color icon image {i + 1}");
+                        
+                        images.Add(amigaIcon.TrueColorIcons[i].Image);
+                    }
+                }
+                
                 break;                
         }
 
         return images;
     }
 
-    private static ImageType DetectSrcImageType(DiskObject diskObject, ColorIcon colorIcon)
+    private static ImageType DetectSrcImageType(AmigaIcon amigaIcon)
     {
-        if (colorIcon != null && colorIcon.Images.Length > 0)
+        if (amigaIcon.Kind == AmigaIcon.IconKind.TrueColor)
+        {
+            return ImageType.TrueColorIcon;
+        }
+        
+        if (amigaIcon.ColorIcon != null && amigaIcon.ColorIcon.Images.Length > 0)
         {
             return ImageType.ColorIcon;
         }
 
-        return NewIconHelper.GetNewIconImage(diskObject, 1) != null ? ImageType.NewIcon : ImageType.Planar;
+        return NewIconHelper.GetNewIconImage(amigaIcon.DiskObject, 1) != null
+            ? ImageType.NewIcon : ImageType.Planar;
     }
 
-    private void EncodeIconImages(DiskObject diskObject, ColorIcon colorIcon, IEnumerable<Image> images)
+    private async Task EncodeIconImages(AmigaIcon amigaIcon, IEnumerable<Image> images)
     {
         var imagesList = images.ToList();
         switch (destType)
         {
             case ImageType.Planar:
+                amigaIcon.Kind = AmigaIcon.IconKind.Normal;
                 if (imagesList.Count > 0)
                 {
                     OnInformationMessage("Writing planar icon image 1");
-                    DiskObjectHelper.SetFirstImage(diskObject, ImageDataEncoder.Encode(imagesList[0]));
+                    DiskObjectHelper.SetFirstImage(amigaIcon.DiskObject, ImageDataEncoder.Encode(imagesList[0]));
                 }
                 if (imagesList.Count > 1)
                 {
                     OnInformationMessage("Writing planar icon image 2");
-                    DiskObjectHelper.SetSecondImage(diskObject, ImageDataEncoder.Encode(imagesList[1]));
+                    DiskObjectHelper.SetSecondImage(amigaIcon.DiskObject, ImageDataEncoder.Encode(imagesList[1]));
                 }
                 break;
             case ImageType.NewIcon:
+                amigaIcon.Kind = AmigaIcon.IconKind.Normal;
                 if (imagesList.Count > 0)
                 {
                     OnInformationMessage("Writing new icon image 1");
-                    NewIconHelper.SetNewIconImage(diskObject, 1, NewIconConverter.ToNewIcon(imagesList[0]));
+                    NewIconHelper.SetNewIconImage(amigaIcon.DiskObject, 1, NewIconConverter.ToNewIcon(imagesList[0]));
                 }
                 if (imagesList.Count > 1)
                 {
                     OnInformationMessage("Writing new icon image 2");
-                    NewIconHelper.SetNewIconImage(diskObject, 2, NewIconConverter.ToNewIcon(imagesList[1]));
+                    NewIconHelper.SetNewIconImage(amigaIcon.DiskObject, 2, NewIconConverter.ToNewIcon(imagesList[1]));
                 }
                 break;
             case ImageType.ColorIcon:
+                amigaIcon.Kind = AmigaIcon.IconKind.Normal;
+                amigaIcon.ColorIcon ??= new ColorIcon();
                 if (imagesList.Count > 0)
                 {
                     OnInformationMessage("Writing color icon image 1");
-                    ColorIconHelper.SetFirstImage(colorIcon, imagesList[0]);
+
+                    var image1 = imagesList[0];
+                    if (image1.BitsPerPixel > 8)
+                    {
+                        image1 = ImageConverter.To8Bpp(image1);
+                    }
+                    
+                    ColorIconHelper.SetFirstImage(amigaIcon.ColorIcon, image1);
                 }
                 if (imagesList.Count > 1)
                 {
                     OnInformationMessage("Writing color icon image 2");
-                    ColorIconHelper.SetSecondImage(colorIcon, imagesList[1]);
+
+                    var image2 = imagesList[1];
+                    if (image2.BitsPerPixel > 8)
+                    {
+                        image2 = ImageConverter.To8Bpp(image2);
+                    }
+                    
+                    ColorIconHelper.SetSecondImage(amigaIcon.ColorIcon, image2);
                 }
+                break;
+            case ImageType.TrueColorIcon:
+                amigaIcon.Kind = AmigaIcon.IconKind.TrueColor;
+                if (imagesList.Count > 0)
+                {
+                    OnInformationMessage("Writing true color icon image 1");
+
+                    var image1 = imagesList[0];
+                    if (image1.BitsPerPixel < 24)
+                    {
+                        image1 = ImageConverter.ToTrueColor(image1);
+                    }
+
+                    amigaIcon.TrueColorIcons.Add(await TrueColorIconHelper.CreateTrueColorIcon(image1));
+                }
+                if (imagesList.Count > 1)
+                {
+                    OnInformationMessage("Writing true color icon image 2");
+
+                    var image2 = imagesList[1];
+                    if (image2.BitsPerPixel < 24)
+                    {
+                        image2 = ImageConverter.ToTrueColor(image2);
+                    }
+
+                    amigaIcon.TrueColorIcons.Add(await TrueColorIconHelper.CreateTrueColorIcon(image2));
+                }
+
                 break;
         }
     }
