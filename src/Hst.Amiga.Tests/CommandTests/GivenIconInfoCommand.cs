@@ -121,4 +121,45 @@ public class GivenIconInfoCommand
             }
         }
     }
+    
+    [Fact]
+    public async Task When_ReadingInfoFromTrueColorIcon_ThenInfoIsRead()
+    {
+        // arrange - paths
+        var trueColorIconPath = Path.Combine("TestData", "DiskObjects", "AmigaPngIcon.info");
+        var iconPath = $"{Guid.NewGuid()}.info";
+        
+        try
+        {
+            // arrange - copy true color icon
+            File.Copy(trueColorIconPath, iconPath, true);
+
+            // arrange - create icon info command
+            var messages = new List<string>(50);
+            var command = new IconInfoCommand(new NullLogger<IconInfoCommand>(), iconPath, true);
+            command.InformationMessage += (sender, message) =>
+            {
+                messages.Add(message);
+            };
+            
+            // act - execute icon info command
+            var result = await command.Execute(CancellationToken.None);
+            
+            // assert - result is successful
+            Assert.True(result.IsSuccess);
+            
+            // assert - messages not empty
+            Assert.NotEmpty(messages);
+            
+            // assert - messages contain color icon 1
+            Assert.Contains(messages, m => m.Contains("TrueColor Icon 1:"));
+        }
+        finally
+        {
+            if (File.Exists(iconPath))
+            {
+                File.Delete(iconPath);
+            }
+        }
+    }
 }
