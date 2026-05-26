@@ -3,6 +3,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <IsPackable>false</IsPackable>
+        <TargetFramework>net10.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,7 +13,7 @@
     </ItemGroup>
     
     <ItemGroup>
-      <PackageReference Include="Hst.Core" Version="0.4.88" />
+      <PackageReference Include="Hst.Core" Version="0.4.89" />
       <PackageReference Include="Hst.Imaging.Pngcs" Version="0.4.88" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.1" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.3" />
