@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.ConsoleApp.Commands;
+﻿using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
+
+namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
 using System.Collections.Generic;
@@ -8,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core;
 using DataTypes.DiskObjects;
-using DataTypes.DiskObjects.ColorIcons;
 using DataTypes.DiskObjects.NewIcons;
 using Microsoft.Extensions.Logging;
 
@@ -27,16 +28,30 @@ public class IconInfoCommand : CommandBase
 
     public override async Task<Result> Execute(CancellationToken token)
     {
+        OnInformationMessage($"Reading icon from file '{path}'");
+        
         await using var iconStream = File.OpenRead(path);
-        var diskObject = await DiskObjectReader.Read(iconStream);
-        var colorIcon = iconStream.Position < iconStream.Length 
-            ? await ColorIconReader.Read(iconStream)
-            : null;
 
+        OnDebugMessage("Icon size: " + iconStream.Length);
+        
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
+        var diskObject = amigaIcon.DiskObject;
+        var colorIcon = amigaIcon.ColorIcon;
+
+        OnDebugMessage($"Gadget, Flags: {diskObject.Gadget.Flags}");
+        OnDebugMessage($"Gadget, Activation: {diskObject.Gadget.Activation}");
+        OnDebugMessage($"Gadget, User data pointer: {diskObject.Gadget.UserDataPointer}");
+        OnDebugMessage($"Gadget, Gadget render pointer: {diskObject.Gadget.GadgetRenderPointer}");
+        OnDebugMessage($"Gadget, Select render pointer: {diskObject.Gadget.SelectRenderPointer}");
+        OnDebugMessage($"Drawer data pointer: {diskObject.DrawerDataPointer}");
+        OnDebugMessage($"Default tool pointer: {diskObject.DefaultToolPointer}");
+        OnDebugMessage($"ToolTypesPointer: {diskObject.ToolTypesPointer}");
+        OnDebugMessage($"ToolWindowPointer: {diskObject.ToolWindowPointer}");
+        
         OnInformationMessage("Icon:");
         OnInformationMessage($"- Type: {diskObject.Type} ({GetIconType(diskObject)})");
-        OnInformationMessage($"- Position x: {diskObject.CurrentX}");
-        OnInformationMessage($"- Position y: {diskObject.CurrentY}");
+        OnInformationMessage($"- Position x: {(diskObject.CurrentX == Constants.IconPosition.Auto ? "Auto" : diskObject.CurrentX.ToString())}");
+        OnInformationMessage($"- Position y: {(diskObject.CurrentY == Constants.IconPosition.Auto ? "Auto" : diskObject.CurrentY.ToString())}");
         OnInformationMessage($"- Width: {diskObject.Gadget.Width}");
         OnInformationMessage($"- Height: {diskObject.Gadget.Height}");
         OnInformationMessage($"- Stack size: {diskObject.StackSize}");
@@ -111,16 +126,42 @@ public class IconInfoCommand : CommandBase
                 OnInformationMessage($"- Transparent: {colorIconImage.Image.IsTransparent}");
             }
         }
+
+        var trueColorIcons = amigaIcon.TrueColorIcons ?? new List<TrueColorIcon>();
+        if (amigaIcon.Kind == AmigaIcon.IconKind.TrueColor && trueColorIcons.Any())
+        {
+            for (var i = 0; i < trueColorIcons.Count; i++)
+            {
+                OnInformationMessage($"TrueColor Icon {i + 1}:");
+
+                var trueColorIcon = trueColorIcons[i];
+                var trueColorImage = Imaging.Pngcs.PngReader.Read(new MemoryStream(trueColorIcon.PngData));
+
+                OnInformationMessage($"- Width: {trueColorImage.Width}");
+                OnInformationMessage($"- Height: {trueColorImage.Height}");
+                OnInformationMessage($"- Depth: {trueColorImage.BitsPerPixel} bpp");
+                var isTransparent = trueColorImage.BitsPerPixel is 32 || trueColorImage.IsTransparent;
+                OnInformationMessage($"- Transparent: {isTransparent}");
+            }
+        }
+
+        if (diskObject.DefaultToolPointer != 0 && diskObject.DefaultTool != null)
+        {
+            OnInformationMessage($"Default tool: {AmigaTextHelper.GetString(diskObject.DefaultTool.Data)}");
+        }
         
-        var decodedTextDatas = textDatas.Select(x => AmigaTextHelper.GetString(x.Data));
+        var decodedTextDatas = textDatas.Select(x => AmigaTextHelper.GetString(x.Data)).ToList();
 
         if (!all)
         {
-            decodedTextDatas = decodedTextDatas.Where(x => !x.StartsWith("IM1=") && !x.StartsWith("IM2="));
+            decodedTextDatas = decodedTextDatas.Where(x => !x.StartsWith("IM1=") && !x.StartsWith("IM2=")).ToList();
+        }
+
+        if (decodedTextDatas.Any())
+        {
+            OnInformationMessage($"Tool types:{Environment.NewLine}{string.Join(Environment.NewLine, decodedTextDatas)}");
         }
         
-        OnInformationMessage($"Tool types:{Environment.NewLine}{string.Join(Environment.NewLine, decodedTextDatas)}");
-
         return new Result();
     }
 

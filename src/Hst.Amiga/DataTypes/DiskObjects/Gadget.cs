@@ -7,8 +7,19 @@
         public short TopEdge { get; set; }
         public short Width { get; set; }
         public short Height { get; set; }
+        
+        /// <summary>
+        /// Flags.
+        /// https://amigadev.elowar.com/read/ADCD_2.1/Libraries_Manual_guide/node0242.html
+        /// </summary>
         public ushort Flags { get; set; }
+
+        /// <summary>
+        /// Activation. 
+        /// https://amigadev.elowar.com/read/ADCD_2.1/Libraries_Manual_guide/node0242.html
+        /// </summary>
         public ushort Activation { get; set; }
+
         public ushort GadgetType { get; set; }
 
         /// <summary>

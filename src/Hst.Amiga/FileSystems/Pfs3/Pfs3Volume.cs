@@ -10,7 +10,7 @@
     using RigidDiskBlocks;
     using FileMode = FileMode;
 
-    public class Pfs3Volume : IFileSystemVolume, IAsyncDisposable, IDisposable
+    public class Pfs3Volume : IFileSystemVolume
     {
         public readonly globaldata g;
         private uint dirNodeNr;

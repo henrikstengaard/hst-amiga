@@ -32,10 +32,11 @@ public class IconToolTypesExport : IconCommandBase
             return new Result(new Error("Icon path not defined"));
         }
 
-        OnInformationMessage($"Reading disk object from icon file '{iconPath}'");
+        OnInformationMessage($"Reading icon from file '{iconPath}'");
         
         await using var iconStream = File.OpenRead(iconPath);
-        var diskObject = await DiskObjectReader.Read(iconStream);
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream);
+        var diskObject = amigaIcon.DiskObject;
         
         var toolTypesStrings = DiskObjectHelper.ConvertToolTypesToStrings(diskObject.ToolTypes).ToList();
         

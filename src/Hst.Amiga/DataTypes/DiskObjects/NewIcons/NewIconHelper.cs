@@ -58,6 +58,11 @@
 
         public static NewIcon GetNewIconImage(DiskObject diskObject, int imageNumber)
         {
+            if (diskObject == null)
+            {
+                return null;
+            }
+            
             var decoder = new NewIconToolTypesDecoder(diskObject.ToolTypes?.TextDatas ?? new List<TextData>());
             return decoder.Decode(imageNumber);
         }

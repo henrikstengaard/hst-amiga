@@ -24,7 +24,10 @@ public static class Program
         var rootCommand = CommandFactory.CreateRootCommand();
         var parser = new CommandLineBuilder(rootCommand).AddMiddleware(async (context, next) =>
         {
-            AppState.Instance.LoggingLevelSwitch.MinimumLevel = LogEventLevel.Information;
+            var verbose = context.ParseResult.GetValueForOption(CommandFactory.VerboseOption);
+            
+            AppState.Instance.LoggingLevelSwitch.MinimumLevel =
+                verbose ? LogEventLevel.Debug : LogEventLevel.Information;
 
             var appState = AppState.Instance;
             var app =

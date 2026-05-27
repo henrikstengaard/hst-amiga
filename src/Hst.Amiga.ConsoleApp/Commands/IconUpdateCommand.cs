@@ -1,4 +1,7 @@
-﻿namespace Hst.Amiga.ConsoleApp.Commands;
+﻿using System;
+using Hst.Core.Extensions;
+
+namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System.IO;
 using System.Threading;
@@ -51,7 +54,8 @@ public class IconUpdateCommand : IconCommandBase
         OnInformationMessage($"Reading disk object from icon file '{path}'");
 
         await using var iconStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-        var diskObject = await DiskObjectReader.Read(iconStream);
+        var amigaIcon = await AmigaIconHelper.ReadAmigaIcon(iconStream, false);
+        var diskObject = amigaIcon.DiskObject;
 
         var isUpdated = false;
 
@@ -60,48 +64,12 @@ public class IconUpdateCommand : IconCommandBase
             diskObject.Type = (byte)type.Value;
             diskObject.Gadget.Activation = (ushort)DiskObjectHelper.DefaultGadgetActivationFlags;
             DiskObjectHelper.UpdateGadgetFlags(diskObject);
-
-            switch (diskObject.Type)
-            {
-                case Constants.DiskObjectTypes.DISK:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 1;
-                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
-                    diskObject.DrawerData2 ??= new DrawerData2();
-                    diskObject.DrawerData.Flags = 33559167;
-                    break;
-                case Constants.DiskObjectTypes.DRAWER:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 1;
-                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
-                    diskObject.DrawerData2 ??= new DrawerData2();
-                    diskObject.DrawerData.Flags = 33559103;
-                    break;
-                case Constants.DiskObjectTypes.PROJECT:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 0;
-                    diskObject.DrawerData = null;
-                    diskObject.DrawerData2 = null;
-                    break;
-                case Constants.DiskObjectTypes.TOOL:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 0;
-                    diskObject.DrawerData = null;
-                    diskObject.DrawerData2 = null;
-                    break;
-                case Constants.DiskObjectTypes.GARBAGE:
-                    diskObject.Gadget.UserDataPointer = 1;
-                    diskObject.DrawerDataPointer = 1;
-                    diskObject.DrawerData ??= DiskObjectHelper.CreateDrawerData(10, 10, 460, 460);
-                    diskObject.DrawerData2 ??= new DrawerData2();
-                    diskObject.DrawerData.Flags = 33554687;
-                    break;
-            }
+            DiskObjectHelper.UpdateDiskObjectBasedOnType(diskObject);
             
             isUpdated = true;
         }
 
-        if (!IsDrawerIcon(diskObject) && drawerX.HasValue)
+        if (!DiskObjectHelper.IsDrawerIcon(diskObject) && drawerX.HasValue)
         {
             if (drawerX.HasValue)
             {
@@ -136,13 +104,13 @@ public class IconUpdateCommand : IconCommandBase
         
         if (x.HasValue)
         {
-            diskObject.CurrentX = x.Value;
+            diskObject.CurrentX = x.Value == 0 ? Constants.IconPosition.Auto : x.Value;
             isUpdated = true;
         }
 
         if (y.HasValue)
         {
-            diskObject.CurrentY = y.Value;
+            diskObject.CurrentY = y.Value == 0 ? Constants.IconPosition.Auto : y.Value;
             isUpdated = true;
         }
 
@@ -152,7 +120,7 @@ public class IconUpdateCommand : IconCommandBase
             isUpdated = true;
         }
 
-        if (IsDrawerIcon(diskObject) && diskObject.DrawerData != null)
+        if (DiskObjectHelper.IsDrawerIcon(diskObject) && diskObject.DrawerData != null)
         {
             if (drawerX.HasValue)
             {
@@ -196,16 +164,10 @@ public class IconUpdateCommand : IconCommandBase
             return new Result();
         }
 
-        OnInformationMessage($"Writing disk object to icon file '{path}'");
+        OnInformationMessage($"Writing icon to file '{path}'");
 
-        await WriteIcon(iconStream, diskObject);
+        await AmigaIconHelper.WriteAmigaIcon(amigaIcon, iconStream);
 
         return new Result();
-    }
-
-    private static bool IsDrawerIcon(DiskObject diskObject)
-    {
-        return diskObject.Type is Constants.DiskObjectTypes.DISK or Constants.DiskObjectTypes.DRAWER
-            or Constants.DiskObjectTypes.GARBAGE;
     }
 }

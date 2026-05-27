@@ -14,6 +14,7 @@ public static class IconCommandFactory
         command.AddCommand(CreateIconImage());
         command.AddCommand(CreateIconUpdate());
         command.AddCommand(CreateIconToolTypes());
+        command.AddCommand(CreateIconFix());
 
         return command;
     }
@@ -49,11 +50,11 @@ public static class IconCommandFactory
         
         var xOption = new Option<int?>(
             new[] { "--current-x", "-x" },
-            description: "Update x position of icon.");
+            description: "Update x position of icon (0 = auto).");
 
         var yOption = new Option<int?>(
             new[] { "--current-y", "-y" },
-            description: "Update y position of icon.");
+            description: "Update y position of icon (0 = auto).");
 
         var stackSizeOption = new Option<int?>(
             new[] { "--stack-size", "-s" },
@@ -150,11 +151,11 @@ public static class IconCommandFactory
 
         var xOption = new Option<int?>(
             new[] { "--current-x", "-x" },
-            description: "Update x position of icon.");
+            description: "Update x position of icon (0 = auto).");
 
         var yOption = new Option<int?>(
             new[] { "--current-y", "-y" },
-            description: "Update y position of icon.");
+            description: "Update y position of icon (0 = auto).");
 
         var stackSizeOption = new Option<int?>(
             new[] { "--stack-size", "-s" },
@@ -251,8 +252,13 @@ public static class IconCommandFactory
             new[] { "--palette-path", "-p" },
             description: "Path to JSON palette for converting planar images.");
 
+        var deleteIconsOption = new Option<bool>(
+            new[] { "--delete-icons", "-d" },
+            description: "Delete icons when converted preserving only destination type.");
+        
         var command = new Command("convert", "Convert icon image.");
-        command.SetHandler(CommandHandler.IconImageConvert, iconPathArgument, srcTypeArgument, destTypeArgument, jsonPalettePathOption);
+        command.SetHandler(CommandHandler.IconImageConvert, iconPathArgument, srcTypeArgument,
+            destTypeArgument, jsonPalettePathOption, deleteIconsOption);
         
         command.AddArgument(iconPathArgument);
         command.AddArgument(srcTypeArgument);
@@ -301,13 +307,19 @@ public static class IconCommandFactory
             new[] { "--image2-path", "-i2" },
             description: "Path to icon image 2.");
         
+        var forceOption = new Option<bool>(
+            new[] { "--force", "-f" },
+            description: "Force icon image import.");
+        
         var command = new Command("import", "Import icon image.");
-        command.SetHandler(CommandHandler.IconImageImport, iconPathArgument, imageTypeArgument, image1PathOption, image2PathOption);
+        command.SetHandler(CommandHandler.IconImageImport, iconPathArgument, imageTypeArgument, image1PathOption,
+            image2PathOption, forceOption);
         
         command.AddArgument(iconPathArgument);
         command.AddArgument(imageTypeArgument);
         command.AddOption(image1PathOption);
         command.AddOption(image2PathOption);
+        command.AddOption(forceOption);
         
         return command;
     }
@@ -403,4 +415,17 @@ public static class IconCommandFactory
         
         return command;
     }
+    
+    private static Command CreateIconFix()
+    {
+        var pathArgument = new Argument<string>(
+            name: "Path",
+            description: "Path to icon file.");
+
+        var command = new Command("fix", "Fix icon file.");
+        command.SetHandler(CommandHandler.IconFix, pathArgument);
+        command.AddArgument(pathArgument);
+
+        return command;
+    }    
 }

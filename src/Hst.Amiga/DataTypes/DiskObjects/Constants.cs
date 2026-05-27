@@ -75,5 +75,10 @@ namespace Hst.Amiga.DataTypes.DiskObjects
             /// </summary>
             GflgGadgimage = 0x4
         }
+
+        public static class IconPosition
+        {
+            public const int Auto = int.MinValue;
+        }
     }
 }

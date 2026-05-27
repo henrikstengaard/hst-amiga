@@ -79,9 +79,9 @@ public static class CommandHandler
         await Execute(new IconImageExport(GetLogger<IconImageExport>(), iconPath, imageType, image1Path, image2Path, jsonPalettePath));
     }
 
-    public static async Task IconImageConvert(string iconPath, ImageType srcType, ImageType destType, string jsonPalettePath)
+    public static async Task IconImageConvert(string iconPath, ImageType srcType, ImageType destType, string jsonPalettePath, bool deleteIcons)
     {
-        await Execute(new IconImageConvert(GetLogger<IconImageConvert>(), iconPath, srcType, destType, jsonPalettePath));
+        await Execute(new IconImageConvert(GetLogger<IconImageConvert>(), iconPath, srcType, destType, jsonPalettePath, deleteIcons));
     }
 
     public static async Task IconImageDelete(string iconPath, ImageType? imageType)
@@ -89,9 +89,11 @@ public static class CommandHandler
         await Execute(new IconImageDelete(GetLogger<IconImageDelete>(), iconPath, imageType));
     }
     
-    public static async Task IconImageImport(string iconPath, ImageType imageType, string image1Path, string image2Path)
+    public static async Task IconImageImport(string iconPath, ImageType imageType, string image1Path, string image2Path,
+        bool force)
     {
-        await Execute(new IconImageImport(GetLogger<IconImageImport>(), iconPath, imageType, image1Path, image2Path));
+        await Execute(new IconImageImport(GetLogger<IconImageImport>(), iconPath, imageType, image1Path, image2Path,
+            force));
     }
 
     public static async Task IconToolTypesExport(string iconPath, string toolTypesPath, bool excludeNewIcon)
@@ -102,6 +104,11 @@ public static class CommandHandler
     public static async Task IconToolTypesImport(string iconPath, string toolTypesPath, bool preserveNewIcon)
     {
         await Execute(new IconToolTypesImport(GetLogger<IconToolTypesImport>(), iconPath, toolTypesPath, preserveNewIcon));
+    }
+    
+    public static async Task IconFix(string path)
+    {
+        await Execute(new IconFixCommand(GetLogger<IconFixCommand>(), path));
     }
 
     public static async Task EpromBuildA500(string kickstartRomPath, EpromType? epromType, int? size)

@@ -1,3 +1,8 @@
+using System.Linq;
+using Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons;
+using Hst.Imaging;
+using Hst.Imaging.Pngcs;
+
 namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
@@ -54,15 +59,21 @@ public class IconCreateCommand : IconCommandBase
     {
         var diskObject = CreateDiskObject();
         var colorIcon = new ColorIcon();
+        var amigaIcon = new AmigaIcon
+        {
+            Kind = imageType == ImageType.TrueColorIcon ? AmigaIcon.IconKind.TrueColor : AmigaIcon.IconKind.Normal,
+            DiskObject = diskObject,
+            ColorIcon = colorIcon
+        };
 
         if (x.HasValue)
         {
-            diskObject.CurrentX = x.Value;
+            diskObject.CurrentX = x.Value == 0 ? Constants.IconPosition.Auto : x.Value;
         }
 
         if (y.HasValue)
         {
-            diskObject.CurrentY = y.Value;
+            diskObject.CurrentY = y.Value == 0 ? Constants.IconPosition.Auto : y.Value;
         }
 
         if (stackSize.HasValue)
@@ -103,13 +114,22 @@ public class IconCreateCommand : IconCommandBase
                 SetDrawerViewModes(diskObject, drawerViewModes.Value);
             }
         }
+        
+        AmigaIconHelper.CreateDefaultPlanarImages(diskObject);
 
-        CreateDummyPlanarImages(diskObject);
+        if (amigaIcon.Kind == AmigaIcon.IconKind.TrueColor)
+        {
+            var image = new Image(1, 1, 32);
+            using var pngWriteStream = new  MemoryStream();
+            PngWriter.Write(pngWriteStream, image);
+            using var pngReadStream = new MemoryStream(pngWriteStream.ToArray());
+            amigaIcon.TrueColorIcons = (await TrueColorIconReader.ReadTrueColorIcons(pngReadStream)).ToList();
+        }
 
         if (!string.IsNullOrWhiteSpace(image1Path) || !string.IsNullOrWhiteSpace(image2Path))
         {
-            var result = await ImportIconImages(diskObject, colorIcon,
-                imageType == ImageType.Auto ? ImageType.ColorIcon : imageType, image1Path, image2Path);
+            var result = await ImportIconImages(amigaIcon,
+                imageType == ImageType.Auto ? ImageType.ColorIcon : imageType, image1Path, image2Path, true);
             if (result.IsFaulted)
             {
                 return result;
@@ -118,11 +138,10 @@ public class IconCreateCommand : IconCommandBase
 
         DiskObjectHelper.UpdateGadgetFlags(diskObject);
 
-        OnInformationMessage($"Writing disk object to icon file '{path}'");
-        
+        OnInformationMessage($"Writing icon to file '{path}'");
+
         await using var iconStream = File.Open(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-        await WriteIcon(iconStream, diskObject);
-        await WriteColorIcon(iconStream, colorIcon);
+        await AmigaIconHelper.WriteAmigaIcon(amigaIcon, iconStream);
 
         return new Result();
     }
