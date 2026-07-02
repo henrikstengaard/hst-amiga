@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.RigidDiskBlocks
+﻿using Hst.Amiga.RigidDiskBlocks.Exceptions;
+
+namespace Hst.Amiga.RigidDiskBlocks
 {
     using System;
     using System.Collections.Generic;
@@ -28,19 +30,26 @@
                 // calculate file system header block offset
                 var fileSystemHeaderBlockOffset = rigidDiskBlock.BlockSize * fileSysHdrList;
 
-                // seek partition block offset
+                // seek file system header block offset
                 stream.Seek(fileSystemHeaderBlockOffset, SeekOrigin.Begin);
 
                 // read block
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
-                // parse file system header block
-                var fileSystemHeaderBlock = await Parse(blockBytes, ignoreChecksum);
+                try
+                {
+                    // parse file system header block
+                    var fileSystemHeaderBlock = await Parse(blockBytes, ignoreChecksum);
+                    
+                    fileSystemHeaderBlocks.Add(fileSystemHeaderBlock);
 
-                fileSystemHeaderBlocks.Add(fileSystemHeaderBlock);
-
-                // get next partition list block and increase partition number
-                fileSysHdrList = fileSystemHeaderBlock.NextFileSysHeaderBlock;
+                    // get next file system header block
+                    fileSysHdrList = fileSystemHeaderBlock.NextFileSysHeaderBlock;
+                }
+                catch (Exception e)
+                {
+                    throw new FileSystemHeaderBlockException($"Failed to read file system header block at sector {fileSysHdrList}", e);
+                }
             } while (fileSysHdrList > 0 && fileSysHdrList != BlockIdentifiers.EndOfBlock);
 
             foreach (var fileSystemHeaderBlock in fileSystemHeaderBlocks)
@@ -61,7 +70,7 @@
             var identifier = BitConverter.ToUInt32(await blockStream.ReadBytes(4), 0);
             if (!identifier.Equals(BlockIdentifiers.FileSystemHeaderBlock))
             {
-                throw new IOException("Invalid file system header block identifier");
+                throw new FileSystemHeaderBlockException("Invalid file system header block identifier");
             }
 
             var size = await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
@@ -98,7 +107,7 @@
 
             if (!ignoreChecksum && checksum != calculatedChecksum)
             {
-                throw new IOException("Invalid file system header block checksum");
+                throw new FileSystemHeaderBlockException("Invalid file system header block checksum");
             }
 
             return new FileSystemHeaderBlock

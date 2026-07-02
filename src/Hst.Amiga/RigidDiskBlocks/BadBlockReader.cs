@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.RigidDiskBlocks
+﻿using Hst.Amiga.RigidDiskBlocks.Exceptions;
+
+namespace Hst.Amiga.RigidDiskBlocks
 {
     using System;
     using System.Collections.Generic;
@@ -35,13 +37,20 @@
                 // read block
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
-                // read rigid disk block
-                var badBlock = await Parse(blockBytes, ignoreChecksum);
+                try
+                {
+                    // read bad block
+                    var badBlock = await Parse(blockBytes, ignoreChecksum);
                 
-                badBlocks.Add(badBlock);
+                    badBlocks.Add(badBlock);
                 
-                // get next partition list block and increase partition number
-                badBlockList = badBlock.NextBadBlock;
+                    // get next bad block
+                    badBlockList = badBlock.NextBadBlock;
+                }
+                catch (Exception e)
+                {
+                    throw new BadBlockException($"Failed to read bad block at sector {badBlockList}", e);
+                }
             } while (badBlockList > 0 && badBlockList != BlockIdentifiers.EndOfBlock);
 
             return badBlocks;
@@ -54,7 +63,7 @@
             var identifier = BitConverter.ToUInt32(await blockStream.ReadBytes(4), 0);
             if (!identifier.Equals(BlockIdentifiers.BadBlock))
             {
-                throw new IOException("Invalid bad block identifier");
+                throw new BadBlockException("Invalid bad block identifier");
             }
             
             await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
@@ -66,7 +75,7 @@
 
             if (!ignoreChecksum && checksum != calculatedChecksum)
             {
-                throw new IOException("Invalid bad block checksum");
+                throw new BadBlockException("Invalid bad block checksum");
             }
             
             var data = await blockStream.ReadBytes(((blockBytes.Length / 4) - 6) / 2);

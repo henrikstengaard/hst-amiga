@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.RigidDiskBlocks
+﻿using Hst.Amiga.RigidDiskBlocks.Exceptions;
+
+namespace Hst.Amiga.RigidDiskBlocks
 {
     using System;
     using System.Collections.Generic;
@@ -21,19 +23,26 @@
                 // calculate seg list block offset
                 var segListBlockOffset = rigidDiskBlock.BlockSize * segListBlock;
                 
-                // seek partition block offset
+                // seek load seg block offset
                 stream.Seek(segListBlockOffset, SeekOrigin.Begin);
                 
                 // read block
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
-                // parse file system header block
-                var loadSegBlock = await Parse(blockBytes, ignoreChecksum);
+                try
+                {
+                    // parse load seg block
+                    var loadSegBlock = await Parse(blockBytes, ignoreChecksum);
 
-                loadSegBlocks.Add(loadSegBlock);
+                    loadSegBlocks.Add(loadSegBlock);
                 
-                // get next partition list block and increase partition number
-                segListBlock = loadSegBlock.NextLoadSegBlock;
+                    // get next load seg block
+                    segListBlock = loadSegBlock.NextLoadSegBlock;
+                }
+                catch (Exception e)
+                {
+                    throw new LoadSegBlockException($"Failed to read load seg block at block {segListBlock}", e);
+                }
             } while (segListBlock > 0);
 
             return loadSegBlocks;
@@ -46,7 +55,7 @@
             var identifier = BitConverter.ToUInt32(await blockStream.ReadBytes(4), 0);
             if (!identifier.Equals(BlockIdentifiers.LoadSegBlock))
             {
-                throw new IOException("Invalid load seg block identifier");
+                throw new LoadSegBlockException("Invalid load seg block identifier");
             }
             
             var size = await blockStream.ReadBigEndianUInt32();// Size of the structure for checksums
@@ -58,7 +67,7 @@
 
             if (!ignoreChecksum && checksum != calculatedChecksum)
             {
-                throw new IOException("Invalid load seg block checksum");
+                throw new LoadSegBlockException("Invalid load seg block checksum");
             }
             
             var length = (size - 5) * 4;

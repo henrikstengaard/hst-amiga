@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.RigidDiskBlocks
+﻿using Hst.Amiga.RigidDiskBlocks.Exceptions;
+
+namespace Hst.Amiga.RigidDiskBlocks
 {
     using System;
     using System.IO;
@@ -38,8 +40,15 @@
                     continue;
                 }
 
-                // read rigid disk block
-                rigidDiskBlock = await Parse(blockBytes, ignoreChecksum);
+                try
+                {
+                    // read rigid disk block
+                    rigidDiskBlock = await Parse(blockBytes, ignoreChecksum);
+                }
+                catch (Exception e)
+                {
+                    throw new RigidDiskBlockException($"Failed to read rigid disk block at sector {sector}", e);
+                }
             } while (sector < rdbLocationLimit && rigidDiskBlock == null);
 
             // fail, if rigid disk block is null
@@ -62,7 +71,7 @@
             var identifier = BitConverter.ToUInt32(await blockStream.ReadBytes(4), 0);
             if (!identifier.Equals(BlockIdentifiers.RigidDiskBlock))
             {
-                return null;
+                throw new RigidDiskBlockException("Invalid rigid disk block identifier");
             }
 
             var size = await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
@@ -127,7 +136,7 @@
 
             if (!ignoreChecksum && checksum != calculatedChecksum)
             {
-                throw new Exception("Invalid rigid disk block checksum");
+                throw new RigidDiskBlockException("Invalid rigid disk block checksum");
             }
 
             return new RigidDiskBlock

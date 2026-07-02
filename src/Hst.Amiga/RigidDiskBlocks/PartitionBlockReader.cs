@@ -1,4 +1,6 @@
-﻿namespace Hst.Amiga.RigidDiskBlocks
+﻿using Hst.Amiga.RigidDiskBlocks.Exceptions;
+
+namespace Hst.Amiga.RigidDiskBlocks
 {
     using System;
     using System.Collections.Generic;
@@ -35,19 +37,20 @@
                 // read block
                 var blockBytes = await Disk.ReadBlock(stream, (int)rigidDiskBlock.BlockSize);
 
-                // read partition block
-                var partitionBlock = await Parse(blockBytes, (int)rigidDiskBlock.BlockSize, ignoreChecksum);
-
-                // fail, if partition block is null
-                if (partitionBlock == null)
+                try
                 {
-                    throw new IOException("Invalid partition block");
+                    // read partition block
+                    var partitionBlock = await Parse(blockBytes, (int)rigidDiskBlock.BlockSize, ignoreChecksum);
+
+                    partitionBlocks.Add(partitionBlock);
+
+                    // get next partition block
+                    partitionList = partitionBlock.NextPartitionBlock;
                 }
-
-                partitionBlocks.Add(partitionBlock);
-
-                // get next partition list block and increase partition number
-                partitionList = partitionBlock.NextPartitionBlock;
+                catch (Exception e)
+                {
+                    throw new PartitionBlockException($"Failed to read partition block at block {partitionList}", e);
+                }
             } while (partitionList > 0 && partitionList != BlockIdentifiers.EndOfBlock);
 
             rigidDiskBlock.PartitionBlocks = partitionBlocks;
@@ -62,7 +65,7 @@
             var identifier = BitConverter.ToUInt32(await blockStream.ReadBytes(4), 0);
             if (!identifier.Equals(BlockIdentifiers.PartitionBlock))
             {
-                return null;
+                throw new PartitionBlockException("Invalid partition block identifier");
             }
 
             var size = await blockStream.ReadBigEndianUInt32(); // Size of the structure for checksums
@@ -118,7 +121,7 @@
 
             if (!ignoreChecksum && checksum != calculatedChecksum)
             {
-                throw new Exception("Invalid partition block checksum");
+                throw new PartitionBlockException("Invalid partition block checksum");
             }
 
             var fileSystemBlockSize = sizeBlock * SizeOf.ULong * sectors;
