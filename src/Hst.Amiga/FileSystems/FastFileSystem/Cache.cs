@@ -143,6 +143,14 @@
             };
         }
 
+        /// <summary>
+        /// Update cache entry in dir cache block(s) for entry block when the entry block has changed in the same parent entry block.
+        /// </summary>
+        /// <param name="vol"></param>
+        /// <param name="parent">Parent entry block where entry block exists.</param>
+        /// <param name="entry">Entry block to update cache for.</param>
+        /// <param name="entryLenChg">Indicates whether the entry length has changed.</param>
+        /// <exception cref="IOException"></exception>
         public static async Task UpdateCache(Volume vol, EntryBlock parent, EntryBlock entry, bool entryLenChg)
         {
             var newCacheEntry = ConvertEntryBlockToCacheEntry(entry);

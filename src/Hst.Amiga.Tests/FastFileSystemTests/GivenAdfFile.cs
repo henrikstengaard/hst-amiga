@@ -295,6 +295,60 @@
         [InlineData("dos3.adf")]
         [InlineData("dos4.adf")]
         [InlineData("dos5.adf")]
+        public async Task When_MountAdfAndMoveFileToADir_Then_FileIsMoved(string adfFilename)
+        {
+            // arrange - adf file
+            var newName = "renamed_test";
+            var adfPath = Path.Combine("TestData", "FastFileSystems", adfFilename);
+            var modifiedAdfPath = string.Concat(Path.GetFileNameWithoutExtension(adfFilename), ".adf");
+
+            // arrange - copy adf file for testing
+            File.Copy(adfPath, modifiedAdfPath, true);
+            await using var adfStream =
+                File.Open(modifiedAdfPath, FileMode.Open, FileAccess.ReadWrite);
+
+            // act - mount adf
+            var volume = await FastFileSystemHelper.MountAdf(adfStream);
+
+            // act - read entries recursively from root block
+            var entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlockOffset, true))
+                .OrderBy(x => x.Name).ToList();
+
+            // act - get first file entry
+            var oldEntry = entries.FirstOrDefault(x => x.Type == Constants.ST_FILE);
+            Assert.NotNull(oldEntry);
+
+            // act - get first dir entry
+            var dirEntry = entries.FirstOrDefault(x => x.Type == Constants.ST_DIR);
+            Assert.NotNull(dirEntry);
+            
+            // act - rename file entry
+            var oldName = oldEntry.Name;
+            await FileSystems.FastFileSystem.Directory.RenameEntry(volume, oldEntry.Parent, oldName, dirEntry.Sector,
+                newName);
+
+            // assert - entry with old name doesn't exist in root block
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlockOffset, false))
+                .OrderBy(x => x.Name).ToList();
+            var entry = entries.FirstOrDefault(x => x.Name == oldName);
+            Assert.Null(entry);
+
+            // assert - entry with new name exist
+            entries = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, dirEntry.Sector, false))
+                .OrderBy(x => x.Name).ToList();
+            entry = entries.FirstOrDefault(x => x.Name == newName);
+            Assert.NotNull(entry);
+            Assert.Equal(newName, entry.Name);
+            Assert.Equal(oldEntry.Size, entry.Size);
+            Assert.Equal(oldEntry.Type, entry.Type);
+        }
+        
+        [Theory]
+        [InlineData("dos1.adf")]
+        [InlineData("dos2.adf")]
+        [InlineData("dos3.adf")]
+        [InlineData("dos4.adf")]
+        [InlineData("dos5.adf")]
         public async Task WhenMountAdfAndDeleteFileThenFileIsDeleted(string adfFilename)
         {
             // arrange - adf file

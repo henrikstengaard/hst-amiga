@@ -632,7 +632,7 @@
 
             if (vol.UseDirCache)
             {
-                if (pSect != nPSect)
+                if (pSect == nPSect)
                 {
                     await Cache.UpdateCache(vol, parent, parentEntryBlock, true);
                 }
