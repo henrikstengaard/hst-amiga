@@ -1,0 +1,33 @@
+<Project>
+  <!--
+    Set version to major.minor.commit count, same as build and release workflow and prerelease build script.
+    Commit count is increased by one, if branch has uncommitted changes.
+    Skipped when version is set on command line, e.g. -p:Version=x.y.z
+  -->
+  <Target Name="SetCommitCountVersion" BeforeTargets="GetAssemblyVersion;GenerateNuspec">
+    <XmlPeek XmlInputPath="$(MSBuildThisFileDirectory)Directory.Build.props" Query="/Project/PropertyGroup/Version/text()">
+      <Output TaskParameter="Result" PropertyName="_PropsVersion" />
+    </XmlPeek>
+
+    <Exec Command="git rev-list --count HEAD" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true" Condition="'$(Version)' == '$(_PropsVersion)'">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_CommitCount" />
+      <Output TaskParameter="ExitCode" PropertyName="_CommitCountExitCode" />
+    </Exec>
+
+    <Exec Command="git status -s" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true" Condition="'$(_CommitCountExitCode)' == '0'">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitChanges" />
+    </Exec>
+
+    <PropertyGroup Condition="'$(_CommitCountExitCode)' == '0'">
+      <_CommitCount Condition="'$(_GitChanges)' != ''">$([MSBuild]::Add($(_CommitCount), 1))</_CommitCount>
+      <_VersionPrefix>$([System.Text.RegularExpressions.Regex]::Replace($(_PropsVersion), '^(.*)\.\d+.*$', '$1'))</_VersionPrefix>
+      <Version>$(_VersionPrefix).$(_CommitCount)</Version>
+      <PackageVersion>$(Version)</PackageVersion>
+      <InformationalVersion>$(Version)</InformationalVersion>
+      <AssemblyVersion>$(_VersionPrefix).$(_CommitCount).0</AssemblyVersion>
+      <FileVersion>$(AssemblyVersion)</FileVersion>
+    </PropertyGroup>
+
+    <Message Importance="high" Text="$(MSBuildProjectName) version $(Version)" Condition="'$(_CommitCountExitCode)' == '0'" />
+  </Target>
+</Project>

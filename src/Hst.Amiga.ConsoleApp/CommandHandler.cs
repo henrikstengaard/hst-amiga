@@ -161,7 +161,7 @@ public static class CommandHandler
     {
         var lines = await File.ReadAllLinesAsync(path);
         var scriptLines = lines.Where(x => !string.IsNullOrWhiteSpace(x) && !x.Trim().StartsWith("#"))
-            .Select(x => CommandLineStringSplitter.Instance.Split(x)).ToList();
+            .Select(x => CommandLineParser.SplitCommandLine(x)).ToList();
 
         var rootCommand = CommandFactory.CreateRootCommand();
         foreach (var scriptLine in scriptLines)
@@ -170,7 +170,7 @@ public static class CommandHandler
 
             Log.Logger.Information($"[CMD] {string.Join(" ", args)}");
 
-            if (await rootCommand.InvokeAsync(args) != 0)
+            if (await rootCommand.Parse(args).InvokeAsync() != 0)
             {
                 Environment.Exit(1);
             }
