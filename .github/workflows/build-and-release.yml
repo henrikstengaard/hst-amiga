@@ -160,9 +160,65 @@ jobs:
           name: "${{ steps.build_console_app_artifact.outputs.artifact_name }}"
           path: "${{ steps.build_console_app_artifact.outputs.artifact_path }}"
           retention-days: 3
-  
-  publish-console:
+
+  sign-console:
     needs: [build-console]
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write # required for azure login with oidc
+    strategy:
+      matrix:
+        target: [win-x64, win-x86, win-arm64]
+
+    steps:
+      - name: Download console app artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: hst-amiga.console.${{ matrix.target }}.zip
+
+      - name: Extract console app artifact
+        shell: pwsh
+        run: |
+          Expand-Archive -Path hst-amiga.console.${{ matrix.target }}.zip -DestinationPath sign
+          Remove-Item -Path hst-amiga.console.${{ matrix.target }}.zip
+
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign console app with Azure Artifact Signing
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}\sign
+          files-folder-filter: exe,dll
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Hst Amiga
+          description-url: https://github.com/${{ github.repository }}
+
+      - name: Build signed console app artifact
+        shell: pwsh
+        run: |
+          Compress-Archive -Path sign\* -DestinationPath hst-amiga.console.${{ matrix.target }}.zip
+
+      - name: Upload signed console app artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: hst-amiga.console.${{ matrix.target }}.zip
+          path: hst-amiga.console.${{ matrix.target }}.zip
+          retention-days: 3
+          overwrite: true
+
+  publish-console:
+    needs: [build-console, sign-console]
     runs-on: ubuntu-latest
     permissions:
       contents: write # required for creating release with gh cli
