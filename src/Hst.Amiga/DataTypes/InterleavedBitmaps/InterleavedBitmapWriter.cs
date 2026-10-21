@@ -66,20 +66,22 @@ namespace Hst.Amiga.DataTypes.InterleavedBitmaps
             const short x = 0;
             const short y = 0;
 
-            chunk.AddData(BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Width)); // width
-            chunk.AddData(BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Height)); // height 
-            chunk.AddData(BigEndianConverter.ConvertInt16ToBytes(x)); // x
-            chunk.AddData(BigEndianConverter.ConvertInt16ToBytes(y)); // y
-            chunk.AddData((byte)image.BitsPerPixel); // planes
-            chunk.AddData(0); // mask
-            chunk.AddData((byte)(compress ? 1 : 0)); // tcomp
-            chunk.AddData(0); // pad1
-            chunk.AddData(BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Palette.TransparentColor)); // transparent color
-            chunk.AddData(60); // xAspect
-            chunk.AddData(60); // yAspect
-            chunk.AddData(BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Width)); // Lpage
-            chunk.AddData(BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Height)); // Hpage
-
+            var bitmapHeaderData = new byte[20];
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Width, bitmapHeaderData, 0); // width
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Height, bitmapHeaderData, 2); // height
+            BigEndianConverter.ConvertInt16ToBytes(x, bitmapHeaderData, 4); // x
+            BigEndianConverter.ConvertInt16ToBytes(y, bitmapHeaderData, 6); // y
+            bitmapHeaderData[8] = (byte)image.BitsPerPixel; // planes
+            bitmapHeaderData[9] = 0; // mask
+            bitmapHeaderData[10] = (byte)(compress ? 1 : 0);
+            bitmapHeaderData[11] = 0; // pad1
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Palette.TransparentColor, bitmapHeaderData, 12); // transparent color
+            bitmapHeaderData[14] = 60;
+            bitmapHeaderData[15] = 60;
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Width, bitmapHeaderData, 16); // Lpage
+            BigEndianConverter.ConvertUInt16ToBytes((ushort)image.Height, bitmapHeaderData, 18); // Hpage
+            chunk.AddData(bitmapHeaderData);
+            
             await iffWriter.EndChunk();
         }
         
@@ -122,7 +124,9 @@ namespace Hst.Amiga.DataTypes.InterleavedBitmaps
         {
             var chunk = iffWriter.BeginChunk(ChunkIdentifiers.Camg);
 
-            chunk.AddData(BigEndianConverter.ConvertUInt32ToBytes((uint)image.BitsPerPixel));
+            var chunkData = new byte[4];
+            BigEndianConverter.ConvertUInt32ToBytes((uint)image.BitsPerPixel, chunkData, 0);
+            chunk.AddData(chunkData);
 
             await iffWriter.EndChunk();
             /*

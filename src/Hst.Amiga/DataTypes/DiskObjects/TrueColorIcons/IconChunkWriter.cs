@@ -8,6 +8,7 @@ namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
         public static byte[] WriteIconChunkData(IconData iconData)
         {
             using var memoryStream = new MemoryStream();
+            var data = new byte[4];
             foreach (var iconAttributeTag in iconData.IconTags)
             {
                 if (iconAttributeTag.Tag == Constants.IconAttributeTags.ATTR_DEFAULTTOOL ||
@@ -16,29 +17,30 @@ namespace Hst.Amiga.DataTypes.DiskObjects.TrueColorIcons
                 {
                     continue;
                 }
-                
-                memoryStream.Write(BigEndianConverter.ConvertUInt32ToBytes((uint)iconAttributeTag.Tag));
-                memoryStream.Write(BigEndianConverter.ConvertUInt32ToBytes(iconAttributeTag.Value));
+                BigEndianConverter.ConvertUInt32ToBytes((uint)iconAttributeTag.Tag, data, 0);
+                memoryStream.Write(data, 0, data.Length);
+                BigEndianConverter.ConvertUInt32ToBytes((uint)iconAttributeTag.Value, data, 0);
+                memoryStream.Write(data, 0, data.Length);
             }
 
             if (!string.IsNullOrEmpty(iconData.DefaultTool))
             {
-                memoryStream.Write(BigEndianConverter.ConvertUInt32ToBytes(
-                    (uint)Constants.IconAttributeTags.ATTR_DEFAULTTOOL));
+                BigEndianConverter.ConvertUInt32ToBytes((uint)Constants.IconAttributeTags.ATTR_DEFAULTTOOL, data, 0);
+                memoryStream.Write(data, 0, data.Length);
                 WriteText(memoryStream, iconData.DefaultTool);
             }
 
             if (!string.IsNullOrEmpty(iconData.ToolType))
             {
-                memoryStream.Write(BigEndianConverter.ConvertUInt32ToBytes(
-                    (uint)Constants.IconAttributeTags.ATTR_TOOLTYPE));
+                BigEndianConverter.ConvertUInt32ToBytes((uint)Constants.IconAttributeTags.ATTR_TOOLTYPE, data, 0);
+                memoryStream.Write(data, 0, data.Length);
                 WriteText(memoryStream, iconData.ToolType);
             }
 
             if (!string.IsNullOrEmpty(iconData.ToolWindow))
             {
-                memoryStream.Write(BigEndianConverter.ConvertUInt32ToBytes(
-                    (uint)Constants.IconAttributeTags.ATTR_TOOLWINDOW));
+                BigEndianConverter.ConvertUInt32ToBytes((uint)Constants.IconAttributeTags.ATTR_TOOLWINDOW, data, 0);
+                memoryStream.Write(data, 0, data.Length);
                 WriteText(memoryStream, iconData.ToolWindow);
             }
 

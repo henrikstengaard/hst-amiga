@@ -35,11 +35,14 @@ namespace Hst.Amiga.DataTypes.Iffs
         {
             var zeroPad = (chunkData.Count & 1) == 1;
             var length = zeroPad ? chunkData.Count + 1 : chunkData.Count;
-            var data = zeroPad ? chunkData.Concat(new byte[1]) : chunkData;
+            var paddedData = (zeroPad ? chunkData.Concat(new byte[1]) : chunkData).ToArray();
 
-            return Encoding.ASCII.GetBytes(Id)
-                .Concat(BigEndianConverter.ConvertUInt32ToBytes((uint)length))
-                .Concat(data).ToArray();
+            var chunk = new byte[4 + 4 + length];
+            System.Buffer.BlockCopy(Encoding.ASCII.GetBytes(Id), 0, chunk, 0, 4);
+            BigEndianConverter.ConvertUInt32ToBytes((uint)length, chunk, 4);
+            System.Buffer.BlockCopy(paddedData, 0, chunk, 8, paddedData.Length);
+            
+            return chunk;
         }
     }
 }

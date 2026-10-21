@@ -61,7 +61,8 @@ public class GivenIconUpdateCommand
             // arrange - expected icon data with current x update at offset 0x3a
             var expectedIconData = new byte[iconData.Length];
             Array.Copy(iconData, expectedIconData, expectedIconData.Length);
-            var currentXBytes = BigEndianConverter.ConvertInt32ToBytes(currentX);
+            var currentXBytes = new byte[4]; 
+            BigEndianConverter.ConvertInt32ToBytes(currentX, currentXBytes, 0);
             Array.Copy(currentXBytes, 0, expectedIconData, 0x3a, currentXBytes.Length);
             
             // arrange - read icon data
@@ -183,7 +184,8 @@ public class GivenIconUpdateCommand
             var crc32 = new Crc32();
             expectedTrueColorIconBytes[0xc86] = (byte)type; // type is at offset 0xc86 in the true color icon data
             crc32.Compute(expectedTrueColorIconBytes, 0xc63, 50); // compute crc32 for the icon chunk data which is at offset 0xc63 with length 50 bytes (type + data)
-            var crc32Bytes = BigEndianConverter.ConvertUInt32ToBytes(crc32.GetCalculatedCrc());
+            var crc32Bytes = new byte[4];
+            BigEndianConverter.ConvertUInt32ToBytes(crc32.GetCalculatedCrc(), crc32Bytes, 0);
             Array.Copy(crc32Bytes, 0, expectedTrueColorIconBytes, 0xc95, crc32Bytes.Length); // crc32 is at offset 0xc95 in the true color icon data
             
             // arrange - read actual true color icon bytes

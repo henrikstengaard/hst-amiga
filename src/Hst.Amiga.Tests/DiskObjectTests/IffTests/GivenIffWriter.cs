@@ -23,8 +23,10 @@ public class GivenIffWriter
         await iffWriter.EndChunk();
 
         // assert
+        var lengthBytes = new byte[4];
+        BigEndianConverter.ConvertUInt32ToBytes(2, lengthBytes, 0);
         var expectedBytes = Encoding.ASCII.GetBytes("CHK1")
-            .Concat(BigEndianConverter.ConvertUInt32ToBytes(2))
+            .Concat(lengthBytes)
             .Concat(new byte[] { 1, 2 })
             .ToArray();
         var actualBytes = memoryStream.ToArray();
@@ -44,8 +46,10 @@ public class GivenIffWriter
         await iffWriter.EndChunk();
 
         // assert
+        var lengthBytes = new byte[4];
+        BigEndianConverter.ConvertUInt32ToBytes(4, lengthBytes, 0);
         var expectedBytes = Encoding.ASCII.GetBytes("CHK1")
-            .Concat(BigEndianConverter.ConvertUInt32ToBytes(4))
+            .Concat(lengthBytes)
             .Concat(new byte[] { 1, 2, 3, 0 })
             .ToArray();
         var actualBytes = memoryStream.ToArray();
@@ -67,10 +71,14 @@ public class GivenIffWriter
         await iffWriter.EndChunk();
 
         // assert
+        var lengthBytes1 = new byte[4];
+        BigEndianConverter.ConvertUInt32ToBytes(12, lengthBytes1, 0);
+        var lengthBytes2 = new byte[4];
+        BigEndianConverter.ConvertUInt32ToBytes(4, lengthBytes2, 0);
         var expectedBytes = Encoding.ASCII.GetBytes("CHK1")
-            .Concat(BigEndianConverter.ConvertUInt32ToBytes(12))
+            .Concat(lengthBytes1)
             .Concat(Encoding.ASCII.GetBytes("CHK2"))
-            .Concat(BigEndianConverter.ConvertUInt32ToBytes(4))
+            .Concat(lengthBytes2)
             .Concat(new byte[] { 1, 2, 3, 4 })
             .ToArray();
         var actualBytes = memoryStream.ToArray();
