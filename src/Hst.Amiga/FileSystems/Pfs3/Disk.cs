@@ -631,7 +631,7 @@
                     fbp = BLOCKSIZE - blockoffset;
                     fbp = Math.Min(bytestowrite, fbp); /* the first could also be the last block */
                     //memcpy(firstblock + blockoffset, buffer, fbp);
-                    Array.Copy(buffer, dataptr, g.dc.data, firstblock, fbp);
+                    Array.Copy(buffer, dataptr, g.dc.data, firstblock + blockoffset, fbp);
                     Macro.MarkDataDirty(slotnr, g);
 
                     anodes.NextBlockAC(ref chnode, ref anodeoffset, g);
@@ -698,6 +698,13 @@
                     }
                 }
 
+                // raw write writes from start of buffer, copy blocks from data pointer
+                if (lastpart == null && dataptr != 0)
+                {
+                    writeptr = new byte[(int)t << BLOCKSHIFT];
+                    Array.Copy(data, dataptr, writeptr, 0, Math.Min(writeptr.Length, data.Length - dataptr));
+                }
+
                 // *error = DiskWrite(writeptr, t, chnode->an.blocknr + anodeoffset, g);
                 if (await RawWrite(g.stream, writeptr, t, chnode.an.blocknr + anodeoffset, g))
                 {
@@ -728,7 +735,7 @@
                 //lastblock = g.dc.data[slotnr << BLOCKSHIFT];
                 var lastBlock = slotnr << BLOCKSHIFT;
                 //memcpy(lastblock, dataptr, bytestowrite);
-                Array.Copy(g.dc.data, lastBlock, buffer, dataptr, bytestowrite);
+                Array.Copy(data, dataptr, g.dc.data, lastBlock, bytestowrite);
                 Macro.MarkDataDirty(slotnr, g);
                 // }
             }

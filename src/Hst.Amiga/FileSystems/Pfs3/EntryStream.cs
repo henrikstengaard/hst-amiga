@@ -1,8 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-#if NET6_0
     using System;
-#endif
     using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
@@ -39,28 +37,84 @@
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (offset != 0)
-            {
-                throw new System.NotSupportedException("Read only supports offset 0");
-            }
-
-            return (int)Directory.ReadFromObject(fileEntry, buffer, (uint)buffer.Length, g).GetAwaiter().GetResult();
+            return ReadInternal(buffer, offset, count).GetAwaiter().GetResult();
         }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
-            if (offset != 0)
-            {
-                throw new System.NotSupportedException("Read only supports offset 0");
-            }
-
-            return (int)await Directory.ReadFromObject(fileEntry, buffer, (uint)buffer.Length, g);
+            return await ReadInternal(buffer, offset, count);
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            return Disk.SeekInObject(fileEntry, (int)offset, GetMode(origin), g).GetAwaiter().GetResult();
+            if (Disk.SeekInObject(fileEntry, (int)offset, GetMode(origin), g).GetAwaiter().GetResult() < 0)
+            {
+                throw new IOException($"Seek to offset {offset} from {origin} failed");
+            }
+
+            return fileEntry.offset;
+        }
+
+        private static void ValidateBuffer(byte[] buffer, int offset, int count)
+        {
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (offset < 0 || count < 0 || offset + count > buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count),
+                    $"Offset '{offset}' and count '{count}' is outside buffer size '{buffer.Length}'");
+            }
+        }
+
+        private async Task<int> ReadInternal(byte[] buffer, int offset, int count)
+        {
+            ValidateBuffer(buffer, offset, count);
+
+            if (count == 0)
+            {
+                return 0;
+            }
+
+            // read from object only supports reading into start of buffer
+            var readBuffer = offset == 0 ? buffer : new byte[count];
+            var result = await Directory.ReadFromObject(fileEntry, readBuffer, (uint)count, g);
+            if (result == uint.MaxValue)
+            {
+                throw new IOException("Read failed");
+            }
+
+            var bytesRead = (int)result;
+            if (offset != 0 && bytesRead > 0)
+            {
+                Array.Copy(readBuffer, 0, buffer, offset, bytesRead);
+            }
+
+            return bytesRead;
+        }
+
+        private async Task WriteInternal(byte[] buffer, int offset, int count)
+        {
+            ValidateBuffer(buffer, offset, count);
+
+            if (count == 0)
+            {
+                return;
+            }
+
+            // write to object only supports writing from start of buffer
+            var writeBuffer = buffer;
+            if (offset != 0)
+            {
+                writeBuffer = new byte[count];
+                Array.Copy(buffer, offset, writeBuffer, 0, count);
+            }
+
+            this.dataWritten = true;
+            await Directory.WriteToObject(fileEntry, writeBuffer, (uint)count, g);
         }
 
         private int GetMode(SeekOrigin origin)
@@ -85,24 +139,12 @@
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (offset != 0)
-            {
-                throw new System.NotSupportedException("Write only supports offset 0");
-            }
-
-            this.dataWritten = true;
-            Directory.WriteToObject(fileEntry, buffer, (uint)count, g).GetAwaiter().GetResult();
+            WriteInternal(buffer, offset, count).GetAwaiter().GetResult();
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            if (offset != 0)
-            {
-                throw new System.NotSupportedException("Write only supports offset 0");
-            }
-
-            this.dataWritten = true;
-            await Directory.WriteToObject(fileEntry, buffer, (uint)count, g);
+            await WriteInternal(buffer, offset, count);
         }
 
         public override bool CanRead => true;
