@@ -58,28 +58,49 @@
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (offset != 0)
-            {
-                throw new ArgumentException("Only offset 0 is supported", nameof(offset));
-            }
-
-            return AdfReadFile(count, buffer).GetAwaiter().GetResult();
+            return AdfReadFile(buffer, offset, count).GetAwaiter().GetResult();
         }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
-            if (offset != 0)
-            {
-                throw new ArgumentException("Only offset 0 is supported", nameof(offset));
-            }
-
-            return await AdfReadFile(count, buffer);
+            return await AdfReadFile(buffer, offset, count);
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            AdfFileSeek((uint)offset).GetAwaiter().GetResult();
+            long position;
+            switch (origin)
+            {
+                case SeekOrigin.Begin:
+                    position = offset;
+                    break;
+                case SeekOrigin.Current:
+                    position = pos + offset;
+                    break;
+                case SeekOrigin.End:
+                    position = length + offset;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(origin));
+            }
+
+            if (position < 0)
+            {
+                throw new IOException("An attempt was made to move the position before the beginning of the stream");
+            }
+
+            if (position == pos)
+            {
+                return pos;
+            }
+
+            if (writeMode)
+            {
+                throw new NotSupportedException("Seek is not supported for entry stream in write mode");
+            }
+
+            AdfFileSeek((uint)Math.Min(position, length)).GetAwaiter().GetResult();
             return this.pos;
         }
 
@@ -91,22 +112,12 @@
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (offset != 0)
-            {
-                throw new ArgumentException("Only offset 0 is supported", nameof(offset));
-            }
-
-            AdfWriteFile(count, buffer).GetAwaiter().GetResult();
+            AdfWriteFile(buffer, offset, count).GetAwaiter().GetResult();
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            if (offset != 0)
-            {
-                throw new ArgumentException("Only offset 0 is supported", nameof(offset));
-            }
-
-            await AdfWriteFile(count, buffer);
+            await AdfWriteFile(buffer, offset, count);
         }
 
         public override bool CanRead => true;
@@ -121,81 +132,95 @@
 
         private async Task AdfFileSeek(uint position)
         {
-            int i;
+            var blockSize = volume.DataBlockSize;
 
-            var nPos = Math.Min(position, length);
-            this.pos = nPos;
-            var extBlock = Pos2DataBlock(nPos);
-            if (extBlock == uint.MaxValue)
+            pos = position;
+            eof = pos == length;
+
+            if (position == 0)
             {
-                currentData = fileHdr.DataBlocks[volume.IndexSize - 1 - curDataPtr] == 0
-                    ? new DataBlock
-                    {
-                        Data = new byte[volume.DataBlockSize]
-                    }
-                    : await Disk.ReadDataBlock(volume, fileHdr.DataBlocks[volume.IndexSize - 1 - curDataPtr]);
+                // next read starts from first data block
+                nDataBlock = 0;
+                posInDataBlk = 0;
+                posInExtBlk = 0;
+                return;
+            }
+
+            // position at end of data block is represented by previous data block fully read,
+            // so next read continues with next data block
+            var dataBlockIndex = position / blockSize;
+            posInDataBlk = position % blockSize;
+            if (posInDataBlk == 0)
+            {
+                dataBlockIndex--;
+                posInDataBlk = blockSize;
+            }
+
+            var dataBlockSector = await GetDataBlockSector(dataBlockIndex);
+            currentData = await Disk.ReadDataBlock(volume, dataBlockSector);
+
+            if (volume.UseOfs && currentData.SeqNum != dataBlockIndex + 1)
+            {
+                throw new IOException("adfFileSeek : seqnum incorrect");
+            }
+
+            nDataBlock = dataBlockIndex + 1;
+        }
+
+        /// <summary>
+        /// Get sector for data block index and update current file ext block and position in file ext block
+        /// to same state as after reading data block with AdfReadNextFileBlock
+        /// </summary>
+        private async Task<uint> GetDataBlockSector(uint dataBlockIndex)
+        {
+            uint dataBlockSector;
+            if (dataBlockIndex < volume.IndexSize)
+            {
+                dataBlockSector = fileHdr.DataBlocks[volume.IndexSize - 1 - dataBlockIndex];
             }
             else
             {
+                var extBlockIndex = (dataBlockIndex - volume.IndexSize) / volume.IndexSize;
+                var indexInExtBlk = (dataBlockIndex - volume.IndexSize) % volume.IndexSize;
+
                 var nSect = fileHdr.Extension;
-                i = 0;
-                while (i < extBlock && nSect != 0)
+                for (var i = 0; i <= extBlockIndex; i++)
                 {
+                    if (nSect == 0)
+                    {
+                        throw new IOException($"adfFileSeek : file extension block {i} not found");
+                    }
+
                     currentExt = await Disk.ReadFileExtBlock(volume, nSect);
                     nSect = currentExt.Extension;
                 }
 
-                if (i != extBlock)
-                {
-                    throw new IOException("error");
-                }
-
-                currentData = currentExt.Index[posInExtBlk] == 0
-                    ? new DataBlock
-                    {
-                        Data = new byte[volume.DataBlockSize]
-                    }
-                    : await Disk.ReadDataBlock(volume, currentExt.Index[posInExtBlk]);
+                dataBlockSector = currentExt.Index[volume.IndexSize - 1 - indexInExtBlk];
+                posInExtBlk = indexInExtBlk + 1;
             }
-        }
 
-        /*
-        * adfPos2DataBlock
-            *
-            */
-        private uint Pos2DataBlock(uint position) //, int *posInExtBlk, int *posInDataBlk, int32_t *curDataN )
-        {
-            posInDataBlk = (uint)(position % volume.FileSystemBlockSize);
-            curDataPtr = (uint)(position / volume.FileSystemBlockSize);
-            if (posInDataBlk == 0)
-                curDataPtr++;
-            if (curDataPtr < 72)
+            if (dataBlockSector == 0)
             {
-                posInExtBlk = 0;
-                return uint.MaxValue;
+                throw new IOException($"adfFileSeek : data block {dataBlockIndex} not found");
             }
 
-            posInExtBlk = (uint)((position - 72 * volume.FileSystemBlockSize) % volume.FileSystemBlockSize);
-            var extBlock = (uint)((position - 72 * volume.FileSystemBlockSize) / volume.FileSystemBlockSize);
-            if (posInExtBlk == 0)
-                extBlock++;
-            return extBlock;
+            return dataBlockSector;
         }
 
 /*
  * adfReadFile
  *
  */
-        private async Task<int> AdfReadFile(int n, byte[] buffer)
+        private async Task<int> AdfReadFile(byte[] buffer, int offset, int n)
         {
             // https://github.com/lclevy/ADFlib/blob/be8a6f6e8d0ca8fda963803eef77366c7584649a/src/adf_file.c#L369
 
             //uint8_t *dataPtr, *bufPtr;
 
-            if (n > buffer.Length)
+            if (offset < 0 || n < 0 || offset + n > buffer.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(n),
-                    $"Count '{n}' is larger than buffer size '{buffer.Length}'");
+                    $"Offset '{offset}' and count '{n}' is outside buffer size '{buffer.Length}'");
             }
 
             var blockSize = volume.DataBlockSize;
@@ -230,7 +255,7 @@
             // }
 
             var bytesRead = 0;
-            var bufPtr = 0;
+            var bufPtr = offset;
             while (bytesRead < n)
             {
                 var size = (int)Math.Min(n - bytesRead, blockSize - posInDataBlk);
@@ -314,7 +339,7 @@
  * adfWriteFile
  *
  */
-        public async Task<int> AdfWriteFile(int n, byte[] buffer)
+        public async Task<int> AdfWriteFile(byte[] buffer, int offset, int n)
         {
             if (n == 0)
             {
@@ -336,7 +361,7 @@
             }
 
             var bytesWritten = 0;
-            var bufPtr = 0;
+            var bufPtr = offset;
             while (bytesWritten < n)
             {
                 var size = (int)Math.Min(n - bytesWritten, blockSize - posInDataBlk);
