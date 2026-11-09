@@ -33,18 +33,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
 
         public string Name => volume.RootBlock.DiskName;
 
-        public long Size => (long)volume.Blocks * volume.BlockSize;
+        public long Size => (long)volume.Blocks * volume.FileSystemBlockSize;
 
-        public long Free
-        {
-            get
-            {
-                var freeBlocks = volume.BitmapTable.Sum(bitmapBlock =>
-                    bitmapBlock.Map.Sum(m => MapBlockHelper.ConvertUInt32ToBlockFreeMap(m).Count(f => f)));
-
-                return (long)freeBlocks * volume.BlockSize;
-            }
-        }
+        public long Free => Bitmap.AdfCountFreeBlocks(volume) * volume.FileSystemBlockSize;
 
         public async Task<IEnumerable<FileSystems.Entry>> ListEntries()
         {
