@@ -147,6 +147,47 @@
             vol.BitmapBlocksChg[block] = true;
         }
 
+        /// <summary>
+        /// Count free blocks in bitmap. Only bits of blocks in the volume are counted, as bits after the last block
+        /// of the volume in the last bitmap block can be set (e.g. Workbench floppy disks).
+        /// </summary>
+        /// <param name="vol">Volume to count free blocks of.</param>
+        /// <returns>Number of free blocks.</returns>
+        public static long AdfCountFreeBlocks(Volume vol)
+        {
+            long remainingBlocks = vol.Blocks > vol.Reserved ? vol.Blocks - vol.Reserved : 0;
+            long freeBlocks = 0;
+
+            foreach (var bitmapBlock in vol.BitmapTable)
+            {
+                for (var i = 0; i < vol.OffsetsPerBitmapBlock && i < bitmapBlock.Map.Length; i++)
+                {
+                    if (remainingBlocks <= 0)
+                    {
+                        return freeBlocks;
+                    }
+
+                    var mapEntry = bitmapBlock.Map[i];
+                    if (remainingBlocks < 32)
+                    {
+                        mapEntry &= (1U << (int)remainingBlocks) - 1;
+                    }
+
+                    freeBlocks += CountBits(mapEntry);
+                    remainingBlocks -= 32;
+                }
+            }
+
+            return freeBlocks;
+        }
+
+        private static int CountBits(uint value)
+        {
+            value -= (value >> 1) & 0x55555555;
+            value = (value & 0x33333333) + ((value >> 2) & 0x33333333);
+            return (int)((((value + (value >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24);
+        }
+
         public static bool AdfIsBlockFree(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - vol.Reserved;
