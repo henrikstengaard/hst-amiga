@@ -1,11 +1,16 @@
-﻿namespace Hst.Amiga.Tests;
+namespace Hst.Amiga.Tests;
 
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
+/// <summary>
+/// Sparse memory stream storing data in blocks of block size at block aligned offsets.
+/// Reads and writes are byte accurate and unwritten areas within length are read as zeroes.
+/// </summary>
 public class BlockMemoryStream : Stream
 {
     private readonly int blockSize;
@@ -13,15 +18,18 @@ public class BlockMemoryStream : Stream
     private long length;
     private long position;
 
+    /// <summary>
+    /// Blocks written indexed by block aligned offset.
+    /// </summary>
     public readonly ReadOnlyDictionary<long, byte[]> Blocks;
 
     public BlockMemoryStream(int blockSize = 512)
     {
-        if (blockSize % 512 != 0)
+        if (blockSize <= 0 || blockSize % 512 != 0)
         {
-            throw new ArgumentException("Block size must be dividable by 512", nameof(blockSize));
+            throw new ArgumentException("Block size must be a positive multiple of 512", nameof(blockSize));
         }
-            
+
         this.blockSize = blockSize;
         this.blocks = new Dictionary<long, byte[]>();
         this.Blocks = new ReadOnlyDictionary<long, byte[]>(this.blocks);
@@ -35,65 +43,112 @@ public class BlockMemoryStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        var bytesRead = 0;
-        for (var i = offset; i < Math.Min(buffer.Length, offset + count); i += blockSize)
+        ValidateBufferArguments(buffer, offset, count);
+
+        if (position >= length)
         {
-            // skip position, if block doesn't exist and increase bytes read with block size
-            if (!blocks.ContainsKey(position))
+            return 0;
+        }
+
+        var bytesToRead = (int)Math.Min(count, length - position);
+        var bytesRead = 0;
+
+        while (bytesRead < bytesToRead)
+        {
+            var blockOffset = GetBlockOffset(position);
+            var offsetInBlock = (int)(position - blockOffset);
+            var bytesToCopy = Math.Min(blockSize - offsetInBlock, bytesToRead - bytesRead);
+
+            if (blocks.TryGetValue(blockOffset, out var block))
             {
-                bytesRead += blockSize;
-                continue;
+                Array.Copy(block, offsetInBlock, buffer, offset + bytesRead, bytesToCopy);
             }
-            
-            var block = blocks[position];
+            else
+            {
+                // block doesn't exist, read as zeroes
+                Array.Clear(buffer, offset + bytesRead, bytesToCopy);
+            }
 
-            var bytesToCopy = i + blockSize < buffer.Length ? blockSize : buffer.Length - i;
-            
-            Array.Copy(block, 0, buffer, i, bytesToCopy);
-            position += blockSize;
-
+            position += bytesToCopy;
             bytesRead += bytesToCopy;
-        }        
-        
+        }
+
         return bytesRead;
+    }
+
+    public override void Write(byte[] buffer, int offset, int count)
+    {
+        ValidateBufferArguments(buffer, offset, count);
+
+        var bytesWritten = 0;
+
+        while (bytesWritten < count)
+        {
+            var blockOffset = GetBlockOffset(position);
+            var offsetInBlock = (int)(position - blockOffset);
+            var bytesToCopy = Math.Min(blockSize - offsetInBlock, count - bytesWritten);
+
+            // get existing block to preserve bytes not written or create new zeroed block
+            if (!blocks.TryGetValue(blockOffset, out var block))
+            {
+                block = new byte[blockSize];
+                blocks[blockOffset] = block;
+            }
+
+            Array.Copy(buffer, offset + bytesWritten, block, offsetInBlock, bytesToCopy);
+
+            position += bytesToCopy;
+            bytesWritten += bytesToCopy;
+        }
+
+        if (position > length)
+        {
+            length = position;
+        }
     }
 
     public override long Seek(long offset, SeekOrigin origin)
     {
-        position = origin switch
+        var newPosition = origin switch
         {
-            SeekOrigin.End => throw new NotSupportedException("Block memory stream doesn't support seek end"),
-            SeekOrigin.Begin => 0,
-            _ => position
+            SeekOrigin.Begin => offset,
+            SeekOrigin.Current => position + offset,
+            SeekOrigin.End => length + offset,
+            _ => throw new ArgumentOutOfRangeException(nameof(origin))
         };
 
-        position += offset;
+        if (newPosition < 0)
+        {
+            throw new IOException("Seek before beginning of stream");
+        }
+
+        position = newPosition;
 
         return position;
     }
 
     public override void SetLength(long value)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+
+        if (value < length)
+        {
+            // remove blocks starting at or after new length
+            foreach (var blockOffset in blocks.Keys.Where(x => x >= value).ToList())
+            {
+                blocks.Remove(blockOffset);
+            }
+
+            // clear bytes after new length in last block, so they are read as zeroes if length is increased
+            var lastBlockOffset = GetBlockOffset(value);
+            if (blocks.TryGetValue(lastBlockOffset, out var lastBlock))
+            {
+                var offsetInBlock = (int)(value - lastBlockOffset);
+                Array.Clear(lastBlock, offsetInBlock, blockSize - offsetInBlock);
+            }
+        }
+
         length = value;
-    }
-
-    public override void Write(byte[] buffer, int offset, int count)
-    {
-        for (var i = offset; i < Math.Min(buffer.Length, offset + count); i += blockSize)
-        {
-            var blockBytes = new byte[blockSize];
-
-            var bytesToWrite = i + blockSize < buffer.Length  ? blockSize : buffer.Length - i;
-            
-            Array.Copy(buffer, i, blockBytes, 0, bytesToWrite);
-            blocks[position] = blockBytes;
-            position += blockSize;
-        }
-        
-        if (position > length)
-        {
-            length = position;
-        }
     }
 
     public override bool CanRead => true;
@@ -104,16 +159,26 @@ public class BlockMemoryStream : Stream
     public override long Position
     {
         get => position;
-        set => position = value;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(value);
+            position = value;
+        }
     }
 
+    /// <summary>
+    /// Write blocks to stream at their offsets and set stream length to length of block memory stream.
+    /// </summary>
     public async Task WriteTo(Stream stream)
     {
         stream.SetLength(length);
-        foreach (var block in blocks)
+        foreach (var block in blocks.OrderBy(x => x.Key))
         {
             stream.Seek(block.Key, SeekOrigin.Begin);
-            await stream.WriteAsync(block.Value, 0, block.Value.Length);
+            var bytesToWrite = (int)Math.Min(blockSize, length - block.Key);
+            await stream.WriteAsync(block.Value, 0, bytesToWrite);
         }
     }
+
+    private long GetBlockOffset(long offset) => offset / blockSize * blockSize;
 }
