@@ -13,6 +13,7 @@ Hst Amiga Nuget package contains following features:
 - File systems
   - Read, write and format Fast File System (FFS) partitions. Supports DOS types DOS0-7.
   - Read, write and format Professional File System 3 (PFS3) partitions. Supports DOS types PFS3, PDS3.
+  - Read, write and format Smart File System (SFS) partitions. Supports DOS type SFS\0.
 - Read version strings.
 
 Hst Amiga console version comes with following features:
