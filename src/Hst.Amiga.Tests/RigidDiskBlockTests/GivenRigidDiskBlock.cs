@@ -3,9 +3,11 @@
     using System;
     using System.IO;
     using System.Linq;
+    using System.Text;
     using System.Threading.Tasks;
     using Core.Extensions;
     using Extensions;
+    using HunkTests;
     using RigidDiskBlocks;
     using Xunit;
 
@@ -85,6 +87,97 @@
             Assert.Single(rigidDiskBlock.FileSystemHeaderBlocks);
         }
         
+        [Fact]
+        public async Task WhenAddFileSystemWithVersionStringAndRomTagThenVersionIsReadFromRomTag()
+        {
+            var pfs3FileSystemBytes =
+                await File.ReadAllBytesAsync(Path.Combine("TestData", "RigidDiskBlocks", "pfs3aio"));
+
+            var rigidDiskBlock = RigidDiskBlock
+                .Create(10.MB().ToUniversalSize())
+                .AddFileSystem(Pds3DosType, pfs3FileSystemBytes);
+
+            var fileSystemHeaderBlock = Assert.Single(rigidDiskBlock.FileSystemHeaderBlocks);
+            Assert.Equal(19, fileSystemHeaderBlock.Version);
+            Assert.Equal(2, fileSystemHeaderBlock.Revision);
+        }
+
+        [Theory]
+        // id string and version string agree
+        [InlineData(2, "TestFileSystem 2.15 (03.04.2025)", "$VER: TestFileSystem 2.15 (03.04.2025)", 2, 15)]
+        // id string and version string disagree, id string matches rt_Version
+        [InlineData(2, "TestFileSystem 2.15 (03.04.2025)", "$VER: TestFileSystem 3.4 (01.01.2000)", 2, 15)]
+        // id string and version string disagree, version string matches rt_Version
+        [InlineData(3, "TestFileSystem 2.15 (03.04.2025)", "$VER: TestFileSystem 3.4 (01.01.2000)", 3, 4)]
+        // id string and version string disagree, none matches rt_Version, id string is preferred
+        [InlineData(5, "TestFileSystem 2.15 (03.04.2025)", "$VER: TestFileSystem 3.4 (01.01.2000)", 2, 15)]
+        // id string without version, version string doesn't match rt_Version
+        [InlineData(5, "TestFileSystem without version", "$VER: TestFileSystem 3.4 (01.01.2000)", 3, 4)]
+        // id string without version string, rt_Version not set
+        [InlineData(0, "TestFileSystem 2.15 (03.04.2025)", "no version string", 2, 15)]
+        // id string and version string without version, rt_Version is used
+        [InlineData(7, "TestFileSystem without version", "no version string", 7, 0)]
+        // id string and version string without version, rt_Version not set
+        [InlineData(0, "TestFileSystem without version", "no version string", 1, 0)]
+        public void WhenAddFileSystemWithRomTagThenVersionIsReadFromRomTagAndVersionString(byte romTagVersion,
+            string idString, string otherString, int expectedVersion, int expectedRevision)
+        {
+            var fileSystemBytes = CreateFileSystemHunkFile(romTagVersion, $"{idString}\r\n", otherString);
+
+            var rigidDiskBlock = RigidDiskBlock
+                .Create(10.MB().ToUniversalSize())
+                .AddFileSystem(Pds3DosType, fileSystemBytes);
+
+            var fileSystemHeaderBlock = Assert.Single(rigidDiskBlock.FileSystemHeaderBlocks);
+            Assert.Equal(expectedVersion, fileSystemHeaderBlock.Version);
+            Assert.Equal(expectedRevision, fileSystemHeaderBlock.Revision);
+        }
+
+        [Fact]
+        public void WhenAddFileSystemWithOnlyVersionStringThenVersionStringIsUsed()
+        {
+            var rigidDiskBlock = RigidDiskBlock
+                .Create(10.MB().ToUniversalSize())
+                .AddFileSystem(Dos3DosType, Encoding.ASCII.GetBytes("$VER: FastFileSystem 45.16 (01.01.2000)"));
+
+            var fileSystemHeaderBlock = Assert.Single(rigidDiskBlock.FileSystemHeaderBlocks);
+            Assert.Equal(45, fileSystemHeaderBlock.Version);
+            Assert.Equal(16, fileSystemHeaderBlock.Revision);
+        }
+
+        [Fact]
+        public void WhenAddFileSystemWithoutRomTagAndVersionStringThenVersion1Revision0IsUsed()
+        {
+            var rigidDiskBlock = RigidDiskBlock
+                .Create(10.MB().ToUniversalSize())
+                .AddFileSystem(Dos3DosType, new byte[] { 0x4e, 0x75, 0, 0 });
+
+            var fileSystemHeaderBlock = Assert.Single(rigidDiskBlock.FileSystemHeaderBlocks);
+            Assert.Equal(1, fileSystemHeaderBlock.Version);
+            Assert.Equal(0, fileSystemHeaderBlock.Revision);
+        }
+
+        /// <summary>
+        /// Create file system hunk file with resident structure version, id string and an additional string.
+        /// </summary>
+        private static byte[] CreateFileSystemHunkFile(byte romTagVersion, string idString, string otherString)
+        {
+            const int romTagOffset = 0;
+            const int nameOffset = 32;
+            const int idStringOffset = 64;
+            var otherStringOffset = idStringOffset + idString.Length + 1;
+
+            var code = new byte[otherStringOffset + otherString.Length + 1];
+            HunkFileBuilder.WriteRomTag(code, romTagOffset, 0, romTagVersion, 0, 0, nameOffset, idStringOffset);
+            HunkFileBuilder.WriteString(code, nameOffset, "TestFileSystem");
+            HunkFileBuilder.WriteString(code, idStringOffset, idString);
+            HunkFileBuilder.WriteString(code, otherStringOffset, otherString);
+
+            return new HunkFileBuilder()
+                .AddCode(code, 0, HunkFileBuilder.RomTagRelocations(romTagOffset, 0, 0, 0))
+                .Build();
+        }
+
         [Fact]
         public async Task WhenAddFileSystemTwiceWithOverwriteThenOnlyOneFileSystemExists()
         {
