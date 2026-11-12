@@ -8,6 +8,9 @@
 
     public static class HunkReader
     {
+        // upper 2 bits of hunk identifiers and sizes are memory flags
+        private const uint MemoryFlagsMask = 0xC0000000;
+
         // http://amiga-dev.wikidot.com/file-format:hunk#toc15
         // https://www.markwrobel.dk/post/amiga-machine-code-detour-reverse-engineering/
         // http://amiga.rules.no/abfs/abfs.pdf
@@ -20,12 +23,19 @@
                 header
             };
 
-            IHunk hunk;
+            // each code, data or bss hunk is terminated by an end hunk
+            var hunkCount = header.LastHunkSlot - header.FirstHunkSlot + 1;
+            var endCount = 0;
             do
             {
-                hunk = await ReadHunk(stream);
+                var hunk = await ReadHunk(stream);
                 hunks.Add(hunk);
-            } while (hunk != null && hunk.Identifier != HunkIdentifiers.End);
+
+                if (hunk.Identifier == HunkIdentifiers.End)
+                {
+                    endCount++;
+                }
+            } while (endCount < hunkCount && (!stream.CanSeek || stream.Position < stream.Length));
 
             return hunks;
         }
@@ -34,10 +44,14 @@
         {
             var identifier = await stream.ReadBigEndianUInt32();
 
-            switch (identifier)
+            switch (identifier & ~MemoryFlagsMask)
             {
                 case HunkIdentifiers.Code:
                     return await ReadCode(stream);
+                case HunkIdentifiers.Data:
+                    return await ReadData(stream);
+                case HunkIdentifiers.Bss:
+                    return await ReadBss(stream);
                 case HunkIdentifiers.ReLoc32:
                     return await ReadReLoc32(stream);
                 case HunkIdentifiers.End:
@@ -72,10 +86,25 @@
             var firstHunk = await stream.ReadBigEndianUInt32();
             var lastHunk = await stream.ReadBigEndianUInt32();
 
-            var hunkSizes = new List<uint>();
-            for (var i = 0; i < lastHunk - firstHunk + 1; i++)
+            if (lastHunk < firstHunk)
             {
-                hunkSizes.Add(await stream.ReadBigEndianUInt32());
+                throw new IOException("Invalid hunk header first and last hunk slots");
+            }
+
+            var hunkCount = (long)lastHunk - firstHunk + 1;
+            EnsureAvailable(stream, hunkCount * 4);
+
+            var hunkSizes = new List<uint>();
+            for (var i = 0; i < hunkCount; i++)
+            {
+                var hunkSize = await stream.ReadBigEndianUInt32();
+                hunkSizes.Add(hunkSize);
+
+                // both memory flags set, extended memory attributes follow
+                if ((hunkSize & MemoryFlagsMask) == MemoryFlagsMask)
+                {
+                    await stream.ReadBigEndianUInt32();
+                }
             }
 
             return new Header
@@ -90,18 +119,50 @@
 
         public static async Task<Code> ReadCode(Stream stream)
         {
-            var size = await stream.ReadBigEndianUInt32();
-            var data = await stream.ReadBytes((int)size * 4);
-
             return new Code
             {
-                Data = data
+                Data = await ReadHunkData(stream)
             };
+        }
+
+        public static async Task<Data> ReadData(Stream stream)
+        {
+            return new Data
+            {
+                Bytes = await ReadHunkData(stream)
+            };
+        }
+
+        public static async Task<Bss> ReadBss(Stream stream)
+        {
+            var size = await stream.ReadBigEndianUInt32() & ~MemoryFlagsMask;
+
+            return new Bss
+            {
+                Size = size * 4
+            };
+        }
+
+        private static async Task<byte[]> ReadHunkData(Stream stream)
+        {
+            var size = (long)(await stream.ReadBigEndianUInt32() & ~MemoryFlagsMask) * 4;
+            EnsureAvailable(stream, size);
+
+            return await stream.ReadBytes((int)size);
+        }
+
+        private static void EnsureAvailable(Stream stream, long size)
+        {
+            if (size > int.MaxValue || (stream.CanSeek && stream.Position + size > stream.Length))
+            {
+                throw new IOException("Hunk size exceeds end of stream");
+            }
         }
         
         public static async Task<ReLoc32> ReadReLoc32(Stream stream)
         {
             var hunkOffsets = new List<uint>();
+            var entries = new List<ReLoc32Entry>();
 
             do
             {
@@ -116,16 +177,27 @@
                 var hunkNumber = await stream.ReadBigEndianUInt32();
                 hunkOffsets.Add(hunkNumber);
 
+                EnsureAvailable(stream, (long)numOffsets * 4);
+
+                var entryOffsets = new List<uint>();
                 for (var i = 0; i < numOffsets; i++)
                 {
                     var hunkOffset = await stream.ReadBigEndianUInt32();
                     hunkOffsets.Add(hunkOffset);
+                    entryOffsets.Add(hunkOffset);
                 }
+
+                entries.Add(new ReLoc32Entry
+                {
+                    HunkNumber = hunkNumber,
+                    Offsets = entryOffsets
+                });
             } while (stream.Position < stream.Length);
 
             return new ReLoc32
             {
-                Offsets = hunkOffsets
+                Offsets = hunkOffsets,
+                Entries = entries
             };
         }
 
@@ -134,6 +206,8 @@
             var numLongs = await stream.ReadBigEndianUInt32();
             if (numLongs < 1)
                 return null;
+
+            EnsureAvailable(stream, (long)numLongs * 4);
 
             var stringBytes = await stream.ReadBytes((int)numLongs * 4);
 

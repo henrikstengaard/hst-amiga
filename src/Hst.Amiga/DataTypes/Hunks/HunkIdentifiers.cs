@@ -13,6 +13,16 @@
         public const uint Code = 0x3E9;
 
         /// <summary>
+        /// Hunk data
+        /// </summary>
+        public const uint Data = 0x3EA;
+
+        /// <summary>
+        /// Hunk bss
+        /// </summary>
+        public const uint Bss = 0x3EB;
+
+        /// <summary>
         /// Hunk reloc32
         /// </summary>
         public const uint ReLoc32 = 0x3EC;
