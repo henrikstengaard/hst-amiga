@@ -27,6 +27,16 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
         private const int MinBlockSize = 512;
         private const int MaxBlockSize = 32768;
 
+        /// <summary>
+        /// Sectors of double density floppy disk: 80 cylinders, 2 heads and 11 sectors per track.
+        /// </summary>
+        public const int DoubleDensityFloppySectors = 80 * 2 * 11;
+
+        /// <summary>
+        /// Sectors of high density floppy disk: 80 cylinders, 2 heads and 22 sectors per track.
+        /// </summary>
+        public const int HighDensityFloppySectors = 80 * 2 * 22;
+
         private class FfsBootBlock
         {
             public long Sector;
@@ -56,11 +66,14 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
         /// <param name="bufferSize">Size of buffer used to read disk.</param>
         /// <param name="progress">Progress reporting bytes scanned.</param>
         /// <param name="messages">Messages for file systems found and skipped.</param>
+        /// <param name="skipFloppyImages">Skip file systems with size of double density (1760 sectors) or high
+        /// density (3520 sectors) floppy disks, which are likely .adf floppy images stored as files within a
+        /// partition.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>File systems found ordered by start sector. Overlapping file systems are resolved by keeping
         /// newest file system.</returns>
         public static async Task<IList<FoundFileSystem>> Scan(Stream stream, long diskSize, int bufferSize = 1024 * 1024,
-            IProgress<long> progress = null, IList<RecoveryMessage> messages = null,
+            IProgress<long> progress = null, IList<RecoveryMessage> messages = null, bool skipFloppyImages = false,
             CancellationToken cancellationToken = default)
         {
             messages = messages ?? new List<RecoveryMessage>();
@@ -149,6 +162,18 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
 
                 return x;
             }));
+
+            if (skipFloppyImages)
+            {
+                // skip floppy images before resolving overlaps, otherwise a floppy image newer than the file
+                // system of the partition it's stored in would cause the partition file system to be skipped
+                foreach (var floppyImage in candidates.Where(IsFloppyImage).ToList())
+                {
+                    messages.Add(new RecoveryMessage(RecoveryMessageLevel.Info,
+                        $"Skipped {floppyImage}, which appears to be a floppy image"));
+                    candidates.Remove(floppyImage);
+                }
+            }
 
             return ResolveOverlaps(candidates, diskSize / SectorSize, messages);
         }
@@ -318,6 +343,7 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
                     IsExactSize = false,
                     RootBlockSector = rootBlock.Sector,
                     FileSystemBlockSize = rootBlock.BlockSize,
+                    BitmapBlockOffset = rootBlock.BitmapBlockOffset,
                     Reserved = 2,
                     VolumeName = rootBlock.Name,
                     CreationDate = rootBlock.CreationDate
@@ -420,6 +446,26 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
 
             return fileSystems;
         }
+
+        /// <summary>
+        /// File system appears to be a floppy image, if it uses 512 bytes blocks and either:
+        /// - its size can be the size of a double or high density floppy disk. Size of fast file system is
+        ///   estimated from root block location, which for floppy disks is block 880 for double density and block
+        ///   1760 for high density.
+        /// - it's a fast file system with first bitmap block after root block of a double (block 881) or high
+        ///   density (block 1761) floppy disk. This detects floppy images stored fragmented in a partition, where
+        ///   distance between boot block and root block on disk doesn't match the root block offset.
+        /// </summary>
+        private static bool IsFloppyImage(FoundFileSystem fileSystem) =>
+            fileSystem.FileSystemBlockSize == SectorSize &&
+            (IsInSizeRange(fileSystem, DoubleDensityFloppySectors) ||
+             IsInSizeRange(fileSystem, HighDensityFloppySectors) ||
+             (fileSystem.Type == FileSystemType.FastFileSystem &&
+              (fileSystem.BitmapBlockOffset == DoubleDensityFloppySectors / 2 + 1 ||
+               fileSystem.BitmapBlockOffset == HighDensityFloppySectors / 2 + 1)));
+
+        private static bool IsInSizeRange(FoundFileSystem fileSystem, long sectors) =>
+            fileSystem.Sectors <= sectors && sectors <= fileSystem.MaxSectors;
 
         private static bool IsValidBlockSize(uint blockSize) =>
             blockSize >= MinBlockSize && blockSize <= MaxBlockSize && (blockSize & (blockSize - 1)) == 0;

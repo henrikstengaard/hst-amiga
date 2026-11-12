@@ -51,6 +51,13 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
         public uint FileSystemBlockSize { get; set; }
 
         /// <summary>
+        /// Block offset of first bitmap block relative to partition start, read from fast file system root block.
+        /// Format places first bitmap block after root block, which makes it a hint for the root block offset that
+        /// doesn't depend on the boot block location. 0, if not available.
+        /// </summary>
+        public uint BitmapBlockOffset { get; set; }
+
+        /// <summary>
         /// Number of reserved blocks at start of partition.
         /// </summary>
         public uint Reserved { get; set; }

@@ -56,6 +56,10 @@ Recovery modes:
   and file systems (FSHD/LSEG blocks) still intact in the Rigid Disk Block area are reused.
 - Auto (default): fix if a Rigid Disk Block is found, otherwise rebuild.
 
+Set `SkipFloppyImages` to skip file systems the size of a double density (1760 sectors) or high density
+(3520 sectors) floppy disk. These are usually .adf floppy images stored as files inside a partition, and a newer
+floppy image would otherwise win over the partition it is stored in.
+
 `Analyze` is a dry run and never writes to the disk. `Repair` writes the changed sectors of the Rigid Disk Block
 area, but only when recovery finished without errors.
 

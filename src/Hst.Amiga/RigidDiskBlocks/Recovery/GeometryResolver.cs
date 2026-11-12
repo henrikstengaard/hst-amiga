@@ -45,7 +45,25 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
         {
             var preferred = preferredGeometries.Where(x => IsSane(x.Heads, x.Sectors)).Distinct().ToList();
 
-            foreach (var geometry in preferred.Concat(KnownGeometries))
+            // use preferred geometry fitting most file systems. file systems not fitting preferred geometry, e.g.
+            // a partition shifted from cylinder boundary, gets partition geometry of its own
+            var bestPreferred = preferred
+                .Select(x => new { Geometry = x, Count = fileSystems.Count(f => Fits(new[] { f }, x.Heads * x.Sectors)) })
+                .OrderByDescending(x => x.Count)
+                .FirstOrDefault();
+
+            if (bestPreferred != null && (bestPreferred.Count > 0 || fileSystems.Count == 0))
+            {
+                if (bestPreferred.Count < fileSystems.Count)
+                {
+                    result.Warning(
+                        $"{fileSystems.Count - bestPreferred.Count} file system(s) don't fit geometry with {bestPreferred.Geometry.Heads} heads and {bestPreferred.Geometry.Sectors} sectors from existing blocks");
+                }
+
+                return bestPreferred.Geometry;
+            }
+
+            foreach (var geometry in KnownGeometries)
             {
                 if (Fits(fileSystems, geometry.Heads * geometry.Sectors))
                 {

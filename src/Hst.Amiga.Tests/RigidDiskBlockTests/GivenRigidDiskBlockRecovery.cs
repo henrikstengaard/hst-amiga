@@ -222,6 +222,87 @@ public class GivenRigidDiskBlockRecovery
         await AssertVolumes(stream, rigidDiskBlock);
     }
 
+    [Theory]
+    [InlineData(11, FileSystemScanner.DoubleDensityFloppySectors)]
+    [InlineData(22, FileSystemScanner.HighDensityFloppySectors)]
+    public async Task WhenRepairDiskWithFloppyImageAndSkipFloppyImagesThenFloppyImageIsSkipped(
+        uint floppySectors, int floppySize)
+    {
+        // arrange - create disk, clear rigid disk block area and write floppy image within sfs partition
+        var (stream, expected) = await CreateDisk();
+        await ClearSectors(stream, 0, 2016);
+        await WriteFloppyImage(stream, floppySectors);
+
+        // act - repair rigid disk block skipping floppy images
+        var result = await RigidDiskBlockRecovery.Repair(stream, new RecoveryOptions { SkipFloppyImages = true });
+
+        // assert - floppy image is skipped and partitions are rebuilt
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Messages));
+        Assert.Contains(result.Messages, x => x.Text.StartsWith("Skipped FastFileSystem") &&
+                                              x.Text.Contains($"size {floppySize} sectors") &&
+                                              x.Text.EndsWith("appears to be a floppy image"));
+        Assert.Equal(3, result.FileSystems.Count);
+
+        var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+        AssertPartitions(expected, rigidDiskBlock);
+        await AssertVolumes(stream, rigidDiskBlock);
+    }
+
+    [Fact]
+    public async Task WhenRepairDiskWithFragmentedFloppyImageAndSkipFloppyImagesThenFloppyImageIsSkipped()
+    {
+        // arrange - create disk, clear rigid disk block area and write double density floppy image within sfs
+        // partition with root block moved from block 880 to 544 like a floppy image file stored fragmented
+        var (stream, expected) = await CreateDisk();
+        await ClearSectors(stream, 0, 2016);
+        var floppyStartSector = await WriteFloppyImage(stream, 11);
+        var rootBlockBytes = await ReadSectors(stream, floppyStartSector + 880, 1);
+        await ClearSectors(stream, floppyStartSector + 880, 1);
+        stream.Seek((floppyStartSector + 544) * SectorSize, SeekOrigin.Begin);
+        await stream.WriteBytes(rootBlockBytes);
+
+        // act - repair rigid disk block skipping floppy images
+        var result = await RigidDiskBlockRecovery.Repair(stream, new RecoveryOptions { SkipFloppyImages = true });
+
+        // assert - fragmented floppy image with estimated size 1088 sectors is skipped by bitmap block offset
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Messages));
+        Assert.Contains(result.Messages, x => x.Text.StartsWith("Skipped FastFileSystem 'Floppy'") &&
+                                              x.Text.Contains("size 1088 sectors") &&
+                                              x.Text.EndsWith("appears to be a floppy image"));
+
+        var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+        AssertPartitions(expected, rigidDiskBlock);
+        await AssertVolumes(stream, rigidDiskBlock);
+    }
+
+    [Fact]
+    public async Task WhenAnalyzeDiskWithFloppyImageThenFloppyImageIsNotSkipped()
+    {
+        // arrange - create disk and write double density floppy image within sfs partition
+        var (stream, _) = await CreateDisk();
+        await WriteFloppyImage(stream, 11);
+
+        // act - analyze disk without skipping floppy images
+        var result = await RigidDiskBlockRecovery.Analyze(stream);
+
+        // assert - floppy image is found as file system
+        Assert.DoesNotContain(result.Messages, x => x.Text.EndsWith("appears to be a floppy image"));
+        Assert.Contains(result.Messages, x => x.Text.Contains("FastFileSystem 'Floppy'"));
+    }
+
+    /// <summary>
+    /// Write floppy image formatted with fast file system within free area of sfs partition.
+    /// </summary>
+    private static async Task<long> WriteFloppyImage(Stream stream, uint sectorsPerTrack)
+    {
+        const uint heads = 2;
+        const uint floppyStartSector = 500016;
+        var lowCyl = floppyStartSector / (heads * sectorsPerTrack);
+        await FastFileSystemFormatter.Format(stream, lowCyl, lowCyl + 79, 2, heads, sectorsPerTrack, 512, 512,
+            new byte[] { 0x44, 0x4f, 0x53, 0x0 }, "Floppy");
+        return (long)lowCyl * heads * sectorsPerTrack;
+    }
+
     private static async Task<(BlockMemoryStream, RigidDiskBlock)> CreateDisk(BlockMemoryStream stream = null)
     {
         stream ??= new BlockMemoryStream();

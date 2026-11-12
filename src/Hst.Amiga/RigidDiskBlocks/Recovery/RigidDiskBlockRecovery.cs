@@ -110,7 +110,7 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
             // scan disk for file systems
             var scanMessages = new List<RecoveryMessage>();
             result.FileSystems = await FileSystemScanner.Scan(stream, diskSectors * SectorSize, options.ScanBufferSize,
-                options.Progress, scanMessages, cancellationToken);
+                options.Progress, scanMessages, options.SkipFloppyImages, cancellationToken);
             foreach (var message in scanMessages)
             {
                 result.Messages.Add(message);
