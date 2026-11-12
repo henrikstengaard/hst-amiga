@@ -41,3 +41,36 @@ await 4.GB()
     .WriteToFile(@"4gb.hdf");
 
 ```
+## Recovery
+
+`RigidDiskBlockRecovery` recovers a broken Rigid Disk Block. It scans the disk for boot and root blocks of
+known file systems (FFS/OFS, PFS3 and SFS) to find where each partition starts and how big it is, and it reads
+the Rigid Disk Block leniently: checksums are ignored and the Rigid Disk Block area is scanned for blocks that
+aren't linked.
+
+Recovery modes:
+- Fix: repairs an existing Rigid Disk Block by recalculating checksums, relinking blocks and correcting
+  partitions (low and high cylinder, dos type, block size) from the file systems found.
+  Partitions found on disk that have no partition block are added.
+- Rebuild: builds a new Rigid Disk Block from the disk size and the file systems found. Partition blocks
+  and file systems (FSHD/LSEG blocks) still intact in the Rigid Disk Block area are reused.
+- Auto (default): fix if a Rigid Disk Block is found, otherwise rebuild.
+
+`Analyze` is a dry run and never writes to the disk. `Repair` writes the changed sectors of the Rigid Disk Block
+area, but only when recovery finished without errors.
+
+Example of repairing the Rigid Disk Block in a hard file:
+
+```c#
+await using var stream = File.Open("4gb.hdf", FileMode.Open, FileAccess.ReadWrite);
+var result = await RigidDiskBlockRecovery.Repair(stream, new RecoveryOptions
+{
+    Mode = RecoveryMode.Auto,
+    Pfs3DosType = "PDS3"
+});
+
+foreach (var message in result.Messages)
+{
+    Console.WriteLine(message);
+}
+```
