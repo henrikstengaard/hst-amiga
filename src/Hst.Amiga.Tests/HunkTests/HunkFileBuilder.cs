@@ -26,6 +26,13 @@ namespace Hst.Amiga.Tests.HunkTests
         }
 
         private readonly List<TestHunk> hunks = new();
+        private readonly List<string> residentLibraryNames = new();
+
+        public HunkFileBuilder AddResidentLibraryName(string name)
+        {
+            residentLibraryNames.Add(name);
+            return this;
+        }
 
         public HunkFileBuilder AddCode(byte[] data, uint memoryFlags = 0,
             params (uint Offset, uint TargetHunk)[] relocations) =>
@@ -48,8 +55,13 @@ namespace Hst.Amiga.Tests.HunkTests
         {
             using var stream = new MemoryStream();
 
-            // header without resident library names
+            // header with resident library names terminated by zero
             Write(stream, HunkIdentifiers.Header);
+            foreach (var name in residentLibraryNames)
+            {
+                WriteString(stream, name);
+            }
+
             Write(stream, 0);
             Write(stream, (uint)hunks.Count);
             Write(stream, 0);
@@ -169,6 +181,16 @@ namespace Hst.Amiga.Tests.HunkTests
             var padded = new byte[(data.Length + 3) / 4 * 4];
             Array.Copy(data, padded, data.Length);
             return padded;
+        }
+
+        /// <summary>
+        /// Write string as number of long words followed by string bytes padded with zeros to long word size.
+        /// </summary>
+        public static void WriteString(Stream stream, string value)
+        {
+            var padded = Pad(Encoding.ASCII.GetBytes(value));
+            Write(stream, (uint)padded.Length / 4);
+            stream.Write(padded);
         }
 
         private static void Write(Stream stream, uint value)

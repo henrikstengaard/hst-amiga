@@ -112,6 +112,55 @@ namespace Hst.Amiga.Tests.HunkTests
             await Assert.ThrowsAsync<IOException>(async () => await HunkReader.Read(memoryStream));
         }
 
+        [Theory]
+        // zero terminated and padded with zeros
+        [InlineData(new byte[] { 0, 0, 0, 1, 0x61, 0x62, 0x63, 0 }, "abc")]
+        [InlineData(new byte[] { 0, 0, 0, 2, 0x61, 0x62, 0x63, 0x64, 0x65, 0, 0, 0 }, "abcde")]
+        // fills all long words without zero termination
+        [InlineData(new byte[] { 0, 0, 0, 1, 0x61, 0x62, 0x63, 0x64 }, "abcd")]
+        [InlineData(new byte[] { 0, 0, 0, 2, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68 }, "abcdefgh")]
+        // empty string
+        [InlineData(new byte[] { 0, 0, 0, 1, 0, 0, 0, 0 }, "")]
+        // zero number of long words
+        [InlineData(new byte[] { 0, 0, 0, 0 }, null)]
+        public async Task When_ReadingString_Then_StringEndsAtFirstZeroByteOrAfterAllLongWords(byte[] data,
+            string expectedString)
+        {
+            // arrange
+            var memoryStream = new MemoryStream(data);
+
+            // act
+            var value = await HunkReader.ReadString(memoryStream);
+
+            // assert
+            Assert.Equal(expectedString, value);
+            Assert.Equal(data.Length, memoryStream.Position);
+        }
+
+        [Fact]
+        public async Task When_ReadingHeaderWithResidentLibraryNames_Then_NamesAreRead()
+        {
+            // arrange
+            var data = new HunkFileBuilder()
+                .AddResidentLibraryName("dos.library")
+                .AddResidentLibraryName("test")
+                .AddCode(new byte[] { 0x4e, 0x75, 0, 0 })
+                .Build();
+            var memoryStream = new MemoryStream(data);
+
+            // act
+            var hunks = (await HunkReader.Read(memoryStream)).ToList();
+
+            // assert
+            var header = Assert.IsType<Header>(hunks[0]);
+            Assert.Equal(new[] { "dos.library", "test" }, header.ResidentLibraryNames);
+            Assert.Equal(1U, header.TableSize);
+            Assert.Equal(0U, header.FirstHunkSlot);
+            Assert.Equal(0U, header.LastHunkSlot);
+            Assert.Equal(new[] { HunkIdentifiers.Header, HunkIdentifiers.Code, HunkIdentifiers.End },
+                hunks.Select(hunk => hunk.Identifier));
+        }
+
         [Fact]
         public async Task When_ReadingPngImage_Then_ExceptionIsThrown()
         {

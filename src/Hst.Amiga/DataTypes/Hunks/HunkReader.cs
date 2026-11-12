@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.DataTypes.Hunks
 {
+    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Text;
@@ -71,16 +72,12 @@
 
             var residentLibraryNames = new List<string>();
 
+            // list of resident library names is terminated by zero number of long words
             string residentLibraryName;
-            do
+            while ((residentLibraryName = await ReadString(stream)) != null)
             {
-                residentLibraryName = await ReadString(stream);
-                if (string.IsNullOrEmpty(residentLibraryName))
-                {
-                    break;
-                }
                 residentLibraryNames.Add(residentLibraryName);
-            } while (!string.IsNullOrEmpty(residentLibraryName));
+            }
             
             var tableSize = await stream.ReadBigEndianUInt32();
             var firstHunk = await stream.ReadBigEndianUInt32();
@@ -201,6 +198,10 @@
             };
         }
 
+        /// <summary>
+        /// Read string stored as number of long words followed by string bytes padded with zeros to long word size.
+        /// </summary>
+        /// <returns>String up to first zero byte or null, if number of long words is zero</returns>
         public static async Task<string> ReadString(Stream stream)
         {
             var numLongs = await stream.ReadBigEndianUInt32();
@@ -211,16 +212,14 @@
 
             var stringBytes = await stream.ReadBytes((int)numLongs * 4);
 
-            var endOffset = stringBytes.Length - 1;
-            for (var i = 0; i < stringBytes.Length; i++)
+            // string ends at first zero byte or fills all long words without zero termination
+            var length = Array.IndexOf(stringBytes, (byte)0);
+            if (length < 0)
             {
-                if (stringBytes[i] == '\0')
-                {
-                    endOffset = i;
-                }
+                length = stringBytes.Length;
             }
-            
-            return Encoding.ASCII.GetString(stringBytes, 0, endOffset);
+
+            return Encoding.ASCII.GetString(stringBytes, 0, length);
         }
     }
 }
