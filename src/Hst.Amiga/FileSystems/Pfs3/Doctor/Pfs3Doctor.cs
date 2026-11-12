@@ -1,271 +1,239 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3.Doctor
 {
-    using System.Collections.Generic;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
-    using Blocks;
+    using RigidDiskBlocks;
 
-    public class Pfs3Doctor
+    /// <summary>
+    /// Port of PFSDoctor (https://github.com/tonioni/pfsdoctor), the PFS3 check and repair tool.
+    /// The class is split in partial files matching the original source files:
+    /// Pfs3Doctor.cs (console.c), Pfs3Doctor.Access.cs (access.c), Pfs3Doctor.Device.cs (device.c),
+    /// Pfs3Doctor.FullScan.cs (fullscan.c), Pfs3Doctor.StandardScan.cs (standardscan.c) and
+    /// Pfs3Doctor.Stats.cs (stats.c). Globals in the original code are fields in this class.
+    /// </summary>
+    public partial class Pfs3Doctor
     {
-        public static Volume OpenVolume(Stream stream, uint surfaces, uint blocksPerTrack, uint lowCyl, uint highCyl, uint sizeBlock)
+        private readonly Volume volume;
+        private Mode mode;
+        private readonly CancellationToken cancellationToken;
+
+        /// <summary>
+        /// abort flag, filled by trap
+        /// </summary>
+        private bool aborting;
+
+        private Stats stats;
+
+        public Pfs3Doctor(Volume volume, Mode mode, CancellationToken cancellationToken = default)
         {
-            var cylsectors = surfaces * blocksPerTrack;
+            this.volume = volume;
+            this.mode = mode;
+            this.cancellationToken = cancellationToken;
+            stats = new Stats();
+            ss = new ScanState();
+            rext = new CachedBlock();
+            tablk = new CachedBlock();
+        }
+
+        /// <summary>
+        /// Statistics from last scan.
+        /// </summary>
+        public Stats Stats => stats;
+
+        /// <summary>
+        /// Open volume from stream and partition block.
+        /// </summary>
+        public static Volume OpenVolume(Stream stream, PartitionBlock partitionBlock)
+        {
+            return OpenVolume(stream, new DosEnvec
+            {
+                de_SizeBlock = partitionBlock.SizeBlock,
+                de_Surfaces = partitionBlock.Surfaces,
+                de_SectorPerBlock = partitionBlock.Sectors,
+                de_BlocksPerTrack = partitionBlock.BlocksPerTrack,
+                de_Reserved = partitionBlock.Reserved,
+                de_PreAlloc = partitionBlock.PreAlloc,
+                de_Interleave = partitionBlock.Interleave,
+                de_LowCyl = partitionBlock.LowCyl,
+                de_HighCyl = partitionBlock.HighCyl,
+                de_NumBuffers = partitionBlock.NumBuffer,
+                de_BufMemType = partitionBlock.BufMemType,
+                de_MaxTransfer = partitionBlock.MaxTransfer,
+                de_Mask = partitionBlock.Mask,
+                de_BootPri = partitionBlock.BootPriority,
+                de_DosType = partitionBlock.DosType == null || partitionBlock.DosType.Length < 4
+                    ? 0
+                    : Core.Converters.BigEndianConverter.ConvertBytesToUInt32(partitionBlock.DosType),
+                de_Baud = partitionBlock.Baud,
+                de_Control = partitionBlock.Control,
+                de_BootBlocks = partitionBlock.BootBlocks
+            }, partitionBlock.DriveName);
+        }
+
+        /// <summary>
+        /// Open volume from stream and geometry.
+        /// </summary>
+        public static Volume OpenVolume(Stream stream, uint surfaces, uint blocksPerTrack, uint lowCyl,
+            uint highCyl, uint sizeBlock, uint sectorPerBlock = 1)
+        {
+            return OpenVolume(stream, new DosEnvec
+            {
+                de_SizeBlock = sizeBlock,
+                de_Surfaces = surfaces,
+                de_SectorPerBlock = sectorPerBlock,
+                de_BlocksPerTrack = blocksPerTrack,
+                de_LowCyl = lowCyl,
+                de_HighCyl = highCyl
+            });
+        }
+
+        /// <summary>
+        /// Open volume (OpenVolume in console.c). Initialises volume structure from dos environment vector.
+        /// </summary>
+        public static Volume OpenVolume(Stream stream, DosEnvec dosEnvec, string deviceName = null)
+        {
+            uint partitionend, b;
+            int i;
+
+            /* init volume structure */
             var volume = new Volume
             {
-                firstblock = lowCyl * cylsectors,
-                lastblock = (highCyl + 1) * cylsectors - 1,
-                Stream = stream
+                Stream = stream,
+                DosEnvec = dosEnvec,
+                DeviceName = deviceName ?? string.Empty
             };
-            var b = volume.blocksize = sizeBlock << 2;
-            int i;
-            for (i = -1; b != 0; i++)
+            var cylsectors = dosEnvec.de_Surfaces * dosEnvec.de_BlocksPerTrack;
+
+            /* saturate instead of wrapping at 2^32 sectors (2TB with 512 byte
+             * sectors): a wrapped partition end turns every derived value
+             * (lastblock, partition size, the access mode test read) into
+             * garbage. Losing the last partial block is the safe direction.
+             */
+            if (cylsectors != 0 && (dosEnvec.de_HighCyl + 1) > 0xFFFFFFFFUL / cylsectors)
+                partitionend = 0xFFFFFFFF;
+            else
+                partitionend = (dosEnvec.de_HighCyl + 1) * cylsectors;
+
+            volume.FirstBlock = dosEnvec.de_LowCyl * cylsectors;
+            volume.LastBlock = partitionend;
+            volume.FullDiskSizeNative = volume.LastBlock - volume.FirstBlock;
+
+            b = dosEnvec.de_SectorPerBlock;
+            volume.BlockLogShift = 0;
+            while (b > 1)
             {
+                volume.BlockLogShift++;
                 b >>= 1;
             }
-            volume.blockshift = (short)i;
-            volume.rescluster = 0;
-            volume.disksize = volume.lastblock - volume.firstblock + 1;
-            volume.lastreserved = volume.disksize - 256;	/* temp value, calculated later */
-            volume.PartitionOffset = volume.firstblock * volume.blocksize;
-            
-            volume.cache = Device.InitCache(volume, 64, 32);		/* make this configurable ? */
+
+            volume.FirstBlock += (1U << volume.BlockLogShift) - 1;
+            volume.FirstBlock &= ~((1U << volume.BlockLogShift) - 1);
+            volume.LastBlock -= 1U << volume.BlockLogShift;
+            volume.LastBlock &= ~((1U << volume.BlockLogShift) - 1);
+
+            b = volume.BlockSize = (dosEnvec.de_SizeBlock << 2) << volume.BlockLogShift;
+            for (i = -1; b != 0; i++)
+                b >>= 1;
+            volume.BlockShift = i;
+            volume.ResCluster = 0;
+
+            volume.DiskSizeNative = volume.LastBlock - volume.FirstBlock;
+            volume.FirstBlockNative = volume.FirstBlock;
+            volume.LastBlockNative = volume.LastBlock + (1U << volume.BlockLogShift) - 1;
+
+            volume.FirstBlock >>= volume.BlockLogShift;
+            volume.LastBlock >>= volume.BlockLogShift;
+
+            /* usable blocks, derived from the aligned limits. Deriving it from
+             * the raw partition size counts one block too many whenever the
+             * partition start is not a multiple of the logical block size (with
+             * 255x63 geometry and 4K blocks, 7 out of 8 LowCyl values): that
+             * phantom block past lastblock can never be read or written.
+             */
+            volume.DiskSize = volume.LastBlock - volume.FirstBlock + 1;
+
+            volume.LastReserved = volume.DiskSize - 256; /* temp value, calculated later */
+
+            volume.Cache.LineSize = 64;
+            volume.Cache.NoLines = 32;
+            volume.Cache.BlockSize = volume.BlockSize;
+
+            volume.GetRawBlocks = (data, blocks, blocknr) => DevGetBlocks(volume, data, blocks, blocknr);
+            volume.WriteRawBlocks = (data, blocks, blocknr) => DevWriteBlocks(volume, data, blocks, blocknr);
 
             return volume;
         }
 
-        public static async Task Scan(Volume volume, bool repair, bool verbose = false)
+        /// <summary>
+        /// Run doctor on volume (main in console.c). Mode check only reports errors and doesn't write
+        /// any changes, mode repair fixes errors, mode unformat undo a fast format and mode info shows
+        /// information about the volume.
+        /// </summary>
+        public static async Task<Pfs3Doctor> Run(Volume volume, Mode mode, bool verbose = false,
+            CancellationToken cancellationToken = default)
         {
-            // if (mode == repair)
-            //     opties = SSF_FIX|SSF_ANALYSE|SSF_GEN_BMMASK;
-            // else if (mode == unformat)
-            //     opties = SSF_UNFORMAT|SSF_FIX|SSF_ANALYSE|SSF_GEN_BMMASK;
-            // else
-            //     opties = SSF_CHECK|SSF_ANALYSE|SSF_GEN_BMMASK;
-		
-            // if (verbose)
-            //     opties |= SSF_VERBOSE;
+            StandardScanFlags opties;
 
-            // opties = opties;
-            //
-            // flags = opties;
-            // if (opties & (SSF_CHECK|SSF_FIX))
-            //     flags |= SSF_GEN_BMMASK;   
+            if (mode == Mode.Repair)
+                opties = StandardScanFlags.Fix | StandardScanFlags.Analyse | StandardScanFlags.GenBmMask;
+            else if (mode == Mode.Unformat)
+                opties = StandardScanFlags.Unformat | StandardScanFlags.Fix | StandardScanFlags.Analyse |
+                         StandardScanFlags.GenBmMask;
+            else if (mode == Mode.Info)
+                opties = StandardScanFlags.Info;
+            else
+                opties = StandardScanFlags.Check | StandardScanFlags.Analyse | StandardScanFlags.GenBmMask;
 
-            var ss = new ss();
-            var mode = Mode.repair;
-            // volume.showmsg("Initializing\n");
-            // ss.flags = flags;
-            // ss.stage = syntax;
-            // ss.pass = stats.pass = 1;
-            // ss.verbose = flags & SSF_VERBOSE;
-            // ss.unformat = flags & SSF_UNFORMAT;
-            
-            InitFullScan(volume);
-            
-            /* unformat .. */
-            if (ss.unformat)
-            {
-                mode = Mode.repair; 		// !! niet really correct !! fix this
-                //volume.showmsg("Unformatting...\n");
-                // if (!(rbl = (rootblock_t *)AllocBufMem (Constants.MAXRESBLOCKSIZE)))
-                // {
-                //     adderror("couldn't allocate memory for rootblock");
-                //     return exitStandardScan(e_out_of_memory);
-                // }
-                // if ((error = BuildRootBlock_hub()) || aborting)
-                //     return exitStandardScan(error);
-            }
-            
-            /* read rootblock */
-            //volume.status(0, "rootblock", 100);
-            await GetRootBlock(volume);
-            //     return exitStandardScan(error);
-            //
-            // volume.progress(0, 40);
-            // if ((error = RepairBootBlock()) || aborting)
-            //     return exitStandardScan(error);
-            //
+            if (verbose)
+                opties |= StandardScanFlags.Verbose;
+
+            /* check mode doesn't write any changes */
+            if (mode == Mode.Check)
+                volume.WriteRawBlocks = (data, blocks, blocknr) => DevWriteBlocksDummy(volume, data, blocks, blocknr);
+            else
+                volume.WriteRawBlocks = (data, blocks, blocknr) => DevWriteBlocks(volume, data, blocks, blocknr);
+
+            var doctor = new Pfs3Doctor(volume, mode, cancellationToken);
+            await doctor.InitCache(volume.Cache.LineSize, volume.Cache.NoLines, volume.BlockSize); /* make this configurable ? */
+            doctor.Result = await doctor.StandardScan(opties);
+            await doctor.CloseVolume();
+
+            return doctor;
         }
-        
-        public static void InitFullScan(Volume volume)
+
+        /// <summary>
+        /// Result of last standard scan.
+        /// </summary>
+        public Error Result { get; private set; }
+
+        /// <summary>
+        /// Close volume (CloseVolume in console.c). Writes dirty cache lines.
+        /// </summary>
+        public async Task CloseVolume()
         {
-            volume.buildblocks = new LinkedList<cachedblock>();
+            await FreeCache();
+            await volume.Stream.FlushAsync(cancellationToken);
         }
-        
-/* read from disk and check
- * Returns error (0 = ERROR_NONE = ok).
- */
-public static async Task GetRootBlock(Volume volume)
-{
-	//error_t error = e_none;
-	int bloknr;
-	int okuser;
-	//struct FileRequester *freq;
-	string mfname;
-	//[FNSIZE], *t;
-	bool ok = false;
-	var stats = new stats();
 
-	stats.enterblock(stats, Constants.ROOTBLOCK);
-	//volume.showmsg("Checking rootblock\n");
-	// if (rbl)
-	// 	FreeBufMem(rbl);
+        /// <summary>
+        /// size of reserved block (SIZEOF_RESBLOCK)
+        /// </summary>
+        private uint SizeOfResBlock => rbl.ReservedBlksize;
 
-	// if (!(rbl = (rootblock_t *)AllocBufMem (MAXRESBLOCKSIZE)))
-	// {
-	// 	adderror("couldn't allocate memory for rootblock");
-	// 	return e_out_of_memory;
-	// }
+        /// <summary>
+        /// longs per bitmap block (LONGS_PER_BMB)
+        /// </summary>
+        private uint LongsPerBmb => ((uint)rbl.ReservedBlksize / 4) - 3;
 
-	// read rootblock 
-	var rblBytes = await Device.GetBlock(volume, Constants.ROOTBLOCK + volume.firstblock, volume.blocksize);
-	var rootBlock = RootBlockReader.Parse(rblBytes);
+        /// <summary>
+        /// indexes per block (INDEX_PER_BLOCK)
+        /// </summary>
+        private uint IndexPerBlock => ((uint)rbl.ReservedBlksize - 3 * 4) / 4;
 
-// 	// check rootblock type
-// 	if (!IsRootBlock(rbl))
-// 	{
-// 		adderror("not an AFS, PFS-II or PFS-III disk");
-// 		okuser = volume.askuser("Rootblock not found.\n"
-// 			"Select ok to search for misplaced rootblock.", "ok", "cancel");
-//
-// 		if (okuser && (bloknr = vol_SearchFileSystem()))
-// 		{
-// 			volume.showmsg("\nRootblock found. Repartitioning .. \n");
-// 			if ((error = Repartition(bloknr)))
-// 				return error;
-//
-// 			volume.askuser(
-// 				"Partition is misplaced. Probable cause of this problem\n"
-// 				"is the use of the 'Get Drive Definition' option in\n"
-// 				"HDToolbox after the disk was formatted\n\n"
-// 				"Now a mountfile will be needed to mount the partition.\n"
-// 				"Press CONTINUE to select location to store the\n"
-// 				"mountlist", "CONTINUE", NULL);
-//
-// 			freq = AllocAslRequestTags(ASL_FileRequest, ASLFR_SleepWindow, TRUE, 
-// 				ASLFR_TitleText, "Select mountfile", ASLFR_InitialFile, "mountme",
-// 				ASLFR_InitialDrawer, "df0:", ASLFR_DoSaveMode, TRUE, TAG_DONE);
-//
-// 			do
-// 			{
-// 				if (AslRequestTags(freq, ASLFR_Window, CheckRepairWnd, TAG_DONE))
-// 				{
-// 					t = stpcpy(mfname, freq->fr_Drawer);
-// 					t = stpcpy(t, freq->fr_File);
-// 					if ((ok = MakeMountFile(mfname)))
-// 						volume.showmsg("Mountlist written\n");
-// 				}
-// 				else
-// 				{
-// 					volume.showmsg("no mountlist written\n");
-// 				}
-// 			} while (!ok);
-//
-// 			FreeAslRequest(freq);	
-// 			volume.askuser("Now starting to check/repair\n"
-// 				"relocated partition", "CONTINUE", NULL);
-//
-// 			return GetRootBlock();
-// 		}
-// 		else
-// 		{
-// 			okuser = volume.askuser("Rootblock not found.\n"
-// 			"Select ok to build a new one.\n"
-// 			"WARNING: Make sure this is a PFS partition.\n"
-// 			"Non-PFS disks will be destroyed by this operation\n",
-// 			"ok", "cancel");
-//
-// 			if (okuser)
-// 				return BuildRootBlock_hub();
-// 			else
-// 			{
-// 				aborting = 1;
-// 				return e_aborted;
-// 			}
-// 		}
-// 	}
-// 	
-// 	error = CheckRootBlock();
-//
-// 	switch (error)
-// 	{
-// 		case e_none:
-// 			break;
-//
-// 		case e_repartition:
-// 			if ((error = Repartition(volume.firstblock+ROOTBLOCK)))
-// 				return error;
-//
-// 			volume.askuser(
-// 				"The partition information stored in the RDB does\n"
-// 				"not match the partition information used when the\n"
-// 				"disk was formatted. Probable cause of this problem\n"
-// 				"is the use of the 'Get Drive Definition' option in\n"
-// 				"HDToolbox after the disk was formatted\n\n"
-// 				"Now a mountfile will be needed to mount the partition.\n"
-// 				"Press CONTINUE to select location to store the\n"
-// 				"mountlist", "CONTINUE", NULL);
-//
-// 			freq = AllocAslRequestTags(ASL_FileRequest, ASLFR_SleepWindow, TRUE, 
-// 				ASLFR_TitleText, "Select mountfile", ASLFR_InitialFile, "mountme",
-// 				ASLFR_InitialDrawer, "df0:", ASLFR_DoSaveMode, TRUE, TAG_DONE);
-//
-// 			do
-// 			{
-// 				if (AslRequestTags(freq, ASLFR_Window, CheckRepairWnd, TAG_DONE))
-// 				{
-// 					t = stpcpy(mfname, freq->fr_Drawer);
-// 					t = stpcpy(t, freq->fr_File);
-// 					if ((ok = MakeMountFile(mfname)))
-// 						volume.showmsg("Mountlist written\n");
-// 				}
-// 				else
-// 				{
-// 					volume.showmsg("no mountlist written\n");
-// 				}
-// 			} while (!ok);
-//
-// 			FreeAslRequest(freq);	
-// 			volume.askuser("Now starting to check/repair\n"
-// 				"redefined partition", "CONTINUE", NULL);
-//
-// 			return GetRootBlock();
-//
-// 		case e_options_error:
-// 			return error;
-//
-// 		default:
-// 			return BuildRootBlock_hub();
-// 	}
-//
-// 	exitblock();
-// 	return e_none;
-}
-        
-
-public static bool IsRootBlock(RootBlock r)
-{
-	// check rootblock type
-	if (r.DiskType != Constants.ID_PFS_DISK && r.DiskType != Constants.ID_PFS2_DISK)
-	{
-		// if (ss.verbose)
-		// 	volume.showmsg($"Unexpected rootblock id 0x{r.DiskType:x8}\n", r.disktype);
-		return false;
-	}
-
-	// check options
-	// require non-null options to accept rootblock as such,
-	// otherwise it could be a bootblock 
-	var modemask = RootBlock.DiskOptionsEnum.MODE_HARDDISK | RootBlock.DiskOptionsEnum.MODE_SPLITTED_ANODES | RootBlock.DiskOptionsEnum.MODE_DIR_EXTENSION;
-	if ((r.Options & modemask) != modemask)
-	{
-		// if (ss.verbose)
-		// 	volume.showmsg("Unexpected rootblock options 0x%08lx\n", r->options);
-		return false;
-	}
-
-	return true;
-}
-
+        /// <summary>
+        /// anodes per block (ANODES_PER_BLOCK)
+        /// </summary>
+        private uint AnodesPerBlock => ((uint)rbl.ReservedBlksize - 4 * 4) / Anode.SizeOf;
     }
 }
