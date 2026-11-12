@@ -1,7 +1,9 @@
 namespace Hst.Amiga.DataTypes.Hunks
 {
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// Reads resident structures (romtags) from hunks read by <see cref="HunkReader"/>.
@@ -19,6 +21,26 @@ namespace Hst.Amiga.DataTypes.Hunks
         private const int RtNameOffset = 14;
         private const int RtIdStringOffset = 18;
         private const int RtSize = 26;
+
+        /// <summary>
+        /// Read hunk file from stream and return first resident structure found.
+        /// </summary>
+        /// <param name="stream">Stream with hunk file</param>
+        /// <returns>Rom tag or null, if stream is not a hunk file, has unsupported hunks or no resident structure is found</returns>
+        public static async Task<RomTag> Read(Stream stream)
+        {
+            IEnumerable<IHunk> hunks;
+            try
+            {
+                hunks = await HunkReader.Read(stream);
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+
+            return Read(hunks);
+        }
 
         /// <summary>
         /// Read first resident structure found in hunks.

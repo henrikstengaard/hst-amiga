@@ -1,6 +1,5 @@
 ﻿namespace Hst.Amiga.VersionStrings
 {
-    using System.Collections.Generic;
     using System.IO;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
@@ -28,14 +27,25 @@
         /// Read version string from data. If no "$VER:" version string is present, id string from
         /// resident structure (romtag) in hunk file is read instead.
         /// </summary>
-        public static string Read(byte[] data)
+        public static string Read(byte[] data) => ReadVersionString(data) ?? ReadRomTagIdString(data);
+
+        /// <summary>
+        /// Read "$VER:" version string from data.
+        /// </summary>
+        /// <returns>Version string or null, if not present</returns>
+        public static string ReadVersionString(byte[] data)
         {
             var versionIndex = data.IndexOf(AmigaTextHelper.GetBytes("$VER"));
 
-            return versionIndex == -1
-                ? ReadRomTagIdString(new MemoryStream(data, false)).GetAwaiter().GetResult()
-                : data.ReadStringWithNullTermination(versionIndex);
+            return versionIndex == -1 ? null : data.ReadStringWithNullTermination(versionIndex);
         }
+
+        /// <summary>
+        /// Read id string from first resident structure (romtag) in hunk file data.
+        /// </summary>
+        /// <returns>Id string or null, if data is not a hunk file or has no resident structure with id string</returns>
+        public static string ReadRomTagIdString(byte[] data) =>
+            ReadRomTagIdString(new MemoryStream(data, false)).GetAwaiter().GetResult();
 
         /// <summary>
         /// Read version string from stream. If no "$VER:" version string is present, id string from
@@ -61,24 +71,20 @@
             return await stream.ReadNullTerminatedString();
         }
 
-        private static async Task<string> ReadRomTagIdString(Stream stream)
-        {
-            IEnumerable<IHunk> hunks;
-            try
-            {
-                hunks = await HunkReader.Read(stream);
-            }
-            catch (IOException)
-            {
-                // not a hunk file or unsupported hunk
-                return null;
-            }
-
-            return RomTagReader.Read(hunks)?.IdString;
-        }
+        /// <summary>
+        /// Read id string from first resident structure (romtag) in hunk file stream.
+        /// </summary>
+        /// <returns>Id string or null, if stream is not a hunk file or has no resident structure with id string</returns>
+        public static async Task<string> ReadRomTagIdString(Stream stream) =>
+            (await RomTagReader.Read(stream))?.IdString;
 
         public static AmigaVersion Parse(string version)
         {
+            if (string.IsNullOrWhiteSpace(version))
+            {
+                return null;
+            }
+
             var versionMatch = VersionRegex.Match(version);
 
             if (!versionMatch.Success)

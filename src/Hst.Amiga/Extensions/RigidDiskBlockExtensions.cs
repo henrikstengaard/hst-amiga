@@ -4,6 +4,7 @@
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
+    using DataTypes.Hunks;
     using RigidDiskBlocks;
     using VersionStrings;
 
@@ -37,8 +38,7 @@
                 throw new ArgumentException($"DOS Type '{dosType.FormatDosType()}' already exists", nameof(dosType));
             }
 
-            var version = VersionStringReader.Read(fileSystemBytes);
-            var fileVersion = VersionStringReader.Parse(version);
+            var fileVersion = ReadFileSystemVersion(fileSystemBytes);
 
             var fileSystemHeaderBlock = BlockHelper.CreateFileSystemHeaderBlock(dosType, fileVersion.Version,
                 fileVersion.Revision, fileSystemName, fileSystemBytes);
@@ -48,6 +48,43 @@
                     { fileSystemHeaderBlock });
 
             return rigidDiskBlock;
+        }
+
+        /// <summary>
+        /// Read file system version from resident structure (romtag) and "$VER:" version string:
+        /// 1. Id string or "$VER:" version string with version matching resident structure version (rt_Version),
+        ///    id string preferred.
+        /// 2. Id string, then "$VER:" version string.
+        /// 3. Resident structure version (rt_Version) and revision 0, if resident structure version is set.
+        /// 4. Version 1 and revision 0.
+        /// </summary>
+        private static AmigaVersion ReadFileSystemVersion(byte[] fileSystemBytes)
+        {
+            var romTag = RomTagReader.Read(new MemoryStream(fileSystemBytes, false)).GetAwaiter().GetResult();
+            var idStringVersion = VersionStringReader.Parse(romTag?.IdString);
+            var versionStringVersion = VersionStringReader.Parse(VersionStringReader.ReadVersionString(fileSystemBytes));
+
+            // resident structure version 0 is treated as not set
+            var romTagVersion = romTag?.Version ?? 0;
+
+            if (romTagVersion > 0)
+            {
+                if (idStringVersion != null && idStringVersion.Version == romTagVersion)
+                {
+                    return idStringVersion;
+                }
+
+                if (versionStringVersion != null && versionStringVersion.Version == romTagVersion)
+                {
+                    return versionStringVersion;
+                }
+            }
+
+            return idStringVersion ?? versionStringVersion ?? new AmigaVersion
+            {
+                Version = romTagVersion > 0 ? romTagVersion : 1,
+                Revision = 0
+            };
         }
 
         public static RigidDiskBlock AddPartition(this RigidDiskBlock rigidDiskBlock,
