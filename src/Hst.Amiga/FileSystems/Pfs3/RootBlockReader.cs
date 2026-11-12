@@ -65,5 +65,50 @@
                 idx = new RootBlockIndex(idxUnion.ToArray())
             };
         }
+
+        /// <summary>
+        /// Parse root block of hard disk formatted with professional file system 3. Returns null, if block isn't
+        /// a root block or root block fields aren't valid. The boot block has same disk type as root block, but
+        /// otherwise only contains zeroes and is not a valid root block.
+        /// </summary>
+        public static RootBlock TryParseHardDiskRootBlock(byte[] blockBytes)
+        {
+            RootBlock rootBlock;
+            try
+            {
+                rootBlock = Parse(blockBytes);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+            if (!rootBlock.Options.HasFlag(RootBlock.DiskOptionsEnum.MODE_HARDDISK) ||
+                rootBlock.DiskSize == 0 ||
+                (rootBlock.ReservedBlksize != 1024 && rootBlock.ReservedBlksize != 2048 &&
+                 rootBlock.ReservedBlksize != 4096) ||
+                rootBlock.FirstReserved < 2 ||
+                rootBlock.LastReserved <= rootBlock.FirstReserved ||
+                rootBlock.LastReserved >= rootBlock.DiskSize)
+            {
+                return null;
+            }
+
+            return rootBlock;
+        }
+
+        /// <summary>
+        /// Block number of root block extension relative to partition start. Returns 0, if root block doesn't use
+        /// root block extension.
+        /// </summary>
+        public static uint GetExtensionBlock(RootBlock rootBlock) =>
+            rootBlock.Options.HasFlag(RootBlock.DiskOptionsEnum.MODE_EXTENSION) ? rootBlock.Extension : 0;
+
+        /// <summary>
+        /// Block bytes is a root block extension block.
+        /// </summary>
+        public static bool IsExtensionBlock(byte[] blockBytes, int offset = 0) =>
+            BigEndianConverter.ConvertBytesToUInt16(blockBytes, offset) == Constants.EXTENSIONID &&
+            BigEndianConverter.ConvertBytesToUInt16(blockBytes, offset + 2) == 0;
     }
 }

@@ -56,9 +56,17 @@ Recovery modes:
   and file systems (FSHD/LSEG blocks) still intact in the Rigid Disk Block area are reused.
 - Auto (default): fix if a Rigid Disk Block is found, otherwise rebuild.
 
-Set `SkipFloppyImages` to skip file systems the size of a double density (1760 sectors) or high density
+`SkipFloppyImages` (enabled by default) skips file systems the size of a double density (1760 sectors) or high density
 (3520 sectors) floppy disk. These are usually .adf floppy images stored as files inside a partition, and a newer
-floppy image would otherwise win over the partition it is stored in.
+floppy image would otherwise win over the partition it is stored in. An FFS file system is also treated as
+a floppy image when its root block points to bitmap block 881 or 1761, which catches .adf files stored
+fragmented.
+
+A PFS3 volume whose boot and root blocks have been displaced is detected by checking that the root block extension
+sits at the expected position relative to the volume start. Displaced means a copy was written at the wrong offset
+while the original blocks at the volume start were destroyed. The partition is then placed at the real volume start
+and a warning is reported. The volume can't be mounted until its boot and root blocks are restored with
+`Pfs3Doctor.RestoreRootBlock`.
 
 `Analyze` is a dry run and never writes to the disk. `Repair` writes the changed sectors of the Rigid Disk Block
 area, but only when recovery finished without errors.

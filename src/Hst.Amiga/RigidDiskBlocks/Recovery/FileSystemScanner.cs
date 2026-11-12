@@ -28,6 +28,12 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
         private const int MaxBlockSize = 32768;
 
         /// <summary>
+        /// Maximum number of sectors searched before and after expected root block extension location for volume
+        /// start of professional file system 3 with displaced boot and root blocks.
+        /// </summary>
+        public const int MaxPfs3DisplacementSectors = 262144;
+
+        /// <summary>
         /// Sectors of double density floppy disk: 80 cylinders, 2 heads and 11 sectors per track.
         /// </summary>
         public const int DoubleDensityFloppySectors = 80 * 2 * 11;
@@ -163,6 +169,11 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
                 return x;
             }));
 
+            foreach (var candidate in candidates.Where(x => x.Type == FileSystemType.ProfessionalFileSystem3))
+            {
+                await CheckPfs3Displacement(stream, candidate, diskSize / SectorSize, messages, cancellationToken);
+            }
+
             if (skipFloppyImages)
             {
                 // skip floppy images before resolving overlaps, otherwise a floppy image newer than the file
@@ -231,32 +242,8 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
             }
         }
 
-        private static Pfs3RootBlock TryReadPfs3RootBlock(byte[] buffer, int offset)
-        {
-            Pfs3RootBlock rootBlock;
-            try
-            {
-                rootBlock = Pfs3RootBlockReader.Parse(CopyBytes(buffer, offset, SectorSize));
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-
-            // boot block has same disk type as root block, but otherwise only contains zeroes
-            if (!rootBlock.Options.HasFlag(Pfs3RootBlock.DiskOptionsEnum.MODE_HARDDISK) ||
-                rootBlock.DiskSize == 0 ||
-                (rootBlock.ReservedBlksize != 1024 && rootBlock.ReservedBlksize != 2048 &&
-                 rootBlock.ReservedBlksize != 4096) ||
-                rootBlock.FirstReserved < 2 ||
-                rootBlock.LastReserved <= rootBlock.FirstReserved ||
-                rootBlock.LastReserved >= rootBlock.DiskSize)
-            {
-                return null;
-            }
-
-            return rootBlock;
-        }
+        private static Pfs3RootBlock TryReadPfs3RootBlock(byte[] buffer, int offset) =>
+            Pfs3RootBlockReader.TryParseHardDiskRootBlock(CopyBytes(buffer, offset, SectorSize));
 
         private static FoundFileSystem TryReadSfsRootBlock(byte[] buffer, int offset, int available, long sector)
         {
@@ -304,6 +291,76 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
                 VolumeName = string.Empty,
                 CreationDate = rootBlock.DateCreated
             };
+        }
+
+        /// <summary>
+        /// Check professional file system 3 boot and root blocks are located at volume start by checking root block
+        /// extension is located relative to start. If not, boot and root blocks are displaced, e.g. a copy written
+        /// at a wrong offset while original boot and root blocks are destroyed. Volume start is then found by
+        /// searching for root block extension nearest expected location and file system is moved to volume start.
+        /// Boot and root blocks must be restored to volume start to mount volume, which can be done with
+        /// Pfs3Doctor.RestoreRootBlock.
+        /// </summary>
+        private static async Task CheckPfs3Displacement(Stream stream, FoundFileSystem fileSystem, long diskSectors,
+            IList<RecoveryMessage> messages, CancellationToken cancellationToken)
+        {
+            var extensionSector = fileSystem.RootBlockExtensionSector;
+            if (extensionSector <= 0)
+            {
+                return;
+            }
+
+            var expectedSector = fileSystem.StartSector + extensionSector;
+            if (expectedSector < diskSectors)
+            {
+                var sectorBytes = new byte[SectorSize];
+                stream.Seek(expectedSector * SectorSize, SeekOrigin.Begin);
+                await ReadFully(stream, sectorBytes, SectorSize, cancellationToken);
+                if (Pfs3RootBlockReader.IsExtensionBlock(sectorBytes))
+                {
+                    return;
+                }
+            }
+
+            // search for root block extension nearest expected location
+            var searchStart = Math.Max(0, expectedSector - MaxPfs3DisplacementSectors);
+            var searchEnd = Math.Min(diskSectors, expectedSector + MaxPfs3DisplacementSectors + 1);
+            long? volumeStart = null;
+            var buffer = new byte[1024 * SectorSize];
+            for (var sector = searchStart; sector < searchEnd; sector += buffer.Length / SectorSize)
+            {
+                var sectors = (int)Math.Min(buffer.Length / SectorSize, searchEnd - sector);
+                stream.Seek(sector * SectorSize, SeekOrigin.Begin);
+                await ReadFully(stream, buffer, sectors * SectorSize, cancellationToken);
+                for (var i = 0; i < sectors; i++)
+                {
+                    var candidateStart = sector + i - extensionSector;
+                    if (candidateStart < 0 || candidateStart + fileSystem.Sectors > diskSectors ||
+                        !Pfs3RootBlockReader.IsExtensionBlock(buffer, i * SectorSize))
+                    {
+                        continue;
+                    }
+
+                    if (!volumeStart.HasValue || Math.Abs(candidateStart - fileSystem.StartSector) <
+                        Math.Abs(volumeStart.Value - fileSystem.StartSector))
+                    {
+                        volumeStart = candidateStart;
+                    }
+                }
+            }
+
+            if (!volumeStart.HasValue)
+            {
+                messages.Add(new RecoveryMessage(RecoveryMessageLevel.Warning,
+                    $"Root block extension of {fileSystem} was not found, file system may be damaged"));
+                return;
+            }
+
+            var foundStart = fileSystem.StartSector;
+            fileSystem.DisplacedSectors = foundStart - volumeStart.Value;
+            fileSystem.StartSector = volumeStart.Value;
+            messages.Add(new RecoveryMessage(RecoveryMessageLevel.Warning,
+                $"Boot and root blocks of {fileSystem.Type} '{fileSystem.VolumeName}' found at sector {foundStart} are displaced {fileSystem.DisplacedSectors} sectors from volume start at sector {fileSystem.StartSector}. Boot and root blocks must be restored with Pfs3Doctor to mount volume"));
         }
 
         /// <summary>
@@ -392,6 +449,8 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
                         IsExactSize = true,
                         RootBlockSector = candidate.Sector,
                         FileSystemBlockSize = sectorsPerBlock * SectorSize,
+                        RootBlockExtensionSector =
+                            (long)Pfs3RootBlockReader.GetExtensionBlock(candidate.RootBlock) * sectorsPerBlock,
                         Reserved = 2,
                         VolumeName = candidate.RootBlock.DiskName,
                         CreationDate = candidate.RootBlock.CreationDate

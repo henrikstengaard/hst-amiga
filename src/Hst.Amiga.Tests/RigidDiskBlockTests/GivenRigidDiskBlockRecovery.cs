@@ -233,8 +233,8 @@ public class GivenRigidDiskBlockRecovery
         await ClearSectors(stream, 0, 2016);
         await WriteFloppyImage(stream, floppySectors);
 
-        // act - repair rigid disk block skipping floppy images
-        var result = await RigidDiskBlockRecovery.Repair(stream, new RecoveryOptions { SkipFloppyImages = true });
+        // act - repair rigid disk block skipping floppy images by default
+        var result = await RigidDiskBlockRecovery.Repair(stream);
 
         // assert - floppy image is skipped and partitions are rebuilt
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Messages));
@@ -261,8 +261,8 @@ public class GivenRigidDiskBlockRecovery
         stream.Seek((floppyStartSector + 544) * SectorSize, SeekOrigin.Begin);
         await stream.WriteBytes(rootBlockBytes);
 
-        // act - repair rigid disk block skipping floppy images
-        var result = await RigidDiskBlockRecovery.Repair(stream, new RecoveryOptions { SkipFloppyImages = true });
+        // act - repair rigid disk block skipping floppy images by default
+        var result = await RigidDiskBlockRecovery.Repair(stream);
 
         // assert - fragmented floppy image with estimated size 1088 sectors is skipped by bitmap block offset
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Messages));
@@ -276,14 +276,14 @@ public class GivenRigidDiskBlockRecovery
     }
 
     [Fact]
-    public async Task WhenAnalyzeDiskWithFloppyImageThenFloppyImageIsNotSkipped()
+    public async Task WhenAnalyzeDiskWithFloppyImageAndNotSkipFloppyImagesThenFloppyImageIsNotSkipped()
     {
         // arrange - create disk and write double density floppy image within sfs partition
         var (stream, _) = await CreateDisk();
         await WriteFloppyImage(stream, 11);
 
         // act - analyze disk without skipping floppy images
-        var result = await RigidDiskBlockRecovery.Analyze(stream);
+        var result = await RigidDiskBlockRecovery.Analyze(stream, new RecoveryOptions { SkipFloppyImages = false });
 
         // assert - floppy image is found as file system
         Assert.DoesNotContain(result.Messages, x => x.Text.EndsWith("appears to be a floppy image"));
@@ -301,6 +301,64 @@ public class GivenRigidDiskBlockRecovery
         await FastFileSystemFormatter.Format(stream, lowCyl, lowCyl + 79, 2, heads, sectorsPerTrack, 512, 512,
             new byte[] { 0x44, 0x4f, 0x53, 0x0 }, "Floppy");
         return (long)lowCyl * heads * sectorsPerTrack;
+    }
+
+    [Fact]
+    public async Task WhenRepairDiskWithDisplacedPfs3RootBlockThenPartitionIsAtVolumeStartAndRootBlockCanBeRestored()
+    {
+        // arrange - create disk, displace pfs3 boot and root blocks and clear rigid disk block area
+        var (stream, expected) = await CreateDisk();
+        var pfs3PartitionBlock = expected.PartitionBlocks.ElementAt(1);
+        var volumeStart = (long)pfs3PartitionBlock.LowCyl * pfs3PartitionBlock.Surfaces *
+                          pfs3PartitionBlock.BlocksPerTrack;
+        const long displacedSectors = 100000;
+        await DisplacePfs3RootBlock(stream, volumeStart, displacedSectors);
+        await ClearSectors(stream, 0, 2016);
+
+        // act - repair rigid disk block
+        var result = await RigidDiskBlockRecovery.Repair(stream);
+
+        // assert - pfs3 partition is placed at volume start and displaced boot and root blocks are reported
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Messages));
+        var pfs3FileSystem = result.FileSystems.Single(x => x.Type == FileSystemType.ProfessionalFileSystem3);
+        Assert.Equal(volumeStart, pfs3FileSystem.StartSector);
+        Assert.Equal(displacedSectors, pfs3FileSystem.DisplacedSectors);
+        Assert.Contains(result.Messages,
+            x => x.Level == RecoveryMessageLevel.Warning && x.Text.Contains("displaced 100000 sectors"));
+
+        var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+        AssertPartitions(expected, rigidDiskBlock);
+
+        // act - restore displaced boot and root blocks with pfs3 doctor
+        var restoreResult =
+            await FileSystems.Pfs3.Doctor.Pfs3Doctor.RestoreRootBlock(stream, rigidDiskBlock.PartitionBlocks.ElementAt(1));
+
+        // assert - boot and root blocks are restored and all volumes can be mounted
+        Assert.True(restoreResult.Restored, string.Join(Environment.NewLine, restoreResult.Messages));
+        Assert.Equal(volumeStart + displacedSectors, restoreResult.SourceSector);
+        Assert.Equal(displacedSectors, restoreResult.DisplacedSectors);
+        await AssertVolumes(stream, rigidDiskBlock);
+
+        // assert - restoring again finds valid root block
+        restoreResult =
+            await FileSystems.Pfs3.Doctor.Pfs3Doctor.RestoreRootBlock(stream, rigidDiskBlock.PartitionBlocks.ElementAt(1));
+        Assert.True(restoreResult.RootBlockValid);
+        Assert.False(restoreResult.Restored);
+    }
+
+    /// <summary>
+    /// Displace pfs3 boot and root blocks by copying them to an offset from volume start and overwriting
+    /// boot and root blocks at volume start with 0xff.
+    /// </summary>
+    private static async Task DisplacePfs3RootBlock(Stream stream, long volumeStart, long displacedSectors)
+    {
+        var rootBlockBytes = await ReadSectors(stream, volumeStart + 2, 1);
+        var sectors = 2 + BigEndianConverter.ConvertBytesToUInt16(rootBlockBytes, 0x42);
+        var bytes = await ReadSectors(stream, volumeStart, sectors);
+        stream.Seek((volumeStart + displacedSectors) * SectorSize, SeekOrigin.Begin);
+        await stream.WriteBytes(bytes);
+        stream.Seek(volumeStart * SectorSize, SeekOrigin.Begin);
+        await stream.WriteBytes(Enumerable.Repeat((byte)0xff, sectors * SectorSize).ToArray());
     }
 
     private static async Task<(BlockMemoryStream, RigidDiskBlock)> CreateDisk(BlockMemoryStream stream = null)

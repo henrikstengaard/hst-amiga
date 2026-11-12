@@ -26,6 +26,23 @@ Mode `Check` never writes to the stream. Open a new volume for each run, because
 | doctor.h       | Volume, Cache, CacheLine, CachedBlock, CAnode, Bitmap, ScanElement, Stats, Error, Mode, StandardScanFlags, DoctorConstants |
 | pfs3.h         | RootBlock, ExtensionBlock, BootBlock, BitmapBlock, IndexBlock, AnodeBlock, DirBlock, DirEntry, DelDirBlock, ExtraFields |
 
+## Restore displaced root block
+
+`Pfs3Doctor.RestoreRootBlock` is an addition that isn't part of the original PFSDoctor. It restores the boot and root
+blocks of a volume when they have been displaced: a copy was written at the wrong offset, while the original blocks
+at the volume start were destroyed. It searches the sectors around the volume start for a valid root block that has
+a boot block before it, a disk size matching the partition, and a root block extension at the expected position
+relative to the volume start. It then copies the boot block and the root block cluster back to the volume start.
+With `write: false` the displaced blocks are only searched for and reported.
+
+```c#
+var result = await Pfs3Doctor.RestoreRootBlock(stream, partitionBlock);
+foreach (var message in result.Messages)
+{
+    Console.WriteLine(message);
+}
+```
+
 ## Naming
 
 - Function names keep the original names in PascalCase with underscores removed, e.g. `c_GetBlock` -> `CGetBlock`, `vol_GetBlock` -> `VolGetBlock`, `dd_CheckBlock` -> `DdCheckBlock`, `bg_InitBitmap` -> `BgInitBitmap`.

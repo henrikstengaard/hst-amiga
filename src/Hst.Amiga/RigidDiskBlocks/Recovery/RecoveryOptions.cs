@@ -41,9 +41,9 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
 
         /// <summary>
         /// Skip file systems found with size of double density (1760 sectors) or high density (3520 sectors)
-        /// floppy disks, which are likely .adf floppy images stored as files within a partition.
+        /// floppy disks, which are likely .adf floppy images stored as files within a partition. Enabled by default.
         /// </summary>
-        public bool SkipFloppyImages { get; set; }
+        public bool SkipFloppyImages { get; set; } = true;
 
         /// <summary>
         /// Size of buffer used to scan disk for file systems.

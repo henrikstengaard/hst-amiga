@@ -51,6 +51,23 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
         public uint FileSystemBlockSize { get; set; }
 
         /// <summary>
+        /// Sector offset of professional file system 3 root block extension relative to volume start. 0, if not
+        /// available.
+        /// </summary>
+        public long RootBlockExtensionSector { get; set; }
+
+        /// <summary>
+        /// Number of sectors boot and root blocks are displaced from volume start, e.g. a copy of boot and root
+        /// blocks written at a wrong offset. Start sector is volume start. 0, if not displaced.
+        /// </summary>
+        public long DisplacedSectors { get; set; }
+
+        /// <summary>
+        /// Boot and root blocks are displaced from volume start and must be restored to mount volume.
+        /// </summary>
+        public bool IsDisplaced => DisplacedSectors != 0;
+
+        /// <summary>
         /// Block offset of first bitmap block relative to partition start, read from fast file system root block.
         /// Format places first bitmap block after root block, which makes it a hint for the root block offset that
         /// doesn't depend on the boot block location. 0, if not available.
@@ -70,6 +87,6 @@ namespace Hst.Amiga.RigidDiskBlocks.Recovery
         public DateTime CreationDate { get; set; }
 
         public override string ToString() =>
-            $"{Type} '{VolumeName}' ({DosTypeFormatted}) at sector {StartSector}, {(IsExactSize ? string.Empty : "estimated ")}size {Sectors} sectors";
+            $"{Type} '{VolumeName}' ({DosTypeFormatted}) at sector {StartSector}, {(IsExactSize ? string.Empty : "estimated ")}size {Sectors} sectors{(IsDisplaced ? $", boot and root blocks displaced {DisplacedSectors} sectors" : string.Empty)}";
     }
 }
