@@ -86,3 +86,73 @@ foreach (var message in result.Messages)
     Console.WriteLine(message);
 }
 ```
+
+### Recovery order
+
+To recover a disk with a broken Rigid Disk Block and damaged file systems, run these steps in order. Each
+step depends on the one before it:
+
+1. **Backup**: work on a copy of the disk or image. Steps 3, 5 and 7 write to it.
+2. **Analyze**: run `RigidDiskBlockRecovery.Analyze`, a dry run. Check the partitions and messages:
+   partition offsets, displaced PFS3 boot and root blocks, and file systems dropped from the Rigid Disk Block.
+3. **Repair**: run `RigidDiskBlockRecovery.Repair`. Then read the Rigid Disk Block with
+   `RigidDiskBlockReader.Read` to confirm checksums and links are valid.
+4. **Re-add file systems**: file systems (FSHD/LSEG blocks) with broken load segments are dropped. Add the
+   file system drivers again, e.g. pfs3aio. Otherwise the partitions can't be mounted from the Rigid Disk Block.
+5. **Restore PFS3 boot and root blocks**: run `Pfs3Doctor.RestoreRootBlock` for each PFS3 partition, with
+   `write: false` first, then `write: true`. It needs the partition block placed at the real volume start, so
+   the Rigid Disk Block must be repaired first. It does nothing if the root block at the volume start is valid.
+6. **Check PFS3 volumes**: run `Pfs3Doctor.Run` with `Mode.Check`. The doctor reads the root block at the
+   volume start, so boot and root blocks must be restored first. This matters most for restored volumes: the
+   displaced copy overwrote the blocks where it was written. Restoring rewrites only the boot block and root
+   block cluster, not the blocks the copy overwrote.
+7. **Repair PFS3 volumes**: run `Pfs3Doctor.Run` with `Mode.Repair` on volumes where the check found errors.
+8. **Verify**: mount the volumes, list directories and read files.
+
+Example of steps 2, 3 and 5 to 7:
+
+```c#
+await using var stream = File.Open("broken.img", FileMode.Open, FileAccess.ReadWrite);
+
+// 2. analyze
+var options = new RecoveryOptions { Mode = RecoveryMode.Auto };
+var analyzeResult = await RigidDiskBlockRecovery.Analyze(stream, options);
+foreach (var message in analyzeResult.Messages)
+{
+    Console.WriteLine(message);
+}
+
+// 3. repair and read rigid disk block strictly
+var repairResult = await RigidDiskBlockRecovery.Repair(stream, options);
+if (!repairResult.IsValid)
+{
+    return;
+}
+
+var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+
+// 4. re-add file systems, e.g. pfs3aio, to rigid disk block here
+
+foreach (var partitionBlock in rigidDiskBlock.PartitionBlocks.Where(x =>
+             x.DosTypeFormatted.StartsWith("PDS") || x.DosTypeFormatted.StartsWith("PFS")))
+{
+    // 5. restore displaced boot and root blocks
+    var restoreResult = await Pfs3Doctor.RestoreRootBlock(stream, partitionBlock, write: false);
+    if (restoreResult.Found)
+    {
+        restoreResult = await Pfs3Doctor.RestoreRootBlock(stream, partitionBlock, write: true);
+    }
+
+    foreach (var message in restoreResult.Messages)
+    {
+        Console.WriteLine(message);
+    }
+
+    // 6. check volume, 7. repair volume if check found errors
+    await Pfs3Doctor.Run(Pfs3Doctor.OpenVolume(stream, partitionBlock), Mode.Check, verbose: true);
+    // await Pfs3Doctor.Run(Pfs3Doctor.OpenVolume(stream, partitionBlock), Mode.Repair, verbose: true);
+}
+```
+
+.adf floppy images stored as files inside a volume are not recovered by these steps. Check them separately
+after their volume checks clean.
