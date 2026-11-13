@@ -1,0 +1,562 @@
+namespace Hst.Amiga.RigidDiskBlocks.Recovery
+{
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Core.Converters;
+    using FileSystems;
+    using FfsConstants = FileSystems.FastFileSystem.Constants;
+    using FfsRootBlockParser = FileSystems.FastFileSystem.Blocks.RootBlockParser;
+    using Pfs3Constants = FileSystems.Pfs3.Constants;
+    using Pfs3RootBlock = FileSystems.Pfs3.Blocks.RootBlock;
+    using Pfs3RootBlockReader = FileSystems.Pfs3.RootBlockReader;
+    using SfsChecksumHelper = FileSystems.SmartFileSystem.ChecksumHelper;
+    using SfsConstants = FileSystems.SmartFileSystem.Constants;
+    using SfsRootBlockParser = FileSystems.SmartFileSystem.Blocks.RootBlockParser;
+
+    /// <summary>
+    /// Scans disk sector by sector for boot and root blocks of known file systems (fast file system, professional
+    /// file system 3 and smart file system) to find start offset and size of partitions.
+    /// </summary>
+    public static class FileSystemScanner
+    {
+        private const int SectorSize = 512;
+        private const int MinBlockSize = 512;
+        private const int MaxBlockSize = 32768;
+
+        /// <summary>
+        /// Maximum number of sectors searched before and after expected root block extension location for volume
+        /// start of professional file system 3 with displaced boot and root blocks.
+        /// </summary>
+        public const int MaxPfs3DisplacementSectors = 262144;
+
+        /// <summary>
+        /// Sectors of double density floppy disk: 80 cylinders, 2 heads and 11 sectors per track.
+        /// </summary>
+        public const int DoubleDensityFloppySectors = 80 * 2 * 11;
+
+        /// <summary>
+        /// Sectors of high density floppy disk: 80 cylinders, 2 heads and 22 sectors per track.
+        /// </summary>
+        public const int HighDensityFloppySectors = 80 * 2 * 22;
+
+        private class FfsBootBlock
+        {
+            public long Sector;
+            public byte[] DosType;
+        }
+
+        private class FfsRootBlock
+        {
+            public long Sector;
+            public uint BlockSize;
+            public uint BitmapBlockOffset;
+            public string Name;
+            public DateTime CreationDate;
+        }
+
+        private class Pfs3RootBlockCandidate
+        {
+            public long Sector;
+            public Pfs3RootBlock RootBlock;
+        }
+
+        /// <summary>
+        /// Scan disk for file systems.
+        /// </summary>
+        /// <param name="stream">Stream with disk.</param>
+        /// <param name="diskSize">Size of disk in bytes.</param>
+        /// <param name="bufferSize">Size of buffer used to read disk.</param>
+        /// <param name="progress">Progress reporting bytes scanned.</param>
+        /// <param name="messages">Messages for file systems found and skipped.</param>
+        /// <param name="skipFloppyImages">Skip file systems with size of double density (1760 sectors) or high
+        /// density (3520 sectors) floppy disks, which are likely .adf floppy images stored as files within a
+        /// partition.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>File systems found ordered by start sector. Overlapping file systems are resolved by keeping
+        /// newest file system.</returns>
+        public static async Task<IList<FoundFileSystem>> Scan(Stream stream, long diskSize, int bufferSize = 1024 * 1024,
+            IProgress<long> progress = null, IList<RecoveryMessage> messages = null, bool skipFloppyImages = false,
+            CancellationToken cancellationToken = default)
+        {
+            messages = messages ?? new List<RecoveryMessage>();
+            bufferSize = Math.Max(64 * 1024, bufferSize / SectorSize * SectorSize);
+
+            var ffsBootBlocks = new List<FfsBootBlock>();
+            var ffsRootBlocks = new List<FfsRootBlock>();
+            var pfsIdSectors = new HashSet<long>();
+            var pfs3RootBlocks = new List<Pfs3RootBlockCandidate>();
+            var sfsFileSystems = new Dictionary<ulong, FoundFileSystem>();
+
+            // buffer is larger than scanned area to read root blocks larger than sector size at end of scanned area
+            var buffer = new byte[bufferSize + MaxBlockSize];
+
+            for (long position = 0; position < diskSize; position += bufferSize)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var length = (int)Math.Min(buffer.Length, diskSize - position);
+                stream.Seek(position, SeekOrigin.Begin);
+                var available = await ReadFully(stream, buffer, length, cancellationToken);
+                var scanLength = Math.Min(bufferSize, available);
+
+                for (var offset = 0; offset + SectorSize <= scanLength; offset += SectorSize)
+                {
+                    var id = BigEndianConverter.ConvertBytesToUInt32(buffer, offset);
+                    var sector = (position + offset) / SectorSize;
+
+                    if ((id & 0xffffff00) == 0x444f5300 && (id & 0xff) <= 7)
+                    {
+                        // fast file system boot block "DOS\0" - "DOS\7"
+                        ffsBootBlocks.Add(new FfsBootBlock
+                        {
+                            Sector = sector,
+                            DosType = CopyBytes(buffer, offset, 4)
+                        });
+                    }
+                    else if (id == FfsConstants.T_HEADER)
+                    {
+                        var ffsRootBlock = TryReadFfsRootBlock(buffer, offset, available, sector);
+                        if (ffsRootBlock != null)
+                        {
+                            ffsRootBlocks.Add(ffsRootBlock);
+                        }
+                    }
+                    else if (id == Pfs3Constants.ID_PFS_DISK || id == Pfs3Constants.ID_PFS2_DISK)
+                    {
+                        pfsIdSectors.Add(sector);
+                        var rootBlock = TryReadPfs3RootBlock(buffer, offset);
+                        if (rootBlock != null)
+                        {
+                            pfs3RootBlocks.Add(new Pfs3RootBlockCandidate { Sector = sector, RootBlock = rootBlock });
+                        }
+                    }
+                    else if (id == SfsConstants.RootBlockId)
+                    {
+                        var sfsFileSystem = TryReadSfsRootBlock(buffer, offset, available, sector);
+                        if (sfsFileSystem == null)
+                        {
+                            continue;
+                        }
+
+                        // root block is stored at start and end of partition, prefer root block at start of
+                        // partition as reserved blocks can only be calculated from it
+                        var firstByte = (ulong)sfsFileSystem.StartSector * SectorSize;
+                        if (!sfsFileSystems.TryGetValue(firstByte, out var existing) ||
+                            (existing.Reserved == 0 && sfsFileSystem.Reserved != 0))
+                        {
+                            sfsFileSystems[firstByte] = sfsFileSystem;
+                        }
+                    }
+                }
+
+                progress?.Report(Math.Min(diskSize, position + scanLength));
+            }
+
+            var candidates = new List<FoundFileSystem>();
+            candidates.AddRange(PairFfsBlocks(ffsBootBlocks, ffsRootBlocks));
+            candidates.AddRange(PairPfs3Blocks(pfsIdSectors, pfs3RootBlocks));
+            candidates.AddRange(sfsFileSystems.Values.Select(x =>
+            {
+                if (x.Reserved == 0)
+                {
+                    x.Reserved = 2;
+                }
+
+                return x;
+            }));
+
+            foreach (var candidate in candidates.Where(x => x.Type == FileSystemType.ProfessionalFileSystem3))
+            {
+                await CheckPfs3Displacement(stream, candidate, diskSize / SectorSize, messages, cancellationToken);
+            }
+
+            if (skipFloppyImages)
+            {
+                // skip floppy images before resolving overlaps, otherwise a floppy image newer than the file
+                // system of the partition it's stored in would cause the partition file system to be skipped
+                foreach (var floppyImage in candidates.Where(IsFloppyImage).ToList())
+                {
+                    messages.Add(new RecoveryMessage(RecoveryMessageLevel.Info,
+                        $"Skipped {floppyImage}, which appears to be a floppy image"));
+                    candidates.Remove(floppyImage);
+                }
+            }
+
+            return ResolveOverlaps(candidates, diskSize / SectorSize, messages);
+        }
+
+        private static FfsRootBlock TryReadFfsRootBlock(byte[] buffer, int offset, int available, long sector)
+        {
+            // header key, high seq and first data are 0 for root block
+            if (BigEndianConverter.ConvertBytesToUInt32(buffer, offset + 0x4) != 0 ||
+                BigEndianConverter.ConvertBytesToUInt32(buffer, offset + 0x8) != 0 ||
+                BigEndianConverter.ConvertBytesToUInt32(buffer, offset + 0x10) != 0)
+            {
+                return null;
+            }
+
+            // block size is determined from hash table size: block size / 4 - 56
+            var hashTableSize = BigEndianConverter.ConvertBytesToUInt32(buffer, offset + 0xc);
+            if (hashTableSize == 0 || hashTableSize > MaxBlockSize / 4)
+            {
+                return null;
+            }
+
+            var blockSize = (hashTableSize + 56) * 4;
+            if (!IsValidBlockSize(blockSize) || offset + blockSize > available)
+            {
+                return null;
+            }
+
+            if (BigEndianConverter.ConvertBytesToInt32(buffer, offset + (int)blockSize - 4) != FfsConstants.ST_ROOT)
+            {
+                return null;
+            }
+
+            var blockBytes = CopyBytes(buffer, offset, (int)blockSize);
+            var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
+            if (checksum != ChecksumHelper.CalculateChecksum(blockBytes, 0x14))
+            {
+                return null;
+            }
+
+            try
+            {
+                var rootBlock = FfsRootBlockParser.Parse(blockBytes);
+                return new FfsRootBlock
+                {
+                    Sector = sector,
+                    BlockSize = blockSize,
+                    BitmapBlockOffset = rootBlock.BitmapBlockOffsets.FirstOrDefault(),
+                    Name = rootBlock.Name,
+                    CreationDate = rootBlock.FileSystemCreationDate
+                };
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static Pfs3RootBlock TryReadPfs3RootBlock(byte[] buffer, int offset) =>
+            Pfs3RootBlockReader.TryParseHardDiskRootBlock(CopyBytes(buffer, offset, SectorSize));
+
+        private static FoundFileSystem TryReadSfsRootBlock(byte[] buffer, int offset, int available, long sector)
+        {
+            var blockSize = BigEndianConverter.ConvertBytesToUInt32(buffer, offset + 0x34);
+            if (!IsValidBlockSize(blockSize) || offset + blockSize > available)
+            {
+                return null;
+            }
+
+            var blockBytes = CopyBytes(buffer, offset, (int)blockSize);
+            if (!SfsChecksumHelper.IsValid(blockBytes))
+            {
+                return null;
+            }
+
+            var rootBlock = SfsRootBlockParser.Parse(blockBytes);
+
+            if (rootBlock.LastByte <= rootBlock.FirstByte ||
+                rootBlock.FirstByte % SectorSize != 0 ||
+                rootBlock.LastByte % SectorSize != 0 ||
+                (rootBlock.LastByte - rootBlock.FirstByte) / rootBlock.BlockSize != rootBlock.TotalBlocks ||
+                rootBlock.OwnBlock >= rootBlock.TotalBlocks ||
+                rootBlock.FirstByte + (ulong)rootBlock.OwnBlock * rootBlock.BlockSize != (ulong)sector * SectorSize)
+            {
+                return null;
+            }
+
+            var startSector = (long)(rootBlock.FirstByte / SectorSize);
+            var sectors = (long)((rootBlock.LastByte - rootBlock.FirstByte) / SectorSize);
+
+            return new FoundFileSystem
+            {
+                Type = FileSystemType.SmartFileSystem,
+                DosType = new byte[] { 0x53, 0x46, 0x53, 0x00 },
+                StartSector = startSector,
+                Sectors = sectors,
+                MaxSectors = sectors,
+                IsExactSize = true,
+                RootBlockSector = sector,
+                FileSystemBlockSize = rootBlock.BlockSize,
+                // root block is next block after admin space container at first block after reserved
+                Reserved = rootBlock.OwnBlock < rootBlock.TotalBlocks - 1 && rootBlock.OwnBlock >= 2
+                    ? rootBlock.OwnBlock - 1
+                    : 0,
+                VolumeName = string.Empty,
+                CreationDate = rootBlock.DateCreated
+            };
+        }
+
+        /// <summary>
+        /// Check professional file system 3 boot and root blocks are located at volume start by checking root block
+        /// extension is located relative to start. If not, boot and root blocks are displaced, e.g. a copy written
+        /// at a wrong offset while original boot and root blocks are destroyed. Volume start is then found by
+        /// searching for root block extension nearest expected location and file system is moved to volume start.
+        /// Boot and root blocks must be restored to volume start to mount volume, which can be done with
+        /// Pfs3Doctor.RestoreRootBlock.
+        /// </summary>
+        private static async Task CheckPfs3Displacement(Stream stream, FoundFileSystem fileSystem, long diskSectors,
+            IList<RecoveryMessage> messages, CancellationToken cancellationToken)
+        {
+            var extensionSector = fileSystem.RootBlockExtensionSector;
+            if (extensionSector <= 0)
+            {
+                return;
+            }
+
+            var expectedSector = fileSystem.StartSector + extensionSector;
+            if (expectedSector < diskSectors)
+            {
+                var sectorBytes = new byte[SectorSize];
+                stream.Seek(expectedSector * SectorSize, SeekOrigin.Begin);
+                await ReadFully(stream, sectorBytes, SectorSize, cancellationToken);
+                if (Pfs3RootBlockReader.IsExtensionBlock(sectorBytes))
+                {
+                    return;
+                }
+            }
+
+            // search for root block extension nearest expected location
+            var searchStart = Math.Max(0, expectedSector - MaxPfs3DisplacementSectors);
+            var searchEnd = Math.Min(diskSectors, expectedSector + MaxPfs3DisplacementSectors + 1);
+            long? volumeStart = null;
+            var buffer = new byte[1024 * SectorSize];
+            for (var sector = searchStart; sector < searchEnd; sector += buffer.Length / SectorSize)
+            {
+                var sectors = (int)Math.Min(buffer.Length / SectorSize, searchEnd - sector);
+                stream.Seek(sector * SectorSize, SeekOrigin.Begin);
+                await ReadFully(stream, buffer, sectors * SectorSize, cancellationToken);
+                for (var i = 0; i < sectors; i++)
+                {
+                    var candidateStart = sector + i - extensionSector;
+                    if (candidateStart < 0 || candidateStart + fileSystem.Sectors > diskSectors ||
+                        !Pfs3RootBlockReader.IsExtensionBlock(buffer, i * SectorSize))
+                    {
+                        continue;
+                    }
+
+                    if (!volumeStart.HasValue || Math.Abs(candidateStart - fileSystem.StartSector) <
+                        Math.Abs(volumeStart.Value - fileSystem.StartSector))
+                    {
+                        volumeStart = candidateStart;
+                    }
+                }
+            }
+
+            if (!volumeStart.HasValue)
+            {
+                messages.Add(new RecoveryMessage(RecoveryMessageLevel.Warning,
+                    $"Root block extension of {fileSystem} was not found, file system may be damaged"));
+                return;
+            }
+
+            var foundStart = fileSystem.StartSector;
+            fileSystem.DisplacedSectors = foundStart - volumeStart.Value;
+            fileSystem.StartSector = volumeStart.Value;
+            messages.Add(new RecoveryMessage(RecoveryMessageLevel.Warning,
+                $"Boot and root blocks of {fileSystem.Type} '{fileSystem.VolumeName}' found at sector {foundStart} are displaced {fileSystem.DisplacedSectors} sectors from volume start at sector {fileSystem.StartSector}. Boot and root blocks must be restored with Pfs3Doctor to mount volume"));
+        }
+
+        /// <summary>
+        /// Pair fast file system boot blocks with root blocks. Root block is located in the middle of partition,
+        /// root key = (partition sectors / 2) / sectors per block.
+        /// </summary>
+        private static IEnumerable<FoundFileSystem> PairFfsBlocks(IList<FfsBootBlock> bootBlocks,
+            IEnumerable<FfsRootBlock> rootBlocks)
+        {
+            foreach (var rootBlock in rootBlocks)
+            {
+                var sectorsPerBlock = rootBlock.BlockSize / SectorSize;
+
+                // find nearest boot block before root block with root block offset within partition
+                var bootBlock = bootBlocks
+                    .Where(x => x.Sector < rootBlock.Sector &&
+                                (rootBlock.Sector - x.Sector) % sectorsPerBlock == 0 &&
+                                IsBitmapBlockInPartition(rootBlock, (rootBlock.Sector - x.Sector) / sectorsPerBlock))
+                    .OrderByDescending(x => x.Sector)
+                    .FirstOrDefault();
+
+                if (bootBlock == null)
+                {
+                    continue;
+                }
+
+                var rootKey = (rootBlock.Sector - bootBlock.Sector) / sectorsPerBlock;
+                var minSectors = 2 * rootKey * sectorsPerBlock;
+
+                yield return new FoundFileSystem
+                {
+                    Type = FileSystemType.FastFileSystem,
+                    DosType = bootBlock.DosType,
+                    StartSector = bootBlock.Sector,
+                    Sectors = minSectors,
+                    MaxSectors = minSectors + 2 * sectorsPerBlock - 1,
+                    IsExactSize = false,
+                    RootBlockSector = rootBlock.Sector,
+                    FileSystemBlockSize = rootBlock.BlockSize,
+                    BitmapBlockOffset = rootBlock.BitmapBlockOffset,
+                    Reserved = 2,
+                    VolumeName = rootBlock.Name,
+                    CreationDate = rootBlock.CreationDate
+                };
+            }
+        }
+
+        private static bool IsBitmapBlockInPartition(FfsRootBlock rootBlock, long rootKey)
+        {
+            // bitmap block offset is relative to partition start and must be within partition
+            return rootKey > 0 && (rootBlock.BitmapBlockOffset == 0 || rootBlock.BitmapBlockOffset < 2 * rootKey + 2);
+        }
+
+        /// <summary>
+        /// Pair professional file system 3 root blocks with boot blocks located 2 blocks before root block.
+        /// </summary>
+        private static IEnumerable<FoundFileSystem> PairPfs3Blocks(ISet<long> pfsIdSectors,
+            IEnumerable<Pfs3RootBlockCandidate> rootBlocks)
+        {
+            var rootBlockSectors = new HashSet<long>(rootBlocks.Select(x => x.Sector));
+
+            foreach (var candidate in rootBlocks)
+            {
+                for (uint sectorsPerBlock = 1; sectorsPerBlock <= MaxBlockSize / SectorSize; sectorsPerBlock <<= 1)
+                {
+                    var bootBlockSector = candidate.Sector - Pfs3Constants.ROOTBLOCK * sectorsPerBlock;
+                    if (bootBlockSector < 0)
+                    {
+                        break;
+                    }
+
+                    if (!pfsIdSectors.Contains(bootBlockSector) || rootBlockSectors.Contains(bootBlockSector))
+                    {
+                        continue;
+                    }
+
+                    var sectors = (long)candidate.RootBlock.DiskSize * sectorsPerBlock;
+
+                    yield return new FoundFileSystem
+                    {
+                        Type = FileSystemType.ProfessionalFileSystem3,
+                        DosType = new byte[] { 0x50, 0x46, 0x53, (byte)(candidate.RootBlock.DiskType & 0xff) },
+                        StartSector = bootBlockSector,
+                        Sectors = sectors,
+                        MaxSectors = sectors,
+                        IsExactSize = true,
+                        RootBlockSector = candidate.Sector,
+                        FileSystemBlockSize = sectorsPerBlock * SectorSize,
+                        RootBlockExtensionSector =
+                            (long)Pfs3RootBlockReader.GetExtensionBlock(candidate.RootBlock) * sectorsPerBlock,
+                        Reserved = 2,
+                        VolumeName = candidate.RootBlock.DiskName,
+                        CreationDate = candidate.RootBlock.CreationDate
+                    };
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolve overlapping file systems found, which can be left overs from file systems formatted before
+        /// disk was partitioned again. Newest file system is kept, exact size is preferred if same date.
+        /// </summary>
+        private static IList<FoundFileSystem> ResolveOverlaps(IEnumerable<FoundFileSystem> candidates, long diskSectors,
+            IList<RecoveryMessage> messages)
+        {
+            var accepted = new List<FoundFileSystem>();
+
+            var ordered = candidates
+                .OrderByDescending(x => x.CreationDate)
+                .ThenByDescending(x => x.IsExactSize)
+                .ThenBy(x => x.StartSector)
+                .ToList();
+
+            foreach (var candidate in ordered)
+            {
+                if (candidate.StartSector + candidate.Sectors > diskSectors)
+                {
+                    messages.Add(new RecoveryMessage(RecoveryMessageLevel.Warning,
+                        $"Found {candidate}, which exceeds disk size of {diskSectors} sectors"));
+                }
+
+                var overlapping = accepted.FirstOrDefault(x =>
+                    candidate.StartSector < x.StartSector + x.Sectors &&
+                    x.StartSector < candidate.StartSector + candidate.Sectors);
+
+                if (overlapping != null)
+                {
+                    messages.Add(new RecoveryMessage(RecoveryMessageLevel.Warning,
+                        $"Skipped {candidate}, which overlaps newer {overlapping}"));
+                    continue;
+                }
+
+                accepted.Add(candidate);
+            }
+
+            var fileSystems = accepted.OrderBy(x => x.StartSector).ToList();
+            foreach (var fileSystem in fileSystems)
+            {
+                messages.Add(new RecoveryMessage(RecoveryMessageLevel.Info, $"Found {fileSystem}"));
+            }
+
+            return fileSystems;
+        }
+
+        /// <summary>
+        /// File system appears to be a floppy image, if it uses 512 bytes blocks and either:
+        /// - its size can be the size of a double or high density floppy disk. Size of fast file system is
+        ///   estimated from root block location, which for floppy disks is block 880 for double density and block
+        ///   1760 for high density.
+        /// - it's a fast file system with first bitmap block after root block of a double (block 881) or high
+        ///   density (block 1761) floppy disk. This detects floppy images stored fragmented in a partition, where
+        ///   distance between boot block and root block on disk doesn't match the root block offset.
+        /// </summary>
+        private static bool IsFloppyImage(FoundFileSystem fileSystem) =>
+            fileSystem.FileSystemBlockSize == SectorSize &&
+            (IsInSizeRange(fileSystem, DoubleDensityFloppySectors) ||
+             IsInSizeRange(fileSystem, HighDensityFloppySectors) ||
+             (fileSystem.Type == FileSystemType.FastFileSystem &&
+              (fileSystem.BitmapBlockOffset == DoubleDensityFloppySectors / 2 + 1 ||
+               fileSystem.BitmapBlockOffset == HighDensityFloppySectors / 2 + 1)));
+
+        private static bool IsInSizeRange(FoundFileSystem fileSystem, long sectors) =>
+            fileSystem.Sectors <= sectors && sectors <= fileSystem.MaxSectors;
+
+        private static bool IsValidBlockSize(uint blockSize) =>
+            blockSize >= MinBlockSize && blockSize <= MaxBlockSize && (blockSize & (blockSize - 1)) == 0;
+
+        private static byte[] CopyBytes(byte[] buffer, int offset, int length)
+        {
+            var bytes = new byte[length];
+            Array.Copy(buffer, offset, bytes, 0, length);
+            return bytes;
+        }
+
+        internal static async Task<int> ReadFully(Stream stream, byte[] buffer, int length,
+            CancellationToken cancellationToken)
+        {
+            var total = 0;
+            while (total < length)
+            {
+                var read = await stream.ReadAsync(buffer, total, length - total, cancellationToken);
+                if (read <= 0)
+                {
+                    break;
+                }
+
+                total += read;
+            }
+
+            if (total < length)
+            {
+                Array.Clear(buffer, total, length - total);
+            }
+
+            return total;
+        }
+    }
+}
