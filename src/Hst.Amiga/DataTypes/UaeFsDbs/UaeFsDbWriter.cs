@@ -118,7 +118,8 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
         /// <returns>Task</returns>
         public static async Task WriteToFile(string uaeFsDbPath, UaeFsDbNode node)
         {
-            using (var stream = File.OpenWrite(uaeFsDbPath))
+            // read write access is required to find position of existing node
+            using (var stream = File.Open(uaeFsDbPath, FileMode.OpenOrCreate, FileAccess.ReadWrite))
             {
                 await WriteToStream(stream, node);
             }

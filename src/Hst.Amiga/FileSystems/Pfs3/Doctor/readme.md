@@ -43,6 +43,55 @@ foreach (var message in result.Messages)
 }
 ```
 
+## Salvage
+
+`Pfs3Doctor.Salvage` is an addition that isn't part of the original PFSDoctor. It scans a PFS3 volume and re-creates
+the directories and files it finds in a target. Protection bits, comments and dates are preserved. The volume is
+never written to.
+
+Salvage works like this:
+
+1. The root block is read to get the reserved block size and the reserved area. If the root block is not valid,
+   the reserved block size is calculated from the volume size, and the end of the reserved area is searched for.
+2. The reserved area is scanned for anode and directory blocks. For each anode block sequence number, the newest
+   anode block is used. Anode blocks newer than the root block are only used when no other block has the same
+   sequence number, so blocks left over from a previous format are not preferred.
+3. The directory tree is read from the root directory by following anode chains. If a directory's anode chain is
+   broken, all directory blocks found for that directory are used. When the same name appears more than once, the
+   entry from the newest block is kept.
+4. Directory blocks that can't be reached from the root directory are salvaged as orphaned directories in
+   `Lost+Found/Dir_<anode>`. They can be old or deleted directories. Set `SalvageOptions.SalvageOrphans` to false
+   to skip them.
+5. Directories and files are written to the target. Hard links to files are written as copies of the linked file.
+   Soft links and hard links to directories are skipped and reported. Rollover files are written as regular files.
+   A file whose data can't be fully read is written with the data that could be read, and is reported as
+   partially salvaged.
+
+Salvage to a directory with UAE metadata, either UAEFSDB (`UaeMetadata.UaeFsDb`) or UAE metafiles
+(`UaeMetadata.UaeMetafile`). Amiga names, protection bits and comments are stored in UAE metadata. Dates are set as
+the last write time of directories and files.
+
+```c#
+var volume = Pfs3Doctor.OpenVolume(stream, partitionBlock);
+var target = new DirectorySalvageTarget(@"c:\salvaged", UaeMetadata.UaeFsDb);
+var result = await Pfs3Doctor.Salvage(volume, target);
+foreach (var message in result.Messages)
+{
+    Console.WriteLine(message);
+}
+```
+
+Salvage to an existing, formatted PFS3 or FFS partition in a rigid disk block image file. Don't use the same disk
+as source and target.
+
+```c#
+await using var targetStream = File.Open(@"c:\target.hdf", FileMode.Open, FileAccess.ReadWrite);
+using var target = await FileSystemVolumeSalvageTarget.MountPartition(targetStream, "DH0");
+var result = await Pfs3Doctor.Salvage(Pfs3Doctor.OpenVolume(stream, partitionBlock), target);
+```
+
+To salvage to another target, implement `ISalvageTarget`.
+
 ## Naming
 
 - Function names keep the original names in PascalCase with underscores removed, e.g. `c_GetBlock` -> `CGetBlock`, `vol_GetBlock` -> `VolGetBlock`, `dd_CheckBlock` -> `DdCheckBlock`, `bg_InitBitmap` -> `BgInitBitmap`.
