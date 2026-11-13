@@ -395,10 +395,8 @@ public partial class GivenFastFileSystemDoctor : FastFileSystemTestBase
 
     protected async Task<Stream> CreateDiskWithDirectoriesAndFiles(byte dosType, long diskSize = DiskSize10Mb)
     {
-        var dirCache = dosType == 4 || dosType == 5;
-        var formatDosType = dirCache ? (byte)(dosType - 2) : dosType;
         var stream = await CreateFastFileSystemFormattedDisk(diskSize,
-            new byte[] { 0x44, 0x4f, 0x53, formatDosType });
+            new byte[] { 0x44, 0x4f, 0x53, dosType });
 
         await using (var ffsVolume = await MountVolume(stream))
         {
@@ -413,16 +411,8 @@ public partial class GivenFastFileSystemDoctor : FastFileSystemTestBase
             await ffsVolume.Flush();
         }
 
-        if (dirCache)
-        {
-            var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
-            rigidDiskBlock.PartitionBlocks.First().DosType = new byte[] { 0x44, 0x4f, 0x53, dosType };
-            await RigidDiskBlockWriter.WriteBlock(rigidDiskBlock, stream);
-
-            var repair = await RunDoctor(stream, Mode.Repair);
-            Assert.False(repair.HasErrors);
-            Assert.Empty((await RunDoctor(stream, Mode.Check)).Issues);
-        }
+        // disk written by the file system must be valid before tests corrupt it
+        Assert.Empty((await RunDoctor(stream, Mode.Check)).Issues);
 
         return stream;
     }
