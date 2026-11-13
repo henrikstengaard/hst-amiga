@@ -1,4 +1,4 @@
-namespace Hst.Amiga.FileSystems.Pfs3.Doctor.Salvage
+namespace Hst.Amiga.FileSystems.Salvage
 {
     /// <summary>
     /// Type of UAE metadata written, when salvaging to a directory.

@@ -1,4 +1,4 @@
-namespace Hst.Amiga.FileSystems.Pfs3.Doctor.Salvage
+namespace Hst.Amiga.FileSystems.Salvage
 {
     using System;
     using System.Collections.Generic;

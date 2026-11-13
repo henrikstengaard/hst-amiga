@@ -13,6 +13,10 @@ The code is inspired by following links:
 
 See [Blocks](Blocks) page for details about blocks used by Fast File System.
 
+## Doctor
+
+See [Doctor](Doctor) page for checking, repairing and salvaging Fast File System volumes.
+
 ## DOS types
 
 FFS operates in several modes, defined by "dostypes". AmigaOS filesystems are identified by a four letter descriptor which is specified either in the RDB or a mountlist or dosdriver; alternatively (as was the case in trackdisk-like devices like floppy disks), the disk itself could be formatted in any dostype specified.

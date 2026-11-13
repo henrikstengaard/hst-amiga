@@ -11,7 +11,7 @@ using DataTypes.UaeFsDbs;
 using FileSystems;
 using FileSystems.Pfs3;
 using FileSystems.Pfs3.Doctor;
-using FileSystems.Pfs3.Doctor.Salvage;
+using FileSystems.Salvage;
 using RigidDiskBlocks;
 using Xunit;
 using Xunit.Abstractions;

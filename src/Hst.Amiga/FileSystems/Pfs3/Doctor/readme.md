@@ -90,7 +90,7 @@ using var target = await FileSystemVolumeSalvageTarget.MountPartition(targetStre
 var result = await Pfs3Doctor.Salvage(Pfs3Doctor.OpenVolume(stream, partitionBlock), target);
 ```
 
-To salvage to another target, implement `ISalvageTarget`.
+Salvage targets are in namespace `Hst.Amiga.FileSystems.Salvage` and are shared with Fast File System doctor salvage. To salvage to another target, implement `ISalvageTarget`.
 
 ## Naming
 
