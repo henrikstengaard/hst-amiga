@@ -8,6 +8,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     using System.Threading.Tasks;
     using Core.Converters;
     using Salvage;
+    using FileSystems.Salvage;
     using Constants = Hst.Amiga.FileSystems.Pfs3.Constants;
 
     /// <summary>

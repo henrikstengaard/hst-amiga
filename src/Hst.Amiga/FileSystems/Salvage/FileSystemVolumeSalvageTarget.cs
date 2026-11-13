@@ -1,4 +1,4 @@
-namespace Hst.Amiga.FileSystems.Pfs3.Doctor.Salvage
+namespace Hst.Amiga.FileSystems.Salvage
 {
     using System;
     using System.Collections.Generic;
@@ -6,6 +6,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor.Salvage
     using System.Linq;
     using System.Threading.Tasks;
     using FastFileSystem;
+    using Pfs3;
     using RigidDiskBlocks;
 
     /// <summary>
