@@ -88,7 +88,8 @@
 
                 if (entry.IsDirectory())
                 {
-                    await ExtractDirectory(volume, entry.EntryBlock, entry.SubDir, entryPath);
+                    await ExtractDirectory(volume, await Directory.ReadEntryBlock(volume, entry), entry.SubDir,
+                        entryPath);
                     continue;
                 }
 
