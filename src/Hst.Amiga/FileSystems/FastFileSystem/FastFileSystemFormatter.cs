@@ -69,6 +69,17 @@
                 bitmaps[bitmapExtensionBlock.Offset] = false;
             }
 
+            // dir cache modes (DOS\4 and DOS\5) need an empty dir cache block for root directory, which is
+            // allocated in first block after root block, bitmap blocks and bitmap extension blocks
+            var useDirCache = dosType != null && dosType.Length == 4 && Macro.UseDirCache(dosType[3]);
+            var dirCacheBlockOffset = 0U;
+            if (useDirCache)
+            {
+                dirCacheBlockOffset = bitmaps.Keys.Max() + 1;
+                bitmaps[dirCacheBlockOffset] = false;
+                rootBlock.Extension = dirCacheBlockOffset;
+            }
+
             BlockHelper.UpdateBitmaps(bitmapBlocks, bitmaps, reserved, fileSystemBlockSize);
 
             // calculate partition start offset
@@ -87,6 +98,21 @@
             var rootBlockByteOffset = partitionStartByteOffset + (long)rootBlockOffset * fileSystemBlockSize;
             stream.Seek(rootBlockByteOffset, SeekOrigin.Begin);
             await stream.WriteBytes(rootBlockBytes);
+
+            // write empty dir cache block for root directory
+            if (useDirCache)
+            {
+                var dirCacheBlock = new DirCacheBlock((int)fileSystemBlockSize)
+                {
+                    HeaderKey = dirCacheBlockOffset,
+                    Parent = rootBlockOffset,
+                    RecordsNb = 0,
+                    NextDirC = 0
+                };
+                stream.Seek(partitionStartByteOffset + (long)dirCacheBlockOffset * fileSystemBlockSize,
+                    SeekOrigin.Begin);
+                await stream.WriteBytes(DirCacheBlockBuilder.Build(dirCacheBlock, (int)fileSystemBlockSize));
+            }
 
             // write bitmap blocks
             foreach (var bitmapBlock in rootBlock.BitmapBlocks)

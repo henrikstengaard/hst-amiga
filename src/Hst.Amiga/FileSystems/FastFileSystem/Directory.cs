@@ -459,7 +459,11 @@
             
             while(entry.Type == Constants.ST_LFILE || entry.Type == Constants.ST_LDIR)
             {
-                var entryBlock = await Disk.ReadEntryBlock(volume, entry.Real);
+                // entries read from dir cache have no entry block and real entry, so it's read from link entry block
+                var realEntrySector = entry.EntryBlock == null
+                    ? (await ReadEntryBlock(volume, entry)).RealEntry
+                    : entry.Real;
+                var entryBlock = await Disk.ReadEntryBlock(volume, realEntrySector);
                 entry = ConvertEntryBlockToEntry(volume, entryBlock);
 
                 if (!sectorsVisited.Add(entry.Sector))
@@ -469,6 +473,18 @@
             }
 
             return entry;
+        }
+
+        /// <summary>
+        /// Read entry block for entry. Entries read from dir cache (DOS\4 and DOS\5) have no entry block, so it's
+        /// read from entry sector.
+        /// </summary>
+        /// <param name="volume">Volume.</param>
+        /// <param name="entry">Entry.</param>
+        /// <returns>Entry block for entry.</returns>
+        public static async Task<EntryBlock> ReadEntryBlock(Volume volume, Entry entry)
+        {
+            return entry.EntryBlock ?? await Disk.ReadEntryBlock(volume, entry.Sector);
         }
 
         public static async Task<EntryBlock> CreateLink(Volume volume, uint parentSector, string linkName, string realName)
@@ -498,16 +514,17 @@
                 throw new DiskFullException("No sector available");
             }
             
-            var realEntrySector = GetSector(volume, entry.EntryBlock);
-            
+            var realEntryBlock = await ReadEntryBlock(volume, entry);
+            var realEntrySector = GetSector(volume, realEntryBlock);
+
             var linkEntryBlock = new EntryBlock(volume.FileSystemBlockSize)
             {
                 HeaderKey = nSect,
                 Name = linkName,
                 Parent = GetSector(volume, parentEntryBlock),
                 RealEntry = realEntrySector,
-                NextLink = entry.EntryBlock.NextLink,
-                SecType = entry.EntryBlock.SecType == Constants.ST_FILE ? Constants.ST_LFILE : Constants.ST_LDIR,
+                NextLink = realEntryBlock.NextLink,
+                SecType = realEntryBlock.SecType == Constants.ST_FILE ? Constants.ST_LFILE : Constants.ST_LDIR,
                 Date = DateTime.Now
             };
             
@@ -521,10 +538,10 @@
             await Bitmap.AdfUpdateBitmap(volume);
 
             // update real entry next link to new link entry block
-            entry.EntryBlock.NextLink = linkEntryBlock.HeaderKey;
-            
+            realEntryBlock.NextLink = linkEntryBlock.HeaderKey;
+
             // write real entry block with updated next link to disk
-            await Disk.WriteEntryBlock(volume, realEntrySector, entry.EntryBlock);
+            await Disk.WriteEntryBlock(volume, realEntrySector, realEntryBlock);
             
             return linkEntryBlock;
         }
@@ -958,7 +975,8 @@
 
                 if (currentEntry.IsDirectory())
                 {
-                    sector = FastFileSystemHelper.GetSector(volume, currentEntry.EntryBlock);
+                    // entries read from dir cache have no entry block, sector is set for all entries
+                    sector = currentEntry.Sector;
                 }
             }
 
