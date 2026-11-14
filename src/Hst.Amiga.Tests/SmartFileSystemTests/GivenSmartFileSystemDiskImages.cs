@@ -10,6 +10,7 @@ using DiscUtils;
 using DiscUtils.Streams;
 using FileSystems;
 using FileSystems.SmartFileSystem;
+using FileSystems.SmartFileSystem.Doctor;
 using Xunit;
 
 /// <summary>
@@ -75,6 +76,25 @@ public class GivenSmartFileSystemDiskImages : SmartFileSystemTestBase
         Assert.True(volume.Free < volume.Size);
         var errors = await SmartFileSystemVerifier.Verify(volume.Volume, partitionBlock.PreAlloc);
         Assert.Empty(errors);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllImagesWithVolumeName))]
+    public async Task When_CheckingImageWithDoctor_Then_NoIssuesAreFound(string imageFile, string expectedVolumeName)
+    {
+        // arrange - open disk image
+        using var diskImage = DiskImage.Open(GetImagePath(imageFile));
+        var stream = diskImage.Stream;
+        var partitionBlock = await ReadPartitionBlock(stream);
+
+        // act - check volume with smart file system doctor
+        var doctor = await SmartFileSystemDoctor.Run(SmartFileSystemDoctor.OpenVolume(stream, partitionBlock),
+            Mode.Check);
+
+        // assert - no issues are found
+        Assert.False(doctor.Aborted, expectedVolumeName);
+        Assert.Empty(doctor.Issues);
+        Assert.False(doctor.HasErrors);
     }
 
     [Theory]

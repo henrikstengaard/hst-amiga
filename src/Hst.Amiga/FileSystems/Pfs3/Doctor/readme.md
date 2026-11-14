@@ -81,7 +81,7 @@ foreach (var message in result.Messages)
 }
 ```
 
-Salvage to an existing, formatted PFS3 or FFS partition in a rigid disk block image file. Don't use the same disk
+Salvage to an existing, formatted PFS3, FFS or SFS partition in a rigid disk block image file. Don't use the same disk
 as source and target.
 
 ```c#
