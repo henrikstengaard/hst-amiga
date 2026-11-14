@@ -118,3 +118,9 @@ Blocks are kept as raw `byte[]`, the same as in the original. Block classes are 
 - `UpdateCache` clears the dirty flag after a successful write.
 - When the maximum number of passes is exceeded, `ExitStandardScan` still runs, so dirty cache lines get written.
 - Info mode exits with `RblNotFound` when no valid rootblock is found.
+
+## Cross linked files
+
+Double allocated anodes and blocks are reported and the bitmaps are rebuilt, no files are removed. See
+[cross linked files across doctors](../../SmartFileSystem/Doctor#cross-linked-files-across-doctors) for how the
+PFS3, Fast File System and Smart File System doctors differ and open decisions.
