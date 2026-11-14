@@ -7,6 +7,7 @@ namespace Hst.Amiga.FileSystems.Salvage
     using System.Threading.Tasks;
     using FastFileSystem;
     using Pfs3;
+    using SmartFileSystem;
     using RigidDiskBlocks;
 
     /// <summary>
@@ -36,7 +37,7 @@ namespace Hst.Amiga.FileSystems.Salvage
 
         /// <summary>
         /// Mount partition by drive name in rigid disk block from stream as salvage target. Partition must be
-        /// formatted with PFS3 or FFS.
+        /// formatted with PFS3, FFS or SFS.
         /// </summary>
         /// <param name="stream">Stream with rigid disk block, e.g. a rigid disk block image file.</param>
         /// <param name="partitionName">Drive name of partition, e.g. DH0.</param>
@@ -60,7 +61,7 @@ namespace Hst.Amiga.FileSystems.Salvage
         }
 
         /// <summary>
-        /// Mount partition from stream as salvage target. Partition must be formatted with PFS3 or FFS.
+        /// Mount partition from stream as salvage target. Partition must be formatted with PFS3, FFS or SFS.
         /// </summary>
         /// <param name="stream">Stream with rigid disk block, e.g. a rigid disk block image file.</param>
         /// <param name="partitionBlock">Partition block of partition.</param>
@@ -84,10 +85,14 @@ namespace Hst.Amiga.FileSystems.Salvage
             {
                 volume = await FastFileSystemVolume.MountPartition(stream, partitionBlock);
             }
+            else if (identifier == "SFS" && dosType[3] == 0)
+            {
+                volume = await SmartFileSystemVolume.Mount(stream, partitionBlock);
+            }
             else
             {
                 throw new NotSupportedException(
-                    $"Partition '{partitionBlock.DriveName}' file system {partitionBlock.DosTypeFormatted} is not supported, only PFS3 and FFS are supported");
+                    $"Partition '{partitionBlock.DriveName}' file system {partitionBlock.DosTypeFormatted} is not supported, only PFS3, FFS and SFS are supported");
             }
 
             return new FileSystemVolumeSalvageTarget(volume, true);

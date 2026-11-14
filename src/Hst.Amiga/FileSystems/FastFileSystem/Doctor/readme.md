@@ -110,7 +110,7 @@ foreach (var message in result.Messages)
 }
 ```
 
-Salvage to an existing, formatted PFS3 or FFS partition in a rigid disk block image file. Don't use the same disk
+Salvage to an existing, formatted PFS3, FFS or SFS partition in a rigid disk block image file. Don't use the same disk
 as source and target.
 
 ```c#
@@ -138,3 +138,6 @@ var result = await FastFileSystemDoctor.Salvage(FastFileSystemDoctor.OpenVolume(
 - Bitmap blocks are counted from the number of blocks in the volume, the same way as the formatter in this library.
 - Soft links are counted, but their target path is not checked.
 - Data in FFS data blocks can't be validated, since FFS data blocks have no header. Only pointers are checked.
+- Cross linked blocks are kept by the entry found first by the scan, there is no option to choose which file keeps
+  them. See [cross linked files across doctors](../../SmartFileSystem/Doctor#cross-linked-files-across-doctors) for
+  open decisions.

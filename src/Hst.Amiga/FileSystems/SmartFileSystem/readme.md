@@ -13,6 +13,10 @@ Newer versions of Smart File System 1.84, AROS Smart File System and Smart File 
 
 See [Blocks](Blocks) page for details about blocks used by Smart File System.
 
+## Doctor
+
+See [Doctor](Doctor) page for checking, repairing and salvaging Smart File System volumes.
+
 ## DOS types
 
 | Dostype | Dostype hex | Supported | Description                                                                                                                                                       |
