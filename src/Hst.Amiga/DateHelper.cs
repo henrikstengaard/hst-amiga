@@ -46,7 +46,9 @@
             var days = diffDate.Days;
             var minutes = diffDate.Hours * 60 + diffDate.Minutes;
             var ticksSeconds = diffDate.Seconds * TicksPerSecond;
-            var ticksMilliseconds = diffDate.Milliseconds == 0 ? 0 : Convert.ToInt32(((double)diffDate.Milliseconds / 1000) * TicksPerSecond);
+            // truncate milliseconds to whole ticks, rounding would give 50 ticks for 990-999 ms and
+            // 3000 ticks past minute at 59.99 seconds, which is out of range
+            var ticksMilliseconds = diffDate.Milliseconds * TicksPerSecond / 1000;
             
             return new AmigaDate
             {
