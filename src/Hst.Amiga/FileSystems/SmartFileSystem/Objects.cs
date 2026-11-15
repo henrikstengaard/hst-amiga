@@ -11,7 +11,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Object info with object and object container containing object.
     /// </summary>
-    public class ObjectInfo
+    internal class ObjectInfo
     {
         public ObjectContainer Container { get; set; }
         public SfsObject Object { get; set; }
@@ -25,7 +25,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Objects (files, directories and soft links), see fs/objects.c in smart file system source.
     /// </summary>
-    public static class Objects
+    internal static class Objects
     {
         /// <summary>
         /// Read object by object node, readobject() in smart file system source.

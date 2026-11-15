@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Object container block (struct fsObjectContainer) containing one or more objects of a directory.
     /// </summary>
-    public class ObjectContainer : Block
+    internal class ObjectContainer : Block
     {
         /// <summary>
         /// Object node of parent directory, 0 for root object container.

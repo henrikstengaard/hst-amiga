@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Root block extension view (extensionblock_t in pfs3.h).
     /// </summary>
-    public class ExtensionBlock : StructView
+    internal class ExtensionBlock : StructView
     {
         public ExtensionBlock(byte[] data) : base(data, 0)
         {

@@ -4,7 +4,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     using System.IO;
     using Core.Converters;
 
-    public static class BlockHelper
+    internal static class BlockHelper
     {
         /// <summary>
         /// Read block header: id, checksum and own block.

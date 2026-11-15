@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Directory block view (dirblock_t in pfs3.h).
     /// </summary>
-    public class DirBlock : StructView
+    internal class DirBlock : StructView
     {
         /// <summary>
         /// offsetof(dirblock_t, entries)

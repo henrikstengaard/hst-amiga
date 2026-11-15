@@ -3,7 +3,7 @@
     using System;
     using System.Linq;
 
-    public static class Constants
+    internal static class Constants
     {
             public const uint MAX_FILE_SIZE = 0xffffffff;
         public const uint ULONG_MAX = UInt32.MaxValue;

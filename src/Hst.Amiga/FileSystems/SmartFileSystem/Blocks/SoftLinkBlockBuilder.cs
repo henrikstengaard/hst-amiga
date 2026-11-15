@@ -4,7 +4,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     using System.IO;
     using Core.Converters;
 
-    public static class SoftLinkBlockBuilder
+    internal static class SoftLinkBlockBuilder
     {
         public static byte[] Build(SoftLinkBlock softLinkBlock, int blockSize)
         {

@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    public static class Macro
+    internal static class Macro
     {
         public static bool UseFfs(int c)
         {

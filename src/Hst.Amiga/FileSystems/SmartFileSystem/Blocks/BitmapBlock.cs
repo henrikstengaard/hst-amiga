@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Bitmap block (struct fsBitmap) with one bit per block, most significant bit first. Set bits are free blocks.
     /// </summary>
-    public class BitmapBlock : Block
+    internal class BitmapBlock : Block
     {
         public uint[] Map { get; set; }
 

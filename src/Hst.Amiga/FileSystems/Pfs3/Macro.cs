@@ -6,7 +6,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public static class Macro
+    internal static class Macro
     {
         public static bool IsSameOI(objectinfo oi1, objectinfo oi2)
         {
@@ -54,11 +54,11 @@
         }
         public static bool IsLocked(CachedBlock blk, globaldata g) => blk.used == g.locknr;
 
-        /// <summary>
-        /// Note: first get dirblock from cached block: CachedBlock.direntry
-        /// </summary>
-        /// <param name="blok"></param>
-        /// <returns></returns>
+        // <summary>
+        // Note: first get dirblock from cached block: CachedBlock.direntry
+        // </summary>
+        // <param name="blok"></param>
+        // <returns></returns>
         // public static direntry FIRSTENTRY(dirblock blk) => DirEntryReader.Read(blk.entries, 0);
 
         /* get next directory entry */

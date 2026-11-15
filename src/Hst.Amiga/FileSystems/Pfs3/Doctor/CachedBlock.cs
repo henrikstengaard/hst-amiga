@@ -8,7 +8,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// which can be accessed as the different block types like the reservedblock union in pfs3.h.
     /// Buildblocks (buildblock_t) are also cached blocks.
     /// </summary>
-    public class CachedBlock
+    internal class CachedBlock
     {
         public uint BlockNr { get; set; }
         public Mode Mode { get; set; }

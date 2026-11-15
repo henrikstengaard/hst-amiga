@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Standard scan state (ss struct in standardscan.c).
     /// </summary>
-    public class ScanState
+    internal class ScanState
     {
         /// <summary>
         /// internal flags

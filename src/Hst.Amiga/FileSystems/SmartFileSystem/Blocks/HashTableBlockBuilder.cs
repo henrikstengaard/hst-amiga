@@ -2,7 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
 {
     using Core.Converters;
 
-    public static class HashTableBlockBuilder
+    internal static class HashTableBlockBuilder
     {
         public static byte[] Build(HashTableBlock hashTableBlock, int blockSize)
         {

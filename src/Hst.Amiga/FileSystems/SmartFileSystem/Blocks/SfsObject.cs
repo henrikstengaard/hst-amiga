@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Object (struct fsObject) representing a file, directory or soft link stored in an object container.
     /// </summary>
-    public class SfsObject
+    internal class SfsObject
     {
         public ushort OwnerUid { get; set; }
         public ushort OwnerGid { get; set; }

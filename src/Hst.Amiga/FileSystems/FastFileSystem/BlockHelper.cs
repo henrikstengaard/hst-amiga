@@ -7,7 +7,7 @@
     using Amiga.Extensions;
     using Blocks;
 
-    public static class BlockHelper
+    internal static class BlockHelper
     {
         public static int CalculateOffsetsPerBitmapBlockCount(uint fileSystemBlockSize)
         {

@@ -2,7 +2,7 @@
 {
     using System.Collections.Generic;
 
-    public class LruCachedBlock : IEqualityComparer<LruCachedBlock>
+    internal class LruCachedBlock : IEqualityComparer<LruCachedBlock>
     {
         public CachedBlock cblk;
 

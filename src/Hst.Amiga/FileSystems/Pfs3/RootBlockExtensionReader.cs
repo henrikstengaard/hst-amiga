@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class RootBlockExtensionReader
+    internal static class RootBlockExtensionReader
     {
         public static rootblockextension Parse(byte[] blockBytes)
         {

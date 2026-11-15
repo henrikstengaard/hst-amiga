@@ -4,7 +4,7 @@
     using System.Collections.Generic;
     using Blocks;
 
-    public class Entry
+    internal class Entry
     {
         public int Type { get; set; }
         public uint Parent { get; set; }

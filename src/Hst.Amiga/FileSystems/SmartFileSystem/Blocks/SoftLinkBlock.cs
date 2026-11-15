@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Soft link block (struct fsSoftLink) containing path of soft link.
     /// </summary>
-    public class SoftLinkBlock : Block
+    internal class SoftLinkBlock : Block
     {
         /// <summary>
         /// Object node of soft link object.

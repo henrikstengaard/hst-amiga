@@ -6,7 +6,7 @@
     using Core.Converters;
     using Core.Extensions;
 
-    public static class DateHelper
+    internal static class DateHelper
     {
         public static async Task<DateTime> ReadDate(Stream stream)
         {

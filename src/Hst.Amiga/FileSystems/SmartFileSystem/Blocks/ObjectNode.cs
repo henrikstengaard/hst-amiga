@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Object node (struct fsObjectNode) stored in leaf node container.
     /// </summary>
-    public class ObjectNode
+    internal class ObjectNode
     {
         /// <summary>
         /// Object container block containing object, 0 if node is free and 0xffffffff if node is reserved.

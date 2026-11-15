@@ -4,6 +4,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Blocks;
     using Exceptions;
@@ -19,7 +20,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         private readonly string name;
         private uint currentDirectoryNode;
 
-        public SmartFileSystemVolume(Volume volume, string name, uint currentDirectoryNode)
+        internal SmartFileSystemVolume(Volume volume, string name, uint currentDirectoryNode)
         {
             this.volume = volume;
             this.name = name;
@@ -29,7 +30,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Mounted volume state.
         /// </summary>
-        public Volume Volume => volume;
+        internal Volume Volume => volume;
 
         /// <summary>
         /// Name of volume
@@ -81,8 +82,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// List entries in current directory. Hidden entries like recycled directory are not listed.
         /// </summary>
-        public async Task<IEnumerable<Entry>> ListEntries()
+        public async Task<IEnumerable<Entry>> ListEntries(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var entries = new List<Entry>();
             foreach (var objectInfo in await ListRawEntries())
             {
@@ -100,7 +102,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// List raw objects in current directory including hidden objects.
         /// </summary>
-        public async Task<IEnumerable<ObjectInfo>> ListRawEntries()
+        internal async Task<IEnumerable<ObjectInfo>> ListRawEntries()
         {
             var dir = await GetCurrentDirectory();
             return await Objects.ListObjects(volume, dir);
@@ -109,8 +111,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Find entry in current directory
         /// </summary>
-        public async Task<FindEntryResult> FindEntry(string entryName)
+        public async Task<FindEntryResult> FindEntry(string entryName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (entryName.IndexOf("/", StringComparison.Ordinal) >= 0 ||
                 entryName.IndexOf("\\", StringComparison.Ordinal) >= 0)
             {
@@ -130,8 +133,10 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// Change current directory
         /// </summary>
         /// <param name="path">Relative or absolute path.</param>
-        public async Task ChangeDirectory(string path)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task ChangeDirectory(string path, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var result = await FindPath(path);
             if (result.PartsNotFound.Any())
             {
@@ -156,8 +161,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Create directory in current directory
         /// </summary>
-        public async Task CreateDirectory(string dirName)
+        public async Task CreateDirectory(string dirName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureWritable();
             await Objects.CreateObject(volume, currentDirectoryNode, new SfsObject
             {
@@ -171,9 +177,10 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Create file in current directory
         /// </summary>
-        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
+        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
-            using (await OpenFile(fileName, FileMode.Write, overwrite, ignoreProtectionBits))
+            cancellationToken.ThrowIfCancellationRequested();
+            using (await OpenFile(fileName, FileMode.Write, overwrite, ignoreProtectionBits, cancellationToken))
             {
             }
         }
@@ -185,9 +192,11 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <param name="linkPath">Path of entry to link to.</param>
         /// <param name="overwrite">Overwrite link, if it exists.</param>
         /// <param name="ignoreProtectionBits">Ignore protection bits, if link exists.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         public async Task CreateLink(string linkName, string linkPath, bool overwrite = false,
-            bool ignoreProtectionBits = false)
+            bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureWritable();
 
             var target = await FindPath(linkPath);
@@ -221,8 +230,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// Open file for reading or writing data. File is created if it doesn't exist and mode is write or append.
         /// </summary>
         public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false,
-            bool ignoreProtectionBits = false)
+            bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var write = mode == FileMode.Write || mode == FileMode.Append;
             if (write)
             {
@@ -303,8 +313,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Rename or move a file or directory
         /// </summary>
-        public async Task Rename(string oldName, string newName)
+        public async Task Rename(string oldName, string newName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureWritable();
 
             var source = await FindPath(oldName);
@@ -380,8 +391,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Delete file or directory from current directory
         /// </summary>
-        public async Task Delete(string entryName, bool ignoreProtectionBits = false)
+        public async Task Delete(string entryName, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureWritable();
             var objectInfo = await FindObjectInfo(entryName);
             await DeleteObject(objectInfo, ignoreProtectionBits);
@@ -405,8 +417,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Set comment for file in current directory
         /// </summary>
-        public async Task SetComment(string entryName, string comment)
+        public async Task SetComment(string entryName, string comment, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureWritable();
             Objects.ValidateComment(comment);
 
@@ -429,8 +442,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Set protection bits for file in current directory
         /// </summary>
-        public async Task SetProtectionBits(string entryName, ProtectionBits protectionBits)
+        public async Task SetProtectionBits(string entryName, ProtectionBits protectionBits, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureWritable();
             var objectInfo = await FindObjectInfo(entryName);
             await Objects.UpdateObject(volume, objectInfo.Object.ObjectNode,
@@ -440,8 +454,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Set date for file in current directory
         /// </summary>
-        public async Task SetDate(string entryName, DateTime date)
+        public async Task SetDate(string entryName, DateTime date, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             EnsureWritable();
             var objectInfo = await FindObjectInfo(entryName);
             await Objects.UpdateObject(volume, objectInfo.Object.ObjectNode, o => o.DateModified = date);
@@ -450,8 +465,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Flush file system changes
         /// </summary>
-        public async Task Flush()
+        public async Task Flush(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!volume.IsReadOnly)
             {
                 await volume.Stream.FlushAsync();
@@ -476,8 +492,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Get the path to the current directory.
         /// </summary>
-        public async Task<string> GetCurrentPath()
+        public async Task<string> GetCurrentPath(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var pathComponents = new LinkedList<string>();
             var node = currentDirectoryNode;
             var visited = new HashSet<uint>();
@@ -493,7 +510,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 
         public void Dispose()
         {
-            Flush().GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => Flush());
             GC.SuppressFinalize(this);
         }
 

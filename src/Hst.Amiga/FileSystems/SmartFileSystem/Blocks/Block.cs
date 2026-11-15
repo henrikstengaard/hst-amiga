@@ -4,7 +4,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// Base block with block header (struct fsBlockHeader) used by all smart file system blocks
     /// except data blocks.
     /// </summary>
-    public abstract class Block
+    internal abstract class Block
     {
         /// <summary>
         /// Id identifying the type of block, e.g. "OBJC".

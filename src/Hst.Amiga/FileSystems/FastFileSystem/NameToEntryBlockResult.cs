@@ -2,7 +2,7 @@
 {
     using Blocks;
 
-    public class NameToEntryBlockResult
+    internal class NameToEntryBlockResult
     {
         public uint NSect { get; set; }
         public EntryBlock EntryBlock { get; set; }

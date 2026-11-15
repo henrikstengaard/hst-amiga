@@ -6,7 +6,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Transaction ok block ("TROK") stored at root object container + 2, indicates no pending transaction.
     /// </summary>
-    public class TransactionOkBlock : Block
+    internal class TransactionOkBlock : Block
     {
         public TransactionOkBlock() : base(Constants.TransactionOkId)
         {
@@ -17,7 +17,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// Transaction failure block (struct fsTransactionFailure, "TRFA") stored at root object container + 2,
     /// indicates a transaction was interrupted and must be reapplied.
     /// </summary>
-    public class TransactionFailureBlock : Block
+    internal class TransactionFailureBlock : Block
     {
         /// <summary>
         /// First transaction storage block.
@@ -32,7 +32,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Transaction storage block (struct fsTransactionStorage, "TRST") containing transaction data.
     /// </summary>
-    public class TransactionStorageBlock : Block
+    internal class TransactionStorageBlock : Block
     {
         /// <summary>
         /// Next transaction storage block, 0 if last.
@@ -47,7 +47,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
         }
     }
 
-    public static class TransactionBlockParser
+    internal static class TransactionBlockParser
     {
         public static TransactionFailureBlock ParseFailure(byte[] blockBytes)
         {
@@ -68,7 +68,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
         }
     }
 
-    public static class TransactionBlockBuilder
+    internal static class TransactionBlockBuilder
     {
         public static byte[] BuildOk(TransactionOkBlock block, int blockSize)
         {

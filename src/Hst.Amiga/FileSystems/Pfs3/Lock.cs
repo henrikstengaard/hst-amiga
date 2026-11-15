@@ -5,7 +5,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public static class Lock
+    internal static class Lock
     {
 /* MakeListEntry
 **

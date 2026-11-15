@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
-    public interface IHeaderBlock
+    internal interface IHeaderBlock
     {
         int Type { get; } // 0x000
         uint HeaderKey { get; set; } // 0x004

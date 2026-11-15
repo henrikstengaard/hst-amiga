@@ -5,7 +5,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public static class Allocation
+    internal static class Allocation
     {
 /*
  * the following routines (NewBitmapBlock & NewBitmapIndexBlock are

@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Extensions
 {
-    public static class EntryExtensions
+    internal static class EntryExtensions
     {
         public static bool IsRoot(this Entry entry) => entry.Type == Constants.ST_ROOT;
 

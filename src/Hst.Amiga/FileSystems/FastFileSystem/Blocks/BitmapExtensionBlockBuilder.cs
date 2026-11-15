@@ -3,7 +3,7 @@
     using System;
     using Core.Converters;
 
-    public static class BitmapExtensionBlockBuilder
+    internal static class BitmapExtensionBlockBuilder
     {
         public static byte[] Build(BitmapExtensionBlock bitmapExtensionBlock, uint blockSize)
         {

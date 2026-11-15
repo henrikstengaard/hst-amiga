@@ -3,7 +3,7 @@
     /// <summary>
     /// Cached allocation node.
     /// </summary>
-    public class canode
+    internal class canode
     {
         /// <summary>
         /// Number of blocks in a cluster.

@@ -6,7 +6,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public class EntryStream : Stream
+    internal class EntryStream : Stream
     {
         private readonly Volume volume;
 
@@ -23,6 +23,7 @@
         private uint nDataBlock;
         private DataBlock currentData;
         private readonly bool writeMode;
+        private bool disposed;
 
         public EntryStream(Volume volume, bool writeMode, bool eof, EntryBlock entryBlock)
         {
@@ -42,28 +43,46 @@
 
         protected override void Dispose(bool disposing)
         {
-            AdfCloseFile().GetAwaiter().GetResult();
+            if (!disposed && disposing)
+            {
+                AsyncHelper.RunSync(() => AdfCloseFile());
+            }
+
+            disposed = true;
             base.Dispose(disposing);
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            if (!disposed)
+            {
+                await AdfCloseFile();
+            }
+
+            disposed = true;
+            await base.DisposeAsync();
         }
 
         public override void Flush()
         {
-            AdfFlushFile().GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => AdfFlushFile());
         }
 
         public override async Task FlushAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await AdfFlushFile();
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return AdfReadFile(buffer, offset, count).GetAwaiter().GetResult();
+            return AsyncHelper.RunSync(() => AdfReadFile(buffer, offset, count));
         }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return await AdfReadFile(buffer, offset, count);
         }
 
@@ -100,7 +119,7 @@
                 throw new NotSupportedException("Seek is not supported for entry stream in write mode");
             }
 
-            AdfFileSeek((uint)Math.Min(position, length)).GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => AdfFileSeek((uint)Math.Min(position, length)));
             return this.pos;
         }
 
@@ -112,11 +131,12 @@
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            AdfWriteFile(buffer, offset, count).GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => AdfWriteFile(buffer, offset, count));
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await AdfWriteFile(buffer, offset, count);
         }
 

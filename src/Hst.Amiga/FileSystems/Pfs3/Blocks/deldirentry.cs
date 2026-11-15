@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class deldirentry : IDirEntry
+    internal class deldirentry : IDirEntry
     {
         // struct deldirentry
         // {

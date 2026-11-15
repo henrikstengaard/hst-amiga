@@ -4,7 +4,7 @@
     using System.Collections.Generic;
     using Blocks;
 
-    public static class MapBlockHelper
+    internal static class MapBlockHelper
     {
         /// <summary>
         /// Convert map entry to block free map. One bit is used per block. If the bit is set 1, the block is free. Blocks set 0 are used.

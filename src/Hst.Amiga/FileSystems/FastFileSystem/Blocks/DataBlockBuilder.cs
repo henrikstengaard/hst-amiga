@@ -3,7 +3,7 @@
     using System;
     using Core.Converters;
 
-    public static class DataBlockBuilder
+    internal static class DataBlockBuilder
     {
         public static byte[] Build(DataBlock dataBlock, int blockSize)
         {

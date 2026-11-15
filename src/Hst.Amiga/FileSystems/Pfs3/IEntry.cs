@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public interface IEntry
+    internal interface IEntry
     {
         listentry ListEntry { get; }
         lockentry LockEntry { get; }

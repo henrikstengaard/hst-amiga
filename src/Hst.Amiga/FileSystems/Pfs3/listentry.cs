@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class listentry : IEntry
+    internal class listentry : IEntry
     {
         // /* de algemene structure */
         //         typedef struct listentry

@@ -2,7 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
 {
     using Core.Converters;
 
-    public static class ObjectContainerParser
+    internal static class ObjectContainerParser
     {
         /// <summary>
         /// Parse object container block.

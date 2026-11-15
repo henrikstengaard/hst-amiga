@@ -4,7 +4,7 @@
     using System.IO;
     using Core.Converters;
 
-    public static class BitmapBlockParser
+    internal static class BitmapBlockParser
     {
         public static BitmapBlock Parse(byte[] blockBytes)
         {

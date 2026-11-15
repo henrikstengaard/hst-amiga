@@ -3,7 +3,7 @@
     /// <summary>
     /// Amiga dosextens.h file lock
     /// </summary>
-    public class FileLock
+    internal class FileLock
     {
         /* a lock structure, as returned by Lock() or DupLock() */
         // struct FileLock {

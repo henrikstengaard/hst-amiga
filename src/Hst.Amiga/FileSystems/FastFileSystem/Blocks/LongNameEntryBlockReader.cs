@@ -8,7 +8,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
     /// <summary>
     /// Long name entry block reader for long name file system (LNFS) present in DOS\6 and DOS\7.
     /// </summary>
-    public static class LongNameEntryBlockReader
+    internal static class LongNameEntryBlockReader
     {
         public static EntryBlock Read(byte[] blockBytes)
         {

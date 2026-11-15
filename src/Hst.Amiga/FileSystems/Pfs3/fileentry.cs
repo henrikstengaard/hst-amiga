@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class fileentry : IEntry
+    internal class fileentry : IEntry
     {
 /*
  * // de specifieke structuren

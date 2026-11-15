@@ -6,7 +6,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public static class Volume
+    internal static class Volume
     {
 /* make and fill in volume structure
  * uses g->geom!

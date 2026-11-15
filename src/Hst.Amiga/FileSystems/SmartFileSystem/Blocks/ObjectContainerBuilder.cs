@@ -4,7 +4,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     using System.IO;
     using Core.Converters;
 
-    public static class ObjectContainerBuilder
+    internal static class ObjectContainerBuilder
     {
         public static byte[] Build(ObjectContainer objectContainer, int blockSize)
         {

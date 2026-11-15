@@ -6,7 +6,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// Pointer to a big endian uint32 in a block (uint32 * in original code), e.g. pointer to a block number
     /// in an index block, which is updated by repair functions.
     /// </summary>
-    public class UInt32Pointer
+    internal class UInt32Pointer
     {
         public byte[] Data { get; }
         public int Offset { get; }

@@ -3,7 +3,7 @@
     /// <summary>
     /// generic interface for blocks
     /// </summary>
-    public interface IBlock
+    internal interface IBlock
     {
         byte[] BlockBytes { get; set; }
         ushort id { get; set; }

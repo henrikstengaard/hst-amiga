@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Hash helper for smart file system, see fs/support.c in smart file system source.
     /// </summary>
-    public static class HashHelper
+    internal static class HashHelper
     {
         /// <summary>
         /// Convert character to upper case using international character set (ISO-8859-1).

@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// A leaf node container (Nodes = 1) contains object nodes, otherwise it's an index node container
     /// with pointers to child node containers.
     /// </summary>
-    public class NodeContainer : Block
+    internal class NodeContainer : Block
     {
         /// <summary>
         /// Node number of first node covered by this node container.

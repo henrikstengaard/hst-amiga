@@ -9,9 +9,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Object node tree, see fs/nodes.c in smart file system source.
     /// </summary>
-    public static class NodeTree
+    internal static class NodeTree
     {
-        public class NodeResult
+        internal class NodeResult
         {
             public NodeContainer Container { get; set; }
             public int Index { get; set; }

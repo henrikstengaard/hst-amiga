@@ -2,7 +2,7 @@
 {
     using System.Collections.Generic;
 
-    public class dirblock : IBlock
+    internal class dirblock : IBlock
     {
         // struct dirblock 
         // {

@@ -3,7 +3,7 @@
     using System.Collections.Generic;
     using Blocks;
 
-    public class lru_data_s
+    internal class lru_data_s
     {
         /* the LRU global data */
         // struct lru_data_s

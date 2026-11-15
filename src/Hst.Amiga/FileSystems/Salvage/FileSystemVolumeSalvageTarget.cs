@@ -4,6 +4,7 @@ namespace Hst.Amiga.FileSystems.Salvage
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using FastFileSystem;
     using Pfs3;
@@ -98,11 +99,12 @@ namespace Hst.Amiga.FileSystems.Salvage
             return new FileSystemVolumeSalvageTarget(volume, true);
         }
 
-        public async Task CreateDirectory(IReadOnlyList<string> parentPath, SalvageEntry entry)
+        public async Task CreateDirectory(IReadOnlyList<string> parentPath, SalvageEntry entry, CancellationToken cancellationToken = default)
         {
-            await ChangeDirectory(parentPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            await ChangeDirectory(parentPath, cancellationToken);
 
-            var existing = await volume.FindEntry(entry.Name);
+            var existing = await volume.FindEntry(entry.Name, cancellationToken);
             if (existing?.Entry != null && (existing.PartsNotFound == null || !existing.PartsNotFound.Any()))
             {
                 if (existing.Entry.Type != EntryType.Dir)
@@ -113,44 +115,49 @@ namespace Hst.Amiga.FileSystems.Salvage
                 return;
             }
 
-            await volume.CreateDirectory(entry.Name);
+            await volume.CreateDirectory(entry.Name, cancellationToken);
         }
 
-        public async Task SetDirectoryMetadata(IReadOnlyList<string> parentPath, SalvageEntry entry)
+        public async Task SetDirectoryMetadata(IReadOnlyList<string> parentPath, SalvageEntry entry, CancellationToken cancellationToken = default)
         {
-            await ChangeDirectory(parentPath);
-            await SetMetadata(entry);
+            cancellationToken.ThrowIfCancellationRequested();
+            await ChangeDirectory(parentPath, cancellationToken);
+            await SetMetadata(entry, cancellationToken);
         }
 
-        public async Task WriteFile(IReadOnlyList<string> parentPath, SalvageEntry entry, Stream data)
+        public async Task WriteFile(IReadOnlyList<string> parentPath, SalvageEntry entry, Stream data, CancellationToken cancellationToken = default)
         {
-            await ChangeDirectory(parentPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            await ChangeDirectory(parentPath, cancellationToken);
 
-            await volume.CreateFile(entry.Name, true, true);
-            using (var stream = await volume.OpenFile(entry.Name, FileSystems.FileMode.Write, true, true))
+            await volume.CreateFile(entry.Name, true, true, cancellationToken);
+            using (var stream = await volume.OpenFile(entry.Name, FileSystems.FileMode.Write, true, true,
+                       cancellationToken))
             {
-                await data.CopyToAsync(stream);
+                await data.CopyToAsync(stream, CopyBufferSize, cancellationToken);
             }
 
-            await SetMetadata(entry);
+            await SetMetadata(entry, cancellationToken);
         }
 
-        public Task Flush() => volume.Flush();
+        public Task Flush(CancellationToken cancellationToken = default) => volume.Flush(cancellationToken);
 
-        private async Task ChangeDirectory(IReadOnlyList<string> parentPath)
+        private const int CopyBufferSize = 81920;
+
+        private async Task ChangeDirectory(IReadOnlyList<string> parentPath, CancellationToken cancellationToken)
         {
-            await volume.ChangeDirectory("/");
+            await volume.ChangeDirectory("/", cancellationToken);
             foreach (var name in parentPath)
             {
-                await volume.ChangeDirectory(name);
+                await volume.ChangeDirectory(name, cancellationToken);
             }
         }
 
-        private async Task SetMetadata(SalvageEntry entry)
+        private async Task SetMetadata(SalvageEntry entry, CancellationToken cancellationToken)
         {
-            await volume.SetProtectionBits(entry.Name, entry.ProtectionBits);
-            await volume.SetComment(entry.Name, entry.Comment ?? string.Empty);
-            await volume.SetDate(entry.Name, entry.Date);
+            await volume.SetProtectionBits(entry.Name, entry.ProtectionBits, cancellationToken);
+            await volume.SetComment(entry.Name, entry.Comment ?? string.Empty, cancellationToken);
+            await volume.SetDate(entry.Name, entry.Date, cancellationToken);
         }
 
         public void Dispose()

@@ -6,7 +6,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// and delete bits are set when allowed. This matches the meaning of <see cref="ProtectionBits"/>.
     /// Bits above the lower 8 bits (group and other) are kept unchanged.
     /// </summary>
-    public static class ProtectionHelper
+    internal static class ProtectionHelper
     {
         public const uint DefaultProtection =
             (uint)(ProtectionBits.Read | ProtectionBits.Write | ProtectionBits.Executable | ProtectionBits.Delete);

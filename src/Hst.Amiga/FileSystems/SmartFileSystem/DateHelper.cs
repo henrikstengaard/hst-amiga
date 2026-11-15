@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Date helper for smart file system dates stored as seconds since 1978-01-01 00:00:00.
     /// </summary>
-    public static class DateHelper
+    internal static class DateHelper
     {
         public static DateTime ConvertToDate(uint seconds)
         {

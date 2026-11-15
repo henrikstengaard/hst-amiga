@@ -4,7 +4,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// Extent B-tree node (struct fsExtentBNode) in leaf B-tree node containers describing a range of
     /// continuous data blocks used by a file.
     /// </summary>
-    public class ExtentBNode : BNode
+    internal class ExtentBNode : BNode
     {
         /// <summary>
         /// Key of next extent (first block), 0 if last extent of file.

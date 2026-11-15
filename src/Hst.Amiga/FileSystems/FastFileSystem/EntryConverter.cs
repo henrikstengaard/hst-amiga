@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    public static class EntryConverter
+    internal static class EntryConverter
     {
         public static Hst.Amiga.FileSystems.Entry ToEntry(Entry entry)
         {

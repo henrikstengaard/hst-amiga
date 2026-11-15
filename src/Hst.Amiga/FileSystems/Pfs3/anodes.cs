@@ -5,7 +5,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public class anodes
+    internal class anodes
     {
         /**********************************************************************/
         /* indexblocks                                                        */

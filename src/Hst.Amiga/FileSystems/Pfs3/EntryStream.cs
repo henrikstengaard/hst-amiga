@@ -5,14 +5,12 @@
     using System.Threading;
     using System.Threading.Tasks;
 
-    public class EntryStream : Stream
-#if NET6_0
-        , IAsyncDisposable
-#endif
+    internal class EntryStream : Stream
     {
         private readonly fileentry fileEntry;
         private readonly globaldata g;
         private bool dataWritten;
+        private bool disposed;
 
         public EntryStream(fileentry fileEntry, globaldata g)
         {
@@ -23,11 +21,32 @@
 
         protected override void Dispose(bool disposing)
         {
-            base.Dispose(disposing);
-            File.Close(fileEntry, g).GetAwaiter().GetResult();
-            if (this.dataWritten)
+            if (!disposed && disposing)
             {
-                Disk.UpdateDataCache(g).GetAwaiter().GetResult();
+                AsyncHelper.RunSync(CloseInternal);
+            }
+
+            disposed = true;
+            base.Dispose(disposing);
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            if (!disposed)
+            {
+                await CloseInternal();
+            }
+
+            disposed = true;
+            await base.DisposeAsync();
+        }
+
+        private async Task CloseInternal()
+        {
+            await File.Close(fileEntry, g);
+            if (dataWritten)
+            {
+                await Disk.UpdateDataCache(g);
             }
         }
 
@@ -37,18 +56,19 @@
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return ReadInternal(buffer, offset, count).GetAwaiter().GetResult();
+            return AsyncHelper.RunSync(() => ReadInternal(buffer, offset, count));
         }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return await ReadInternal(buffer, offset, count);
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            if (Disk.SeekInObject(fileEntry, (int)offset, GetMode(origin), g).GetAwaiter().GetResult() < 0)
+            if (AsyncHelper.RunSync(() => Disk.SeekInObject(fileEntry, (int)offset, GetMode(origin), g)) < 0)
             {
                 throw new IOException($"Seek to offset {offset} from {origin} failed");
             }
@@ -139,11 +159,12 @@
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            WriteInternal(buffer, offset, count).GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => WriteInternal(buffer, offset, count));
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await WriteInternal(buffer, offset, count);
         }
 
@@ -157,12 +178,5 @@
             get => fileEntry.offset;
             set => Seek(value, SeekOrigin.Begin);
         }
-
-#if NET6_0
-        public override async ValueTask DisposeAsync()
-        {
-            await base.DisposeAsync();
-        }
-#endif
     }
 }

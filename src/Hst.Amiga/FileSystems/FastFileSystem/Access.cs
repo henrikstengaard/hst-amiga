@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    public enum Access
+    internal enum Access
     {
         Delete = 1,
         Execute = 2,

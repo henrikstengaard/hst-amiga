@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
-    public class FileExtBlock : IBlock, IHeaderBlock
+    internal class FileExtBlock : IBlock, IHeaderBlock
     {
         public uint Offset { get; set; }
         public byte[] BlockBytes { get; set; }

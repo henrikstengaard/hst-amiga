@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Delete directory block view (deldirblock_t in pfs3.h).
     /// </summary>
-    public class DelDirBlock : StructView
+    internal class DelDirBlock : StructView
     {
         public DelDirBlock(byte[] data) : base(data, 0)
         {
@@ -63,7 +63,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Delete directory entry view (struct deldirentry in pfs3.h).
     /// </summary>
-    public class DelDirEntry : StructView
+    internal class DelDirEntry : StructView
     {
         /// <summary>
         /// sizeof(struct deldirentry)

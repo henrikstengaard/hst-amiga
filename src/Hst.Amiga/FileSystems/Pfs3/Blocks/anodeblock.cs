@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3.Blocks
 {
-    public class anodeblock : IBlock
+    internal class anodeblock : IBlock
     {
         // typedef struct anodeblock
         // {

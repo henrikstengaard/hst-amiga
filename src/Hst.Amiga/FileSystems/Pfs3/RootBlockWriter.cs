@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class RootBlockWriter
+    internal static class RootBlockWriter
     {
         public static byte[] BuildBlock(RootBlock rootBlock, globaldata g)
         {

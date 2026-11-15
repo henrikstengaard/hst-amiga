@@ -3,7 +3,7 @@
     using System;
     using Core.Converters;
 
-    public static class DirCacheBlockBuilder
+    internal static class DirCacheBlockBuilder
     {
         public static byte[] Build(DirCacheBlock dirCacheBlock, int blockSize)
         {

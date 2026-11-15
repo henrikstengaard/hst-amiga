@@ -4,7 +4,7 @@
     using System.IO;
     using Core.Converters;
 
-    public static class DataBlockParser
+    internal static class DataBlockParser
     {
         public static DataBlock Parse(byte[] blockBytes)
         {

@@ -8,7 +8,7 @@
     using Blocks;
     using Exceptions;
 
-    public static class Directory
+    internal static class Directory
     {
         /// <summary>
         /// Get path to entry.
@@ -928,11 +928,11 @@
             return true;
         }
         
-        /// <summary>
-        /// Calculates max number of dir entries a dir block can store
-        /// </summary>
-        /// <param name="dirblock"></param>
-        /// <returns></returns>
+        // <summary>
+        // Calculates max number of dir entries a dir block can store
+        // </summary>
+        // <param name="dirblock"></param>
+        // <returns></returns>
         // private static int CalculateMaxDirEntries(dirblock dirblock)
         // {
         //     return dirblock == null ? 0 : (dirblock.entries.Length / SizeOf.DirEntry.Struct) + 5;

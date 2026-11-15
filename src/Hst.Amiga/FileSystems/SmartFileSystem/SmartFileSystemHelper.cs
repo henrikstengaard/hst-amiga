@@ -8,7 +8,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     using RigidDiskBlocks;
     using BlockHelper = Blocks.BlockHelper;
 
-    public static class SmartFileSystemHelper
+    internal static class SmartFileSystemHelper
     {
         /// <summary>
         /// Get partition start and end byte offsets (end exclusive) and file system block size from partition block.

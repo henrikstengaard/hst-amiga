@@ -14,9 +14,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// transaction storage blocks and the transaction must be reapplied when the volume is mounted.
     /// This implementation writes blocks directly and only replays pending transactions.
     /// </summary>
-    public static class Transactions
+    internal static class Transactions
     {
-        public class Operation
+        internal class Operation
         {
             public uint Block { get; set; }
             public byte Bits { get; set; }

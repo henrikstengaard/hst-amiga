@@ -7,7 +7,7 @@
     /// <summary>
     /// Writer for long name file system comment block (LNFS) present in DOS\6 and DOS\7
     /// </summary>
-    public static class LongNameFileSystemCommentBlockWriter
+    internal static class LongNameFileSystemCommentBlockWriter
     {
         public static byte[] Build(LongNameFileSystemCommentBlock longNameFileSystemCommentBlock, int blockSize)
         {

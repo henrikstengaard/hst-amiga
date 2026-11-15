@@ -2,7 +2,7 @@
 {
     using Blocks;
 
-    public class allocation_data_s
+    internal class allocation_data_s
     {
         public uint clean_blocksfree;             /* number of blocks directly allocatable            */
         public uint alloc_available;              /* cleanblocksfree + blockstobefreed - alwaysfree   */

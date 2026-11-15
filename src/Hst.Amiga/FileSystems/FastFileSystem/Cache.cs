@@ -9,7 +9,7 @@
     using Core.Converters;
     using Extensions;
 
-    public static class Cache
+    internal static class Cache
     {
         public static async Task<IEnumerable<Entry>> ReadEntries(Volume vol, uint dir, bool recursive = false)
         {

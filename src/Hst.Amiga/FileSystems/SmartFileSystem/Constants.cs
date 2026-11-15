@@ -4,7 +4,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// Constants used by smart file system (SFS), see fs/blockstructure.h, fs/objects.h, fs/nodes.h,
     /// fs/btreenodes.h, fs/bitmap.h, fs/adminspaces.h and fs/transactions.h in smart file system source.
     /// </summary>
-    public static class Constants
+    internal static class Constants
     {
         /// <summary>
         /// Dos type "SFS\0" for smart file system.

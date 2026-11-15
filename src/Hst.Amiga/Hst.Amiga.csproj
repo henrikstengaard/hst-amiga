@@ -2,10 +2,16 @@
   <PropertyGroup>
     <Description>Hst Amiga is a library for reading and writing Amiga partition table, file systems, data types.</Description>
     <PackageTags>Hst;Amiga;RDB;FFS;PFS3;SFS;UAEFSDB</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591: missing XML comment for publicly visible type or member -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <None Include="readme.md" Pack="true" PackagePath="\" />
     <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hst.Amiga.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Hst.Core" Version="0.4.96" />

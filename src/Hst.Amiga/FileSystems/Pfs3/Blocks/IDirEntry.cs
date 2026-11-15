@@ -2,7 +2,7 @@
 {
     using System;
 
-    public interface IDirEntry
+    internal interface IDirEntry
     {
         string Name { get; }
         DateTime CreationDate { get; }

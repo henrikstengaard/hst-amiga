@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Constants from doctor.h and pfs3.h (pfsdoctor) not present in Pfs3 Constants.
     /// </summary>
-    public static class DoctorConstants
+    internal static class DoctorConstants
     {
         /// <summary>
         /// last two bytes used for extended file size

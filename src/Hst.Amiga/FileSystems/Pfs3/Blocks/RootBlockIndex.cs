@@ -1,8 +1,8 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3.Blocks
 {
-    public class RootBlockIndex
+    internal class RootBlockIndex
     {
-        public class Small
+        internal class Small
         {
             /*
             struct
@@ -29,7 +29,7 @@
         /// union to share array between offset usage
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public class Union<T>
+        internal class Union<T>
         {
             private readonly T[] array;
             private readonly int offset;
@@ -47,7 +47,7 @@
             }
         }
 
-        public class Large
+        internal class Large
         {
             /*
             struct 

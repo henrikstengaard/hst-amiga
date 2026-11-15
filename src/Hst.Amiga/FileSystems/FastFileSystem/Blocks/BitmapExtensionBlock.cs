@@ -2,7 +2,7 @@
 {
     using System.Collections.Generic;
 
-    public class BitmapExtensionBlock : IBlock
+    internal class BitmapExtensionBlock : IBlock
     {
         public uint Offset { get; set; }
         public byte[] BlockBytes { get; set; }

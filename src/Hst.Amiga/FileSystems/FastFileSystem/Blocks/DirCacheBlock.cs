@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
 {
-    public class DirCacheBlock : IBlock
+    internal class DirCacheBlock : IBlock
     {
         public uint Offset { get; set; }
         public byte[] BlockBytes { get; set; }

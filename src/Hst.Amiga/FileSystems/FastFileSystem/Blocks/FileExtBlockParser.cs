@@ -4,7 +4,7 @@
     using System.IO;
     using Core.Converters;
 
-    public static class FileExtBlockParser
+    internal static class FileExtBlockParser
     {
         public static FileExtBlock Parse(byte[] blockBytes)
         {

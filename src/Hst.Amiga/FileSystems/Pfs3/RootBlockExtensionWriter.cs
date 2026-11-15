@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class RootBlockExtensionWriter
+    internal static class RootBlockExtensionWriter
     {
         public static byte[] BuildBlock(rootblockextension rootblockextension, globaldata g)
         {

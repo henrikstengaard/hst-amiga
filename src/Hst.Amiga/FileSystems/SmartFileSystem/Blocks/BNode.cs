@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// B-tree node (struct BNode) in internal (non-leaf) B-tree node containers.
     /// </summary>
-    public class BNode
+    internal class BNode
     {
         /// <summary>
         /// Key of node. For internal nodes, the first key in child B-tree node container.

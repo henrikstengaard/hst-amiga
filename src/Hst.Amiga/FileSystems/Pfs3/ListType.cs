@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class ListType
+    internal class ListType
     {
         // union listtype
         // {
@@ -16,7 +16,7 @@
         // };
         
         // acess   10
-        public class ListTypeFlags
+        internal class ListTypeFlags
         {
             public int pad { get; set; }
             public int dir { get; set; }

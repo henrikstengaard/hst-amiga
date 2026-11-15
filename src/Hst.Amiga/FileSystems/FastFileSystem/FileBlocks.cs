@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    public class FileBlocks
+    internal class FileBlocks
     {
         public uint header;
         public uint nbExtens;

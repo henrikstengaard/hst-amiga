@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class anode
+    internal class anode
     {
         public uint clustersize;
         public uint blocknr;

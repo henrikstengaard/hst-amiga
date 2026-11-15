@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class RootBlock
+    internal class RootBlock
     {
         // pfs3src/pfs/format.c
         // pfs3src/pfs/blocks.h
@@ -45,7 +45,7 @@ typedef struct rootblock
     } rootblock_t;
     */
         [Flags]
-        public enum DiskOptionsEnum : int
+        internal enum DiskOptionsEnum : int
         {
             /* disk options */
             MODE_HARDDISK = 1,
@@ -139,7 +139,7 @@ typedef struct rootblock
         public uint RovingPtr { get; set; }
 
         /// <summary>
-        /// deldir location (<= 17.8)
+        /// deldir location (&lt;= 17.8)
         /// </summary>
         public uint DelDir { get; set; }
 

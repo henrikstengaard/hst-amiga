@@ -4,9 +4,9 @@
     /// A bitmap block contain information about free and allocated blocks.
     /// One bit is used per block. If the bit is set, the block is free, a cleared bit means an allocated block.
     /// </summary>
-    public class BitmapBlock : IBlock
+    internal class BitmapBlock : IBlock
     {
-        public enum BlockState
+        internal enum BlockState
         {
             Used,
             Free

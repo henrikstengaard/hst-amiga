@@ -7,7 +7,7 @@
     using Exceptions;
     using FileMode = FileMode;
 
-    public static class File
+    internal static class File
     {
         public static async Task<Stream> Open(Volume volume, Entry entry, FileMode mode = FileMode.Read)
         {

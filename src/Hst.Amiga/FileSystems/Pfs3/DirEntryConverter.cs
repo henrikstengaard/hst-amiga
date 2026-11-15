@@ -2,7 +2,7 @@
 {
     using Blocks;
 
-    public static class DirEntryConverter
+    internal static class DirEntryConverter
     {
         public static Entry ToEntry(direntry dirEntry)
         {

@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Generated bitmap (bitmap_t in doctor.h).
     /// </summary>
-    public class Bitmap
+    internal class Bitmap
     {
         /// <summary>
         /// fix only possible if valid

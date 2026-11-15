@@ -5,7 +5,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class DirBlockWriter
+    internal static class DirBlockWriter
     {
         public static byte[] BuildBlock(dirblock dirBlock, globaldata g)
         {

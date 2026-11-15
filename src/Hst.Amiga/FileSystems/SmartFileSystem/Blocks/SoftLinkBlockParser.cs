@@ -2,7 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
 {
     using Core.Converters;
 
-    public static class SoftLinkBlockParser
+    internal static class SoftLinkBlockParser
     {
         public static SoftLinkBlock Parse(byte[] blockBytes)
         {

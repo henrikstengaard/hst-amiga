@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Blocks
     using System;
     using Core.Converters;
 
-    public static class DelDirEntryWriter
+    internal static class DelDirEntryWriter
     {
         public static void Write(byte[] data, int offset, deldirentry delDirEntry)
         {

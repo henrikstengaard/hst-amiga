@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class lockentry : IEntry
+    internal class lockentry : IEntry
     {
         // typedef struct lockentry
         // {

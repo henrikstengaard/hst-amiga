@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class postponed_op
+    internal class postponed_op
     {
         public uint operation_id;		/* which operation is postponed */
         public uint argument1;		/* operation arguments, e.g. number of blocks */

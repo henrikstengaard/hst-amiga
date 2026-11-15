@@ -7,7 +7,7 @@
     using Blocks;
     using Exceptions;
 
-    public static class Bitmap
+    internal static class Bitmap
     {
         public static async Task AdfReadBitmap(Volume vol, uint nBlock, RootBlock root)
         {

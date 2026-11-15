@@ -7,7 +7,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// Leaf containers contains extent B-tree nodes, internal containers contains B-tree nodes pointing
     /// to child containers. Nodes are sorted by key.
     /// </summary>
-    public class BNodeContainer : Block
+    internal class BNodeContainer : Block
     {
         public bool IsLeaf { get; set; }
 

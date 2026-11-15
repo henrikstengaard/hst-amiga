@@ -12,7 +12,7 @@ using FileSystems.SmartFileSystem.Blocks;
 /// Verifies consistency of a smart file system volume by walking all structures.
 /// Checks object containers, hash chains, object nodes, extents, admin space bits and bitmap.
 /// </summary>
-public static class SmartFileSystemVerifier
+internal static class SmartFileSystemVerifier
 {
     public static async Task<IList<string>> Verify(Volume volume, uint preAlloc)
     {
