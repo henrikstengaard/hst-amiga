@@ -8,7 +8,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// The checksum stored at offset 4 is the negated sum with checksum field set to 0,
     /// which makes the sum of a valid block equal to 0.
     /// </summary>
-    public static class ChecksumHelper
+    internal static class ChecksumHelper
     {
         public const int ChecksumOffset = 4;
 

@@ -92,16 +92,16 @@
         public int StandardScan { get; set; }
 
         /* bitmaps */
-        public Bitmap MainBitmap { get; set; }
-        public Bitmap AnodeBitmap { get; set; }
-        public Bitmap ResBitmap { get; set; }
+        internal Bitmap MainBitmap { get; set; }
+        internal Bitmap AnodeBitmap { get; set; }
+        internal Bitmap ResBitmap { get; set; }
 
         /* full scan */
 
         /// <summary>
         /// elements are of type buildblock
         /// </summary>
-        public LinkedList<CachedBlock> BuildBlocks { get; set; }
+        internal LinkedList<CachedBlock> BuildBlocks { get; set; }
 
         /* private */
         public DosEnvec DosEnvec { get; set; }
@@ -112,7 +112,7 @@
 
         /* device stuff */
         public Stream Stream { get; set; }
-        public Cache Cache { get; }
+        internal Cache Cache { get; }
 
         /// <summary>
         /// Get raw blocks (data, numblock, bloknr). Blocknrs are disk (not partition!) based.

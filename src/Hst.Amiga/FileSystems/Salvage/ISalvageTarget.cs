@@ -2,6 +2,7 @@ namespace Hst.Amiga.FileSystems.Salvage
 {
     using System.Collections.Generic;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -15,7 +16,8 @@ namespace Hst.Amiga.FileSystems.Salvage
         /// </summary>
         /// <param name="parentPath">Amiga names of parent directories.</param>
         /// <param name="entry">Directory to create.</param>
-        Task CreateDirectory(IReadOnlyList<string> parentPath, SalvageEntry entry);
+        /// <param name="cancellationToken">Cancellation token.</param>
+        Task CreateDirectory(IReadOnlyList<string> parentPath, SalvageEntry entry, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Set protection bits, comment and date of directory. Called after all directories and files in the
@@ -23,7 +25,8 @@ namespace Hst.Amiga.FileSystems.Salvage
         /// </summary>
         /// <param name="parentPath">Amiga names of parent directories.</param>
         /// <param name="entry">Directory to set metadata for.</param>
-        Task SetDirectoryMetadata(IReadOnlyList<string> parentPath, SalvageEntry entry);
+        /// <param name="cancellationToken">Cancellation token.</param>
+        Task SetDirectoryMetadata(IReadOnlyList<string> parentPath, SalvageEntry entry, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Create file in parent directory with data, protection bits, comment and date.
@@ -31,11 +34,12 @@ namespace Hst.Amiga.FileSystems.Salvage
         /// <param name="parentPath">Amiga names of parent directories.</param>
         /// <param name="entry">File to create.</param>
         /// <param name="data">Stream with file data.</param>
-        Task WriteFile(IReadOnlyList<string> parentPath, SalvageEntry entry, Stream data);
+        /// <param name="cancellationToken">Cancellation token.</param>
+        Task WriteFile(IReadOnlyList<string> parentPath, SalvageEntry entry, Stream data, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Flush changes.
         /// </summary>
-        Task Flush();
+        Task Flush(CancellationToken cancellationToken = default);
     }
 }

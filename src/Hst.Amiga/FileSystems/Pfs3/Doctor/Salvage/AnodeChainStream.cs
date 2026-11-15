@@ -73,7 +73,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor.Salvage
         }
 
         public override int Read(byte[] buffer, int offset, int count) =>
-            ReadAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => ReadAsync(buffer, offset, count, CancellationToken.None));
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)

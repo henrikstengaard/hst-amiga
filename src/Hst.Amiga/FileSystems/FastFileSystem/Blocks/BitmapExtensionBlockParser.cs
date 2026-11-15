@@ -3,7 +3,7 @@
     using System.Collections.Generic;
     using Core.Converters;
 
-    public static class BitmapExtensionBlockParser
+    internal static class BitmapExtensionBlockParser
     {
         public static BitmapExtensionBlock Parse(byte[] blockBytes)
         {

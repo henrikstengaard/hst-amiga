@@ -124,7 +124,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Doctor
             /* write directories and files to target */
             ShowMsg("Writing directories and files");
             await SalvageWriteChildren(target, new List<string>(), rootNode);
-            await target.Flush();
+            await target.Flush(cancellationToken);
 
             SalvageMessage(
                 $"Salvaged {salvageResult.Directories} directories and {salvageResult.Files} files ({salvageResult.Bytes} bytes)");
@@ -419,11 +419,11 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Doctor
                     switch (child.SecType)
                     {
                         case Constants.ST_DIR:
-                            await target.CreateDirectory(parentPath, child.Entry);
+                            await target.CreateDirectory(parentPath, child.Entry, cancellationToken);
                             salvageResult.Directories++;
                             await SalvageWriteChildren(target, parentPath.Concat(new[] { child.Entry.Name }).ToList(),
                                 child);
-                            await target.SetDirectoryMetadata(parentPath, child.Entry);
+                            await target.SetDirectoryMetadata(parentPath, child.Entry, cancellationToken);
                             break;
                         case Constants.ST_FILE:
                             await SalvageWriteFile(target, parentPath, child.Entry, child.Block,
@@ -476,7 +476,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Doctor
 
             using (var stream = new DataBlockStream(volume, blocks, useOfs, length))
             {
-                await target.WriteFile(parentPath, entry, stream);
+                await target.WriteFile(parentPath, entry, stream, cancellationToken);
             }
 
             salvageResult.Files++;

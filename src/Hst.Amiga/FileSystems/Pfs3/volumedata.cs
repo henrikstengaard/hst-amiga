@@ -3,7 +3,7 @@
     using System.Collections.Generic;
     using Blocks;
 
-    public class volumedata
+    internal class volumedata
     {
         // struct volumedata   *next;          /* volumechain                          */
         // struct volumedata   *prev;      

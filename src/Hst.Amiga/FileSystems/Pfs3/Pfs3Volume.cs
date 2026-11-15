@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Blocks;
     using Exceptions;
@@ -12,10 +13,10 @@
 
     public class Pfs3Volume : IFileSystemVolume
     {
-        public readonly globaldata g;
+        internal readonly globaldata g;
         private uint dirNodeNr;
 
-        public Pfs3Volume(globaldata g, uint dirNodeNr)
+        internal Pfs3Volume(globaldata g, uint dirNodeNr)
         {
             this.g = g;
             this.dirNodeNr = dirNodeNr;
@@ -47,12 +48,13 @@
         /// List entries in current directory
         /// </summary>
         /// <returns></returns>
-        public async Task<IEnumerable<Entry>> ListEntries()
+        public async Task<IEnumerable<Entry>> ListEntries(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return (await Directory.GetDirEntries(dirNodeNr, g)).Select(DirEntryConverter.ToEntry).ToList();
         }
 
-        public async Task<IEnumerable<direntry>> ListRawEntries()
+        internal async Task<IEnumerable<direntry>> ListRawEntries()
         {
             return await Directory.GetDirEntries(dirNodeNr, g);
         }
@@ -61,9 +63,11 @@
         /// Find entry in current directory.
         /// </summary>
         /// <param name="name"></param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns></returns>
-        public async Task<FindEntryResult> FindEntry(string name)
+        public async Task<FindEntryResult> FindEntry(string name, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (name.IndexOf("/", StringComparison.Ordinal) >= 0 || name.IndexOf("\\", StringComparison.Ordinal) >= 0)
             {
                 throw new ArgumentException("Name contains directory separator", nameof(name));
@@ -83,8 +87,10 @@
         /// Change current directory
         /// </summary>
         /// <param name="path">Relative or absolute path.</param>
-        public async Task ChangeDirectory(string path)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task ChangeDirectory(string path, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var currentDirectory = await GetCurrentDirectory();
             var isRootPath = path.StartsWith("/");
             if (isRootPath && !Macro.IsRoot(currentDirectory))
@@ -117,8 +123,10 @@
         /// Create directory in current directory
         /// </summary>
         /// <param name="dirName"></param>
-        public async Task CreateDirectory(string dirName)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task CreateDirectory(string dirName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var currentDirectory = await GetCurrentDirectory();
             var entry = await Directory.NewDir(currentDirectory, dirName, g);
 
@@ -139,10 +147,12 @@
         /// <param name="fileName"></param>
         /// <param name="overwrite"></param>
         /// <param name="ignoreProtectionBits"></param>
-        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             g.IgnoreProtectionBits = ignoreProtectionBits;
-            using (await OpenFile(fileName, FileMode.Write, overwrite, ignoreProtectionBits))
+            using (await OpenFile(fileName, FileMode.Write, overwrite, ignoreProtectionBits, cancellationToken))
             {
             }
         }
@@ -154,8 +164,10 @@
         /// <param name="name">Name of entry to create link to.</param>
         /// <param name="overwrite">Overwrite link, if it exists.</param>
         /// <param name="ignoreProtectionBits">Ignore protection bits, if link exists.</param>
-        public async Task CreateLink(string linkName, string name, bool overwrite = false, bool ignoreProtectionBits = false)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task CreateLink(string linkName, string name, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             g.IgnoreProtectionBits = ignoreProtectionBits;
 
             var currentDirectory = await GetCurrentDirectory();
@@ -233,9 +245,11 @@
         /// <param name="mode"></param>
         /// <param name="overwrite"></param>
         /// <param name="ignoreProtectionBits"></param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false, bool ignoreProtectionBits = false)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             g.IgnoreProtectionBits = ignoreProtectionBits;
             var currentDirectory = await GetCurrentDirectory();
             
@@ -251,8 +265,10 @@
         /// </summary>
         /// <param name="name"></param>
         /// <param name="ignoreProtectionBits"></param>
-        public async Task Delete(string name, bool ignoreProtectionBits = false)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task Delete(string name, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             g.IgnoreProtectionBits = ignoreProtectionBits;
             var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
@@ -268,9 +284,11 @@
         /// </summary>
         /// <param name="oldName">Old name</param>
         /// <param name="newName">New name</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <exception cref="IOException"></exception>
-        public async Task Rename(string oldName, string newName)
+        public async Task Rename(string oldName, string newName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var currentDirectory = await GetCurrentDirectory();
             var srcInfo = currentDirectory.Clone();
             if ((await Directory.Find(srcInfo, oldName, g)).Any())
@@ -299,8 +317,10 @@
         /// </summary>
         /// <param name="name"></param>
         /// <param name="comment"></param>
-        public async Task SetComment(string name, string comment)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task SetComment(string name, string comment, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
@@ -315,8 +335,10 @@
         /// </summary>
         /// <param name="name"></param>
         /// <param name="protectionBits"></param>
-        public async Task SetProtectionBits(string name, ProtectionBits protectionBits)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task SetProtectionBits(string name, ProtectionBits protectionBits, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
@@ -331,8 +353,10 @@
         /// </summary>
         /// <param name="name"></param>
         /// <param name="date"></param>
-        public async Task SetDate(string name, DateTime date)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task SetDate(string name, DateTime date, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var currentDirectory = await GetCurrentDirectory();
             var objectInfo = currentDirectory.Clone();
             if ((await Directory.Find(objectInfo, name, g)).Any())
@@ -390,8 +414,9 @@
         /// Flush file system changes
         /// </summary>
         /// <returns></returns>
-        public async Task Flush()
+        public async Task Flush(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Pfs3Helper.Flush(g);
         }
 
@@ -415,7 +440,7 @@
 
         public void Dispose()
         {
-            Pfs3Helper.Flush(g).GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => Pfs3Helper.Flush(g));
             GC.SuppressFinalize(this);
         }
 
@@ -424,8 +449,9 @@
         /// </summary>
         /// <returns>Path to current directory.</returns>
         /// <exception cref="IOException"></exception>
-        public async Task<string> GetCurrentPath()
+        public async Task<string> GetCurrentPath(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var currentDirectory = await GetCurrentDirectory();
             var parentDirectory = new objectinfo();
             var pathComponents = new LinkedList<string>();

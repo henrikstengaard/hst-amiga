@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3.Blocks
 {
-    public class BootBlock
+    internal class BootBlock
     {
         public byte[] BlockBytes { get; set; }
 

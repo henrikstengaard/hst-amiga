@@ -6,7 +6,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// View of a big endian struct in a byte buffer. Replaces casting pointers to structs in the original code,
     /// so blocks can be read, checked and edited in place even when corrupt.
     /// </summary>
-    public abstract class StructView
+    internal abstract class StructView
     {
         public byte[] Data { get; }
         public int Offset { get; }

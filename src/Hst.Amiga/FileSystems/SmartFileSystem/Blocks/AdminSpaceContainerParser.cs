@@ -2,7 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
 {
     using Core.Converters;
 
-    public static class AdminSpaceContainerParser
+    internal static class AdminSpaceContainerParser
     {
         public static AdminSpaceContainer Parse(byte[] blockBytes)
         {

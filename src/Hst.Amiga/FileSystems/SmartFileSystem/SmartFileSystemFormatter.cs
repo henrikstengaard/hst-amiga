@@ -2,6 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 {
     using System;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
     using Blocks;
     using RigidDiskBlocks;
@@ -21,13 +22,16 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <param name="caseSensitive">Create case sensitive volume.</param>
         /// <param name="recycled">Create recycled directory for deleted files.</param>
         /// <param name="showRecycled">Show recycled directory.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         public static async Task FormatPartition(Stream stream, PartitionBlock partitionBlock, string volumeName,
-            bool caseSensitive = false, bool recycled = true, bool showRecycled = false)
+            bool caseSensitive = false, bool recycled = true, bool showRecycled = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             SmartFileSystemHelper.ValidateDosType(partitionBlock.DosType);
             var geometry = SmartFileSystemHelper.GetGeometry(partitionBlock);
             await Format(stream, geometry.FirstByte, geometry.LastByte, geometry.BlockSize, partitionBlock.Reserved,
-                partitionBlock.PreAlloc, volumeName, caseSensitive, recycled, showRecycled);
+                partitionBlock.PreAlloc, volumeName, caseSensitive, recycled, showRecycled,
+                cancellationToken);
         }
 
         /// <summary>
@@ -43,10 +47,12 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <param name="caseSensitive">Create case sensitive volume.</param>
         /// <param name="recycled">Create recycled directory for deleted files.</param>
         /// <param name="showRecycled">Show recycled directory.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         public static async Task Format(Stream stream, long firstByte, long lastByte, int blockSize, uint reserved,
             uint preAlloc, string volumeName, bool caseSensitive = false, bool recycled = true,
-            bool showRecycled = false)
+            bool showRecycled = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!stream.CanWrite)
             {
                 throw new IOException("Failed to format partition: Stream is not writable");

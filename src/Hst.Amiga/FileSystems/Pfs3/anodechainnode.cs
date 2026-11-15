@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class anodechainnode
+    internal class anodechainnode
     {
         // struct anodechainnode
         // {

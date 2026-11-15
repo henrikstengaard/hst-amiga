@@ -60,7 +60,7 @@
         /// </summary>
         private static AmigaVersion ReadFileSystemVersion(byte[] fileSystemBytes)
         {
-            var romTag = RomTagReader.Read(new MemoryStream(fileSystemBytes, false)).GetAwaiter().GetResult();
+            var romTag = AsyncHelper.RunSync(() => RomTagReader.Read(new MemoryStream(fileSystemBytes, false)));
             var idStringVersion = VersionStringReader.Parse(romTag?.IdString);
             var versionStringVersion = VersionStringReader.Parse(VersionStringReader.ReadVersionString(fileSystemBytes));
 

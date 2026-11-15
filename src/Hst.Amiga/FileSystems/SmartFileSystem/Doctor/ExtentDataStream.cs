@@ -7,7 +7,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Doctor
     /// <summary>
     /// Read only stream reading file data from extents (runs of continuous blocks) in a volume.
     /// </summary>
-    public class ExtentDataStream : Stream
+    internal class ExtentDataStream : Stream
     {
         private readonly Stream stream;
         private readonly long partitionOffset;

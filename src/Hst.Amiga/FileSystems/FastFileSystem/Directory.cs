@@ -9,7 +9,7 @@
     using Exceptions;
     using Extensions;
 
-    public static class Directory
+    internal static class Directory
     {
         /// <summary>
         /// Get path for entry sector, if current sector is provided and found while traversing entries,
@@ -135,6 +135,7 @@
         /// <summary>
         /// Convert entry block to entry
         /// </summary>
+        /// <param name="volume"></param>
         /// <param name="entryBlock"></param>
         /// <returns></returns>
         /// <exception cref="IOException"></exception>

@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Root block (struct fsRootBlock) located at first and last block of partition.
     /// </summary>
-    public class RootBlock : Block
+    internal class RootBlock : Block
     {
         public ushort Version { get; set; }
         public ushort SequenceNumber { get; set; }

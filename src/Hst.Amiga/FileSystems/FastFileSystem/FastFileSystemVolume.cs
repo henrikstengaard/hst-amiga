@@ -6,6 +6,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Exceptions;
     using RigidDiskBlocks;
@@ -16,7 +17,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         private readonly Volume volume;
         private uint currentDirectorySector;
 
-        public FastFileSystemVolume(Volume volume, uint currentDirectorySector)
+        internal FastFileSystemVolume(Volume volume, uint currentDirectorySector)
         {
             this.volume = volume;
             this.currentDirectorySector = currentDirectorySector;
@@ -37,13 +38,14 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
 
         public long Free => Bitmap.AdfCountFreeBlocks(volume) * volume.FileSystemBlockSize;
 
-        public async Task<IEnumerable<FileSystems.Entry>> ListEntries()
+        public async Task<IEnumerable<FileSystems.Entry>> ListEntries(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return (await Directory.ReadEntries(volume, currentDirectorySector)).Select(EntryConverter.ToEntry)
                 .ToList();
         }
         
-        public async Task<IEnumerable<Entry>> ListRawEntries()
+        internal async Task<IEnumerable<Entry>> ListRawEntries()
         {
             return (await Directory.ReadEntries(volume, currentDirectorySector)).ToList();
         }
@@ -52,9 +54,11 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// Find entry in current directory
         /// </summary>
         /// <param name="name"></param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns></returns>
-        public async Task<FileSystems.FindEntryResult> FindEntry(string name)
+        public async Task<FileSystems.FindEntryResult> FindEntry(string name, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (name.IndexOf("/", StringComparison.Ordinal) >= 0 || name.IndexOf("\\", StringComparison.Ordinal) >= 0)
             {
                 throw new ArgumentException("Name contains directory separator", nameof(name));
@@ -70,8 +74,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             };
         }
 
-        public async Task ChangeDirectory(string path)
+        public async Task ChangeDirectory(string path, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var isRootPath = path.StartsWith("/");
             if (isRootPath)
             {
@@ -111,8 +116,10 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// Create directory in current directory
         /// </summary>
         /// <param name="dirName"></param>
-        public async Task CreateDirectory(string dirName)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task CreateDirectory(string dirName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Directory.CreateDirectory(volume, currentDirectorySector, dirName);
         }
 
@@ -122,8 +129,10 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// <param name="fileName"></param>
         /// <param name="overwrite"></param>
         /// <param name="ignoreProtectionBits"></param>
-        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             using (var _ = await File.Open(volume, currentDirectorySector, fileName, FileMode.Write, overwrite,
                        ignoreProtectionBits))
             {
@@ -137,9 +146,11 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// <param name="name">Name of entry to create link to.</param>
         /// <param name="overwrite">Overwrite link, if it exists.</param>
         /// <param name="ignoreProtectionBits">Ignore protection bits, if link exists.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         public async Task CreateLink(string linkName, string name, bool overwrite = false,
-            bool ignoreProtectionBits = false)
+            bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Directory.CreateLink(volume, currentDirectorySector, linkName, name);
         }
 
@@ -150,9 +161,11 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// <param name="mode"></param>
         /// <param name="overwrite"></param>
         /// <param name="ignoreProtectionBits"></param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns></returns>
-        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false, bool ignoreProtectionBits = false)
+        public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return await File.Open(volume, currentDirectorySector, fileName, mode, overwrite, ignoreProtectionBits);
         }
 
@@ -161,8 +174,10 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// </summary>
         /// <param name="name"></param>
         /// <param name="ignoreProtectionBits"></param>
-        public async Task Delete(string name, bool ignoreProtectionBits = false)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task Delete(string name, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Directory.RemoveEntry(volume, currentDirectorySector, name, ignoreProtectionBits);
         }
 
@@ -171,9 +186,11 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// </summary>
         /// <param name="oldName">Old name</param>
         /// <param name="newName">New name</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <exception cref="IOException"></exception>
-        public async Task Rename(string oldName, string newName)
+        public async Task Rename(string oldName, string newName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var srcEntryResult = await Directory.FindEntry(currentDirectorySector, oldName, volume);
 
             if (srcEntryResult.PartsNotFound.Any())
@@ -203,8 +220,10 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// </summary>
         /// <param name="name"></param>
         /// <param name="comment"></param>
-        public async Task SetComment(string name, string comment)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task SetComment(string name, string comment, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Directory.SetEntryComment(volume, currentDirectorySector, name, comment);
         }
 
@@ -213,8 +232,10 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// </summary>
         /// <param name="name"></param>
         /// <param name="protectionBits"></param>
-        public async Task SetProtectionBits(string name, ProtectionBits protectionBits)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task SetProtectionBits(string name, ProtectionBits protectionBits, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Directory.SetEntryAccess(volume, currentDirectorySector, name,
                 ProtectionBitsConverter.ToProtectionValue(protectionBits));
         }
@@ -224,8 +245,10 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// </summary>
         /// <param name="name"></param>
         /// <param name="date"></param>
-        public async Task SetDate(string name, DateTime date)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async Task SetDate(string name, DateTime date, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Directory.SetEntryDate(volume, currentDirectorySector, name, date);
         }
 
@@ -233,8 +256,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// Flush file system changes
         /// </summary>
         /// <returns></returns>
-        public Task Flush()
+        public Task Flush(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.CompletedTask;
         }
 
@@ -304,8 +328,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// </summary>
         /// <returns>Path to current directory.</returns>
         /// <exception cref="IOException"></exception>
-        public async Task<string> GetCurrentPath()
+        public async Task<string> GetCurrentPath(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var pathComponents = new LinkedList<string>();
 
             var directorySector = currentDirectorySector;

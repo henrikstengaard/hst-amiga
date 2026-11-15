@@ -5,7 +5,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class DirEntryWriter
+    internal static class DirEntryWriter
     {
         public static void Write(byte[] data, int offset, int next, direntry dirEntry, globaldata g)
         {

@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Bitmap block view (bitmapblock_t in pfs3.h). Structure for both normal as reserved bitmap.
     /// </summary>
-    public class BitmapBlock : StructView
+    internal class BitmapBlock : StructView
     {
         public BitmapBlock(byte[] data, int offset = 0) : base(data, offset)
         {

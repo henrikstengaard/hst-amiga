@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3.Blocks
 {
-    public class indexblock : ISeqBlock
+    internal class indexblock : ISeqBlock
     {
         // typedef struct indexblock
         // {

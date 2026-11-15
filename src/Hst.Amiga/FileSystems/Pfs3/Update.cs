@@ -6,7 +6,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public static class Update
+    internal static class Update
     {
 /* --> part of update
  * marks a directory or anodeblock dirty. Nothing happens if it already

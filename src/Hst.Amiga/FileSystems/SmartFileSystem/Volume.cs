@@ -7,7 +7,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Mounted smart file system volume state.
     /// </summary>
-    public class Volume
+    internal class Volume
     {
         public Stream Stream { get; set; }
 

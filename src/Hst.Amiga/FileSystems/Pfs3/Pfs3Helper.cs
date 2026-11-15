@@ -5,7 +5,7 @@
     using System.Threading.Tasks;
     using RigidDiskBlocks;
 
-    public static class Pfs3Helper
+    internal static class Pfs3Helper
     {
         public static async Task<globaldata> Mount(Stream stream, PartitionBlock partitionBlock)
         {

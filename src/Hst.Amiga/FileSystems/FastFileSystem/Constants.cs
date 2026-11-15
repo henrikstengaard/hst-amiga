@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
-    public static class Constants
+    internal static class Constants
     {
         public const int BitmapsPerULong = 8 * SizeOf.ULong;
         public const int MaxBitmapBlockPointersInRootBlock = 25;

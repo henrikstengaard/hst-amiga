@@ -7,7 +7,7 @@
     /// <summary>
     /// Reader for long name file system comment block (LNFS) present in DOS\6 and DOS\7
     /// </summary>
-    public static class LongNameFileSystemCommentBlockReader
+    internal static class LongNameFileSystemCommentBlockReader
     {
         public static LongNameFileSystemCommentBlock Parse(byte[] blockBytes)
         {

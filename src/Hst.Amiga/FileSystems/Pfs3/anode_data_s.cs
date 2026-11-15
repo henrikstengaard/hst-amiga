@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class anode_data_s
+    internal class anode_data_s
     {
         public ushort curranseqnr;        /* current anode seqnr for anode allocation */
         public ushort indexperblock;      /* ALSO used by allocation (for bitmapindex blocks) */

@@ -6,7 +6,7 @@
     using Blocks;
     using Core.Extensions;
 
-    public static class Disk
+    internal static class Disk
     {
         // disk.c
 

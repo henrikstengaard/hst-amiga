@@ -2,7 +2,7 @@
 {
     using Blocks;
 
-    public class fileinfo
+    internal class fileinfo
     {
         /* FileInfo
         **

@@ -2,6 +2,7 @@
 {
     using System;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
     using Blocks;
     using RigidDiskBlocks;
@@ -9,15 +10,23 @@
     public static class Pfs3Formatter
     {
         /// <summary>
+        /// Maximum number of blocks a PFS3 partition can have using 1K reserved blocks.
+        /// Multiply by block size to get maximum partition size in bytes.
+        /// </summary>
+        public const long MaxPartitionBlocks = Constants.MAXDISKSIZE1K;
+
+        /// <summary>
         /// formats partition with professional file system (PFS3AIO v19.2)
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="partitionBlock"></param>
         /// <param name="diskName"></param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <exception cref="IOException"></exception>
         /// <exception cref="Exception"></exception>
-        public static async Task FormatPartition(Stream stream, PartitionBlock partitionBlock, string diskName)
+        public static async Task FormatPartition(Stream stream, PartitionBlock partitionBlock, string diskName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
 #if DEBUG
             Pfs3Logger.Instance.Debug($"Pfs3Formatter: Formatting partition cylinders {partitionBlock.LowCyl} - {partitionBlock.HighCyl} with disk name '{diskName}'");
 #endif
@@ -140,7 +149,7 @@
 /*
  * creates & writes the two bootblocks
  */
-        public static async Task MakeBootBlock(globaldata g)
+        internal static async Task MakeBootBlock(globaldata g)
         {
             // struct bootblock *bbl;
             // ULONG error;
@@ -170,7 +179,7 @@
             // return error;
         }
         
-        public static RootBlock MakeRootBlock(string diskName, globaldata g)
+        internal static RootBlock MakeRootBlock(string diskName, globaldata g)
         {
             var rootBlock = new RootBlock
             {
@@ -235,7 +244,7 @@
             return rootBlock;
         }
 
-        public static async Task MakeBitmap(globaldata g)
+        internal static async Task MakeBitmap(globaldata g)
         {
             var alloc_data = g.glob_allocdata;
 
@@ -246,7 +255,7 @@
             }
         }
 
-        public static async Task MakeRootDir(globaldata g)
+        internal static async Task MakeRootDir(globaldata g)
         {
             CachedBlock blk;
             uint blocknr, anodenr;
@@ -258,7 +267,7 @@
 
 /* Create rootblockextension. Needed for AFS 2.3 options.
  */
-        public static bool MakeRBlkExtension (globaldata g)
+        internal static bool MakeRBlkExtension (globaldata g)
         {
             volumedata volume = g.currentvolume;
             uint blocknr;
@@ -278,7 +287,7 @@
             return true;
         }
         
-        public static CachedBlock MakeFormatRBlkExtension(RootBlock rootBlock, globaldata g)
+        internal static CachedBlock MakeFormatRBlkExtension(RootBlock rootBlock, globaldata g)
         {
             // if (!(rext = AllocBufmem (sizeof(struct cachedblock) + rbl->reserved_blksize, g)))
             // return FALSE;
@@ -311,7 +320,7 @@
             new uint[]{0xffffffff,80}
         };
     
-        public static uint CalcNumReserved(globaldata g, uint resblocksize)
+        internal static uint CalcNumReserved(globaldata g, uint resblocksize)
         {
             uint taken, i;
 
@@ -338,7 +347,7 @@
         /// <param name="rbl"></param>
         /// <param name="numReserved"></param>
         /// <returns></returns>
-        public static int CalculateRootBlockAndReservedBitmapBlockCount(RootBlock rbl, uint numReserved)
+        internal static int CalculateRootBlockAndReservedBitmapBlockCount(RootBlock rbl, uint numReserved)
         {
             /* calculate number of 1024 byte blocks */
             var numblocks = 1;
@@ -352,7 +361,7 @@
         }
         
         /* makes reserved bitmap and allocates rootblockextension */
-        public static void MakeReservedBitmap(RootBlock rbl, uint numReserved, globaldata g)
+        internal static void MakeReservedBitmap(RootBlock rbl, uint numReserved, globaldata g)
         {
             // struct bitmapblock *bmb;
             // struct rootblock *newrootblock;

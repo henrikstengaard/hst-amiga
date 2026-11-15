@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class DelDirBlockWriter
+    internal static class DelDirBlockWriter
     {
         public static byte[] BuildBlock(deldirblock delDirBlock, globaldata g)
         {

@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Directory entry extra fields (struct extrafields in pfs3.h).
     /// </summary>
-    public class ExtraFields
+    internal class ExtraFields
     {
         /// <summary>
         /// Size of struct extrafields in words (sizeof(struct extrafields) / 2).

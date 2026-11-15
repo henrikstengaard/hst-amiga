@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Cached anode (canode_t in doctor.h).
     /// </summary>
-    public class CAnode
+    internal class CAnode
     {
         /// <summary>
         /// number of blocks in cluster

@@ -6,7 +6,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
     using Amiga.Extensions;
     using Core.Converters;
 
-    public static class EntryBlockParser
+    internal static class EntryBlockParser
     {
         public static EntryBlock Parse(byte[] blockBytes, bool useLnfs = false)
         {

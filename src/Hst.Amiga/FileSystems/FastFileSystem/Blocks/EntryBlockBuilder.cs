@@ -4,7 +4,7 @@
     using Amiga.Extensions;
     using Core.Converters;
 
-    public static class EntryBlockBuilder
+    internal static class EntryBlockBuilder
     {
         public static byte[] Build(EntryBlock entryBlock, int blockSize, bool useLnfs = false)
         {

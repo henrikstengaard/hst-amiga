@@ -6,7 +6,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class RootBlockReader
+    internal static class RootBlockReader
     {
         public static RootBlock Parse(byte[] blockBytes)
         {

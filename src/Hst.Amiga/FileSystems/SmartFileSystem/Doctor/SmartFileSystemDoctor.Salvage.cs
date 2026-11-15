@@ -147,7 +147,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Doctor
 
             ShowMsg("Writing directories and files");
             await SalvageWriteChildren(target, new List<string>(), rootNode);
-            await target.Flush();
+            await target.Flush(cancellationToken);
 
             SalvageMessage(
                 $"Salvaged {salvageResult.Directories} directories and {salvageResult.Files} files ({salvageResult.Bytes} bytes)");
@@ -413,11 +413,11 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Doctor
                 {
                     if (child.IsDir)
                     {
-                        await target.CreateDirectory(parentPath, child.Entry);
+                        await target.CreateDirectory(parentPath, child.Entry, cancellationToken);
                         salvageResult.Directories++;
                         await SalvageWriteChildren(target, parentPath.Concat(new[] { child.Entry.Name }).ToList(),
                             child);
-                        await target.SetDirectoryMetadata(parentPath, child.Entry);
+                        await target.SetDirectoryMetadata(parentPath, child.Entry, cancellationToken);
                     }
                     else if (child.Object.IsFile)
                     {
@@ -450,7 +450,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Doctor
             using (var stream = new ExtentDataStream(volume.Stream, volume.PartitionStartOffset, volume.BlockSize,
                        extents, length))
             {
-                await target.WriteFile(parentPath, file.Entry, stream);
+                await target.WriteFile(parentPath, file.Entry, stream, cancellationToken);
             }
 
             salvageResult.Files++;

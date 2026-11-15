@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Core.Converters;
 using FileSystems;
@@ -200,18 +201,20 @@ public partial class GivenFastFileSystemDoctor
         private static string GetPath(IReadOnlyList<string> parentPath, string name) =>
             string.Join("/", parentPath.Concat(new[] { name }));
 
-        public Task CreateDirectory(IReadOnlyList<string> parentPath, SalvageEntry entry)
+        public Task CreateDirectory(IReadOnlyList<string> parentPath, SalvageEntry entry, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var path = GetPath(parentPath, entry.Name);
             Directories.Add(path);
             Entries[path] = entry;
             return Task.CompletedTask;
         }
 
-        public Task SetDirectoryMetadata(IReadOnlyList<string> parentPath, SalvageEntry entry) => Task.CompletedTask;
+        public Task SetDirectoryMetadata(IReadOnlyList<string> parentPath, SalvageEntry entry, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-        public async Task WriteFile(IReadOnlyList<string> parentPath, SalvageEntry entry, Stream data)
+        public async Task WriteFile(IReadOnlyList<string> parentPath, SalvageEntry entry, Stream data, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var path = GetPath(parentPath, entry.Name);
             var memoryStream = new MemoryStream();
             await data.CopyToAsync(memoryStream);
@@ -219,6 +222,6 @@ public partial class GivenFastFileSystemDoctor
             Entries[path] = entry;
         }
 
-        public Task Flush() => Task.CompletedTask;
+        public Task Flush(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

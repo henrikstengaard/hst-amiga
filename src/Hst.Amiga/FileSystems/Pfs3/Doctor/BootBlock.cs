@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Boot block view (bootblock_t in pfs3.h).
     /// </summary>
-    public class BootBlock : StructView
+    internal class BootBlock : StructView
     {
         public BootBlock(byte[] data) : base(data, 0)
         {

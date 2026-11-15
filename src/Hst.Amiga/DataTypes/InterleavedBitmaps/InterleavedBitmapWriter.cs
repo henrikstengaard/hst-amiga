@@ -94,7 +94,6 @@ namespace Hst.Amiga.DataTypes.InterleavedBitmaps
         /// Build color map chunk storing color information for the image data
         /// </summary>
         /// <param name="image"></param>
-        /// <param name="depth"></param>
         /// <returns></returns>
         private async Task BuildColorMapChunk(Image image)
         {

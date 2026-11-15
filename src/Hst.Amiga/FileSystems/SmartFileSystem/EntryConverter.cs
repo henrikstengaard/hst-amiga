@@ -2,7 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 {
     using Blocks;
 
-    public static class EntryConverter
+    internal static class EntryConverter
     {
         /// <summary>
         /// Convert smart file system object to entry.

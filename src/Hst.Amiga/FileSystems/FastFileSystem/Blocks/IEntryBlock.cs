@@ -2,7 +2,7 @@
 {
     using System;
 
-    public interface IEntryBlock
+    internal interface IEntryBlock
     {
         uint Access { get; set; } // 0x140: file header block
         uint ByteSize { get; set; } // 0x144: file header block

@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class diskcache
+    internal class diskcache
     {
         public reftable[] ref_;   /* reference table; one entry per slot */
         public byte[] data;            /* the data (one slot per block) */

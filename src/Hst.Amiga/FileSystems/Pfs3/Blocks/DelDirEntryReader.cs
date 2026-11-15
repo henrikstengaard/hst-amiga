@@ -2,7 +2,7 @@
 {
     using Core.Converters;
 
-    public static class DelDirEntryReader
+    internal static class DelDirEntryReader
     {
         public static deldirentry Read(byte[] bytes, int offset)
         {

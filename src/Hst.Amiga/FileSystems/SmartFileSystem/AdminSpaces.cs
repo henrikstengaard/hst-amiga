@@ -8,7 +8,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Allocation of admin space blocks used for metadata blocks, see fs/adminspaces.c in smart file system source.
     /// </summary>
-    public static class AdminSpaces
+    internal static class AdminSpaces
     {
         /// <summary>
         /// Allocate an admin space block, allocadminspace() in smart file system source.

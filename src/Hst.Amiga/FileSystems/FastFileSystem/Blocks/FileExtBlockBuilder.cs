@@ -3,7 +3,7 @@
     using System;
     using Core.Converters;
 
-    public static class FileExtBlockBuilder
+    internal static class FileExtBlockBuilder
     {
         public static byte[] Build(FileExtBlock fileExtBlock, int blockSize)
         {

@@ -45,7 +45,7 @@
         /// </summary>
         /// <returns>Id string or null, if data is not a hunk file or has no resident structure with id string</returns>
         public static string ReadRomTagIdString(byte[] data) =>
-            ReadRomTagIdString(new MemoryStream(data, false)).GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => ReadRomTagIdString(new MemoryStream(data, false)));
 
         /// <summary>
         /// Read version string from stream. If no "$VER:" version string is present, id string from

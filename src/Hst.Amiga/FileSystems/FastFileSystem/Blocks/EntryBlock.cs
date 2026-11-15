@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class EntryBlock : IBlock, IHeaderBlock, IEntryBlock
+    internal class EntryBlock : IBlock, IHeaderBlock, IEntryBlock
     {
         public uint Offset { get; set; }
         public byte[] BlockBytes { get; set; }

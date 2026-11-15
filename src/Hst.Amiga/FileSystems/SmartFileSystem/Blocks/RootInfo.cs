@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Root info (struct fsRootInfo) stored in the last 36 bytes of the root object container block.
     /// </summary>
-    public class RootInfo
+    internal class RootInfo
     {
         /// <summary>
         /// Number of blocks used by deleted files in recycled directory.

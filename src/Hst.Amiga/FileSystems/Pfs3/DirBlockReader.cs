@@ -5,7 +5,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class DirBlockReader
+    internal static class DirBlockReader
     {
         public static dirblock Parse(byte[] blockBytes, globaldata g)
         {

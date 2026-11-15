@@ -4,7 +4,7 @@
     /// cache block.
     /// cbitmapblock, cindexblock, canodeblock, cdirblock, cdeldirblock, crootblockextension, (cachedblock)
     /// </summary>
-    public class CachedBlock
+    internal class CachedBlock
     {
         /* Cached blocks in general
         */

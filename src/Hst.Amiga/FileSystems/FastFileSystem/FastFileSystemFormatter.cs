@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Blocks;
     using Core.Extensions;
@@ -15,19 +16,21 @@
         /// format partition with fast file system
         /// </summary>
         public static async Task FormatPartition(Stream stream, PartitionBlock partitionBlock,
-            string diskName)
+            string diskName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await Format(stream, partitionBlock.LowCyl, partitionBlock.HighCyl, partitionBlock.Reserved,
                 partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.BlockSize,
-                partitionBlock.FileSystemBlockSize, partitionBlock.DosType, diskName);
+                partitionBlock.FileSystemBlockSize, partitionBlock.DosType, diskName, cancellationToken);
         }
 
         /// <summary>
         /// format disk with fast file system
         /// </summary>
         public static async Task Format(Stream stream, uint lowCyl, uint highCyl, uint reserved, uint surfaces,
-            uint blocksPerTrack, uint blockSize, uint fileSystemBlockSize, byte[] dosType, string diskName)
+            uint blocksPerTrack, uint blockSize, uint fileSystemBlockSize, byte[] dosType, string diskName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var rootBlockOffset =
                 OffsetHelper.CalculateRootBlockOffset(lowCyl, highCyl,
                     reserved, surfaces, blocksPerTrack, fileSystemBlockSize);

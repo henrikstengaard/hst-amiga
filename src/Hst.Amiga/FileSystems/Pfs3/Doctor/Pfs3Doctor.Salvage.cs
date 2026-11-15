@@ -130,7 +130,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
             /* write directories and files to target */
             volume.ShowMsg("Writing directories and files\n");
             await SalvageWriteChildren(target, new List<string>(), root);
-            await target.Flush();
+            await target.Flush(cancellationToken);
 
             volume.ShowMsg(
                 $"Salvaged {salvageResult.Directories} directories and {salvageResult.Files} files " +
@@ -674,7 +674,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
             string entryPath)
         {
             volume.ShowMsg($"DIR {entryPath}\n");
-            await target.CreateDirectory(path, node.Entry);
+            await target.CreateDirectory(path, node.Entry, cancellationToken);
             salvageResult.Directories++;
 
             path.Add(node.Entry.Name);
@@ -687,7 +687,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
                 path.RemoveAt(path.Count - 1);
             }
 
-            await target.SetDirectoryMetadata(path, node.Entry);
+            await target.SetDirectoryMetadata(path, node.Entry, cancellationToken);
         }
 
         private async Task SalvageWriteFile(ISalvageTarget target, List<string> path, SalvageEntry entry,
@@ -696,7 +696,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
             volume.ShowMsg($"FILE {entryPath}\n");
             using (var stream = new AnodeChainStream(volume, SalvageGetAnode, anodenr, entry.Size))
             {
-                await target.WriteFile(path, entry, stream);
+                await target.WriteFile(path, entry, stream, cancellationToken);
 
                 salvageResult.Files++;
                 salvageResult.Bytes += stream.Position;

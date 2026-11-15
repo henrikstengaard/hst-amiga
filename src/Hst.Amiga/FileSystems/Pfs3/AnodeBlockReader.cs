@@ -5,7 +5,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class AnodeBlockReader
+    internal static class AnodeBlockReader
     {
         public static anodeblock Parse(byte[] blockBytes, globaldata g)
         {

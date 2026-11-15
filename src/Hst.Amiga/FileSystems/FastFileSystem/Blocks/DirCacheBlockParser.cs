@@ -4,7 +4,7 @@
     using System.IO;
     using Core.Converters;
 
-    public static class DirCacheBlockParser
+    internal static class DirCacheBlockParser
     {
         public static DirCacheBlock Parse(byte[] blockBytes)
         {

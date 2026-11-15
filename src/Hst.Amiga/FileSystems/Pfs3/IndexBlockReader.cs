@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class IndexBlockReader
+    internal static class IndexBlockReader
     {
         public static indexblock Parse(byte[] blockBytes, globaldata g)
         {

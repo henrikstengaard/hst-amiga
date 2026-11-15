@@ -2,7 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
 {
     using Core.Converters;
 
-    public static class HashTableBlockParser
+    internal static class HashTableBlockParser
     {
         public static HashTableBlock Parse(byte[] blockBytes)
         {

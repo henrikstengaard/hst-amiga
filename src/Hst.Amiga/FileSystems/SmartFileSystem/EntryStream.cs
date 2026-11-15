@@ -12,7 +12,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Stream for reading and writing data of a smart file system file using extents.
     /// </summary>
-    public class EntryStream : Stream
+    internal class EntryStream : Stream
     {
         private readonly Volume volume;
         private readonly uint objectNode;
@@ -64,11 +64,12 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 
         public override void Flush()
         {
-            FlushInternal().GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => FlushInternal());
         }
 
         public override async Task FlushAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await FlushInternal();
         }
 
@@ -91,12 +92,13 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return ReadInternal(buffer, offset, count).GetAwaiter().GetResult();
+            return AsyncHelper.RunSync(() => ReadInternal(buffer, offset, count));
         }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return await ReadInternal(buffer, offset, count);
         }
 
@@ -154,7 +156,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 
         public override void SetLength(long value)
         {
-            SetLengthInternal(value).GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => SetLengthInternal(value));
         }
 
         private async Task SetLengthInternal(long value)
@@ -187,11 +189,12 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            WriteInternal(buffer, offset, count).GetAwaiter().GetResult();
+            AsyncHelper.RunSync(() => WriteInternal(buffer, offset, count));
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await WriteInternal(buffer, offset, count);
         }
 
@@ -431,7 +434,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         {
             if (!disposed && disposing)
             {
-                FlushInternal().GetAwaiter().GetResult();
+                AsyncHelper.RunSync(() => FlushInternal());
             }
 
             disposed = true;

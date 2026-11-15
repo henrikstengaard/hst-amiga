@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class rootblockextension : IBlock
+    internal class rootblockextension : IBlock
     {
         // struct rootblockextension
         // {

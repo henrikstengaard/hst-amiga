@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class IndexBlockWriter
+    internal static class IndexBlockWriter
     {
         public static byte[] BuildBlock(indexblock indexBlock, globaldata g)
         {

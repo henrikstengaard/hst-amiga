@@ -1,6 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.Pfs3
 {
-    public class objectinfo
+    internal class objectinfo
     {
         /*
 union objectinfo

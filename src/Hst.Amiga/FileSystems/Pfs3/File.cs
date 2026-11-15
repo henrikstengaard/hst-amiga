@@ -6,7 +6,7 @@ namespace Hst.Amiga.FileSystems.Pfs3
     using System.IO;
     using System.Threading.Tasks;
 
-    public static class File
+    internal static class File
     {
 	    /// <summary>
 	    /// 

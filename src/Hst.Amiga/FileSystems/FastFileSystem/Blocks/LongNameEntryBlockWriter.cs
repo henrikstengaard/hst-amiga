@@ -7,7 +7,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
     /// <summary>
     /// Long name entry block writer for long name file system (LNFS) present in DOS\6 and DOS\7.
     /// </summary>
-    public static class LongNameEntryBlockWriter
+    internal static class LongNameEntryBlockWriter
     {
         public static byte[] Build(EntryBlock entryBlock, int blockSize)
         {

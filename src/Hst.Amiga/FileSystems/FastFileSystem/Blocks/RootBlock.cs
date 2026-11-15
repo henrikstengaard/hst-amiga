@@ -3,7 +3,7 @@
     using System;
     using System.Collections.Generic;
 
-    public class RootBlock : EntryBlock
+    internal class RootBlock : EntryBlock
     {
         public uint BitmapFlags { get; set; }
         public uint[] BitmapBlockOffsets { get; set; } // bmPages

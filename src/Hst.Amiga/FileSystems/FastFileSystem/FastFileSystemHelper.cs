@@ -11,7 +11,7 @@
     using Extensions;
     using FileMode = FileMode;
 
-    public static class FastFileSystemHelper
+    internal static class FastFileSystemHelper
     {
         public static async Task<IEnumerable<RootBlock>> FindRootBlocks(Stream stream)
         {

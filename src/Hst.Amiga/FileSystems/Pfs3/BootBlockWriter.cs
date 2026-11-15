@@ -5,7 +5,7 @@
     using Blocks;
     using Core.Extensions;
 
-    public static class BootBlockWriter
+    internal static class BootBlockWriter
     {
         public static async Task<byte[]> MakeBootBlock(BootBlock bootBlock, int blockSize)
         {

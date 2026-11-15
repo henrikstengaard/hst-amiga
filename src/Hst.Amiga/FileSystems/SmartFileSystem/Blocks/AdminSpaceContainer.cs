@@ -4,7 +4,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// Admin space container block (struct fsAdminSpaceContainer) keeping track of admin spaces,
     /// which are areas of 32 blocks used for metadata blocks.
     /// </summary>
-    public class AdminSpaceContainer : Block
+    internal class AdminSpaceContainer : Block
     {
         public uint Next { get; set; }
         public uint Previous { get; set; }

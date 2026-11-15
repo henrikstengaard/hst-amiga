@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class AnodeBlockWriter
+    internal static class AnodeBlockWriter
     {
         public static byte[] BuildBlock(anodeblock anodeBlock, globaldata g)
         {

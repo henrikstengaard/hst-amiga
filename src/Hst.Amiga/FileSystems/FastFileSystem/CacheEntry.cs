@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class CacheEntry
+    internal class CacheEntry
     {
         public uint Header;
         public uint Size;

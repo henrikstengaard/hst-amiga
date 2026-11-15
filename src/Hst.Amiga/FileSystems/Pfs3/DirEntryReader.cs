@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class DirEntryReader
+    internal static class DirEntryReader
     {
         public static direntry Read(byte[] bytes, int offset, globaldata g)
         {

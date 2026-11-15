@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Device cache (struct cache in doctor.h).
     /// </summary>
-    public class Cache
+    internal class Cache
     {
         public LinkedList<CacheLine> LruQueue { get; set; }
         public LinkedList<CacheLine> LruPool { get; set; }

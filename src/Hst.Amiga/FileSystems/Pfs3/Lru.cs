@@ -6,7 +6,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public static class Lru
+    internal static class Lru
     {
         private const int MIN_BUFFERS = 10;
         private const int MAX_BUFFERS = 600;

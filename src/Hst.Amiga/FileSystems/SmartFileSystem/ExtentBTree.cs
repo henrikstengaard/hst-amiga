@@ -8,9 +8,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Extent B-tree, see fs/btreenodes.c in smart file system source.
     /// </summary>
-    public static class ExtentBTree
+    internal static class ExtentBTree
     {
-        public class BNodeResult
+        internal class BNodeResult
         {
             public BNodeContainer Container { get; set; }
 

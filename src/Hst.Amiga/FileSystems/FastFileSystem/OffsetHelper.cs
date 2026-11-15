@@ -5,7 +5,7 @@
     using System.Linq;
     using Blocks;
 
-    public static class OffsetHelper
+    internal static class OffsetHelper
     {
         public static uint CalculateRootBlockOffset(uint lowCyl, uint highCyl, uint reserved, uint heads, uint sectors, uint fileSystemBlockSize)
         {

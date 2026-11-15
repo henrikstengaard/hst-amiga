@@ -5,7 +5,7 @@
     using System.IO;
     using Blocks;
 
-    public class Volume
+    internal class Volume
     {
         public int BlockSize { get; set; }
         public int FileSystemBlockSize { get; set; }

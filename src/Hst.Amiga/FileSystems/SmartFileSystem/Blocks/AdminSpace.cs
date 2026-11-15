@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Admin space (struct fsAdminSpace) describing an area of 32 blocks used for metadata blocks.
     /// </summary>
-    public class AdminSpace
+    internal class AdminSpace
     {
         /// <summary>
         /// First block of admin space, 0 if unused.

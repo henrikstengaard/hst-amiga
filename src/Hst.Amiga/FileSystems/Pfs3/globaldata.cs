@@ -4,7 +4,7 @@
     using System.IO;
     using Blocks;
 
-    public class globaldata
+    internal class globaldata
     {
         public RootBlock RootBlock;
         public DosEnvec DosEnvec { get; set; }
@@ -79,7 +79,7 @@
         public readonly IDictionary<uint, SearchInDirCacheItem> SearchInDirCache;
     }
 
-    public class SearchInDirCacheItem
+    internal class SearchInDirCacheItem
     {
         public readonly uint dirnodenr;
         public readonly CachedBlock DirBlock;

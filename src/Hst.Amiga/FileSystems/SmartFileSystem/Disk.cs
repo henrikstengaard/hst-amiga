@@ -9,7 +9,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// <summary>
     /// Reading and writing of smart file system blocks.
     /// </summary>
-    public static class Disk
+    internal static class Disk
     {
         public static async Task<byte[]> ReadBlock(Volume volume, uint block)
         {

@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Index block view (indexblock_t in pfs3.h).
     /// </summary>
-    public class IndexBlock : StructView
+    internal class IndexBlock : StructView
     {
         public IndexBlock(byte[] data) : base(data, 0)
         {

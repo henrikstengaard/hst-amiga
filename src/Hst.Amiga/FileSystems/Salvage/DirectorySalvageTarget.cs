@@ -4,6 +4,7 @@ namespace Hst.Amiga.FileSystems.Salvage
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using DataTypes.UaeFsDbs;
     using DataTypes.UaeMetafiles;
@@ -56,8 +57,9 @@ namespace Hst.Amiga.FileSystems.Salvage
             System.IO.Directory.CreateDirectory(this.path);
         }
 
-        public async Task CreateDirectory(IReadOnlyList<string> parentPath, SalvageEntry entry)
+        public async Task CreateDirectory(IReadOnlyList<string> parentPath, SalvageEntry entry, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var parentDirectoryPath = GetDirectoryPath(parentPath);
             var normalName = GetNormalName(parentDirectoryPath, entry.Name);
             var directoryPath = Path.Combine(parentDirectoryPath, normalName);
@@ -68,8 +70,9 @@ namespace Hst.Amiga.FileSystems.Salvage
             await WriteMetadata(parentDirectoryPath, normalName, entry);
         }
 
-        public Task SetDirectoryMetadata(IReadOnlyList<string> parentPath, SalvageEntry entry)
+        public Task SetDirectoryMetadata(IReadOnlyList<string> parentPath, SalvageEntry entry, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (directoryPaths.TryGetValue(GetKey(parentPath, entry.Name), out var directoryPath))
             {
                 System.IO.Directory.SetLastWriteTime(directoryPath, entry.Date);
@@ -78,15 +81,16 @@ namespace Hst.Amiga.FileSystems.Salvage
             return Task.CompletedTask;
         }
 
-        public async Task WriteFile(IReadOnlyList<string> parentPath, SalvageEntry entry, Stream data)
+        public async Task WriteFile(IReadOnlyList<string> parentPath, SalvageEntry entry, Stream data, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var parentDirectoryPath = GetDirectoryPath(parentPath);
             var normalName = GetNormalName(parentDirectoryPath, entry.Name);
             var filePath = Path.Combine(parentDirectoryPath, normalName);
 
             using (var stream = System.IO.File.Create(filePath))
             {
-                await data.CopyToAsync(stream);
+                await data.CopyToAsync(stream, 81920, cancellationToken);
             }
 
             await WriteMetadata(parentDirectoryPath, normalName, entry);
@@ -94,7 +98,7 @@ namespace Hst.Amiga.FileSystems.Salvage
             System.IO.File.SetLastWriteTime(filePath, entry.Date);
         }
 
-        public Task Flush() => Task.CompletedTask;
+        public Task Flush(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         private static string GetKey(IEnumerable<string> parentPath, string name) =>
             string.Join("/", parentPath.Concat(new[] { name }));

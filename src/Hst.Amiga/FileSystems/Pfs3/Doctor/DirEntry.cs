@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Directory entry view (struct direntry in pfs3.h) at an offset in a directory block.
     /// </summary>
-    public class DirEntry : StructView
+    internal class DirEntry : StructView
     {
         /// <summary>
         /// offsetof(struct direntry, nlength)

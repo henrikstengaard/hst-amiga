@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Anode block view (anodeblock_t in pfs3.h).
     /// </summary>
-    public class AnodeBlock : StructView
+    internal class AnodeBlock : StructView
     {
         public AnodeBlock(byte[] data) : base(data, 0)
         {
@@ -39,7 +39,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Anode view (anode_t in pfs3.h).
     /// </summary>
-    public class Anode : StructView
+    internal class Anode : StructView
     {
         /// <summary>
         /// sizeof(anode_t)

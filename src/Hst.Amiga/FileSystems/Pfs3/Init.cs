@@ -4,7 +4,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public static class Init
+    internal static class Init
     {
         /// <summary>
         /// create global data for partitions
@@ -15,7 +15,6 @@
         /// <param name="lowCyl"></param>
         /// <param name="highCyl"></param>
         /// <param name="numBuffers"></param>
-        /// <param name="blockSize"></param>
         /// <param name="mask"></param>
         /// <returns></returns>
         public static globaldata CreateGlobalData(uint sectors, uint blocksPerTrack, uint surfaces, 

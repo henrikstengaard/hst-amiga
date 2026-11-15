@@ -9,7 +9,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// Bitmap keeping track of free and used blocks, see fs/bitmap.c in smart file system source.
     /// Bitmap blocks are kept in memory and written through on changes.
     /// </summary>
-    public static class Bitmap
+    internal static class Bitmap
     {
         public static int CalculateBitmapBlocks(uint totalBlocks, int blockSize)
         {

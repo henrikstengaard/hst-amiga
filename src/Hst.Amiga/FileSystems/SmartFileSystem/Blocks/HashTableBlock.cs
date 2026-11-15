@@ -3,7 +3,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
     /// <summary>
     /// Hash table block (struct fsHashTable) for a directory containing object nodes of first object in each hash chain.
     /// </summary>
-    public class HashTableBlock : Block
+    internal class HashTableBlock : Block
     {
         /// <summary>
         /// Object node of directory owning hash table.

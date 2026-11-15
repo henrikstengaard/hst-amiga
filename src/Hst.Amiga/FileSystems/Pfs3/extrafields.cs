@@ -2,7 +2,7 @@
 {
     using System.Collections.Generic;
 
-    public class extrafields
+    internal class extrafields
     {
         /*
      * struct extrafields
@@ -186,7 +186,7 @@
         }
         
         /// <summary>
-        /// Replicate c behavior of reading array of ushorts memory area as a extra fields struct. "UWORD *extra = (UWORD *)extrafields" and "*(extra++) = (flags & 1) ? *(--fields) : 0"
+        /// Replicate c behavior of reading array of ushorts memory area as a extra fields struct. "UWORD *extra = (UWORD *)extrafields" and "*(extra++) = (flags &amp; 1) ? *(--fields) : 0"
         /// </summary>
         /// <param name="extras"></param>
         /// <returns></returns>

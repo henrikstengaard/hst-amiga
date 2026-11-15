@@ -2,7 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem.Blocks
 {
     using Core.Converters;
 
-    public static class BitmapBlockBuilder
+    internal static class BitmapBlockBuilder
     {
         public static byte[] Build(BitmapBlock bitmapBlock, int blockSize)
         {

@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Root block view (rootblock_t in pfs3.h).
     /// </summary>
-    public class RootBlock : StructView
+    internal class RootBlock : StructView
     {
         private const int IdxOffset = 96;
 

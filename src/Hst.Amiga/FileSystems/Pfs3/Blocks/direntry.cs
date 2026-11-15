@@ -2,7 +2,7 @@
 {
     using System;
 
-    public class direntry : IDirEntry
+    internal class direntry : IDirEntry
     {
         // struct direntry
         // {

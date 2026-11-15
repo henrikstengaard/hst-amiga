@@ -4,7 +4,7 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    public static class Disk
+    internal static class Disk
     {
         private static async Task<byte[]> ReadBlockBytes(Volume volume, uint sector)
         {

@@ -2,7 +2,7 @@
 {
     using System.IO;
 
-    public static class CheckAccess
+    internal static class CheckAccess
     {
 /* fileaccess that changes a file but doesn't write to it
  */

@@ -4,7 +4,7 @@
     using Blocks;
     using Core.Converters;
 
-    public static class BitmapBlockWriter
+    internal static class BitmapBlockWriter
     {
         public static byte[] BuildBlock(BitmapBlock bitmapBlock, globaldata g)
         {

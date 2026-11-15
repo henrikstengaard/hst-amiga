@@ -5,7 +5,7 @@ namespace Hst.Amiga.FileSystems.Pfs3.Doctor
     /// <summary>
     /// Cache line (struct cacheline in doctor.h).
     /// </summary>
-    public class CacheLine
+    internal class CacheLine
     {
         /// <summary>
         /// Linked list node replacing next and prev pointers. A cache line is either in LRU queue or LRU pool.
