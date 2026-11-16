@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Hst Amiga Vm is a virtual machine for running Amiga 68000/68020 CLI executables with emulated exec and dos libraries.</Description>
+    <PackageTags>Hst;Amiga;68000;68020;M68k;Emulator;Vm;Hunk</PackageTags>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591: missing XML comment for publicly visible type or member -->
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="readme.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hst.Amiga.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Hst.Core" Version="0.4.96" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Hst.Amiga\Hst.Amiga.csproj" />
+  </ItemGroup>
+</Project>

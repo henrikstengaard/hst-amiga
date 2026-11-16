@@ -23,6 +23,10 @@ namespace Hst.Amiga.Tests.HunkTests
             public uint BssSize;
             public uint MemoryFlags;
             public (uint Offset, uint TargetHunk)[] Relocations;
+            public bool ShortRelocations;
+            public string Name;
+            public (string Name, uint Value)[] Symbols;
+            public byte[] Debug;
         }
 
         private readonly List<TestHunk> hunks = new();
@@ -44,6 +48,42 @@ namespace Hst.Amiga.Tests.HunkTests
 
         public HunkFileBuilder AddBss(uint size) =>
             Add(new TestHunk { Type = HunkIdentifiers.Bss, BssSize = size, Relocations = Array.Empty<(uint, uint)>() });
+
+        /// <summary>
+        /// Use reloc32 short hunk for relocations of last added hunk.
+        /// </summary>
+        public HunkFileBuilder WithShortRelocations()
+        {
+            hunks[hunks.Count - 1].ShortRelocations = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Add name hunk before last added hunk.
+        /// </summary>
+        public HunkFileBuilder WithName(string name)
+        {
+            hunks[hunks.Count - 1].Name = name;
+            return this;
+        }
+
+        /// <summary>
+        /// Add symbol hunk after last added hunk.
+        /// </summary>
+        public HunkFileBuilder WithSymbols(params (string Name, uint Value)[] symbols)
+        {
+            hunks[hunks.Count - 1].Symbols = symbols;
+            return this;
+        }
+
+        /// <summary>
+        /// Add debug hunk after last added hunk.
+        /// </summary>
+        public HunkFileBuilder WithDebug(byte[] debug)
+        {
+            hunks[hunks.Count - 1].Debug = debug;
+            return this;
+        }
 
         private HunkFileBuilder Add(TestHunk hunk)
         {
@@ -78,6 +118,12 @@ namespace Hst.Amiga.Tests.HunkTests
 
             foreach (var hunk in hunks)
             {
+                if (hunk.Name != null)
+                {
+                    Write(stream, HunkIdentifiers.Name);
+                    WriteString(stream, hunk.Name);
+                }
+
                 // memory flags in hunk identifier, extended memory isn't allowed here
                 Write(stream, hunk.Type | (hunk.MemoryFlags == MemoryExtended ? 0 : hunk.MemoryFlags));
                 Write(stream, SizeInLongs(hunk));
@@ -86,7 +132,11 @@ namespace Hst.Amiga.Tests.HunkTests
                     stream.Write(Pad(hunk.Data));
                 }
 
-                if (hunk.Relocations.Length > 0)
+                if (hunk.Relocations.Length > 0 && hunk.ShortRelocations)
+                {
+                    WriteShortRelocations(stream, hunk.Relocations);
+                }
+                else if (hunk.Relocations.Length > 0)
                 {
                     Write(stream, HunkIdentifiers.ReLoc32);
                     foreach (var group in hunk.Relocations.GroupBy(x => x.TargetHunk))
@@ -100,6 +150,25 @@ namespace Hst.Amiga.Tests.HunkTests
                     }
 
                     Write(stream, 0);
+                }
+
+                if (hunk.Symbols != null)
+                {
+                    Write(stream, HunkIdentifiers.Symbol);
+                    foreach (var symbol in hunk.Symbols)
+                    {
+                        WriteString(stream, symbol.Name);
+                        Write(stream, symbol.Value);
+                    }
+
+                    Write(stream, 0);
+                }
+
+                if (hunk.Debug != null)
+                {
+                    Write(stream, HunkIdentifiers.Debug);
+                    Write(stream, (uint)(hunk.Debug.Length + 3) / 4);
+                    stream.Write(Pad(hunk.Debug));
                 }
 
                 Write(stream, HunkIdentifiers.End);
@@ -171,6 +240,38 @@ namespace Hst.Amiga.Tests.HunkTests
             return new HunkFileBuilder()
                 .AddCode(code, 0, RomTagRelocations(romTagOffset, 0, 0, 0))
                 .Build();
+        }
+
+        private static void WriteShortRelocations(Stream stream, (uint Offset, uint TargetHunk)[] relocations)
+        {
+            Write(stream, HunkIdentifiers.ReLoc32Short);
+            var words = 0;
+            foreach (var group in relocations.GroupBy(x => x.TargetHunk))
+            {
+                WriteWord(stream, (ushort)group.Count());
+                WriteWord(stream, (ushort)group.Key);
+                words += 2;
+                foreach (var relocation in group)
+                {
+                    WriteWord(stream, (ushort)relocation.Offset);
+                    words++;
+                }
+            }
+
+            WriteWord(stream, 0);
+            words++;
+
+            // pad to long word size
+            if (words % 2 != 0)
+            {
+                WriteWord(stream, 0);
+            }
+        }
+
+        private static void WriteWord(Stream stream, ushort value)
+        {
+            stream.WriteByte((byte)(value >> 8));
+            stream.WriteByte((byte)value);
         }
 
         private static uint SizeInLongs(TestHunk hunk) =>

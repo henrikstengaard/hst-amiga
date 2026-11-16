@@ -24,6 +24,7 @@
     
     <ItemGroup>
       <ProjectReference Include="..\Hst.Amiga\Hst.Amiga.csproj" />
+      <ProjectReference Include="..\Hst.Amiga.Vm\Hst.Amiga.Vm.csproj" />
     </ItemGroup>
 
     <ItemGroup>

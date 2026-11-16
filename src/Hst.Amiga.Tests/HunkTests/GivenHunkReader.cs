@@ -161,6 +161,70 @@ namespace Hst.Amiga.Tests.HunkTests
                 hunks.Select(hunk => hunk.Identifier));
         }
 
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        public async Task When_ReadingReLoc32Short_Then_EntriesAreReadAndPaddingIsSkipped(int offsetsCount)
+        {
+            // arrange
+            var relocations = Enumerable.Range(0, offsetsCount)
+                .Select(i => ((uint)(i * 4), 1U)).ToArray();
+            var data = new HunkFileBuilder()
+                .AddCode(new byte[16], 0, relocations)
+                .WithShortRelocations()
+                .AddData(new byte[8])
+                .Build();
+            var memoryStream = new MemoryStream(data);
+
+            // act
+            var hunks = (await HunkReader.Read(memoryStream)).ToList();
+
+            // assert
+            Assert.Equal(memoryStream.Length, memoryStream.Position);
+            Assert.Equal(new[]
+                {
+                    HunkIdentifiers.Header,
+                    HunkIdentifiers.Code, HunkIdentifiers.ReLoc32Short, HunkIdentifiers.End,
+                    HunkIdentifiers.Data, HunkIdentifiers.End
+                },
+                hunks.Select(hunk => hunk.Identifier));
+            var reLoc32Short = Assert.IsType<ReLoc32Short>(hunks[2]);
+            var entry = Assert.Single(reLoc32Short.Entries);
+            Assert.Equal(1U, entry.HunkNumber);
+            Assert.Equal(relocations.Select(x => x.Item1), entry.Offsets);
+        }
+
+        [Fact]
+        public async Task When_ReadingNameSymbolAndDebugHunks_Then_HunksAreRead()
+        {
+            // arrange
+            var data = new HunkFileBuilder()
+                .AddCode(new byte[] { 0x4e, 0x75, 0, 0 })
+                .WithName("CODE")
+                .WithSymbols(("_main", 0), ("_exit", 2))
+                .WithDebug(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 })
+                .Build();
+            var memoryStream = new MemoryStream(data);
+
+            // act
+            var hunks = (await HunkReader.Read(memoryStream)).ToList();
+
+            // assert
+            Assert.Equal(memoryStream.Length, memoryStream.Position);
+            Assert.Equal(new[]
+                {
+                    HunkIdentifiers.Header, HunkIdentifiers.Name, HunkIdentifiers.Code,
+                    HunkIdentifiers.Symbol, HunkIdentifiers.Debug, HunkIdentifiers.End
+                },
+                hunks.Select(hunk => hunk.Identifier));
+            Assert.Equal("CODE", Assert.IsType<Name>(hunks[1]).Value);
+            var symbol = Assert.IsType<Symbol>(hunks[3]);
+            Assert.Equal(new[] { "_main", "_exit" }, symbol.Symbols.Select(x => x.Name));
+            Assert.Equal(new[] { 0U, 2U }, symbol.Symbols.Select(x => x.Value));
+            Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }, Assert.IsType<Debug>(hunks[4]).Data);
+        }
+
         [Fact]
         public async Task When_ReadingPngImage_Then_ExceptionIsThrown()
         {

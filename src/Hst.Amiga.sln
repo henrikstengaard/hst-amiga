@@ -23,6 +23,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHubWorkflows", "GitHubWo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Amiga.ConsoleApp", "Hst.Amiga.ConsoleApp\Hst.Amiga.ConsoleApp.csproj", "{80C209B8-EB90-4FD7-9F59-36D388C0AC54}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Amiga.Vm", "Hst.Amiga.Vm\Hst.Amiga.Vm.csproj", "{F6E4B05F-955A-44BB-9CFA-CC0372BF4888}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,5 +43,9 @@ Global
 		{80C209B8-EB90-4FD7-9F59-36D388C0AC54}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{80C209B8-EB90-4FD7-9F59-36D388C0AC54}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{80C209B8-EB90-4FD7-9F59-36D388C0AC54}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6E4B05F-955A-44BB-9CFA-CC0372BF4888}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6E4B05F-955A-44BB-9CFA-CC0372BF4888}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6E4B05F-955A-44BB-9CFA-CC0372BF4888}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6E4B05F-955A-44BB-9CFA-CC0372BF4888}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

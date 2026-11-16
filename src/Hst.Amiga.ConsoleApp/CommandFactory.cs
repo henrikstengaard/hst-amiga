@@ -20,6 +20,7 @@ public static class CommandFactory
         rootCommand.Options.Add(VerboseOption);
         rootCommand.Subcommands.Add(IconCommandFactory.CreateIconCommand());
         rootCommand.Subcommands.Add(EpromCommandFactory.CreateEpromCommand());
+        rootCommand.Subcommands.Add(VmCommandFactory.CreateVmCommand());
         rootCommand.Subcommands.Add(CreateScriptCommand());
 
         return rootCommand;

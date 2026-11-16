@@ -1,6 +1,6 @@
 # Hst Amiga
 
-Hst Amiga is a library for reading and writing Amiga partition table, file systems, data types and is available as a Nuget package for .Net and a console application.
+Hst Amiga is a library for reading and writing Amiga partition table, file systems, data types and running Amiga CLI executables in a virtual machine. It's available as Nuget packages for .Net and a console application.
 
 ## Features
 
@@ -16,6 +16,11 @@ Hst Amiga Nuget package contains following features:
   - Read, write and format Smart File System (SFS) partitions. Supports DOS type SFS\0.
 - Read version strings.
 
+Hst Amiga Vm Nuget package contains following features:
+- Virtual machine running Amiga CLI executables, similar to vamos from amitools.
+- Interpreting 68000 and 68020 cpu with full integer instruction set.
+- Emulated exec.library, dos.library, utility.library and math libraries mapping files, directories and console to host.
+
 Hst Amiga console version comes with following features:
 - Icons
   - Create and update icons.
@@ -25,6 +30,8 @@ Hst Amiga console version comes with following features:
   - Build EPROMs from Amiga Kickstart ROMs for A500, A600, A2000, A1200, A3000 and A4000.
   - Fill EPROMs by concatenating Kickstart ROM until EPROM size is reached or fill EPROM with zeroes until EPROM size is reached.
   - Byte swap EPROMs.
+- Vm
+  - Run Amiga CLI executables with Amiga volumes mapped to host directories.
 - Script
   - Run multiple commands using a script file.
 
@@ -42,6 +49,8 @@ Hst Amiga console supports following operating systems:
 ## Hst Amiga Nuget package
 
 Hst Amiga Nuget package is available at https://www.nuget.org/packages/Hst.Amiga.
+
+Hst Amiga Vm Nuget package is available at https://www.nuget.org/packages/Hst.Amiga.Vm.
 
 ## Hst Amiga console
 

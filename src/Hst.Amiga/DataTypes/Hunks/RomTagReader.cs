@@ -77,7 +77,7 @@ namespace Hst.Amiga.DataTypes.Hunks
                         hunkDatas.Add(null);
                         relocations.Add(new Dictionary<uint, uint>());
                         break;
-                    case ReLoc32 reLoc32 when relocations.Count > 0 && reLoc32.Entries != null:
+                    case IReLocHunk reLoc32 when relocations.Count > 0 && reLoc32.Entries != null:
                         var hunkRelocations = relocations[relocations.Count - 1];
                         foreach (var entry in reLoc32.Entries)
                         {

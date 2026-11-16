@@ -489,3 +489,40 @@ Example of running a script file `example.txt`:
 ```
 hst.amiga script example.txt
 ```
+
+## Vm commands
+
+### Run Amiga executable
+
+Runs an Amiga CLI executable in a virtual machine, similar to vamos from amitools.
+The executable runs on an emulated 68000 or 68020 cpu with exec.library, dos.library, utility.library and math libraries emulated, mapping Amiga volumes to host directories and the Amiga console to standard input and output.
+Libraries other than these aren't available, except intuition.library and graphics.library stubs, which can be opened, but stop the program if any function is called.
+
+The return code of the Amiga executable is returned as exit code. Pressing ctrl-c sends a break signal to the program and pressing ctrl-c again stops the program.
+
+Arguments after the executable are passed to the program. Use `--` before arguments starting with `-`, so they are not parsed as options.
+
+Example of displaying usage for run Amiga executable:
+```
+hst.amiga vm run
+```
+
+Example of running Amiga executable `hello` with SYS: mapped to current directory:
+```
+hst.amiga vm run hello
+```
+
+Example of running Amiga executable `list` with SYS: mapped to directory `c:\amiga\sys` and current directory SYS:Work:
+```
+hst.amiga vm run c:\amiga\sys\c\list -V SYS=c:\amiga\sys --cwd SYS:Work -- #?.txt
+```
+
+Example of running Amiga executable `copy` with volume WORK: mapped to directory `d:\work` and an assign DATA: to `WORK:data`:
+```
+hst.amiga vm run copy -V SYS=c:\amiga\sys -V WORK=d:\work -a DATA=WORK:data -- DATA:file.txt TO RAM:
+```
+
+Example of running Amiga executable `test` emulating a 68000 cpu with 2 MB memory and tracing library calls:
+```
+hst.amiga vm run test -c 68000 -m 2 --trace-libs
+```
