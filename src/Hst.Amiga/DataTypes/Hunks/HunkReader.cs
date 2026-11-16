@@ -55,8 +55,27 @@
                     return await ReadBss(stream);
                 case HunkIdentifiers.ReLoc32:
                     return await ReadReLoc32(stream);
+                case HunkIdentifiers.ReLoc32Short:
+                case HunkIdentifiers.DRel32:
+                    return await ReadReLoc32Short(stream, identifier & ~MemoryFlagsMask);
+                case HunkIdentifiers.Symbol:
+                    return await ReadSymbol(stream);
+                case HunkIdentifiers.Debug:
+                    return new Debug
+                    {
+                        Data = await ReadHunkData(stream)
+                    };
+                case HunkIdentifiers.Name:
+                    return new Name
+                    {
+                        Value = await ReadString(stream) ?? string.Empty
+                    };
                 case HunkIdentifiers.End:
                     return new End();
+                case HunkIdentifiers.Overlay:
+                    throw new IOException("Overlay hunks are not supported");
+                case HunkIdentifiers.RelReLoc32:
+                    throw new IOException("Relative reloc32 hunks are not supported");
                 default:
                     throw new IOException($"Unsupported hunk identifier '{identifier.FormatHex()}'");
             }
@@ -199,12 +218,88 @@
         }
 
         /// <summary>
+        /// Read reloc32 short hunk with 16-bit number of offsets, hunk number and offsets, padded to long word size.
+        /// </summary>
+        public static async Task<ReLoc32Short> ReadReLoc32Short(Stream stream,
+            uint identifier = HunkIdentifiers.ReLoc32Short)
+        {
+            var entries = new List<ReLoc32Entry>();
+            var wordsRead = 0L;
+
+            while (true)
+            {
+                var numOffsets = await stream.ReadBigEndianUInt16();
+                wordsRead++;
+                if (numOffsets == 0)
+                {
+                    break;
+                }
+
+                var hunkNumber = await stream.ReadBigEndianUInt16();
+                wordsRead++;
+
+                EnsureAvailable(stream, (long)numOffsets * 2);
+
+                var entryOffsets = new List<uint>();
+                for (var i = 0; i < numOffsets; i++)
+                {
+                    entryOffsets.Add(await stream.ReadBigEndianUInt16());
+                }
+
+                wordsRead += numOffsets;
+
+                entries.Add(new ReLoc32Entry
+                {
+                    HunkNumber = hunkNumber,
+                    Offsets = entryOffsets
+                });
+            }
+
+            // padded with a word, if odd number of words read
+            if (wordsRead % 2 != 0)
+            {
+                await stream.ReadBigEndianUInt16();
+            }
+
+            return new ReLoc32Short(identifier)
+            {
+                Entries = entries
+            };
+        }
+
+        /// <summary>
+        /// Read symbol hunk with symbol names and values terminated by zero number of long words.
+        /// </summary>
+        public static async Task<Symbol> ReadSymbol(Stream stream)
+        {
+            var symbols = new List<SymbolEntry>();
+
+            string name;
+            while ((name = await ReadString(stream, 0x00FFFFFF)) != null)
+            {
+                symbols.Add(new SymbolEntry
+                {
+                    Name = name,
+                    Value = await stream.ReadBigEndianUInt32()
+                });
+            }
+
+            return new Symbol
+            {
+                Symbols = symbols
+            };
+        }
+
+        /// <summary>
         /// Read string stored as number of long words followed by string bytes padded with zeros to long word size.
         /// </summary>
         /// <returns>String up to first zero byte or null, if number of long words is zero</returns>
-        public static async Task<string> ReadString(Stream stream)
+        public static Task<string> ReadString(Stream stream) => ReadString(stream, 0xFFFFFFFF);
+
+        private static async Task<string> ReadString(Stream stream, uint numLongsMask)
         {
-            var numLongs = await stream.ReadBigEndianUInt32();
+            // symbol type is stored in upper byte of number of long words for symbols
+            var numLongs = await stream.ReadBigEndianUInt32() & numLongsMask;
             if (numLongs < 1)
                 return null;
 

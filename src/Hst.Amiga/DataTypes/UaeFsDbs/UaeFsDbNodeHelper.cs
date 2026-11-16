@@ -155,16 +155,23 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
             };
         }
 
+        /// <summary>
+        /// Get UAEFSDB node version from file size. Version 1 is checked first, because a _UAEFSDB.___ file contains
+        /// one or more version 1 nodes and a size like 68 version 1 nodes (40800 bytes) is also a multiple of the
+        /// version 2 node size, while version 2 is a single node stored in an NTFS alternate data stream.
+        /// </summary>
+        /// <param name="fileSize">Size of UAEFSDB file or stream.</param>
+        /// <returns>UAEFSDB node version.</returns>
         public static UaeFsDbNode.NodeVersion GetUaeFsDbNodeVersion(long fileSize)
         {
-            if (fileSize % Constants.UaeFsDbNodeVersion2Size == 0)
-            {
-                return UaeFsDbNode.NodeVersion.Version2;
-            }
-
             if (fileSize % Constants.UaeFsDbNodeVersion1Size == 0)
             {
                 return UaeFsDbNode.NodeVersion.Version1;
+            }
+
+            if (fileSize % Constants.UaeFsDbNodeVersion2Size == 0)
+            {
+                return UaeFsDbNode.NodeVersion.Version2;
             }
 
             throw new ArgumentException($"File size {fileSize} is not a multiple of UAEFSDB node sizes: {Constants.UaeFsDbNodeVersion1Size} bytes for version 1 or {Constants.UaeFsDbNodeVersion2Size} bytes for version 2", nameof(fileSize));

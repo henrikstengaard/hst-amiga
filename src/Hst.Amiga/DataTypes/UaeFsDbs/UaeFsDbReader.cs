@@ -64,6 +64,7 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
             return new UaeFsDbNode
             {
                 Version = version,
+                Valid = valid,
                 Mode = mode,
                 AmigaName = amigaName,
                 NormalName = normalName,
@@ -99,7 +100,7 @@ namespace Hst.Amiga.DataTypes.UaeFsDbs
                     throw new InvalidOperationException($"Read {bytesRead} bytes, but expected {uaeFsDbNodeSize} bytes");
                 }
 
-                var node = ReadFromBytes(buffer, 0);
+                var node = ReadFromBytes(buffer, 0, uaeFsDbNodeVersion);
                 nodes.Add(node);
             }
 

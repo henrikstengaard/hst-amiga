@@ -489,3 +489,72 @@ Example of running a script file `example.txt`:
 ```
 hst.amiga script example.txt
 ```
+
+## Vm commands
+
+### Run Amiga executable
+
+Runs an Amiga CLI executable in a virtual machine, similar to vamos from amitools.
+The executable runs on an emulated 68000 or 68020 cpu with exec.library, dos.library, utility.library, version.library and math libraries emulated, mapping Amiga volumes to host directories and the Amiga console to standard input and output.
+Libraries other than these aren't available, except intuition.library and graphics.library stubs, which can be opened, but stop the program if any function is called.
+
+The return code of the Amiga executable is returned as exit code. Pressing ctrl-c sends a break signal to the program and pressing ctrl-c again stops the program.
+
+Arguments after the executable are passed to the program. Use `--` before arguments starting with `-`, so they are not parsed as options.
+
+Amiga names, protection bits and comments are read from UAE metadata, UAEFSDB `_UAEFSDB.___` files used by WinUAE and UAE metafiles `.uaem` used by FS-UAE, detected per directory. Use `--uae-metadata` to select `uaefsdb`, `uaemetafile` or `none` instead of `auto`. Metadata files are not changed by default and changes to protection bits and comments are kept in memory while the program runs. Use `--write-uae-metadata` to write changes to metadata files.
+
+Example of displaying usage for run Amiga executable:
+```
+hst.amiga vm run
+```
+
+Example of running Amiga executable `hello` with SYS: mapped to current directory:
+```
+hst.amiga vm run hello
+```
+
+Example of running Amiga executable `list` with SYS: mapped to directory `c:\amiga\sys` and current directory SYS:Work:
+```
+hst.amiga vm run c:\amiga\sys\c\list -V SYS=c:\amiga\sys --cwd SYS:Work -- #?.txt
+```
+
+Example of running Amiga executable `copy` with volume WORK: mapped to directory `d:\work` and an assign DATA: to `WORK:data`:
+```
+hst.amiga vm run copy -V SYS=c:\amiga\sys -V WORK=d:\work -a DATA=WORK:data -- DATA:file.txt TO RAM:
+```
+
+Example of running Amiga executable `protect` adding script protection bit to file `test` written to UAE metadata:
+```
+hst.amiga vm run c:\amiga\sys\c\protect -V SYS=c:\amiga\sys --write-uae-metadata -- SYS:test s add
+```
+
+Example of running Amiga executable `test` emulating a 68000 cpu with 2 MB memory and tracing library calls:
+```
+hst.amiga vm run test -c 68000 -m 2 --trace-libs
+```
+
+### Execute AmigaDOS script
+
+Executes an AmigaDOS script in the virtual machine with the Execute command from C:, e.g. from an AmigaOS 3.1 Workbench installation mapped to SYS:. Execute handles `.KEY` arguments and the virtual machine shell runs the script lines with the AmigaOS 3.1 shell internal commands like `If`, `Skip`, `Echo` and `Set`. Commands run synchronously, as there is no multitasking. The script is a host path or an Amiga path and the options are the same as for running an Amiga executable.
+
+Running the Execute command with `vm run` runs the script too.
+
+Example of executing script `SPat` from Workbench running `list` for each file matching pattern `sys:c/a#?`:
+```
+hst.amiga vm execute SYS:S/SPat -V SYS=c:\amiga\sys -- list sys:c/a#?
+```
+
+Example of executing script `build.script` in host directory `d:\work` with an argument:
+```
+hst.amiga vm execute d:\work\build.script -V SYS=c:\amiga\sys -- release
+```
+
+### Run interactive AmigaDOS shell
+
+Runs an interactive AmigaDOS shell in the virtual machine, reading command lines from console input until `EndShell` or end of input. The options are the same as for running an Amiga executable.
+
+Example of running an interactive shell with SYS: mapped to directory `c:\amiga\sys`:
+```
+hst.amiga vm shell -V SYS=c:\amiga\sys
+```

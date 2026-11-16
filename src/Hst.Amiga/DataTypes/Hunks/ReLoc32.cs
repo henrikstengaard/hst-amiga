@@ -2,7 +2,7 @@ namespace Hst.Amiga.DataTypes.Hunks
 {
     using System.Collections.Generic;
 
-    public class ReLoc32 : IHunk
+    public class ReLoc32 : IReLocHunk
     {
         public uint Identifier => HunkIdentifiers.ReLoc32;
 

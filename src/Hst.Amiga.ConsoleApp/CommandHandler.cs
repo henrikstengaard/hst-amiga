@@ -157,6 +157,65 @@ public static class CommandHandler
         await Execute(new EpromByteSwapCommand(kickstartRomPath));
     }
     
+    public static async Task<int> VmRun(VmRunMode mode, string executablePath, string[] arguments, string cpu,
+        int? memory, int? stack, string[] volumes, string[] assigns, string[] stubLibraries, string currentDirectory,
+        long? maxInstructions, bool trace, bool traceLibraries, string uaeMetadata, bool writeUaeMetadata,
+        CancellationToken token)
+    {
+        Vm.VmOptions options;
+        try
+        {
+            options = VmRunCommand.CreateOptions(cpu, memory, stack, volumes, assigns, stubLibraries,
+                currentDirectory, maxInstructions, trace, traceLibraries, uaeMetadata, writeUaeMetadata);
+        }
+        catch (ArgumentException e)
+        {
+            Log.Logger.Error(e.Message);
+            return 1;
+        }
+
+        options.Log = message => Console.Error.WriteLine(message);
+
+        // first ctrl-c sends break signal to program, second cancels execution
+        using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(token);
+        Vm.AmigaVm vm = null;
+        var breakSent = false;
+        ConsoleCancelEventHandler cancelHandler = (_, e) =>
+        {
+            e.Cancel = true;
+            if (!breakSent && vm != null)
+            {
+                breakSent = true;
+                vm.SendBreak();
+                return;
+            }
+
+            cancellationTokenSource.Cancel();
+        };
+        Console.CancelKeyPress += cancelHandler;
+
+        try
+        {
+            var command = new VmRunCommand(executablePath, arguments, options, mode);
+            var result = await command.Execute(x => vm = x, cancellationTokenSource.Token);
+            if (!result.IsSuccess)
+            {
+                Log.Logger.Error(result.Error);
+            }
+
+            return result.ReturnCode;
+        }
+        catch (Exception e) when (e is IOException or ArgumentException or Vm.VmException)
+        {
+            Log.Logger.Error(e.Message);
+            return 20;
+        }
+        finally
+        {
+            Console.CancelKeyPress -= cancelHandler;
+        }
+    }
+
     public static async Task Script(string path)
     {
         var lines = await File.ReadAllLinesAsync(path);
