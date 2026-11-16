@@ -189,7 +189,12 @@ public class GivenHostMetadata : IDisposable
         Assert.Equal(new[] { HostMetadata.UaeFsDbFileName, "__uae___file_" },
             metadata.List(path).Select(x => x.AmigaName).OrderBy(x => x, StringComparer.Ordinal));
         Assert.Equal(0U, metadata.Get(HostPath("__uae___file_")).Protection);
-        Assert.False(metadata.IsValidName("file*"));
+        // backslash is invalid in host names on all platforms, but valid in Amiga names
+        Assert.False(metadata.IsValidName("file\\"));
+        Assert.True(new HostMetadata(UaeMetadataMode.Auto).IsValidName("file\\"));
+
+        // asterisk is only invalid in host names on platforms where the host filesystem rejects it, e.g. Windows
+        Assert.Equal(Path.GetInvalidFileNameChars().Contains('*'), !metadata.IsValidName("file*"));
         Assert.True(new HostMetadata(UaeMetadataMode.Auto).IsValidName("file*"));
     }
 
