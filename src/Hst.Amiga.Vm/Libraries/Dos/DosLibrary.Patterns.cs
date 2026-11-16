@@ -120,6 +120,14 @@ public partial class DosLibrary
             return file;
         }
 
+        // empty file name adds separator like AmigaDOS, e.g. used by List to get path with separator
+        if (file.Length == 0)
+        {
+            return directory.Length > 0 && !directory.EndsWith(":") && !directory.EndsWith("/")
+                ? directory + "/"
+                : directory;
+        }
+
         var result = directory;
         while (file.StartsWith("/"))
         {
@@ -231,7 +239,16 @@ public partial class DosLibrary
             AChain = CreateAChain(anchor, directory, 0)
         });
         matches[anchor] = wildState;
-        return MatchNext(anchor);
+
+        // pattern without any matching entries is not found
+        var error = MatchNext(anchor);
+        if (error == DosErrors.NoMoreEntries)
+        {
+            SetIoErr(DosErrors.ObjectNotFound);
+            return DosErrors.ObjectNotFound;
+        }
+
+        return error;
     }
 
     private uint CreateAChain(uint anchor, AmigaPath directory, uint parent)

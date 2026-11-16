@@ -49,9 +49,60 @@ internal sealed class DosFile : IDisposable
     public bool CanRead => Input != null && Input.CanRead;
     public bool CanWrite => Output != null && Output.CanWrite;
 
-    public int Read(byte[] buffer, int offset, int count)
+    private byte[] pendingInput;
+    private int pendingPosition;
+
+    /// <summary>
+    /// Is pending input set and not fully read.
+    /// </summary>
+    public bool HasPendingInput => pendingInput != null && pendingPosition < pendingInput.Length;
+
+    /// <summary>
+    /// Set input read before reading from input stream. Used for command arguments, which are read from input
+    /// handle like in the input buffer on AmigaDOS.
+    /// </summary>
+    public void SetPendingInput(byte[] bytes)
     {
-        if (!CanRead)
+        pendingInput = bytes;
+        pendingPosition = 0;
+        ungetChar = -1;
+    }
+
+    /// <summary>
+    /// Take remaining pending input and clear it.
+    /// </summary>
+    public byte[] TakePendingInput()
+    {
+        if (!HasPendingInput)
+        {
+            pendingInput = null;
+            return null;
+        }
+
+        var bytes = new byte[pendingInput.Length - pendingPosition];
+        Array.Copy(pendingInput, pendingPosition, bytes, 0, bytes.Length);
+        pendingInput = null;
+        return bytes;
+    }
+
+    public void ClearPendingInput() => pendingInput = null;
+
+    /// <summary>
+    /// Read from file.
+    /// </summary>
+    /// <param name="buffer">Buffer to read into.</param>
+    /// <param name="offset">Offset in buffer.</param>
+    /// <param name="count">Number of bytes to read.</param>
+    /// <param name="buffered">Buffered read, which reads pending input first. Unbuffered reads bypass pending
+    /// input like dos.library Read() bypasses the buffer of a file handle.</param>
+    public int Read(byte[] buffer, int offset, int count, bool buffered = true)
+    {
+        if (!buffered)
+        {
+            pendingInput = null;
+        }
+
+        if (!CanRead && !HasPendingInput)
         {
             return -1;
         }
@@ -64,6 +115,22 @@ internal sealed class DosFile : IDisposable
             ungetChar = -1;
             count--;
             read++;
+        }
+
+        // pending input is read first and a read doesn't continue into input stream
+        if (count > 0 && HasPendingInput)
+        {
+            var pending = Math.Min(count, pendingInput.Length - pendingPosition);
+            Array.Copy(pendingInput, pendingPosition, buffer, offset, pending);
+            pendingPosition += pending;
+            read += pending;
+            lastChar = buffer[start + read - 1];
+            return read;
+        }
+
+        if (!CanRead)
+        {
+            return read;
         }
 
         if (count > 0 && IsConsole && read == 0)
@@ -111,6 +178,12 @@ internal sealed class DosFile : IDisposable
         {
             lastChar = ungetChar;
             ungetChar = -1;
+            return lastChar;
+        }
+
+        if (HasPendingInput)
+        {
+            lastChar = pendingInput[pendingPosition++];
             return lastChar;
         }
 
@@ -164,8 +237,9 @@ internal sealed class DosFile : IDisposable
             Output.Flush();
         }
 
-        // discard pushed back character
+        // discard pushed back character and pending input
         ungetChar = -1;
+        pendingInput = null;
     }
 
     public long Position

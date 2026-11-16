@@ -19,12 +19,23 @@ public class VmRunCommand
     private readonly string executablePath;
     private readonly IEnumerable<string> arguments;
     private readonly VmOptions options;
+    private readonly VmRunMode mode;
 
-    public VmRunCommand(string executablePath, IEnumerable<string> arguments, VmOptions options)
+    /// <summary>
+    /// Create command running Amiga executable, script or interactive shell in virtual machine.
+    /// </summary>
+    /// <param name="executablePath">Host path to executable, host or Amiga path to script for execute mode and
+    /// ignored for shell mode.</param>
+    /// <param name="arguments">Arguments passed to executable or script.</param>
+    /// <param name="options">Virtual machine options.</param>
+    /// <param name="mode">Run executable, execute script or run interactive shell.</param>
+    public VmRunCommand(string executablePath, IEnumerable<string> arguments, VmOptions options,
+        VmRunMode mode = VmRunMode.Run)
     {
         this.executablePath = executablePath;
         this.arguments = arguments ?? Enumerable.Empty<string>();
         this.options = options;
+        this.mode = mode;
     }
 
     /// <summary>
@@ -136,13 +147,18 @@ public class VmRunCommand
 
     public async Task<VmResult> Execute(Action<AmigaVm> started, CancellationToken token)
     {
-        if (!File.Exists(executablePath))
+        if (mode == VmRunMode.Run && !File.Exists(executablePath))
         {
             throw new FileNotFoundException($"Executable '{executablePath}' not found", executablePath);
         }
 
         var vm = new AmigaVm(options);
         started?.Invoke(vm);
-        return await vm.Run(executablePath, JoinArguments(arguments), token);
+        return mode switch
+        {
+            VmRunMode.Execute => await vm.Execute(executablePath, JoinArguments(arguments), token),
+            VmRunMode.Shell => await vm.Shell(token),
+            _ => await vm.Run(executablePath, JoinArguments(arguments), token)
+        };
     }
 }

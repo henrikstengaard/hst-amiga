@@ -533,3 +533,28 @@ Example of running Amiga executable `test` emulating a 68000 cpu with 2 MB memor
 ```
 hst.amiga vm run test -c 68000 -m 2 --trace-libs
 ```
+
+### Execute AmigaDOS script
+
+Executes an AmigaDOS script in the virtual machine with the Execute command from C:, e.g. from an AmigaOS 3.1 Workbench installation mapped to SYS:. Execute handles `.KEY` arguments and the virtual machine shell runs the script lines with the AmigaOS 3.1 shell internal commands like `If`, `Skip`, `Echo` and `Set`. Commands run synchronously, as there is no multitasking. The script is a host path or an Amiga path and the options are the same as for running an Amiga executable.
+
+Running the Execute command with `vm run` runs the script too.
+
+Example of executing script `SPat` from Workbench running `list` for each file matching pattern `sys:c/a#?`:
+```
+hst.amiga vm execute SYS:S/SPat -V SYS=c:\amiga\sys -- list sys:c/a#?
+```
+
+Example of executing script `build.script` in host directory `d:\work` with an argument:
+```
+hst.amiga vm execute d:\work\build.script -V SYS=c:\amiga\sys -- release
+```
+
+### Run interactive AmigaDOS shell
+
+Runs an interactive AmigaDOS shell in the virtual machine, reading command lines from console input until `EndShell` or end of input. The options are the same as for running an Amiga executable.
+
+Example of running an interactive shell with SYS: mapped to directory `c:\amiga\sys`:
+```
+hst.amiga vm shell -V SYS=c:\amiga\sys
+```

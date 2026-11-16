@@ -157,8 +157,8 @@ public static class CommandHandler
         await Execute(new EpromByteSwapCommand(kickstartRomPath));
     }
     
-    public static async Task<int> VmRun(string executablePath, string[] arguments, string cpu, int? memory,
-        int? stack, string[] volumes, string[] assigns, string[] stubLibraries, string currentDirectory,
+    public static async Task<int> VmRun(VmRunMode mode, string executablePath, string[] arguments, string cpu,
+        int? memory, int? stack, string[] volumes, string[] assigns, string[] stubLibraries, string currentDirectory,
         long? maxInstructions, bool trace, bool traceLibraries, string uaeMetadata, bool writeUaeMetadata,
         CancellationToken token)
     {
@@ -196,7 +196,7 @@ public static class CommandHandler
 
         try
         {
-            var command = new VmRunCommand(executablePath, arguments, options);
+            var command = new VmRunCommand(executablePath, arguments, options, mode);
             var result = await command.Execute(x => vm = x, cancellationTokenSource.Token);
             if (!result.IsSuccess)
             {

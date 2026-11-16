@@ -71,6 +71,67 @@ public class AmigaVm
     public Task<VmResult> Run(byte[] executable, string programName, string arguments,
         string programDirectory = null, CancellationToken cancellationToken = default)
     {
+        return Task.FromResult(Start(programName, programDirectory, executable, (dos, segmentList, result) =>
+        {
+            var argumentString = (arguments ?? string.Empty).TrimEnd('\n') + "\n";
+            var returnCode = dos.RunSegment(segmentList.Bptr, programName, argumentString, options.StackSize);
+            result.ExitReason = dos.LastCommandCalledExit ? VmExitReason.Exit : VmExitReason.Returned;
+
+            // program like Execute can start a script, which is run by the shell after program returns
+            return dos.IsScriptRunning ? dos.RunShell(false) : returnCode;
+        }, cancellationToken));
+    }
+
+    /// <summary>
+    /// Run AmigaDOS script with Execute command from C:.
+    /// </summary>
+    /// <param name="script">Host path or Amiga path to script.</param>
+    /// <param name="arguments">Arguments passed to script.</param>
+    /// <param name="cancellationToken">Cancellation token stopping script.</param>
+    public Task<VmResult> Execute(string script, string arguments = "", CancellationToken cancellationToken = default)
+    {
+        string programDirectory = null;
+        var scriptPath = script;
+        if (File.Exists(script))
+        {
+            var fullPath = Path.GetFullPath(script);
+            programDirectory = Path.GetDirectoryName(fullPath);
+            scriptPath = $"PROGDIR:{Path.GetFileName(fullPath)}";
+        }
+
+        return Task.FromResult(Start("Execute", programDirectory, null, (dos, _, result) =>
+        {
+            if (!dos.CommandExists("Execute"))
+            {
+                throw new VmException("Execute command not found in C:, which is required to run scripts");
+            }
+
+            var quoted = $"\"{scriptPath.Replace("*", "**").Replace("\"", "*\"")}\"";
+            dos.ExecuteLine($"Execute {quoted} {arguments}".TrimEnd());
+            result.ExitReason = VmExitReason.Returned;
+            return dos.RunShell(false);
+        }, cancellationToken));
+    }
+
+    /// <summary>
+    /// Run interactive AmigaDOS shell reading commands from console input.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token stopping shell.</param>
+    public Task<VmResult> Shell(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Start("Shell", null, null, (dos, _, result) =>
+        {
+            result.ExitReason = VmExitReason.Returned;
+            return dos.RunShell(true);
+        }, cancellationToken));
+    }
+
+    /// <summary>
+    /// Setup virtual machine with libraries, volumes and process and run body.
+    /// </summary>
+    private VmResult Start(string programName, string programDirectory, byte[] executable,
+        Func<DosLibrary, SegmentList, VmResult, int> body, CancellationToken cancellationToken)
+    {
         var result = new VmResult();
         string ramDirectory = null;
         DosLibrary dos = null;
@@ -118,7 +179,7 @@ public class AmigaVm
                 context.AddLibrary(stubLibrary);
             }
 
-            var segmentList = LoadExecutable(executable);
+            var segmentList = executable == null ? null : LoadExecutable(executable);
 
             var stack = context.Allocator.Allocate(options.StackSize);
             var supervisorStack = context.Allocator.Allocate(SupervisorStackSize);
@@ -128,7 +189,6 @@ public class AmigaVm
             }
 
             var stackUpper = stack + options.StackSize;
-            var argumentString = (arguments ?? string.Empty).TrimEnd('\n') + "\n";
 
             var currentDirectory = FindCurrentDirectory(volumes);
             var homeDirectory = programDirectory == null ? null : volumes.Resolve("PROGDIR:", currentDirectory);
@@ -144,8 +204,8 @@ public class AmigaVm
             dos.SetupProcess(new ProcessSetup
             {
                 ProgramName = programName,
-                Arguments = argumentString,
-                SegList = segmentList.Bptr,
+                Arguments = "\n",
+                SegList = segmentList?.Bptr ?? 0,
                 StackLower = stack,
                 StackUpper = stackUpper,
                 StackSize = options.StackSize,
@@ -157,17 +217,12 @@ public class AmigaVm
                 Interactive = interactive
             });
 
-            // stack has return address to exit stub followed by stack size
+            // commands run as subroutines with their own stack, returning to exit stub if stack is unwound
             cpu.Push32(options.StackSize);
             cpu.Push32(context.ExitStub);
-
-            var argumentsAddress = context.Ram.ReadLong(dos.Process + Libraries.Structs.ProcessStruct.Arguments);
-            cpu.D[0] = (uint)Ram.GetBytes(argumentString).Length;
-            cpu.A[0] = argumentsAddress;
             cpu.A[6] = exec.BaseAddress;
-            cpu.PC = segmentList.EntryPoint;
 
-            context.Run();
+            result.ReturnCode = body(dos, segmentList, result);
         }
         catch (ProgramExitException e)
         {
@@ -220,7 +275,7 @@ public class AmigaVm
             DeleteRamDirectory(ramDirectory);
         }
 
-        return Task.FromResult(result);
+        return result;
     }
 
     private static async Task<byte[]> ReadAllBytes(string path, CancellationToken cancellationToken)

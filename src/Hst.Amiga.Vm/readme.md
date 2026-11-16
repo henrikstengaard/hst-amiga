@@ -18,11 +18,17 @@ Features:
 - Stub libraries, which can be opened, but stop the program if a function is called. Default stubs are intuition.library and graphics.library, which are often opened by compiler startup code.
 - Volumes mapping Amiga volume names to host directories and assigns mapping names to Amiga paths.
 - UAE metadata with Amiga names, protection bits, comments and dates stored as UAEFSDB `_UAEFSDB.___` files used by WinUAE or UAE metafiles `.uaem` used by FS-UAE.
+- AmigaDOS shell running scripts and interactive command lines:
+    - Scripts run with Execute command from C:, e.g. from an AmigaOS 3.1 Workbench installation, including `.KEY` arguments handled by Execute.
+    - Shell internal commands of AmigaOS 3.1 shell: Alias, Ask, CD, Echo, Else, EndCLI, EndIf, EndShell, EndSkip, FailAt, Fault, Get, GetEnv, If, Lab, Path, Prompt, Quit, Resident, Run, Set, SetEnv, Skip, Stack, UnAlias, UnSet, UnSetEnv and Why.
+    - Local and global variables with `$name`, command output substitution with backquotes, aliases and redirection with `<`, `>` and `>>` directly after command name.
+    - Commands are found in current directory, command path and C:. Files with script protection bit are run with Execute.
+    - dos.library RunCommand(), Execute(), SystemTagList() and ReadItem() run commands from programs.
 
 Limitations:
-- Multitasking isn't supported. Programs run as a single process and waiting for signals or messages, which will never arrive, stops the program.
+- Multitasking isn't supported. Programs run as a single process and waiting for signals or messages, which will never arrive, stops the program. Commands started with Run, Execute() or SystemTagList() run synchronously.
 - Devices and libraries other than exec.library, dos.library, utility.library and math libraries aren't available, e.g. icon.library and reqtools.library. OpenLibrary() returns NULL for these.
-- Running other programs with Execute() and SystemTagList() isn't supported.
+- NewShell, NewCLI and pipes aren't supported.
 - UAEFSDB stored as NTFS alternate data streams by WinUAE isn't supported, only `_UAEFSDB.___` files.
 
 ## Usage
@@ -52,6 +58,20 @@ Default volumes and assigns:
 - ENV: is assigned to RAM:Env, ENVARC: to SYS:Prefs/Env-Archive and T: to RAM:T.
 
 Console input and output defaults to standard input and output, and can be redirected with the `Input`, `Output` and `Error` streams in `VmOptions`.
+
+Example of running an AmigaDOS script with Execute command from C: and an interactive shell:
+```csharp
+var options = new VmOptions();
+options.Volumes["SYS"] = @"c:\amiga\sys";
+
+// script can be a host path or an Amiga path
+var result = await new AmigaVm(options).Execute("SYS:S/SPat", "list sys:c/a#?");
+
+// interactive shell reading command lines from console input
+await new AmigaVm(options).Shell();
+```
+
+A program, which sets current input of the command line interface to a script like Execute does, continues running the script in the shell after the program returns, so `Run` of the Execute command runs scripts too.
 
 ## UAE metadata
 

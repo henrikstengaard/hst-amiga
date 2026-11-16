@@ -20,6 +20,7 @@ Hst Amiga Vm Nuget package contains following features:
 - Virtual machine running Amiga CLI executables, similar to vamos from amitools.
 - Interpreting 68000 and 68020 cpu with full integer instruction set.
 - Emulated exec.library, dos.library, utility.library and math libraries mapping files, directories and console to host.
+- AmigaDOS shell running scripts with Execute and interactive command lines.
 
 Hst Amiga console version comes with following features:
 - Icons
@@ -32,6 +33,7 @@ Hst Amiga console version comes with following features:
   - Byte swap EPROMs.
 - Vm
   - Run Amiga CLI executables with Amiga volumes mapped to host directories.
+  - Execute AmigaDOS scripts and run an interactive AmigaDOS shell.
 - Script
   - Run multiple commands using a script file.
 

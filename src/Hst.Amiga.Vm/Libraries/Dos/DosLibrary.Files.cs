@@ -23,7 +23,7 @@ public partial class DosLibrary
 
             D0 = unchecked((uint)DosTrue);
         });
-        Register("Read", () => D0 = (uint)Read(D1, D2, (int)D3));
+        Register("Read", () => D0 = (uint)Read(D1, D2, (int)D3, false));
         Register("Write", () => D0 = (uint)Write(D1, D2, (int)D3));
         Register("Seek", Seek);
         Register("Input", () => D0 = InputHandle);
@@ -231,7 +231,7 @@ public partial class DosLibrary
     /// Read from file to memory.
     /// </summary>
     /// <returns>Number of bytes read, 0 at end of file or -1 on error.</returns>
-    private int Read(uint fileHandle, uint buffer, int length)
+    private int Read(uint fileHandle, uint buffer, int length, bool buffered = true)
     {
         var file = GetFile(fileHandle);
         if (file == null || !file.CanRead || length < 0)
@@ -247,7 +247,7 @@ public partial class DosLibrary
             if (file.IsConsole)
             {
                 var consoleBuffer = new byte[Math.Min(length, TransferChunkSize)];
-                var consoleRead = file.Read(consoleBuffer, 0, consoleBuffer.Length);
+                var consoleRead = file.Read(consoleBuffer, 0, consoleBuffer.Length, buffered);
                 if (consoleRead > 0)
                 {
                     Ram.WriteBytes(buffer, consoleBuffer, 0, consoleRead);
@@ -260,7 +260,7 @@ public partial class DosLibrary
             var total = 0;
             while (total < length)
             {
-                var read = file.Read(chunk, 0, Math.Min(chunk.Length, length - total));
+                var read = file.Read(chunk, 0, Math.Min(chunk.Length, length - total), buffered);
                 if (read <= 0)
                 {
                     break;

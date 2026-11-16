@@ -148,6 +148,11 @@ public sealed class VmContext
     {
         Cpu.Step();
 
+        if (Options.MaxInstructions > 0 && Options.MaxInstructions < CancellationCheckInterval)
+        {
+            CheckInstructionLimit();
+        }
+
         if (Cpu.InstructionCount % CancellationCheckInterval != 0)
         {
             return;

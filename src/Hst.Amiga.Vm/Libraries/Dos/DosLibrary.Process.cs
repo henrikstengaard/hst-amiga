@@ -120,20 +120,138 @@ public partial class DosLibrary
             D0 = (uint)position;
         });
 
-        // running other programs is not supported
+        Register("ReadItem", ReadItem);
+
+        // commands run synchronously in the process, as there is no multitasking
         Register("Execute", () =>
         {
-            Context.Log($"Warning: Execute(\"{Ram.ReadCString(D1)}\") is not supported");
-            SetIoErr(DosErrors.NotImplemented);
-            D0 = 0;
+            var command = Ram.ReadCString(D1) ?? string.Empty;
+            var input = D2;
+            var output = D3;
+            ExecuteCommandLines(command, output);
+
+            // further commands are read from input until end of file
+            if (input != 0)
+            {
+                string line;
+                while ((line = ReadLine(input)) != null)
+                {
+                    ExecuteCommandLines(line, output);
+                }
+            }
+
+            D0 = unchecked((uint)DosTrue);
         });
         Register("SystemTagList", () =>
         {
-            Context.Log($"Warning: SystemTagList(\"{Ram.ReadCString(D1)}\") is not supported");
-            SetIoErr(DosErrors.NotImplemented);
-            D0 = 0xFFFFFFFF;
+            var command = Ram.ReadCString(D1) ?? string.Empty;
+            uint input = 0;
+            uint output = 0;
+            for (var tag = D2; tag != 0;)
+            {
+                var tagId = Ram.ReadLong(tag);
+                var data = Ram.ReadLong(tag + 4);
+                switch (tagId)
+                {
+                    case TagDone:
+                        tag = 0;
+                        continue;
+                    case TagMore:
+                        tag = data;
+                        continue;
+                    case SysInput:
+                        input = data;
+                        break;
+                    case SysOutput:
+                        output = data;
+                        break;
+                }
+
+                tag += 8;
+            }
+
+            D0 = (uint)ExecuteCommandLines(command, output, input);
         });
         Register("RunCommand", RunCommand);
+    }
+
+    private const uint TagDone = 0;
+    private const uint TagMore = 2;
+    private const uint SysInput = 0x80000021;
+    private const uint SysOutput = 0x80000022;
+
+    /// <summary>
+    /// Execute command lines separated by newlines.
+    /// </summary>
+    /// <returns>Return code of last command.</returns>
+    private int ExecuteCommandLines(string commands, uint output, uint input = 0)
+    {
+        var savedCatch = catchCommandErrors;
+        catchCommandErrors = true;
+        try
+        {
+            var returnCode = 0;
+            foreach (var line in commands.Split('\n'))
+            {
+                if (line.Trim().Length > 0)
+                {
+                    returnCode = ExecuteLine(line, input, output);
+                }
+            }
+
+            return returnCode;
+        }
+        finally
+        {
+            catchCommandErrors = savedCatch;
+        }
+    }
+
+    /// <summary>
+    /// Read item from CSource or arguments in input handle.
+    /// </summary>
+    private void ReadItem()
+    {
+        var buffer = D1;
+        var maxChars = (int)D2;
+        var cSource = D3;
+        var sourceBuffer = cSource == 0 ? 0 : Ram.ReadLong(cSource + CSourceStruct.Buffer);
+
+        int type;
+        string item;
+        if (sourceBuffer != 0)
+        {
+            var length = (int)Ram.ReadLong(cSource + CSourceStruct.Length);
+            type = ItemReader.Read(() =>
+                {
+                    var current = (int)Ram.ReadLong(cSource + CSourceStruct.CurChr);
+                    Ram.WriteLong(cSource + CSourceStruct.CurChr, (uint)(current + 1));
+                    return current >= length ? -1 : Ram.ReadByte(sourceBuffer + (uint)current);
+                },
+                () => Ram.WriteLong(cSource + CSourceStruct.CurChr,
+                    Ram.ReadLong(cSource + CSourceStruct.CurChr) - 1),
+                maxChars, out item);
+        }
+        else
+        {
+            var file = files.TryGetValue(InputHandle, out var f) ? f : null;
+            if (file == null)
+            {
+                D0 = unchecked((uint)ItemReader.ItemError);
+                return;
+            }
+
+            type = ItemReader.Read(file.ReadChar, () => file.UnGetChar(-1), maxChars, out item);
+        }
+
+        if (maxChars > 0 && buffer != 0)
+        {
+            WriteString(buffer, maxChars, type is ItemReader.ItemQuoted or ItemReader.ItemUnquoted
+                ? item
+                : string.Empty);
+        }
+
+        D0 = unchecked((uint)type);
     }
 
     private uint SwapProcessLong(int offset, uint value)
@@ -172,8 +290,9 @@ public partial class DosLibrary
 
     private static string FaultMessage(int code, string header)
     {
+        // header, which is not null, is followed by colon even if empty like AmigaDOS
         var message = DosErrors.GetMessage(code);
-        return string.IsNullOrEmpty(header) ? message : $"{header}: {message}";
+        return header == null ? message : $"{header}: {message}";
     }
 
     private void ReadArgs()
@@ -193,6 +312,12 @@ public partial class DosLibrary
             var current = (int)Ram.ReadLong(rdArgs + RdArgsStruct.SourceCurChr);
             var bytes = Ram.ReadBytes(sourceBuffer + (uint)current, Math.Max(0, length - current));
             arguments = Ram.GetString(bytes, 0, bytes.Length);
+        }
+        else if (files.TryGetValue(InputHandle, out var inputFile) && inputFile.HasPendingInput)
+        {
+            // arguments not yet read with ReadItem() are read from input handle
+            var pending = inputFile.TakePendingInput();
+            arguments = Ram.GetString(pending, 0, pending.Length);
         }
         else
         {
@@ -342,17 +467,11 @@ public partial class DosLibrary
             return;
         }
 
-        var savedArguments = Ram.ReadLong(Process + ProcessStruct.Arguments);
-        Ram.WriteLong(Process + ProcessStruct.Arguments, parameters);
-        try
-        {
-            Cpu.D[0] = parametersLength;
-            Cpu.A[0] = parameters;
-            D0 = Context.CallSubroutine(BAddr(segList) + 4);
-        }
-        finally
-        {
-            Ram.WriteLong(Process + ProcessStruct.Arguments, savedArguments);
-        }
+        var stackSize = D2;
+        var arguments = parametersLength == 0 || parameters == 0
+            ? string.Empty
+            : Ram.GetString(Ram.ReadBytes(parameters, (int)parametersLength), 0, (int)parametersLength);
+        var commandName = Ram.ReadBString(BAddr(Ram.ReadLong(CliAddress + CliStruct.CommandName)));
+        D0 = (uint)RunSegment(segList, commandName, arguments, stackSize);
     }
 }
