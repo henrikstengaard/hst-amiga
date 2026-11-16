@@ -495,7 +495,7 @@ hst.amiga script example.txt
 ### Run Amiga executable
 
 Runs an Amiga CLI executable in a virtual machine, similar to vamos from amitools.
-The executable runs on an emulated 68000 or 68020 cpu with exec.library, dos.library, utility.library and math libraries emulated, mapping Amiga volumes to host directories and the Amiga console to standard input and output.
+The executable runs on an emulated 68000 or 68020 cpu with exec.library, dos.library, utility.library, version.library and math libraries emulated, mapping Amiga volumes to host directories and the Amiga console to standard input and output.
 Libraries other than these aren't available, except intuition.library and graphics.library stubs, which can be opened, but stop the program if any function is called.
 
 The return code of the Amiga executable is returned as exit code. Pressing ctrl-c sends a break signal to the program and pressing ctrl-c again stops the program.

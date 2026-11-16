@@ -156,6 +156,10 @@ public class AmigaVm
             utility.Install();
             context.AddLibrary(utility);
 
+            var version = new Libraries.VersionLibrary(context, exec);
+            version.Install();
+            context.AddLibrary(version);
+
             foreach (var format in new[] { MathFormat.Ffp, MathFormat.IeeeSingle, MathFormat.IeeeDouble })
             {
                 var basLibrary = new MathBasLibrary(context, exec, format);
@@ -178,6 +182,8 @@ public class AmigaVm
                 stubLibrary.Install();
                 context.AddLibrary(stubLibrary);
             }
+
+            exec.SetResidentModules(context.Libraries);
 
             var segmentList = executable == null ? null : LoadExecutable(executable);
 

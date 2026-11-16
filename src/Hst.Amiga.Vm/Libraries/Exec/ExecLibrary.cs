@@ -3,6 +3,7 @@ namespace Hst.Amiga.Vm.Libraries.Exec;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Processor;
 using Structs;
 
@@ -18,6 +19,11 @@ public class ExecLibrary : Library
 
     private const ushort AttnFlags68010 = 1 << 0;
     private const ushort AttnFlags68020 = 1 << 1;
+
+    /// <summary>
+    /// Kickstart revision in ExecBase SoftVer, Kickstart 3.1 is 40.68.
+    /// </summary>
+    public const ushort KickstartRevision = 68;
 
     private readonly Dictionary<uint, HashSet<uint>> pools = new();
 
@@ -50,7 +56,7 @@ public class ExecLibrary : Library
     {
         var execBase = BaseAddress;
         Ram.WriteLong(4, execBase);
-        Ram.WriteWord(execBase + ExecBaseStruct.SoftVer, Revision);
+        Ram.WriteWord(execBase + ExecBaseStruct.SoftVer, KickstartRevision);
         Ram.WriteLong(execBase + ExecBaseStruct.ChkBase, ~execBase);
         Ram.WriteLong(execBase + ExecBaseStruct.MaxLocMem, Ram.Size);
         Ram.WriteWord(execBase + ExecBaseStruct.AttnFlags,
@@ -87,6 +93,93 @@ public class ExecLibrary : Library
         ExecLists.AddTail(Ram, BaseAddress + ExecBaseStruct.LibList, library.BaseAddress);
     }
 
+    // struct Resident offsets
+    private const int RtMatchWord = 0;
+    private const int RtMatchTag = 2;
+    private const int RtEndSkip = 6;
+    private const int RtFlags = 10;
+    private const int RtVersion = 11;
+    private const int RtType = 12;
+    private const int RtName = 14;
+    private const int RtIdString = 18;
+    private const int ResidentSize = 26;
+    private const ushort RtcMatchWord = 0x4AFC;
+    private const byte RtfAutoInit = 0x80;
+
+    /// <summary>
+    /// Create resident modules in ExecBase ResModules for libraries like in Kickstart ROM. Used by programs like
+    /// Version finding resident modules by name.
+    /// </summary>
+    public void SetResidentModules(IEnumerable<Library> libraries)
+    {
+        var residents = new List<uint>();
+        foreach (var library in libraries.Where(x => x.IsInstalled && x is not StubLibrary))
+        {
+            var resident = Context.Allocator.Allocate(ResidentSize);
+            if (resident == 0)
+            {
+                throw new VmException("Not enough memory to create resident modules");
+            }
+
+            Ram.WriteWord(resident + RtMatchWord, RtcMatchWord);
+            Ram.WriteLong(resident + RtMatchTag, resident);
+            Ram.WriteLong(resident + RtEndSkip, resident + ResidentSize);
+            Ram.WriteByte(resident + RtFlags, RtfAutoInit);
+            Ram.WriteByte(resident + RtVersion, (byte)library.Version);
+            Ram.WriteByte(resident + RtType, NodeTypes.Library);
+            Ram.WriteLong(resident + RtName, Ram.ReadLong(library.BaseAddress + NodeStruct.Name));
+            Ram.WriteLong(resident + RtIdString, Ram.ReadLong(library.BaseAddress + LibraryStruct.IdString));
+            residents.Add(resident);
+        }
+
+        // array of resident module pointers terminated by zero
+        var array = Context.Allocator.Allocate((uint)(residents.Count + 1) * 4);
+        if (array == 0)
+        {
+            throw new VmException("Not enough memory to create resident modules");
+        }
+
+        for (var i = 0; i < residents.Count; i++)
+        {
+            Ram.WriteLong(array + (uint)i * 4, residents[i]);
+        }
+
+        Ram.WriteLong(array + (uint)residents.Count * 4, 0);
+        Ram.WriteLong(BaseAddress + ExecBaseStruct.ResModules, array);
+    }
+
+    /// <summary>
+    /// Find resident module by name in ResModules.
+    /// </summary>
+    private uint FindResident(string name)
+    {
+        var entry = Ram.ReadLong(BaseAddress + ExecBaseStruct.ResModules);
+        while (entry != 0)
+        {
+            var resident = Ram.ReadLong(entry);
+            if (resident == 0)
+            {
+                break;
+            }
+
+            // high bit set is a link to next array
+            if ((resident & 0x80000000) != 0)
+            {
+                entry = resident & 0x7FFFFFFF;
+                continue;
+            }
+
+            if (string.Equals(Ram.ReadCString(Ram.ReadLong(resident + RtName)), name, StringComparison.Ordinal))
+            {
+                return resident;
+            }
+
+            entry += 4;
+        }
+
+        return 0;
+    }
+
     protected override void RegisterFunctions()
     {
         // interrupts and multitasking aren't emulated, single task program runs without interruption
@@ -111,7 +204,7 @@ public class ExecLibrary : Library
         Register("RawIOInit", () => { });
         Register("RawMayGetChar", () => D0 = 0xFFFFFFFF);
         Register("RawPutChar", () => DebugOutput?.WriteByte((byte)D0));
-        Register("FindResident", () => D0 = 0);
+        Register("FindResident", () => D0 = FindResident(Ram.ReadCString(A1) ?? string.Empty));
         Register("OpenResource", () => D0 = 0);
         Register("SumKickData", () => D0 = 0);
         Register("SumLibrary", () => { });

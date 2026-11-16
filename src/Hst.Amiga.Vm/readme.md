@@ -15,6 +15,7 @@ Features:
     - Environment variables stored in ENV:.
 - Emulated utility.library with tag item, date, 32-bit math and string functions.
 - Emulated math libraries with Motorola Fast Floating Point, IEEE single and IEEE double precision: mathffp.library, mathtrans.library, mathieeesingbas.library, mathieeesingtrans.library, mathieeedoubbas.library and mathieeedoubtrans.library.
+- Emulated version.library telling Workbench version 40.42 and Kickstart 40.68 in ExecBase, with resident modules for the emulated libraries, so the Version command shows versions.
 - Stub libraries, which can be opened, but stop the program if a function is called. Default stubs are intuition.library and graphics.library, which are often opened by compiler startup code.
 - Volumes mapping Amiga volume names to host directories and assigns mapping names to Amiga paths.
 - UAE metadata with Amiga names, protection bits, comments and dates stored as UAEFSDB `_UAEFSDB.___` files used by WinUAE or UAE metafiles `.uaem` used by FS-UAE.
@@ -27,7 +28,7 @@ Features:
 
 Limitations:
 - Multitasking isn't supported. Programs run as a single process and waiting for signals or messages, which will never arrive, stops the program. Commands started with Run, Execute() or SystemTagList() run synchronously.
-- Devices and libraries other than exec.library, dos.library, utility.library and math libraries aren't available, e.g. icon.library and reqtools.library. OpenLibrary() returns NULL for these.
+- Devices and libraries other than exec.library, dos.library, utility.library, version.library and math libraries aren't available, e.g. icon.library and reqtools.library. OpenLibrary() returns NULL for these.
 - NewShell, NewCLI and pipes aren't supported.
 - UAEFSDB stored as NTFS alternate data streams by WinUAE isn't supported, only `_UAEFSDB.___` files.
 

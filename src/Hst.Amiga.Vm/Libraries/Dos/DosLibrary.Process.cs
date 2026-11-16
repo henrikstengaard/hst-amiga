@@ -122,6 +122,30 @@ public partial class DosLibrary
 
         Register("ReadItem", ReadItem);
 
+        // resident segments added with Resident command
+        Register("FindSegment", () =>
+        {
+            var name = Ram.ReadCString(D1) ?? string.Empty;
+            D0 = D2 == 0 && residentSegments.TryGetValue(name, out var segList) ? GetSegmentStruct(name, segList) : 0;
+        });
+        Register("AddSegment", () =>
+        {
+            var name = Ram.ReadCString(D1) ?? string.Empty;
+            residentSegments[name] = D2;
+            D0 = unchecked((uint)DosTrue);
+        });
+        Register("RemSegment", () =>
+        {
+            foreach (var segment in segmentStructs.Where(x => x.Value == D1).ToList())
+            {
+                residentSegments.Remove(segment.Key);
+                segmentStructs.Remove(segment.Key);
+                Context.Allocator.Free(segment.Value);
+            }
+
+            D0 = unchecked((uint)DosTrue);
+        });
+
         // commands run synchronously in the process, as there is no multitasking
         Register("Execute", () =>
         {
@@ -173,6 +197,30 @@ public partial class DosLibrary
             D0 = (uint)ExecuteCommandLines(command, output, input);
         });
         Register("RunCommand", RunCommand);
+    }
+
+    private readonly Dictionary<string, uint> segmentStructs = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Get struct Segment for resident segment: seg_Next, seg_UC, seg_Seg and seg_Name BCPL string.
+    /// </summary>
+    private uint GetSegmentStruct(string name, uint segList)
+    {
+        if (segmentStructs.TryGetValue(name, out var existing) && Ram.ReadLong(existing + 8) == segList)
+        {
+            return existing;
+        }
+
+        var segment = Context.Allocator.Allocate((uint)(12 + 1 + Math.Min(name.Length, 255) + 1));
+        if (segment == 0)
+        {
+            return 0;
+        }
+
+        Ram.WriteLong(segment + 8, segList);
+        Ram.WriteBString(segment + 12, name);
+        segmentStructs[name] = segment;
+        return segment;
     }
 
     private const uint TagDone = 0;
