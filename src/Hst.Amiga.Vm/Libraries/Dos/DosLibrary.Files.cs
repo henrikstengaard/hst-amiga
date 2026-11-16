@@ -118,6 +118,31 @@ public partial class DosLibrary
         Register("WriteChars", () => D0 = (uint)Write(OutputHandle, D1, (int)D2));
         Register("VFPrintf", () => D0 = (uint)Printf(D1, D2, D3));
         Register("VPrintf", () => D0 = (uint)Printf(OutputHandle, D1, D2));
+        Register("VFWritef", () => D0 = (uint)WriteBytes(D1, WritefFormatter.Format(Ram, D2, D3)));
+    }
+
+    /// <summary>
+    /// Write bytes to file.
+    /// </summary>
+    /// <returns>Number of bytes written or -1 on error.</returns>
+    private int WriteBytes(uint fileHandle, byte[] bytes)
+    {
+        var file = GetFile(fileHandle);
+        if (file == null || !file.CanWrite)
+        {
+            return -1;
+        }
+
+        try
+        {
+            file.Write(bytes, 0, bytes.Length);
+            return bytes.Length;
+        }
+        catch (IOException e)
+        {
+            SetIoErr(MapException(e));
+            return -1;
+        }
     }
 
     /// <summary>
@@ -482,23 +507,7 @@ public partial class DosLibrary
     /// <returns>Number of bytes written or -1 on error.</returns>
     private int Printf(uint fileHandle, uint format, uint arguments)
     {
-        var bytes = RawDoFmtFormatter.Format(Ram, format, arguments, out _);
-        var file = GetFile(fileHandle);
-        if (file == null || !file.CanWrite)
-        {
-            return -1;
-        }
-
-        try
-        {
-            file.Write(bytes, 0, bytes.Length);
-            return bytes.Length;
-        }
-        catch (IOException e)
-        {
-            SetIoErr(MapException(e));
-            return -1;
-        }
+        return WriteBytes(fileHandle, RawDoFmtFormatter.Format(Ram, format, arguments, out _));
     }
 
     /// <summary>

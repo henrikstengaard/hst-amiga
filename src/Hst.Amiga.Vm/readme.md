@@ -11,7 +11,7 @@ Features:
     - Open, read, write, seek and close files and console.
     - Lock, examine, ExNext, ExAll, create, delete and rename files and directories.
     - ReadArgs templates, MatchFirst/MatchNext and AmigaDOS patterns.
-    - VPrintf, FPuts, FGets and other buffered functions.
+    - VPrintf, VFWritef, FPuts, FGets and other buffered functions.
     - Environment variables stored in ENV:.
 - Emulated utility.library with tag item, date, 32-bit math and string functions.
 - Emulated math libraries with Motorola Fast Floating Point, IEEE single and IEEE double precision: mathffp.library, mathtrans.library, mathieeesingbas.library, mathieeesingtrans.library, mathieeedoubbas.library and mathieeedoubtrans.library.
