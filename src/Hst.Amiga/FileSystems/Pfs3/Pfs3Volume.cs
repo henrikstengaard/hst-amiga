@@ -91,22 +91,23 @@
         public async Task ChangeDirectory(string path, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var currentDirectory = await GetCurrentDirectory();
             var isRootPath = path.StartsWith("/");
-            if (isRootPath && !Macro.IsRoot(currentDirectory))
-            {
-                currentDirectory = await Directory.GetRoot(g);
-            }
-            
-            if (!isRootPath && (await Directory.Find(currentDirectory, path, g)).Any())
-            {
-                throw new PathNotFoundException($"Path '{path}' not found");
-            }
+            var relativePath = (isRootPath ? path.Substring(1) : path).TrimEnd('/');
+            var currentDirectory = isRootPath ? await Directory.GetRoot(g) : await GetCurrentDirectory();
 
-            // throw exception, if not root path and path is not a directory
-            if (!isRootPath && currentDirectory.file.direntry != null && !Macro.IsDir(currentDirectory))
+            // find path relative to current directory or root for absolute path, e.g. "/dir1/dir2"
+            if (relativePath.Length > 0)
             {
-                throw new PathNotFoundException($"Path '{path}' is not a directory");
+                if ((await Directory.Find(currentDirectory, relativePath, g)).Any())
+                {
+                    throw new PathNotFoundException($"Path '{path}' not found");
+                }
+
+                // throw exception, if path is not a directory
+                if (currentDirectory.file.direntry != null && !Macro.IsDir(currentDirectory))
+                {
+                    throw new PathNotFoundException($"Path '{path}' is not a directory");
+                }
             }
 
             if (currentDirectory.file.direntry != null &&

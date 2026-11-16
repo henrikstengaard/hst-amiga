@@ -271,17 +271,10 @@ public class AmigaVolumeFileSystem : IVolumeFileSystem, IDisposable
     }
 
     /// <summary>
-    /// Change current directory of volume to directory from root. Directories are changed one at a time, as not
-    /// all file systems support changing to absolute paths with multiple directories.
+    /// Change current directory of volume to absolute path of directory from root.
     /// </summary>
-    private void ChangeDirectory(IEnumerable<string> directory)
-    {
-        RunSync(() => volume.ChangeDirectory("/"));
-        foreach (var name in directory)
-        {
-            RunSync(() => volume.ChangeDirectory(name));
-        }
-    }
+    private void ChangeDirectory(IEnumerable<string> directory) =>
+        RunSync(() => volume.ChangeDirectory("/" + string.Join("/", directory)));
 
     private byte[] ReadFile(AmigaPath path)
     {

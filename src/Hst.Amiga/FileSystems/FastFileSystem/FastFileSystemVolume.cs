@@ -77,12 +77,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task ChangeDirectory(string path, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            // find entry starts from root for absolute path, current directory is only changed, if path is found
             var isRootPath = path.StartsWith("/");
-            if (isRootPath)
-            {
-                currentDirectorySector = volume.RootBlockOffset;
-            }
-
             var findEntryResult = await Directory.FindEntry(currentDirectorySector, path, volume);
             if (findEntryResult.PartsNotFound.Any())
             {
@@ -92,6 +88,11 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             // return if path is root path, otherwise find entry result should have at least one entry, which is the last entry in path
             if (!findEntryResult.Entries.Any())
             {
+                if (isRootPath)
+                {
+                    currentDirectorySector = volume.RootBlockOffset;
+                }
+
                 return;
             }
 
