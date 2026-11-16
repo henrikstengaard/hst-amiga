@@ -2,6 +2,8 @@ namespace Hst.Amiga.ConsoleApp.Commands;
 
 using System;
 using System.IO;
+using System.Threading.Tasks;
+using Vm.FileSystem;
 
 /// <summary>
 /// Adf or disk image file opened as stream. Virtual hard disk files (.vhd) are opened with their disk content
@@ -60,6 +62,11 @@ public class ImageFile : IDisposable
         var stream = new FileStream(fullPath, FileMode.Open, access, writable ? FileShare.Read : FileShare.ReadWrite);
         return new ImageFile(fullPath, stream, null, writable);
     }
+
+    /// <summary>
+    /// Is image file an adf or a disk image with rigid disk block in one of the first 16 sectors.
+    /// </summary>
+    public Task<bool> IsImage() => ImageMounter.IsImage(Stream);
 
     public void Dispose()
     {

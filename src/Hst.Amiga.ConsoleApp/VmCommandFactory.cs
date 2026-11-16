@@ -21,7 +21,7 @@ public static class VmCommandFactory
         var executableArgument = new Argument<string>("Executable")
         {
             Description =
-                "Path to Amiga executable. Host path, path in adf or disk image file, e.g. workbench.adf\\c\\list or disk.vhd\\rdb\\1\\c\\list, or Amiga path in mounted images, e.g. C:List."
+                "Path to Amiga executable. Host path, path in adf or disk image file with rigid disk block, e.g. workbench.adf\\c\\list, disk.vhd\\c\\list in boot partition or disk.vhd\\rdb\\1\\c\\list in partition by number or device name, or Amiga path in mounted images, e.g. C:List."
         };
 
         var argumentsArgument = new Argument<string[]>("Arguments")
@@ -33,7 +33,8 @@ public static class VmCommandFactory
         var imageContextOption = new Option<bool>("--image-context")
         {
             Description =
-                "Run executable in adf or disk image in the context of the image by mounting it as volumes, so SYS: is root of adf or bootable partition with highest boot priority. Default runs executable from image with host volumes."
+                "Use image context for executable in adf or disk image: true resolves paths inside the image by mounting it as volumes with SYS: set to adf or bootable partition with highest boot priority, false (default) reads executable from image and resolves host paths.",
+            Arity = ArgumentArity.ZeroOrOne
         };
 
         var command = new Command("run", "Run Amiga CLI executable.");

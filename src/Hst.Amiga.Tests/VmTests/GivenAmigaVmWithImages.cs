@@ -68,7 +68,7 @@ public class GivenAmigaVmWithImages
         return memoryStream.ToArray();
     }
 
-    private static async Task<MemoryStream> CreateAdf(string diskName)
+    internal static async Task<MemoryStream> CreateAdf(string diskName)
     {
         var stream = new MemoryStream(new byte[FloppyDiskConstants.DoubleDensity.Size]);
         await FastFileSystemFormatter.Format(stream, FloppyDiskConstants.DoubleDensity.LowCyl,
@@ -86,7 +86,7 @@ public class GivenAmigaVmWithImages
     /// Create disk image with rigid disk block and partitions DH0 "Work" not bootable, DH1 "System" bootable with
     /// boot priority 0 and DH2 "Boot" bootable with boot priority 2.
     /// </summary>
-    private static async Task<MemoryStream> CreateDisk()
+    internal static async Task<MemoryStream> CreateDisk()
     {
         var stream = new MemoryStream();
         var rigidDiskBlock = RigidDiskBlock.Create((12L * 1024 * 1024).ToUniversalSize());
@@ -111,7 +111,7 @@ public class GivenAmigaVmWithImages
         return stream;
     }
 
-    private static VmOptions CreateOptions(MemoryStream output, string input = "")
+    internal static VmOptions CreateOptions(MemoryStream output, string input = "")
     {
         var options = new VmOptions
         {
@@ -126,7 +126,7 @@ public class GivenAmigaVmWithImages
         return options;
     }
 
-    private static string Text(MemoryStream stream) =>
+    internal static string Text(MemoryStream stream) =>
         Encoding.ASCII.GetString(stream.ToArray()).Replace("\r", string.Empty);
 
     [Fact]

@@ -535,9 +535,7 @@ public class AmigaVm
             }
 
             // adf or bootable partition with highest boot priority, otherwise first partition
-            var bootVolume = mounted.Where(x => volumeNames.ContainsKey(x) && x.Bootable)
-                                 .OrderByDescending(x => x.BootPriority).FirstOrDefault() ??
-                             mounted.FirstOrDefault(volumeNames.ContainsKey);
+            var bootVolume = ImageMounter.SelectBootVolume(mounted.Where(volumeNames.ContainsKey));
             if (bootVolume != null)
             {
                 sysVolume = volumeNames[bootVolume];

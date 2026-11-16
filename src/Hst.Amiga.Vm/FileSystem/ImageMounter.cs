@@ -3,6 +3,7 @@ namespace Hst.Amiga.Vm.FileSystem;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Hst.Amiga.FileSystems;
 using Hst.Amiga.FileSystems.FastFileSystem;
@@ -24,6 +25,91 @@ public static class ImageMounter
     public static bool IsAdf(Stream stream) =>
         stream.Length == FloppyDiskConstants.DoubleDensity.Size ||
         stream.Length == FloppyDiskConstants.HighDensity.Size;
+
+    /// <summary>
+    /// Number of sectors from start of disk image searched for rigid disk block.
+    /// </summary>
+    public const int RigidDiskBlockLocationLimit = 16;
+
+    /// <summary>
+    /// Is stream an adf image or a disk image with rigid disk block in one of the first 16 sectors.
+    /// </summary>
+    public static async Task<bool> IsImage(Stream stream) => IsAdf(stream) || await HasRigidDiskBlock(stream);
+
+    /// <summary>
+    /// Has stream a rigid disk block identifier in one of the first 16 sectors. Only the identifier is checked, so
+    /// a rigid disk block with invalid checksum is detected too.
+    /// </summary>
+    public static async Task<bool> HasRigidDiskBlock(Stream stream)
+    {
+        const int sectorSize = 512;
+        var position = stream.Position;
+        try
+        {
+            var sector = new byte[sectorSize];
+            for (var i = 0; i < RigidDiskBlockLocationLimit && (long)(i + 1) * sectorSize <= stream.Length; i++)
+            {
+                stream.Position = (long)i * sectorSize;
+                var read = 0;
+                while (read < 4)
+                {
+                    var bytesRead = await stream.ReadAsync(sector, read, sectorSize - read);
+                    if (bytesRead == 0)
+                    {
+                        break;
+                    }
+
+                    read += bytesRead;
+                }
+
+                if (read >= 4 && BitConverter.ToUInt32(sector, 0) == BlockIdentifiers.RigidDiskBlock)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        finally
+        {
+            stream.Position = position;
+        }
+    }
+
+    /// <summary>
+    /// Find boot partition in rigid disk block, which is the bootable partition with highest boot priority or
+    /// otherwise the first partition. Partitions with no mount flag set or unsupported file systems are skipped.
+    /// </summary>
+    /// <returns>Partition number starting from 1 and partition block.</returns>
+    /// <exception cref="IOException">No partition with supported file system found.</exception>
+    public static (int Number, PartitionBlock PartitionBlock) FindBootPartition(
+        IEnumerable<PartitionBlock> partitionBlocks)
+    {
+        var partitions = partitionBlocks
+            .Select((partitionBlock, index) => (Number: index + 1, PartitionBlock: partitionBlock))
+            .Where(x => !x.PartitionBlock.NoMount && FileSystemVolumeFactory.IsSupported(x.PartitionBlock))
+            .ToList();
+        if (partitions.Count == 0)
+        {
+            throw new IOException("No partition with PFS3, FFS or SFS file system found in rigid disk block");
+        }
+
+        return partitions.Where(x => x.PartitionBlock.Bootable)
+            .OrderByDescending(x => x.PartitionBlock.BootPriority)
+            .DefaultIfEmpty(partitions[0])
+            .First();
+    }
+
+    /// <summary>
+    /// Select boot volume, which is the bootable volume with highest boot priority or otherwise the first volume.
+    /// </summary>
+    /// <returns>Boot volume or null, if there are no volumes.</returns>
+    public static ImageVolume SelectBootVolume(IEnumerable<ImageVolume> volumes)
+    {
+        var list = volumes.ToList();
+        return list.Where(x => x.Bootable).OrderByDescending(x => x.BootPriority).FirstOrDefault() ??
+               list.FirstOrDefault();
+    }
 
     /// <summary>
     /// Mount volumes in adf or disk image with rigid disk block.

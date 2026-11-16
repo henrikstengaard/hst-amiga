@@ -34,8 +34,9 @@ public class VmRunCommand
     /// <param name="options">Virtual machine options.</param>
     /// <param name="mode">Run executable, execute script or run interactive shell.</param>
     /// <param name="images">Host paths to adf and disk image files mounted as volumes.</param>
-    /// <param name="imageContext">Run executable in adf or disk image, e.g. "workbench.adf\c\list", in the
-    /// context of the Amiga file systems in the image by mounting the image as volumes.</param>
+    /// <param name="imageContext">Use image context for executable in adf or disk image, e.g.
+    /// "workbench.adf\c\list". True resolves paths in the Amiga file systems of the image by mounting it as
+    /// volumes, false reads executable from image and resolves host paths.</param>
     /// <param name="writeImage">Open images for writing, otherwise volumes in images are write protected.</param>
     public VmRunCommand(string executablePath, IEnumerable<string> arguments, VmOptions options,
         VmRunMode mode = VmRunMode.Run, IEnumerable<string> images = null, bool imageContext = false,
@@ -164,7 +165,7 @@ public class VmRunCommand
         {
             foreach (var image in images)
             {
-                AddImage(imageFiles, image);
+                await AddImage(imageFiles, image);
             }
 
             var argumentString = JoinArguments(arguments);
@@ -204,13 +205,13 @@ public class VmRunCommand
         {
             if (imageContext)
             {
-                var imageFile = AddImage(imageFiles, imagePath.ImageFile);
+                var imageFile = await AddImage(imageFiles, imagePath.ImageFile);
                 var amigaPath = await GetDevicePath(imageFile, imagePath);
                 return vm => vm.RunFromVolume(amigaPath, argumentString, token);
             }
 
             var existing = FindImage(imageFiles, imagePath.ImageFile);
-            using var opened = existing == null ? ImageFile.Open(imagePath.ImageFile, false) : null;
+            using var opened = existing == null ? await OpenImage(imagePath.ImageFile, false) : null;
             var executable = await ReadExecutable((existing ?? opened).Stream, imagePath);
             var programName = imagePath.Components[imagePath.Components.Count - 1];
             return vm => vm.Run(executable, programName, argumentString, null, token);
@@ -231,9 +232,33 @@ public class VmRunCommand
     }
 
     /// <summary>
+    /// Open image file and check it's an adf or a disk image with rigid disk block.
+    /// </summary>
+    /// <exception cref="IOException">File is not an adf or disk image.</exception>
+    private static async Task<ImageFile> OpenImage(string path, bool writable)
+    {
+        var imageFile = ImageFile.Open(path, writable);
+        try
+        {
+            if (!await imageFile.IsImage())
+            {
+                throw new IOException(
+                    $"'{path}' is not an adf or disk image with rigid disk block in the first {ImageMounter.RigidDiskBlockLocationLimit} sectors");
+            }
+
+            return imageFile;
+        }
+        catch
+        {
+            imageFile.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Open image file and mount it in virtual machine, if it's not already mounted.
     /// </summary>
-    private ImageFile AddImage(List<ImageFile> imageFiles, string path)
+    private async Task<ImageFile> AddImage(List<ImageFile> imageFiles, string path)
     {
         var existing = FindImage(imageFiles, path);
         if (existing != null)
@@ -241,7 +266,7 @@ public class VmRunCommand
             return existing;
         }
 
-        var imageFile = ImageFile.Open(path, writeImage);
+        var imageFile = await OpenImage(path, writeImage);
         imageFiles.Add(imageFile);
         options.Images.Add(new VmImage(imageFile.Stream, imageFile.Path, writeImage));
         return imageFile;
@@ -260,23 +285,19 @@ public class VmRunCommand
             return $"DF{floppyNumber}:{imagePath.GetAmigaPath(0)}";
         }
 
-        var (_, partitionBlock) = await FindPartition(imageFile.Stream, imagePath);
-        return $"{partitionBlock.DriveName}:{imagePath.GetAmigaPath(2)}";
+        var (_, partitionBlock, amigaPath) = await FindPartition(imageFile.Stream, imagePath);
+        return $"{partitionBlock.DriveName}:{amigaPath}";
     }
 
     /// <summary>
-    /// Find partition in rigid disk block by partition number starting from 1 or device name, e.g. "rdb\1\c\list"
-    /// or "rdb\dh0\c\list".
+    /// Find partition in rigid disk block and Amiga path of file in partition. Path starting with rdb and
+    /// partition number starting from 1 or device name, e.g. "rdb\1\c\list" or "rdb\dh0\c\list", is in that
+    /// partition. Otherwise path, e.g. "c\list", is in boot partition, which is the bootable partition with
+    /// highest boot priority.
     /// </summary>
-    private static async Task<(int Number, PartitionBlock PartitionBlock)> FindPartition(Stream stream,
-        ImagePath imagePath)
+    private static async Task<(int Number, PartitionBlock PartitionBlock, string AmigaPath)> FindPartition(
+        Stream stream, ImagePath imagePath)
     {
-        if (!imagePath.IsRigidDiskBlockPath || imagePath.Components.Count < 3)
-        {
-            throw new ArgumentException(
-                $"Invalid path '{string.Join("\\", imagePath.Components)}' in disk image '{imagePath.ImageFile}', expected rdb\\<partition number or device name>\\<path>, e.g. rdb\\1\\c\\list");
-        }
-
         stream.Position = 0;
         var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
         if (rigidDiskBlock == null)
@@ -285,26 +306,30 @@ public class VmRunCommand
         }
 
         var partitionBlocks = rigidDiskBlock.PartitionBlocks.ToList();
-        var partition = imagePath.Components[1];
-        if (int.TryParse(partition, out var number))
+        if (imagePath.IsRigidDiskBlockPath && imagePath.Components.Count >= 3)
         {
-            if (number < 1 || number > partitionBlocks.Count)
+            var partition = imagePath.Components[1];
+            if (int.TryParse(partition, out var number))
             {
-                throw new ArgumentException(
-                    $"Partition number {number} not found in disk image '{imagePath.ImageFile}', which has {partitionBlocks.Count} partitions");
+                if (number < 1 || number > partitionBlocks.Count)
+                {
+                    throw new ArgumentException(
+                        $"Partition number {number} not found in disk image '{imagePath.ImageFile}', which has {partitionBlocks.Count} partitions");
+                }
+
+                return (number, partitionBlocks[number - 1], imagePath.GetAmigaPath(2));
             }
 
-            return (number, partitionBlocks[number - 1]);
+            var index = partitionBlocks.FindIndex(x =>
+                string.Equals(x.DriveName, partition.TrimEnd(':'), StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                return (index + 1, partitionBlocks[index], imagePath.GetAmigaPath(2));
+            }
         }
 
-        var index = partitionBlocks.FindIndex(x =>
-            string.Equals(x.DriveName, partition.TrimEnd(':'), StringComparison.OrdinalIgnoreCase));
-        if (index < 0)
-        {
-            throw new ArgumentException($"Partition '{partition}' not found in disk image '{imagePath.ImageFile}'");
-        }
-
-        return (index + 1, partitionBlocks[index]);
+        var (bootNumber, bootPartitionBlock) = ImageMounter.FindBootPartition(partitionBlocks);
+        return (bootNumber, bootPartitionBlock, imagePath.GetAmigaPath(0));
     }
 
     /// <summary>
@@ -321,8 +346,7 @@ public class VmRunCommand
         }
         else
         {
-            var (number, _) = await FindPartition(stream, imagePath);
-            amigaPath = imagePath.GetAmigaPath(2);
+            (var number, _, amigaPath) = await FindPartition(stream, imagePath);
             mounted = await ImageMounter.Mount(stream, false, "DF0", options.Log, (x, _) => x == number);
         }
 
