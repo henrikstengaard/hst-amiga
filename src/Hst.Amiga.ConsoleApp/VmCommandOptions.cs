@@ -22,6 +22,8 @@ public class VmCommandOptions
     private readonly Option<bool> traceLibrariesOption;
     private readonly Option<string> uaeMetadataOption;
     private readonly Option<bool> writeUaeMetadataOption;
+    private readonly Option<string[]> imageOption;
+    private readonly Option<bool> writeImageOption;
 
     /// <summary>
     /// Create options and add them to command.
@@ -102,6 +104,20 @@ public class VmCommandOptions
                 "Write changes to protection bits, comments and names to UAE metadata files. Default keeps changes in memory and never modifies metadata files."
         };
 
+        imageOption = new Option<string[]>("--image", "-i")
+        {
+            Description =
+                "Mount adf or disk image file as volumes, e.g. workbench.adf or disk.vhd. Adf is mounted as DF0:, partitions in disk image with their device names, e.g. DH0:, and SYS: is assigned to adf or bootable partition with highest boot priority.",
+            Arity = ArgumentArity.ZeroOrMore,
+            AllowMultipleArgumentsPerToken = false
+        };
+
+        writeImageOption = new Option<bool>("--write-image")
+        {
+            Description =
+                "Open adf and disk image files for writing. Default opens images read only and volumes in images are write protected."
+        };
+
         command.Options.Add(cpuOption);
         command.Options.Add(memoryOption);
         command.Options.Add(stackOption);
@@ -114,13 +130,15 @@ public class VmCommandOptions
         command.Options.Add(traceLibrariesOption);
         command.Options.Add(uaeMetadataOption);
         command.Options.Add(writeUaeMetadataOption);
+        command.Options.Add(imageOption);
+        command.Options.Add(writeImageOption);
     }
 
     /// <summary>
     /// Run virtual machine command with parsed option values.
     /// </summary>
     public Task<int> Run(ParseResult parseResult, VmRunMode mode, string path, string[] arguments,
-        CancellationToken token) =>
+        CancellationToken token, bool imageContext = false) =>
         CommandHandler.VmRun(mode, path, arguments,
             parseResult.GetValue(cpuOption),
             parseResult.GetValue(memoryOption),
@@ -134,5 +152,8 @@ public class VmCommandOptions
             parseResult.GetValue(traceLibrariesOption),
             parseResult.GetValue(uaeMetadataOption),
             parseResult.GetValue(writeUaeMetadataOption),
+            parseResult.GetValue(imageOption),
+            imageContext,
+            parseResult.GetValue(writeImageOption),
             token);
 }

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using RigidDiskBlocks;
 using Vm;
 using Vm.FileSystem;
 using Vm.Processor;
@@ -20,6 +21,9 @@ public class VmRunCommand
     private readonly IEnumerable<string> arguments;
     private readonly VmOptions options;
     private readonly VmRunMode mode;
+    private readonly IEnumerable<string> images;
+    private readonly bool imageContext;
+    private readonly bool writeImage;
 
     /// <summary>
     /// Create command running Amiga executable, script or interactive shell in virtual machine.
@@ -29,13 +33,21 @@ public class VmRunCommand
     /// <param name="arguments">Arguments passed to executable or script.</param>
     /// <param name="options">Virtual machine options.</param>
     /// <param name="mode">Run executable, execute script or run interactive shell.</param>
+    /// <param name="images">Host paths to adf and disk image files mounted as volumes.</param>
+    /// <param name="imageContext">Run executable in adf or disk image, e.g. "workbench.adf\c\list", in the
+    /// context of the Amiga file systems in the image by mounting the image as volumes.</param>
+    /// <param name="writeImage">Open images for writing, otherwise volumes in images are write protected.</param>
     public VmRunCommand(string executablePath, IEnumerable<string> arguments, VmOptions options,
-        VmRunMode mode = VmRunMode.Run)
+        VmRunMode mode = VmRunMode.Run, IEnumerable<string> images = null, bool imageContext = false,
+        bool writeImage = false)
     {
         this.executablePath = executablePath;
         this.arguments = arguments ?? Enumerable.Empty<string>();
         this.options = options;
         this.mode = mode;
+        this.images = images ?? Enumerable.Empty<string>();
+        this.imageContext = imageContext;
+        this.writeImage = writeImage;
     }
 
     /// <summary>
@@ -147,18 +159,197 @@ public class VmRunCommand
 
     public async Task<VmResult> Execute(Action<AmigaVm> started, CancellationToken token)
     {
-        if (mode == VmRunMode.Run && !File.Exists(executablePath))
+        var imageFiles = new List<ImageFile>();
+        try
         {
-            throw new FileNotFoundException($"Executable '{executablePath}' not found", executablePath);
+            foreach (var image in images)
+            {
+                AddImage(imageFiles, image);
+            }
+
+            var argumentString = JoinArguments(arguments);
+            Func<AmigaVm, Task<VmResult>> run = mode switch
+            {
+                VmRunMode.Execute => vm => vm.Execute(executablePath, argumentString, token),
+                VmRunMode.Shell => vm => vm.Shell(token),
+                _ => await PrepareRun(imageFiles, argumentString, token)
+            };
+
+            var vm = new AmigaVm(options);
+            started?.Invoke(vm);
+            return await run(vm);
+        }
+        finally
+        {
+            foreach (var imageFile in imageFiles)
+            {
+                imageFile.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Prepare running executable from host file, from adf or disk image file or from Amiga path in mounted
+    /// images.
+    /// </summary>
+    private async Task<Func<AmigaVm, Task<VmResult>>> PrepareRun(List<ImageFile> imageFiles, string argumentString,
+        CancellationToken token)
+    {
+        if (File.Exists(executablePath))
+        {
+            return vm => vm.Run(executablePath, argumentString, token);
         }
 
-        var vm = new AmigaVm(options);
-        started?.Invoke(vm);
-        return mode switch
+        if (ImagePath.TryParse(executablePath, out var imagePath))
         {
-            VmRunMode.Execute => await vm.Execute(executablePath, JoinArguments(arguments), token),
-            VmRunMode.Shell => await vm.Shell(token),
-            _ => await vm.Run(executablePath, JoinArguments(arguments), token)
-        };
+            if (imageContext)
+            {
+                var imageFile = AddImage(imageFiles, imagePath.ImageFile);
+                var amigaPath = await GetDevicePath(imageFile, imagePath);
+                return vm => vm.RunFromVolume(amigaPath, argumentString, token);
+            }
+
+            var existing = FindImage(imageFiles, imagePath.ImageFile);
+            using var opened = existing == null ? ImageFile.Open(imagePath.ImageFile, false) : null;
+            var executable = await ReadExecutable((existing ?? opened).Stream, imagePath);
+            var programName = imagePath.Components[imagePath.Components.Count - 1];
+            return vm => vm.Run(executable, programName, argumentString, null, token);
+        }
+
+        if (options.Images.Count > 0 && executablePath.IndexOf(':') > 0)
+        {
+            return vm => vm.RunFromVolume(executablePath, argumentString, token);
+        }
+
+        throw new FileNotFoundException($"Executable '{executablePath}' not found", executablePath);
+    }
+
+    private static ImageFile FindImage(IEnumerable<ImageFile> imageFiles, string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        return imageFiles.FirstOrDefault(x => string.Equals(x.Path, fullPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Open image file and mount it in virtual machine, if it's not already mounted.
+    /// </summary>
+    private ImageFile AddImage(List<ImageFile> imageFiles, string path)
+    {
+        var existing = FindImage(imageFiles, path);
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        var imageFile = ImageFile.Open(path, writeImage);
+        imageFiles.Add(imageFile);
+        options.Images.Add(new VmImage(imageFile.Stream, imageFile.Path, writeImage));
+        return imageFile;
+    }
+
+    /// <summary>
+    /// Get Amiga path with device name of file in mounted image, e.g. "DF0:c/list" or "DH0:c/list".
+    /// </summary>
+    private async Task<string> GetDevicePath(ImageFile imageFile, ImagePath imagePath)
+    {
+        if (ImageMounter.IsAdf(imageFile.Stream))
+        {
+            // adf images are mounted as DF0:, DF1: etc. in order
+            var floppyNumber = options.Images.TakeWhile(x => x.Stream != imageFile.Stream)
+                .Count(x => ImageMounter.IsAdf(x.Stream));
+            return $"DF{floppyNumber}:{imagePath.GetAmigaPath(0)}";
+        }
+
+        var (_, partitionBlock) = await FindPartition(imageFile.Stream, imagePath);
+        return $"{partitionBlock.DriveName}:{imagePath.GetAmigaPath(2)}";
+    }
+
+    /// <summary>
+    /// Find partition in rigid disk block by partition number starting from 1 or device name, e.g. "rdb\1\c\list"
+    /// or "rdb\dh0\c\list".
+    /// </summary>
+    private static async Task<(int Number, PartitionBlock PartitionBlock)> FindPartition(Stream stream,
+        ImagePath imagePath)
+    {
+        if (!imagePath.IsRigidDiskBlockPath || imagePath.Components.Count < 3)
+        {
+            throw new ArgumentException(
+                $"Invalid path '{string.Join("\\", imagePath.Components)}' in disk image '{imagePath.ImageFile}', expected rdb\\<partition number or device name>\\<path>, e.g. rdb\\1\\c\\list");
+        }
+
+        stream.Position = 0;
+        var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+        if (rigidDiskBlock == null)
+        {
+            throw new IOException($"Rigid disk block not found in disk image '{imagePath.ImageFile}'");
+        }
+
+        var partitionBlocks = rigidDiskBlock.PartitionBlocks.ToList();
+        var partition = imagePath.Components[1];
+        if (int.TryParse(partition, out var number))
+        {
+            if (number < 1 || number > partitionBlocks.Count)
+            {
+                throw new ArgumentException(
+                    $"Partition number {number} not found in disk image '{imagePath.ImageFile}', which has {partitionBlocks.Count} partitions");
+            }
+
+            return (number, partitionBlocks[number - 1]);
+        }
+
+        var index = partitionBlocks.FindIndex(x =>
+            string.Equals(x.DriveName, partition.TrimEnd(':'), StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+        {
+            throw new ArgumentException($"Partition '{partition}' not found in disk image '{imagePath.ImageFile}'");
+        }
+
+        return (index + 1, partitionBlocks[index]);
+    }
+
+    /// <summary>
+    /// Read executable from adf or partition in disk image.
+    /// </summary>
+    private async Task<byte[]> ReadExecutable(Stream stream, ImagePath imagePath)
+    {
+        string amigaPath;
+        IList<ImageVolume> mounted;
+        if (ImageMounter.IsAdf(stream))
+        {
+            amigaPath = imagePath.GetAmigaPath(0);
+            mounted = await ImageMounter.Mount(stream, false, "DF0", options.Log);
+        }
+        else
+        {
+            var (number, _) = await FindPartition(stream, imagePath);
+            amigaPath = imagePath.GetAmigaPath(2);
+            mounted = await ImageMounter.Mount(stream, false, "DF0", options.Log, (x, _) => x == number);
+        }
+
+        try
+        {
+            if (mounted.Count == 0)
+            {
+                throw new IOException($"Unable to mount volume in image '{imagePath.ImageFile}'");
+            }
+
+            var volumes = new VolumeManager();
+            volumes.AddVolume("IMAGE", mounted[0].FileSystem);
+            var path = volumes.Resolve($"IMAGE:{amigaPath}", null);
+            if (!volumes.IsFile(path))
+            {
+                throw new FileNotFoundException(
+                    $"Executable '{amigaPath}' not found in image '{imagePath.ImageFile}'", executablePath);
+            }
+
+            return volumes.ReadAllBytes(path);
+        }
+        finally
+        {
+            foreach (var volume in mounted)
+            {
+                volume.Dispose();
+            }
+        }
     }
 }

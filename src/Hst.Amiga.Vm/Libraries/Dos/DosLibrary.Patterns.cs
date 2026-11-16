@@ -220,7 +220,7 @@ public partial class DosLibrary
         }
 
         var directory = directoryPart.Length == 0 ? CurrentDirectory : ResolveOrFail(directoryPart);
-        if (directory == null || !Directory.Exists(directory.HostPath))
+        if (directory == null || !IsDirectory(directory))
         {
             SetIoErr(DosErrors.DirNotFound);
             return DosErrors.DirNotFound;
@@ -336,7 +336,7 @@ public partial class DosLibrary
             if (current.CurrentPath != null)
             {
                 var directory = current.CurrentPath;
-                if (Directory.Exists(directory.HostPath))
+                if (IsDirectory(directory))
                 {
                     var relativeName = current.CurrentRelativeName;
                     Ram.WriteByte(anchor + AnchorPathStruct.Flags, (byte)(flags & ~ApfDoDir));

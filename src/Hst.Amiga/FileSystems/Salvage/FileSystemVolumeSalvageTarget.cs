@@ -1,4 +1,4 @@
-namespace Hst.Amiga.FileSystems.Salvage
+﻿namespace Hst.Amiga.FileSystems.Salvage
 {
     using System;
     using System.Collections.Generic;
@@ -6,9 +6,6 @@ namespace Hst.Amiga.FileSystems.Salvage
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
-    using FastFileSystem;
-    using Pfs3;
-    using SmartFileSystem;
     using RigidDiskBlocks;
 
     /// <summary>
@@ -70,32 +67,7 @@ namespace Hst.Amiga.FileSystems.Salvage
         public static async Task<FileSystemVolumeSalvageTarget> MountPartition(Stream stream,
             PartitionBlock partitionBlock)
         {
-            var dosType = partitionBlock.DosType ?? Array.Empty<byte>();
-            if (dosType.Length != 4)
-            {
-                throw new NotSupportedException($"Partition '{partitionBlock.DriveName}' has invalid dos type");
-            }
-
-            var identifier = AmigaTextHelper.GetString(dosType, 0, 3);
-            IFileSystemVolume volume;
-            if ((identifier == "PFS" || identifier == "PDS") && dosType[3] == 3)
-            {
-                volume = await Pfs3Volume.Mount(stream, partitionBlock);
-            }
-            else if (identifier == "DOS" && dosType[3] <= 7)
-            {
-                volume = await FastFileSystemVolume.MountPartition(stream, partitionBlock);
-            }
-            else if (identifier == "SFS" && dosType[3] == 0)
-            {
-                volume = await SmartFileSystemVolume.Mount(stream, partitionBlock);
-            }
-            else
-            {
-                throw new NotSupportedException(
-                    $"Partition '{partitionBlock.DriveName}' file system {partitionBlock.DosTypeFormatted} is not supported, only PFS3, FFS and SFS are supported");
-            }
-
+            var volume = await FileSystemVolumeFactory.MountPartition(stream, partitionBlock);
             return new FileSystemVolumeSalvageTarget(volume, true);
         }
 

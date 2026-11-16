@@ -273,12 +273,11 @@ public partial class DosLibrary
         if (!string.IsNullOrEmpty(commandFile))
         {
             var path = ResolvePath(commandFile);
-            if (path != null && File.Exists(path.HostPath))
+            if (path != null && IsFile(path))
             {
                 try
                 {
-                    File.Delete(path.HostPath);
-                    Metadata.Deleted(path.HostPath);
+                    FileSystemOf(path).Delete(path);
                 }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
@@ -462,7 +461,7 @@ public partial class DosLibrary
         {
             // directory name as command changes current directory
             var directory = arguments.Length == 0 ? ResolvePath(command) : null;
-            if (directory != null && Directory.Exists(directory.HostPath))
+            if (directory != null && IsDirectory(directory))
             {
                 return SetCurrentDirectory(directory);
             }
@@ -473,7 +472,7 @@ public partial class DosLibrary
         }
 
         // script files with script protection bit are run with execute
-        if ((Metadata.Get(path.HostPath).Protection & ProtectionScript) != 0)
+        if ((GetProtection(path) & ProtectionScript) != 0)
         {
             var execute = FindCommand("Execute");
             if (execute != null)
@@ -490,8 +489,7 @@ public partial class DosLibrary
         uint segList;
         try
         {
-            using var stream = File.OpenRead(path.HostPath);
-            segList = loader.Load(stream).GetAwaiter().GetResult().Bptr;
+            segList = LoadSegment(path).Bptr;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or VmException)
         {
@@ -541,13 +539,13 @@ public partial class DosLibrary
         if (command.IndexOf(':') >= 0 || command.IndexOf('/') >= 0)
         {
             var direct = ResolvePath(command);
-            return direct != null && File.Exists(direct.HostPath) ? direct : null;
+            return direct != null && IsFile(direct) ? direct : null;
         }
 
         foreach (var directory in new[] { string.Empty }.Concat(commandPath).Concat(new[] { "C:" }))
         {
             var path = ResolvePath(directory.Length == 0 ? command : AddPart(directory, command));
-            if (path != null && File.Exists(path.HostPath))
+            if (path != null && IsFile(path))
             {
                 return path;
             }
@@ -595,11 +593,11 @@ public partial class DosLibrary
         else
         {
             var path = GetEnvPath(name, false);
-            if (path != null && File.Exists(path.HostPath))
+            if (path != null && IsFile(path))
             {
                 try
                 {
-                    value = File.ReadAllBytes(path.HostPath);
+                    value = volumes.ReadAllBytes(path);
                 }
                 catch (IOException)
                 {

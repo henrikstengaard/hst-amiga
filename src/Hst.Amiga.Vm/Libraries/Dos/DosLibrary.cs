@@ -251,7 +251,7 @@ public partial class DosLibrary : Library
     /// Path of zero lock, root of SYS: or first volume.
     /// </summary>
     private AmigaPath ZeroLockPath =>
-        volumes.GetRoot("SYS") ?? volumes.VolumeNames.Select(x => volumes.GetRoot(x)).FirstOrDefault();
+        volumes.Resolve("SYS:", null) ?? volumes.VolumeNames.Select(x => volumes.GetRoot(x)).FirstOrDefault();
 
     /// <summary>
     /// Current directory of process.
@@ -286,12 +286,22 @@ public partial class DosLibrary : Library
         return null;
     }
 
-    private static bool Exists(AmigaPath path) => File.Exists(path.HostPath) || Directory.Exists(path.HostPath);
+    private bool Exists(AmigaPath path) => volumes.Exists(path);
+
+    private bool IsDirectory(AmigaPath path) => volumes.IsDirectory(path);
+
+    private bool IsFile(AmigaPath path) => volumes.IsFile(path);
+
+    private IVolumeFileSystem FileSystemOf(AmigaPath path) => volumes.GetFileSystem(path);
 
     /// <summary>
-    /// Metadata with protection bits, comments and Amiga names stored in memory or as UAE metadata.
+    /// Load executable from file into memory.
     /// </summary>
-    private HostMetadata Metadata => volumes.Metadata;
+    private SegmentList LoadSegment(AmigaPath path)
+    {
+        using var stream = new MemoryStream(volumes.ReadAllBytes(path));
+        return loader.Load(stream).GetAwaiter().GetResult();
+    }
 
     private uint CreateLock(AmigaPath path, int access)
     {
@@ -306,7 +316,7 @@ public partial class DosLibrary : Library
         Ram.WriteLong(address + FileLockStruct.Key, (uint)(path.FullPath.GetHashCode() & 0x7FFFFFFF));
         Ram.WriteLong(address + FileLockStruct.Access, (uint)access);
         Ram.WriteLong(address + FileLockStruct.Task, dummyPort);
-        locks[bptr] = new DosLock(address, path, Directory.Exists(path.HostPath), access);
+        locks[bptr] = new DosLock(address, path, IsDirectory(path), access);
         return bptr;
     }
 
@@ -362,6 +372,7 @@ public partial class DosLibrary : Library
     /// </summary>
     private static int MapException(Exception exception) => exception switch
     {
+        VolumeException volumeException => volumeException.DosError,
         FileNotFoundException => DosErrors.ObjectNotFound,
         DirectoryNotFoundException => DosErrors.DirNotFound,
         UnauthorizedAccessException => DosErrors.WriteProtected,
