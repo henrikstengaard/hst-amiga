@@ -3,6 +3,7 @@ namespace Hst.Amiga.Vm;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using FileSystem;
 using Processor;
 
 public class VmOptions
@@ -45,6 +46,18 @@ public class VmOptions
     /// </summary>
     public ISet<string> StubLibraries { get; set; } =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "intuition.library", "graphics.library" };
+
+    /// <summary>
+    /// UAE metadata used for Amiga names, protection bits, comments and dates of files in volume directories.
+    /// Default is auto, which detects UAEFSDB and UAE metafiles per directory.
+    /// </summary>
+    public UaeMetadataMode UaeMetadata { get; set; } = UaeMetadataMode.Auto;
+
+    /// <summary>
+    /// Write changes to UAE metadata files. Default is false, which never creates, changes or deletes
+    /// metadata files and keeps changes to protection bits and comments in memory while the program runs.
+    /// </summary>
+    public bool WriteUaeMetadata { get; set; }
 
     /// <summary>
     /// Amiga path to current directory of program. Default is root of SYS.

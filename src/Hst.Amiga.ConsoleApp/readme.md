@@ -502,6 +502,8 @@ The return code of the Amiga executable is returned as exit code. Pressing ctrl-
 
 Arguments after the executable are passed to the program. Use `--` before arguments starting with `-`, so they are not parsed as options.
 
+Amiga names, protection bits and comments are read from UAE metadata, UAEFSDB `_UAEFSDB.___` files used by WinUAE and UAE metafiles `.uaem` used by FS-UAE, detected per directory. Use `--uae-metadata` to select `uaefsdb`, `uaemetafile` or `none` instead of `auto`. Metadata files are not changed by default and changes to protection bits and comments are kept in memory while the program runs. Use `--write-uae-metadata` to write changes to metadata files.
+
 Example of displaying usage for run Amiga executable:
 ```
 hst.amiga vm run
@@ -520,6 +522,11 @@ hst.amiga vm run c:\amiga\sys\c\list -V SYS=c:\amiga\sys --cwd SYS:Work -- #?.tx
 Example of running Amiga executable `copy` with volume WORK: mapped to directory `d:\work` and an assign DATA: to `WORK:data`:
 ```
 hst.amiga vm run copy -V SYS=c:\amiga\sys -V WORK=d:\work -a DATA=WORK:data -- DATA:file.txt TO RAM:
+```
+
+Example of running Amiga executable `protect` adding script protection bit to file `test` written to UAE metadata:
+```
+hst.amiga vm run c:\amiga\sys\c\protect -V SYS=c:\amiga\sys --write-uae-metadata -- SYS:test s add
 ```
 
 Example of running Amiga executable `test` emulating a 68000 cpu with 2 MB memory and tracing library calls:

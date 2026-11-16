@@ -37,8 +37,6 @@ public partial class DosLibrary : Library
     private readonly HunkLoader loader;
     private readonly Dictionary<uint, DosFile> files = new();
     private readonly Dictionary<uint, DosLock> locks = new();
-    private readonly Dictionary<string, uint> protections = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> comments = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Stream> consoleOutputs = new();
 
     private uint dummyPort;
@@ -289,6 +287,11 @@ public partial class DosLibrary : Library
     }
 
     private static bool Exists(AmigaPath path) => File.Exists(path.HostPath) || Directory.Exists(path.HostPath);
+
+    /// <summary>
+    /// Metadata with protection bits, comments and Amiga names stored in memory or as UAE metadata.
+    /// </summary>
+    private HostMetadata Metadata => volumes.Metadata;
 
     private uint CreateLock(AmigaPath path, int access)
     {

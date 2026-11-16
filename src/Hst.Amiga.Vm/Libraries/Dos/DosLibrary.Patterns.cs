@@ -26,7 +26,8 @@ public partial class DosLibrary
         public string RelativePath;
         public string[] Entries;
         public int Index;
-        public string CurrentName;
+        public AmigaPath CurrentPath;
+        public string CurrentRelativeName;
         public uint AChain;
     }
 
@@ -193,6 +194,7 @@ public partial class DosLibrary
                 return DosErrors.ObjectNotFound;
             }
 
+            // matched name is pattern as given, e.g. "sys:" for volume root
             var state = new MatchState { IsWild = false };
             var parent = volumes.GetParent(path) ?? path;
             var level = new MatchLevel
@@ -201,12 +203,11 @@ public partial class DosLibrary
                 RelativePath = directoryPart,
                 Entries = new[] { path.Name },
                 Index = 1,
-                CurrentName = path.Name,
                 AChain = CreateAChain(anchor, parent, 0)
             };
             state.Levels.Push(level);
             matches[anchor] = state;
-            FillMatch(anchor, state, level, path);
+            FillMatch(anchor, level, path, pattern);
             return 0;
         }
 
@@ -267,8 +268,10 @@ public partial class DosLibrary
         Context.Allocator.Free(aChain);
     }
 
-    private void FillMatch(uint anchor, MatchState state, MatchLevel level, AmigaPath path)
+    private void FillMatch(uint anchor, MatchLevel level, AmigaPath path, string relativeName)
     {
+        level.CurrentPath = path;
+        level.CurrentRelativeName = relativeName;
         FillFileInfoBlock(anchor + AnchorPathStruct.Info, path);
         Ram.WriteLong(anchor + AnchorPathStruct.Last, level.AChain);
         if (level.AChain != 0)
@@ -279,7 +282,7 @@ public partial class DosLibrary
         var length = (short)Ram.ReadWord(anchor + AnchorPathStruct.Strlen);
         if (length > 0)
         {
-            if (!WriteString(anchor + AnchorPathStruct.Buf, length, level.RelativePath + path.Name))
+            if (!WriteString(anchor + AnchorPathStruct.Buf, length, relativeName))
             {
                 SetIoErr(DosErrors.BufferOverflow);
             }
@@ -313,16 +316,20 @@ public partial class DosLibrary
         if (state.Levels.Count > 0 && (flags & ApfDoDir) != 0 && (flags & ApfDidDir) == 0)
         {
             var current = state.Levels.Peek();
-            if (current.CurrentName != null)
+            if (current.CurrentPath != null)
             {
-                var directory = Child(current.Directory, current.CurrentName);
+                var directory = current.CurrentPath;
                 if (Directory.Exists(directory.HostPath))
                 {
+                    var relativeName = current.CurrentRelativeName;
                     Ram.WriteByte(anchor + AnchorPathStruct.Flags, (byte)(flags & ~ApfDoDir));
                     state.Levels.Push(new MatchLevel
                     {
                         Directory = directory,
-                        RelativePath = current.RelativePath + current.CurrentName + "/",
+                        RelativePath = relativeName.Length == 0 || relativeName.EndsWith(":") ||
+                                       relativeName.EndsWith("/")
+                            ? relativeName
+                            : relativeName + "/",
                         Entries = GetDirectoryEntries(directory),
                         AChain = CreateAChain(anchor, directory, current.AChain)
                     });
@@ -350,8 +357,7 @@ public partial class DosLibrary
                     continue;
                 }
 
-                level.CurrentName = name;
-                FillMatch(anchor, state, level, path);
+                FillMatch(anchor, level, path, level.RelativePath + name);
                 return 0;
             }
 
@@ -371,7 +377,7 @@ public partial class DosLibrary
 
             Ram.WriteByte(anchor + AnchorPathStruct.Flags,
                 (byte)((Ram.ReadByte(anchor + AnchorPathStruct.Flags) | ApfDidDir) & ~ApfDoDir));
-            FillMatch(anchor, state, parentLevel, level.Directory);
+            FillMatch(anchor, parentLevel, parentLevel.CurrentPath, parentLevel.CurrentRelativeName);
             return 0;
         }
 

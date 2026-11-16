@@ -2,6 +2,7 @@ namespace Hst.Amiga.Tests.CommandTests;
 
 using System;
 using ConsoleApp.Commands;
+using Vm.FileSystem;
 using Vm.Processor;
 using Xunit;
 
@@ -31,6 +32,21 @@ public class GivenVmRunCommand
         Assert.Contains("intuition.library", options.StubLibraries);
         Assert.Equal("SYS:Work", options.CurrentDirectory);
         Assert.Equal(1000, options.MaxInstructions);
+    }
+
+    [Theory]
+    [InlineData(null, UaeMetadataMode.Auto)]
+    [InlineData("uaefsdb", UaeMetadataMode.UaeFsDb)]
+    [InlineData("uaemetafile", UaeMetadataMode.UaeMetafile)]
+    [InlineData("none", UaeMetadataMode.None)]
+    public void When_CreatingOptionsWithUaeMetadata_Then_UaeMetadataIsSet(string uaeMetadata,
+        UaeMetadataMode expected)
+    {
+        var options = VmRunCommand.CreateOptions("68020", null, null, null, null, null, null, null, false, false,
+            uaeMetadata, true);
+
+        Assert.Equal(expected, options.UaeMetadata);
+        Assert.True(options.WriteUaeMetadata);
     }
 
     [Fact]

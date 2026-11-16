@@ -159,13 +159,14 @@ public static class CommandHandler
     
     public static async Task<int> VmRun(string executablePath, string[] arguments, string cpu, int? memory,
         int? stack, string[] volumes, string[] assigns, string[] stubLibraries, string currentDirectory,
-        long? maxInstructions, bool trace, bool traceLibraries, CancellationToken token)
+        long? maxInstructions, bool trace, bool traceLibraries, string uaeMetadata, bool writeUaeMetadata,
+        CancellationToken token)
     {
         Vm.VmOptions options;
         try
         {
             options = VmRunCommand.CreateOptions(cpu, memory, stack, volumes, assigns, stubLibraries,
-                currentDirectory, maxInstructions, trace, traceLibraries);
+                currentDirectory, maxInstructions, trace, traceLibraries, uaeMetadata, writeUaeMetadata);
         }
         catch (ArgumentException e)
         {

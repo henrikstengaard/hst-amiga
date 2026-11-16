@@ -86,6 +86,20 @@ public static class VmCommandFactory
             Description = "Trace library function calls to standard error."
         };
 
+        var uaeMetadataOption = new Option<string>("--uae-metadata")
+        {
+            Description =
+                "UAE metadata for Amiga names, protection bits and comments of files: auto detects UAEFSDB (WinUAE) and UAE metafiles (FS-UAE) per directory, uaefsdb, uaemetafile or none.",
+            DefaultValueFactory = _ => "auto"
+        };
+        uaeMetadataOption.AcceptOnlyFromAmong("auto", "uaefsdb", "uaemetafile", "none");
+
+        var writeUaeMetadataOption = new Option<bool>("--write-uae-metadata")
+        {
+            Description =
+                "Write changes to protection bits, comments and names to UAE metadata files. Default keeps changes in memory and never modifies metadata files."
+        };
+
         var command = new Command("run", "Run Amiga CLI executable.");
         command.SetAction((parseResult, token) => CommandHandler.VmRun(
             parseResult.GetValue(executableArgument),
@@ -100,6 +114,8 @@ public static class VmCommandFactory
             parseResult.GetValue(maxInstructionsOption),
             parseResult.GetValue(traceOption),
             parseResult.GetValue(traceLibrariesOption),
+            parseResult.GetValue(uaeMetadataOption),
+            parseResult.GetValue(writeUaeMetadataOption),
             token));
         command.Arguments.Add(executableArgument);
         command.Arguments.Add(argumentsArgument);
@@ -113,6 +129,8 @@ public static class VmCommandFactory
         command.Options.Add(maxInstructionsOption);
         command.Options.Add(traceOption);
         command.Options.Add(traceLibrariesOption);
+        command.Options.Add(uaeMetadataOption);
+        command.Options.Add(writeUaeMetadataOption);
 
         return command;
     }

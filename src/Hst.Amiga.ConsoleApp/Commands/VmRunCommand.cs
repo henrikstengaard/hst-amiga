@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Vm;
+using Vm.FileSystem;
 using Vm.Processor;
 
 /// <summary>
@@ -32,7 +33,7 @@ public class VmRunCommand
     /// <exception cref="ArgumentException">Invalid volume or assign.</exception>
     public static VmOptions CreateOptions(string cpu, int? memory, int? stack, IEnumerable<string> volumes,
         IEnumerable<string> assigns, IEnumerable<string> stubLibraries, string currentDirectory, long? maxInstructions,
-        bool trace, bool traceLibraries)
+        bool trace, bool traceLibraries, string uaeMetadata = null, bool writeUaeMetadata = false)
     {
         var options = new VmOptions
         {
@@ -40,7 +41,9 @@ public class VmRunCommand
             CurrentDirectory = currentDirectory,
             MaxInstructions = maxInstructions ?? 0,
             TraceInstructions = trace,
-            TraceLibraryCalls = traceLibraries
+            TraceLibraryCalls = traceLibraries,
+            UaeMetadata = ParseUaeMetadata(uaeMetadata),
+            WriteUaeMetadata = writeUaeMetadata
         };
 
         if (memory.HasValue)
@@ -72,6 +75,17 @@ public class VmRunCommand
 
         return options;
     }
+
+    private static UaeMetadataMode ParseUaeMetadata(string value) =>
+        (value ?? "auto").ToLowerInvariant() switch
+        {
+            "auto" => UaeMetadataMode.Auto,
+            "uaefsdb" => UaeMetadataMode.UaeFsDb,
+            "uaemetafile" => UaeMetadataMode.UaeMetafile,
+            "none" => UaeMetadataMode.None,
+            _ => throw new ArgumentException(
+                $"Invalid UAE metadata '{value}', expected auto, uaefsdb, uaemetafile or none")
+        };
 
     private static (string Name, string Path) ParseMapping(string value, string type)
     {

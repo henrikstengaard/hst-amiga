@@ -13,12 +13,19 @@ public class VolumeManager
 {
     private const int MaxAssignDepth = 16;
 
-    private static readonly char[] InvalidNameChars =
-        Path.GetInvalidFileNameChars().Concat(new[] { '\\', '/', ':' }).Distinct().ToArray();
-
     private readonly Dictionary<string, string> volumes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<string>> assigns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> volumeNames = new(StringComparer.OrdinalIgnoreCase);
+
+    public VolumeManager(HostMetadata metadata = null)
+    {
+        Metadata = metadata ?? new HostMetadata();
+    }
+
+    /// <summary>
+    /// Metadata with Amiga names, protection bits and comments for files in host directories.
+    /// </summary>
+    public HostMetadata Metadata { get; }
 
     public IEnumerable<string> VolumeNames => volumeNames.Values;
     public IEnumerable<string> AssignNames => assigns.Keys;
@@ -42,6 +49,7 @@ public class VolumeManager
 
         volumes[name] = fullPath;
         volumeNames[name] = name;
+        Metadata.AddRoot(fullPath);
     }
 
     /// <summary>
@@ -180,7 +188,7 @@ public class VolumeManager
                     continue;
                 }
 
-                if (part == "." || part == ".." || part.IndexOfAny(InvalidNameChars) >= 0)
+                if (!Metadata.IsValidName(part))
                 {
                     return null;
                 }
@@ -194,41 +202,38 @@ public class VolumeManager
         var resolvedComponents = new string[components.Count];
         for (var i = 0; i < components.Count; i++)
         {
-            var name = FindName(hostPath, components[i]);
-            resolvedComponents[i] = name;
-            hostPath = Path.Combine(hostPath, name);
+            var entry = FindEntry(hostPath, components[i]);
+            resolvedComponents[i] = entry.AmigaName;
+            hostPath = Path.Combine(hostPath, entry.HostName);
         }
 
         return new AmigaPath(directory.Volume, resolvedComponents, hostPath);
     }
 
     /// <summary>
-    /// Find name in host directory ignoring case.
+    /// Find entry in host directory by Amiga name ignoring case. Host name for a new entry is created, if entry
+    /// doesn't exist.
     /// </summary>
-    private static string FindName(string hostDirectory, string name)
+    private HostEntry FindEntry(string hostDirectory, string amigaName) =>
+        Metadata.Find(hostDirectory, amigaName) ??
+        new HostEntry(amigaName, Metadata.CreateHostName(hostDirectory, amigaName));
+
+    /// <summary>
+    /// Get entry in directory by Amiga name.
+    /// </summary>
+    public AmigaPath GetChild(AmigaPath directory, string amigaName)
     {
-        if (!Directory.Exists(hostDirectory))
-        {
-            return name;
-        }
-
-        string match = null;
-        foreach (var entry in Directory.EnumerateFileSystemEntries(hostDirectory))
-        {
-            var entryName = Path.GetFileName(entry);
-            if (string.Equals(entryName, name, StringComparison.Ordinal))
-            {
-                return entryName;
-            }
-
-            if (match == null && string.Equals(entryName, name, StringComparison.OrdinalIgnoreCase))
-            {
-                match = entryName;
-            }
-        }
-
-        return match ?? name;
+        var entry = FindEntry(directory.HostPath, amigaName);
+        return new AmigaPath(directory.Volume, directory.Components.Concat(new[] { entry.AmigaName }).ToArray(),
+            Path.Combine(directory.HostPath, entry.HostName));
     }
+
+    /// <summary>
+    /// List Amiga names of entries in directory sorted by name.
+    /// </summary>
+    public string[] ListNames(AmigaPath directory) =>
+        Metadata.List(directory.HostPath).Select(x => x.AmigaName)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
 
     /// <summary>
     /// Get parent directory of path.

@@ -153,6 +153,7 @@ public partial class DosLibrary
         }
 
         FileStream stream;
+        var existed = File.Exists(path.HostPath);
         try
         {
             switch (mode)
@@ -191,6 +192,11 @@ public partial class DosLibrary
         {
             SetIoErr(MapException(e));
             return 0;
+        }
+
+        if (!existed)
+        {
+            Metadata.Created(path.HostPath, path.Name);
         }
 
         return CreateFileHandle(address => new DosFile(address, stream, stream, false, false, path, true));

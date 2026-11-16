@@ -185,6 +185,68 @@ public class GivenUaeFsDbReader
     }
 
     [Fact]
+    public async Task When_ReadNodesFromNtfsUaeFsDbStream_Then_Version2NodeIsRead()
+    {
+        // arrange - ntfs uaefsdb with one version 2 node
+        var uaeFsDbPath = Path.Combine("TestData", "UaeFsDbs", "NTFS", "_UAEFSDB.___file2_");
+
+        // act - read uaefsdb nodes from stream
+        List<UaeFsDbNode> uaeFsDbNodes;
+        using (var stream = File.OpenRead(uaeFsDbPath))
+        {
+            uaeFsDbNodes = (await UaeFsDbReader.ReadFromStream(stream)).ToList();
+        }
+
+        // assert - version 2 node with windows mode and unicode names is read
+        var node = Assert.Single(uaeFsDbNodes);
+        Assert.Equal(UaeFsDbNode.NodeVersion.Version2, node.Version);
+        Assert.Equal(1, node.Valid);
+        Assert.Equal("file2<", node.AmigaName);
+        Assert.Equal("comment on file2", node.Comment);
+        Assert.Equal(FileAttributes.Archive, (FileAttributes)node.WinMode);
+        Assert.Equal("file2<", node.AmigaNameUnicode);
+        Assert.Equal("__uae___file2_", node.NormalNameUnicode);
+    }
+
+    [Fact]
+    public async Task When_ReadNodesFromUaeFsDbWithSizeMultipleOfBothNodeVersions_Then_Version1NodesAreRead()
+    {
+        // arrange - uaefsdb with 68 version 1 nodes, 40800 bytes is also a multiple of version 2 node size
+        var nodeBytes = Enumerable.Range(1, 68).SelectMany(i => UaeFsDbWriter.Build(new UaeFsDbNode
+        {
+            Mode = (uint)i,
+            AmigaName = $"file{i}*",
+            NormalName = $"__uae___file{i}_",
+            Comment = string.Empty
+        })).ToArray();
+        Assert.Equal(0, nodeBytes.Length % Amiga.DataTypes.UaeFsDbs.Constants.UaeFsDbNodeVersion2Size);
+
+        // act - read uaefsdb nodes from stream
+        List<UaeFsDbNode> uaeFsDbNodes;
+        using (var stream = new MemoryStream(nodeBytes))
+        {
+            uaeFsDbNodes = (await UaeFsDbReader.ReadFromStream(stream)).ToList();
+        }
+
+        // assert - all 68 version 1 nodes are read
+        Assert.Equal(UaeFsDbNode.NodeVersion.Version1, UaeFsDbNodeHelper.GetUaeFsDbNodeVersion(nodeBytes.Length));
+        Assert.Equal(68, uaeFsDbNodes.Count);
+        Assert.All(uaeFsDbNodes, x => Assert.Equal(UaeFsDbNode.NodeVersion.Version1, x.Version));
+        Assert.Equal("file1*", uaeFsDbNodes[0].AmigaName);
+        Assert.Equal("__uae___file68_", uaeFsDbNodes[67].NormalName);
+        Assert.Equal(68U, uaeFsDbNodes[67].Mode);
+    }
+
+    [Theory]
+    [InlineData(600, UaeFsDbNode.NodeVersion.Version1)]
+    [InlineData(1632, UaeFsDbNode.NodeVersion.Version2)]
+    [InlineData(40800, UaeFsDbNode.NodeVersion.Version1)]
+    public void When_GettingNodeVersionFromSize_Then_VersionIsDetected(long size, UaeFsDbNode.NodeVersion expected)
+    {
+        Assert.Equal(expected, UaeFsDbNodeHelper.GetUaeFsDbNodeVersion(size));
+    }
+
+    [Fact]
     public async Task When_ReadNodesFromNtfsUaeFsDb_Then_NodeMatch()
     {
         // arrange - dir 1 uaefsdb bytes to read

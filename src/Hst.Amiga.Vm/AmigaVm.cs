@@ -78,7 +78,8 @@ public class AmigaVm
         try
         {
             context = new VmContext(options, cancellationToken);
-            var volumes = new VolumeManager();
+            var volumes = new VolumeManager(new HostMetadata(options.UaeMetadata, options.WriteUaeMetadata,
+                context.Log));
             ramDirectory = SetupVolumes(volumes, programDirectory);
 
             var exec = new ExecLibrary(context);
