@@ -1,0 +1,20 @@
+<?xml version="1.0" ?><!DOCTYPE svg  PUBLIC '-//W3C//DTD SVG 1.1//EN'  'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'>
+<svg enable-background="new 0 0 512 512" height="512px" id="Layer_1" version="1.1" viewBox="0 0 512 512" width="512px" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g>
+<rect x="76" y="76" rx="10" ry="10" width="360" height="360" style="fill:#ffffff; stroke-width: 10; stroke:#606060;" />
+
+    <g fill="none" stroke="#606060" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+      <!-- floppy disk -->
+      <path d="M161 141 L336 141 L371 176 L371 351 Q371 371 351 371 L161 371 Q141 371 141 351 L141 161 Q141 141 161 141 Z" />
+
+      <!-- shutter with slot -->
+      <path d="M196 141 L196 206 L311 206 L311 141" />
+      <line x1="276" y1="164" x2="276" y2="183" />
+
+      <!-- label with lines -->
+      <path d="M181 371 L181 266 Q181 256 191 256 L321 256 Q331 256 331 266 L331 371" />
+      <line x1="211" y1="296" x2="301" y2="296" />
+      <line x1="211" y1="331" x2="271" y2="331" />
+    </g>
+  </g>
+</svg>
