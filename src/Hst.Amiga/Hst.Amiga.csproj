@@ -14,8 +14,8 @@
     <InternalsVisibleTo Include="Hst.Amiga.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Hst.Core" Version="1.0.101-prerelease" />
-    <PackageReference Include="Hst.Imaging" Version="1.0.101-prerelease" />
-    <PackageReference Include="Hst.Imaging.Pngcs" Version="1.0.101-prerelease" />
+    <PackageReference Include="Hst.Core" Version="1.0.104" />
+    <PackageReference Include="Hst.Imaging" Version="1.0.104" />
+    <PackageReference Include="Hst.Imaging.Pngcs" Version="1.0.104" />
   </ItemGroup>
 </Project>
