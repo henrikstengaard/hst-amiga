@@ -1,6 +1,14 @@
-# Hst Amiga
+<p align="center">
+  <img src="assets/hst-amiga-icon.png" alt="Hst Amiga icon" width="128" height="128">
+</p>
 
-Hst Amiga is a library for reading and writing Amiga partition table, file systems, data types and running Amiga CLI executables in a virtual machine. It's available as Nuget packages for .Net and a console application.
+<h1 align="center">Hst Amiga</h1>
+
+<p align="center">
+  A library for reading and writing Amiga partition table, file systems, data types and running Amiga CLI executables in a virtual machine.
+</p>
+
+Hst Amiga is available as Nuget packages for .Net and a console application.
 
 ## Features
 

@@ -1,0 +1,27 @@
+<?xml version="1.0" ?><!DOCTYPE svg  PUBLIC '-//W3C//DTD SVG 1.1//EN'  'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'>
+<svg enable-background="new 0 0 512 512" height="512px" id="Layer_1" version="1.1" viewBox="0 0 512 512" width="512px" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g>
+<rect x="76" y="76" rx="10" ry="10" width="360" height="360" style="fill:#ffffff; stroke-width: 10; stroke:#606060;" />
+
+    <g fill="none" stroke="#606060" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+      <!-- floppy disk -->
+      <path d="M161 141 L336 141 L371 176 L371 351 Q371 371 351 371 L161 371 Q141 371 141 351 L141 161 Q141 141 161 141 Z" />
+
+      <!-- shutter with slot -->
+      <path d="M196 141 L196 206 L311 206 L311 141" />
+      <line x1="276" y1="164" x2="276" y2="183" />
+
+      <!-- label with DF0: -->
+      <path d="M166 371 L166 266 Q166 256 176 256 L336 256 Q346 256 346 266 L346 371" />
+    </g>
+
+    <g fill="none" stroke="#606060" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+      <!-- DF0: -->
+      <path d="M188 288 L188 338 L201 338 Q218 338 218 321 L218 305 Q218 288 201 288 Z" />
+      <path d="M260 288 L236 288 L236 338 M236 312 L256 312" />
+      <path d="M292 288 Q278 288 278 302 L278 324 Q278 338 292 338 Q306 338 306 324 L306 302 Q306 288 292 288 Z" />
+      <path d="M299 300 L285 326" />
+      <path d="M324 302 L324 302.5 M324 326 L324 326.5" />
+    </g>
+  </g>
+</svg>
