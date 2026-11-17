@@ -10,6 +10,7 @@ Hst Amiga Nuget package contains following features:
   - UAEFSDBs: Read and write UAEFSDB metadata files created by WinUAE.
   - UAE metafiles: Read and write UAE metafiles files created by FS-UAE.
 - Read and write Rigid Disk Block (RDB), Amiga partition table.
+- Move and resize partitions with FFS, PFS3 and SFS file systems and expand or shrink Rigid Disk Block within the size of the disk.
 - File systems
   - Read, write and format Fast File System (FFS) partitions. Supports DOS types DOS0-7.
   - Read, write and format Professional File System 3 (PFS3) partitions. Supports DOS types PFS3, PDS3.
