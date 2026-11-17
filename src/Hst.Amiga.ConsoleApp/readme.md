@@ -8,9 +8,21 @@ Hst Amiga console is an application to create, read and write Amiga related data
 
 Hst Amiga Console version comes with following features:
 - Icons
-    - Create and update icons.
-    - Import and export icon images, supporting iff, png and bmp image formats.
-    - Convert icon images between bit plane, new icon and color icons.
+    - Display information about icons.
+    - Create, update and fix icons.
+    - Import and export icon images, supporting png and bmp image formats.
+    - Convert and delete icon images of types planar, new icon and color icon.
+    - Import and export tool types.
+- EPROMs
+    - Build EPROMs from Amiga Kickstart ROMs for A500, A600, A2000, A1200, A3000 and A4000, for AM27C400, AM27C800, AM27C160 and AM27C322 EPROMs or a custom size.
+    - Fill EPROMs by concatenating Kickstart ROM until EPROM size is reached or fill EPROM with zeroes until EPROM size is reached.
+    - Byte swap EPROMs.
+- Vm
+    - Run Amiga CLI executables in a virtual machine with Amiga volumes mapped to host directories, similar to vamos from amitools.
+    - Run Amiga CLI executables from adf and disk images, optionally in the context of the image.
+    - Execute AmigaDOS scripts and run an interactive AmigaDOS shell.
+- Script
+    - Run multiple commands using a script file.
 
 ## Supported operating systems
 
@@ -218,7 +230,7 @@ hst.amiga icon image import disk.info coloricon --image1-path image1.png --image
 
 The import tool types command imports tool types from a file to an icon file. Any existing tool types are replaced with the imported tool types.
 
-Example of displaying usage for import icon images:
+Example of displaying usage for import tool types:
 ```
 hst.amiga icon tooltypes import
 ```
@@ -237,19 +249,19 @@ hst.amiga icon tooltypes import disk.info tooltypes.txt --preserve-newicon
 
 The export tool types command exports tool types from an icon file to a file.
 
-Example of displaying usage for export icon images:
+Example of displaying usage for export tool types:
 ```
 hst.amiga icon tooltypes export
 ```
 
 Example of exporting tool types from icon file "disk.info" to text file "tooltypes.txt":
 ```
-hst.amiga icon tooltypes import disk.info tooltypes.txt
+hst.amiga icon tooltypes export disk.info tooltypes.txt
 ```
 
 Example of exporting tool types from icon file "disk.info" to text file "tooltypes.txt" exclude new icon from tool types:
 ```
-hst.amiga icon tooltypes import disk.info tooltypes.txt --exclude-newicon
+hst.amiga icon tooltypes export disk.info tooltypes.txt --exclude-newicon
 ```
 
 ### Update icon
@@ -278,6 +290,20 @@ hst.amiga icon update disk.info -x 100 -y 100
 Example of updating drawer x position to 100, drawer y position to 100, drawer width to 200 and drawer height to 100 for icon file "disk.info":
 ```
 hst.amiga icon update disk.info --drawer-x 100 --drawer-y 100 --drawer-width 200 --drawer-height 100
+```
+
+### Fix icon
+
+The fix icon command reads the disk object and color icon from an icon file, skipping any data between them, and writes them to a new icon file with extension `.fixed.info`, e.g. `disk.fixed.info`.
+
+Example of displaying usage for fix icon:
+```
+hst.amiga icon fix
+```
+
+Example of fixing icon file "disk.info" writing fixed icon to "disk.fixed.info":
+```
+hst.amiga icon fix disk.info
 ```
 
 ## EPROM commands
@@ -468,7 +494,7 @@ Example of byte swapping EPROM for A500 from kickstart ROM file `kickCDTVa1000a5
 hst.amiga eprom byteswap kickCDTVa1000a500a2000a600.rom
 ```
 
-### Script
+## Script command
 
 Run multiple commands using a script file.
 It takes a small overhead of time for the operating system to execute Hst Amiga and by supporting multiple commands can be run, it's faster than running Hst Amiga multiple times.

@@ -4,19 +4,23 @@
   </PropertyGroup>
   <PropertyGroup>
     <Authors>Henrik Nørfjand Stengaard</Authors>
-    <Copyright>Copyright © 2026</Copyright>
+    <Copyright>Copyright © 2022-2026</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>False</PackageRequireLicenseAcceptance>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <RepositoryUrl>$(RepositoryUrl)</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <PackageIcon>hst-amiga-128x128.png</PackageIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)icon\hst-amiga-128x128.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
   <PropertyGroup>
-    <Version>0.6.0</Version>
-    <AssemblyVersion>0.6.0.0</AssemblyVersion>
-    <FileVersion>0.6.0.0</FileVersion>
-    <PackageVersion>0.6.0</PackageVersion>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <PackageVersion>1.0.0</PackageVersion>
   </PropertyGroup>
   <PropertyGroup>
     <!-- https://github.com/dotnet/sourcelink/issues/244 -->
