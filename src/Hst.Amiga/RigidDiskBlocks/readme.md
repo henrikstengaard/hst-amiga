@@ -41,6 +41,81 @@ await 4.GB()
     .WriteToFile(@"4gb.hdf");
 
 ```
+## Move and resize partitions
+
+Partitions with Fast File System, PFS3 and Smart File System can be moved and resized with the mover and
+resizer classes next to the doctor of each file system:
+
+| File system        | Mover                   | Resizer                   |
+|--------------------|-------------------------|---------------------------|
+| Fast File System   | `FastFileSystemMover`   | `FastFileSystemResizer`   |
+| PFS3               | `Pfs3Mover`             | `Pfs3Resizer`             |
+| Smart File System  | `SmartFileSystemMover`  | `SmartFileSystemResizer`  |
+
+Partitions are selected by partition number starting from 1. Cylinders are cylinders of the partition, the same
+as low and high cylinder in the partition block.
+
+**Mover** moves a partition to a new low cylinder, keeping the number of cylinders. The new location can overlap
+the current location, e.g. a few cylinders back or forth, or be free cylinders anywhere within the rigid disk
+block before or after the partition. Data is copied in an order that handles overlapping locations.
+
+**Resizer** expands or shrinks the file system within the cylinders available before and after the partition:
+from the end of the previous partition (or the first partitionable cylinder) to the start of the next partition
+(or the last partitionable cylinder). The low cylinder can be changed as well to expand or shrink the partition
+at the start. When shrinking, blocks used in the area cut off are relocated to free blocks. The resize fails, if
+the used blocks don't fit in the new size.
+
+Both mover and resizer:
+- check the file system with the doctor before the operation and refuse to change a file system with errors.
+- optionally expand or shrink the rigid disk block with `RigidDiskBlockCylinders`. The rigid disk block can be
+  expanded up to the number of cylinders the disk (stream length) holds and shrunk down to the last cylinder used
+  by partitions.
+- write the rigid disk block and partition blocks back to the blocks they were read from, after the file system
+  is changed.
+- check the file system with the doctor after the operation. Errors found are returned in the result.
+- support dry run, which validates and plans the operation without writing any changes.
+
+Moving and resizing changes the disk in place and is not crash safe. Make a backup of the disk first and run
+with `DryRun` to see if the operation is possible.
+
+Example of moving second partition to cylinder 1200:
+
+```c#
+await using var stream = File.Open("4gb.hdf", FileMode.Open, FileAccess.ReadWrite);
+var result = await FastFileSystemMover.Move(stream, 2, new PartitionMoveOptions { NewLowCyl = 1200 });
+if (!result.Success)
+{
+    Console.WriteLine(string.Join(Environment.NewLine, result.Errors));
+}
+```
+
+Example of expanding rigid disk block to the size of the disk and expanding last partition to the end of disk,
+e.g. after copying a disk image to a larger CF card:
+
+```c#
+await using var stream = File.Open(@"\\.\PhysicalDrive2", FileMode.Open, FileAccess.ReadWrite);
+var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+var cylinders = RigidDiskBlockResizer.GetMaxCylinders(rigidDiskBlock, stream.Length);
+var partitionNumber = rigidDiskBlock.PartitionBlocks.Count();
+
+var result = await Pfs3Resizer.Resize(stream, partitionNumber, new PartitionResizeOptions
+{
+    NewHighCyl = cylinders - 1,
+    RigidDiskBlockCylinders = cylinders
+});
+```
+
+Example of getting cylinders available for resizing a partition:
+
+```c#
+var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
+var partitionBlock = rigidDiskBlock.PartitionBlocks.ElementAt(1);
+var available = PartitionGeometry.GetAvailableCylinders(rigidDiskBlock, partitionBlock);
+Console.WriteLine($"Cylinders {available.LowCyl} to {available.HighCyl} are available");
+```
+
+The rigid disk block can also be resized without changing partitions with `RigidDiskBlockResizer.Resize`.
+
 ## Recovery
 
 `RigidDiskBlockRecovery` recovers a broken Rigid Disk Block. It scans the disk for boot and root blocks of

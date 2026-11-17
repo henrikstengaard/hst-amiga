@@ -300,8 +300,12 @@
             blockBytes = await Disk.RawRead(1, Constants.ROOTBLOCK, g);
             rootBlock = RootBlockReader.Parse(blockBytes);
             
-            // read reserved bitmap blocks
-            var numReserved = Pfs3Formatter.CalcNumReserved(g, rootBlock.ReservedBlksize);
+            // read reserved bitmap blocks. number of reserved blocks is calculated from reserved area in root block,
+            // not from size of partition, which is different from the size formatted, when partition is resized
+            var resCluster = System.Math.Max(1, rootBlock.ReservedBlksize / g.blocksize);
+            var numReserved = rootBlock.LastReserved >= rootBlock.FirstReserved
+                ? (rootBlock.LastReserved - rootBlock.FirstReserved + 1) / (uint)resCluster
+                : Pfs3Formatter.CalcNumReserved(g, rootBlock.ReservedBlksize);
             var reservedBitmapsCount = (int)(numReserved / 32 + 1);
             var reservedBitmapBlocksCount = Pfs3Helper.CalculateBitmapBlocksCount(reservedBitmapsCount, g);
             blockBytes = await Disk.RawRead((uint)reservedBitmapBlocksCount, Constants.ROOTBLOCK + 1, g);

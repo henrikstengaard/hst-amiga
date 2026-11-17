@@ -17,6 +17,23 @@ See [Blocks](Blocks) page for details about blocks used by Smart File System.
 
 See [Doctor](Doctor) page for checking, repairing and salvaging Smart File System volumes.
 
+## Move and resize partition
+
+`SmartFileSystemMover` moves a partition to a new location and `SmartFileSystemResizer` expands or shrinks the
+file system within the cylinders available before and after the partition. See
+[Move and resize partitions](../../RigidDiskBlocks/readme.md#move-and-resize-partitions) for details.
+
+Moving updates first and last byte of the partition stored in both root blocks. Resizing updates total blocks
+in both root blocks, writes the root block copy at the new last block and rebuilds the bitmap. The bitmap is
+moved to free blocks, if it needs more blocks than are free after it. When shrinking, data extents in the area
+cut off are relocated to free blocks and the extent B-tree is rebuilt. Administration blocks in admin spaces in
+the area cut off are relocated to other admin spaces and all pointers to them are updated. A volume with an
+unfinished transaction is not resized.
+
+```c#
+var result = await SmartFileSystemResizer.Resize(stream, 1, new PartitionResizeOptions { NewHighCyl = 2000 });
+```
+
 ## DOS types
 
 | Dostype | Dostype hex | Supported | Description                                                                                                                                                       |

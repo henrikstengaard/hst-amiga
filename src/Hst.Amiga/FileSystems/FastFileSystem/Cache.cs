@@ -120,7 +120,9 @@
                     NextDirC = 0
                 };
 
-                PutCacheEntry(dirCacheBlock, ref offset, newCacheEntry);
+                /* add entry to new dir cache block */
+                offset = 0;
+                PutCacheEntry(newDirCacheBlock, ref offset, newCacheEntry);
                 newDirCacheBlock.RecordsNb++;
                 await Disk.WriteDirCacheBlock(vol, nCache, newDirCacheBlock);
                 dirCacheBlock.NextDirC = nCache;

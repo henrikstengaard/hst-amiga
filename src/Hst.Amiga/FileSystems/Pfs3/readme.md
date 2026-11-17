@@ -37,6 +37,24 @@ The linked lists have been replaced with dictionaries to improve speed determini
 
 See [Blocks](Blocks) page for details about blocks used by PFS3.
 
+## Move and resize partition
+
+`Pfs3Mover` moves a partition to a new location and `Pfs3Resizer` expands or shrinks the file system within the
+cylinders available before and after the partition. See
+[Move and resize partitions](../../RigidDiskBlocks/readme.md#move-and-resize-partitions) for details.
+
+The reserved area at the start of the partition keeps its size when resizing. Expanding adds bitmap blocks and
+bitmap index blocks in the reserved area, so the size can't be increased, if the reserved area has no free blocks
+left. Expanding a volume formatted without super index mode (5 GB or smaller) beyond 5 GB and expanding beyond
+the max size for the reserved block size of the volume isn't supported. When shrinking, file data in the area
+cut off is relocated to free blocks and anodes are updated. Fragmented data uses free anodes in existing anode
+blocks. Deleted files with data in the area cut off are removed from the deldir and surplus bitmap blocks are
+freed.
+
+```c#
+var result = await Pfs3Resizer.Resize(stream, 1, new PartitionResizeOptions { NewHighCyl = 2000 });
+```
+
 ## Block size
 
 PFS3 ignores file system block size set on partition blocks in RDB. Internally PFS3 determines a variable block size for it's reserved area of the partition based on the size of the partition. The data area of the partition always use block size of 512 bytes.

@@ -12,6 +12,7 @@ Features:
 - Rigid Disk Block (RDB), Amiga partition table:
   - Read and write rigid disk block, partitions, file systems and bad blocks.
   - Recover a broken rigid disk block by fixing it or rebuilding it from file systems found on the disk.
+  - Move and resize partitions with FFS, PFS3 and SFS file systems and expand or shrink rigid disk block within the size of the disk.
 - File systems:
   - Read, write and format Fast File System (FFS) partitions and adf images. Supports DOS types DOS0-7.
   - Read, write and format Professional File System 3 (PFS3) partitions. Supports DOS types PFS3, PDS3.

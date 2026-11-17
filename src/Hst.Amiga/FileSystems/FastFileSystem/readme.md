@@ -17,6 +17,21 @@ See [Blocks](Blocks) page for details about blocks used by Fast File System.
 
 See [Doctor](Doctor) page for checking, repairing and salvaging Fast File System volumes.
 
+## Move and resize partition
+
+`FastFileSystemMover` moves a partition to a new location and `FastFileSystemResizer` expands or shrinks the
+file system within the cylinders available before and after the partition. See
+[Move and resize partitions](../../RigidDiskBlocks/readme.md#move-and-resize-partitions) for details.
+
+Resizing moves the root block to the middle of the resized volume and rebuilds the bitmap. When shrinking, used
+blocks in the area cut off and the block at the new root block location are relocated to free blocks, and all
+pointers to them are updated: hash tables, hash chains, parents, data block tables, file extension blocks, OFS
+data blocks, hard links, dir cache blocks and long name comment blocks.
+
+```c#
+var result = await FastFileSystemResizer.Resize(stream, 1, new PartitionResizeOptions { NewHighCyl = 2000 });
+```
+
 ## DOS types
 
 FFS operates in several modes, defined by "dostypes". AmigaOS filesystems are identified by a four letter descriptor which is specified either in the RDB or a mountlist or dosdriver; alternatively (as was the case in trackdisk-like devices like floppy disks), the disk itself could be formatted in any dostype specified.
