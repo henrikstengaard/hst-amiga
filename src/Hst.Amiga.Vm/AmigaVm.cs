@@ -71,7 +71,35 @@ public class AmigaVm
     public Task<VmResult> Run(byte[] executable, string programName, string arguments,
         string programDirectory = null, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Start(programName, programDirectory, executable, (dos, segmentList, result) =>
+        return Task.FromResult(Start(programName, programDirectory, executable,
+            RunProgram(programName, arguments), cancellationToken));
+    }
+
+    /// <summary>
+    /// Run Amiga executable from volume, e.g. from an adf or disk image in <see cref="VmOptions.Images"/>.
+    /// PROGDIR: is assigned to directory of executable.
+    /// </summary>
+    /// <param name="amigaPath">Amiga path to executable, e.g. "DF0:C/List" or "C:List".</param>
+    /// <param name="arguments">Argument string passed to program.</param>
+    /// <param name="cancellationToken">Cancellation token stopping program.</param>
+    public Task<VmResult> RunFromVolume(string amigaPath, string arguments = "",
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(amigaPath) || amigaPath.IndexOf(':') <= 0)
+        {
+            throw new ArgumentException($"Invalid Amiga path '{amigaPath}', expected device or volume, e.g. DF0:C/List",
+                nameof(amigaPath));
+        }
+
+        var separator = Math.Max(amigaPath.LastIndexOf('/'), amigaPath.IndexOf(':'));
+        var programName = amigaPath.Substring(separator + 1);
+        var programAmigaDirectory = amigaPath.Substring(0, amigaPath[separator] == ':' ? separator + 1 : separator);
+        return Task.FromResult(Start(programName, null, null, RunProgram(programName, arguments),
+            cancellationToken, amigaPath, programAmigaDirectory));
+    }
+
+    private Func<DosLibrary, SegmentList, VmResult, int> RunProgram(string programName, string arguments) =>
+        (dos, segmentList, result) =>
         {
             var argumentString = (arguments ?? string.Empty).TrimEnd('\n') + "\n";
             var returnCode = dos.RunSegment(segmentList.Bptr, programName, argumentString, options.StackSize);
@@ -79,8 +107,7 @@ public class AmigaVm
 
             // program like Execute can start a script, which is run by the shell after program returns
             return dos.IsScriptRunning ? dos.RunShell(false) : returnCode;
-        }, cancellationToken));
-    }
+        };
 
     /// <summary>
     /// Run AmigaDOS script with Execute command from C:.
@@ -130,18 +157,31 @@ public class AmigaVm
     /// Setup virtual machine with libraries, volumes and process and run body.
     /// </summary>
     private VmResult Start(string programName, string programDirectory, byte[] executable,
-        Func<DosLibrary, SegmentList, VmResult, int> body, CancellationToken cancellationToken)
+        Func<DosLibrary, SegmentList, VmResult, int> body, CancellationToken cancellationToken,
+        string programAmigaPath = null, string programAmigaDirectory = null)
     {
         var result = new VmResult();
         string ramDirectory = null;
         DosLibrary dos = null;
+        var imageVolumes = new List<ImageVolume>();
 
         try
         {
             context = new VmContext(options, cancellationToken);
             var volumes = new VolumeManager(new HostMetadata(options.UaeMetadata, options.WriteUaeMetadata,
                 context.Log));
-            ramDirectory = SetupVolumes(volumes, programDirectory);
+            ramDirectory = SetupVolumes(volumes, programDirectory, programAmigaDirectory, imageVolumes);
+
+            if (programAmigaPath != null)
+            {
+                var path = volumes.Resolve(programAmigaPath, volumes.Resolve("SYS:", null));
+                if (!volumes.IsFile(path))
+                {
+                    throw new VmException($"Executable '{programAmigaPath}' not found");
+                }
+
+                executable = volumes.ReadAllBytes(path);
+            }
 
             var exec = new ExecLibrary(context);
             exec.Install();
@@ -197,7 +237,9 @@ public class AmigaVm
             var stackUpper = stack + options.StackSize;
 
             var currentDirectory = FindCurrentDirectory(volumes);
-            var homeDirectory = programDirectory == null ? null : volumes.Resolve("PROGDIR:", currentDirectory);
+            var homeDirectory = programDirectory == null && programAmigaDirectory == null
+                ? null
+                : volumes.Resolve("PROGDIR:", currentDirectory);
 
             var cpu = context.Cpu;
 
@@ -279,9 +321,30 @@ public class AmigaVm
             }
 
             DeleteRamDirectory(ramDirectory);
+            UnmountImages(imageVolumes);
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Flush changes to writable image volumes and dispose them.
+    /// </summary>
+    private void UnmountImages(IEnumerable<ImageVolume> imageVolumes)
+    {
+        foreach (var imageVolume in imageVolumes)
+        {
+            try
+            {
+                imageVolume.FileSystem.Flush();
+            }
+            catch (IOException e)
+            {
+                context?.Log($"Warning: Unable to flush volume {imageVolume.DeviceName}: {e.Message}");
+            }
+
+            imageVolume.Dispose();
+        }
     }
 
     private static async Task<byte[]> ReadAllBytes(string path, CancellationToken cancellationToken)
@@ -316,11 +379,19 @@ public class AmigaVm
     /// Setup volumes and assigns from options and defaults.
     /// </summary>
     /// <returns>Host directory created for RAM: volume, if any.</returns>
-    private string SetupVolumes(VolumeManager volumes, string programDirectory)
+    private string SetupVolumes(VolumeManager volumes, string programDirectory, string programAmigaDirectory,
+        List<ImageVolume> imageVolumes)
     {
         foreach (var volume in options.Volumes)
         {
             volumes.AddVolume(volume.Key, volume.Value);
+        }
+
+        var assigns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sysVolume = MountImages(volumes, assigns, imageVolumes);
+        if (sysVolume != null && !volumes.HasVolume("SYS") && !options.Assigns.ContainsKey("SYS"))
+        {
+            assigns["SYS"] = $"{sysVolume}:";
         }
 
         if (!volumes.VolumeNames.Any())
@@ -338,8 +409,7 @@ public class AmigaVm
             volumes.AddVolume("RAM", ramDirectory);
         }
 
-        var assigns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (volumes.HasVolume("SYS"))
+        if (volumes.HasVolume("SYS") || assigns.ContainsKey("SYS"))
         {
             foreach (var (name, path) in DefaultSysAssigns)
             {
@@ -350,7 +420,13 @@ public class AmigaVm
         assigns["T"] = "RAM:T";
         assigns["ENV"] = "RAM:Env";
 
-        if (programDirectory != null && !options.Assigns.ContainsKey("PROGDIR") && !volumes.HasVolume("PROGDIR"))
+        if (programAmigaDirectory != null && !options.Assigns.ContainsKey("PROGDIR") &&
+            !volumes.HasVolume("PROGDIR"))
+        {
+            assigns["PROGDIR"] = programAmigaDirectory;
+        }
+        else if (programDirectory != null && !options.Assigns.ContainsKey("PROGDIR") &&
+                 !volumes.HasVolume("PROGDIR"))
         {
             var programPath = FindAmigaPath(volumes, programDirectory);
             if (programPath != null)
@@ -380,6 +456,99 @@ public class AmigaVm
     }
 
     /// <summary>
+    /// Mount volumes in adf and disk images. Volumes are added with volume names, e.g. Workbench, and device names,
+    /// e.g. DF0 and DH0, are assigned to volumes.
+    /// </summary>
+    /// <returns>Name of volume for SYS:, adf or bootable partition with highest boot priority in first image,
+    /// or null if there are no images.</returns>
+    private string MountImages(VolumeManager volumes, IDictionary<string, string> assigns,
+        List<ImageVolume> imageVolumes)
+    {
+        string sysVolume = null;
+        var floppyNumber = 0;
+        foreach (var image in options.Images ?? Enumerable.Empty<VmImage>())
+        {
+            IList<ImageVolume> mounted;
+            try
+            {
+                mounted = ImageMounter.Mount(image.Stream, image.Writable, $"DF{floppyNumber}", context.Log)
+                    .GetAwaiter().GetResult();
+            }
+            catch (Exception e) when (e is IOException or NotSupportedException or ArgumentException
+                                          or Hst.Amiga.FileSystems.Exceptions.FileSystemException
+                                          or RigidDiskBlocks.Exceptions.RigidDiskBlockException)
+            {
+                throw new VmException($"Unable to mount image '{image.Name}': {e.Message}");
+            }
+
+            imageVolumes.AddRange(mounted);
+            if (mounted.Count == 0)
+            {
+                context.Log($"Warning: No volumes mounted from image '{image.Name}'");
+                continue;
+            }
+
+            if (mounted.Any(x => x.PartitionNumber == 0))
+            {
+                floppyNumber++;
+            }
+
+            var volumeNames = new Dictionary<ImageVolume, string>();
+            foreach (var imageVolume in mounted)
+            {
+                var deviceName = imageVolume.DeviceName;
+                var volumeName = imageVolume.VolumeName;
+                if (!IsValidVolumeName(volumeName) || volumes.HasVolume(volumeName) || assigns.ContainsKey(volumeName) ||
+                    options.Assigns.ContainsKey(volumeName))
+                {
+                    volumeName = deviceName;
+                }
+
+                if (volumes.HasVolume(volumeName))
+                {
+                    context.Log(
+                        $"Warning: Volume {volumeName}: from image '{image.Name}' already exists and is not mounted");
+                    continue;
+                }
+
+                volumes.AddVolume(volumeName, imageVolume.FileSystem);
+                volumeNames[imageVolume] = volumeName;
+
+                if (string.Equals(volumeName, deviceName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (volumes.HasVolume(deviceName) || assigns.ContainsKey(deviceName))
+                {
+                    context.Log(
+                        $"Warning: Device {deviceName}: from image '{image.Name}' already exists, volume is mounted as {volumeName}:");
+                    continue;
+                }
+
+                assigns[deviceName] = $"{volumeName}:";
+            }
+
+            if (sysVolume != null)
+            {
+                continue;
+            }
+
+            // adf or bootable partition with highest boot priority, otherwise first partition
+            var bootVolume = ImageMounter.SelectBootVolume(mounted.Where(volumeNames.ContainsKey));
+            if (bootVolume != null)
+            {
+                sysVolume = volumeNames[bootVolume];
+            }
+        }
+
+        return sysVolume;
+    }
+
+    private static bool IsValidVolumeName(string name) =>
+        !string.IsNullOrWhiteSpace(name) && name.IndexOfAny(new[] { ':', '/', '\0' }) < 0;
+
+    /// <summary>
     /// Find Amiga path of host directory, if it's within a volume.
     /// </summary>
     private static string FindAmigaPath(VolumeManager volumes, string hostDirectory)
@@ -390,7 +559,12 @@ public class AmigaVm
             : StringComparison.OrdinalIgnoreCase;
         foreach (var volume in volumes.VolumeNames.Where(x => !string.Equals(x, "RAM", StringComparison.OrdinalIgnoreCase)))
         {
-            var root = volumes.GetVolumeHostPath(volume).TrimEnd(Path.DirectorySeparatorChar);
+            var root = volumes.GetVolumeHostPath(volume)?.TrimEnd(Path.DirectorySeparatorChar);
+            if (root == null)
+            {
+                continue;
+            }
+
             if (string.Equals(fullPath, root, comparison))
             {
                 return $"{volume}:";
@@ -408,16 +582,22 @@ public class AmigaVm
 
     private AmigaPath FindCurrentDirectory(VolumeManager volumes)
     {
-        var root = volumes.GetRoot("SYS") ?? volumes.GetRoot(volumes.VolumeNames.First());
+        var root = volumes.Resolve("SYS:", null) ?? volumes.GetRoot(volumes.VolumeNames.First());
         if (!string.IsNullOrEmpty(options.CurrentDirectory))
         {
             var path = volumes.Resolve(options.CurrentDirectory, root);
-            if (path == null || !Directory.Exists(path.HostPath))
+            if (!volumes.IsDirectory(path))
             {
                 throw new VmException($"Current directory '{options.CurrentDirectory}' doesn't exist");
             }
 
             return path;
+        }
+
+        // current directory is root of SYS:, when SYS: is in an adf or disk image
+        if (volumes.GetVolumeHostPath(root.Volume) == null)
+        {
+            return root;
         }
 
         var hostCurrentDirectory = FindAmigaPath(volumes, Directory.GetCurrentDirectory());

@@ -175,7 +175,7 @@ public partial class DosLibrary
         else if (args[9] is string exists)
         {
             var path = ResolvePath(exists);
-            condition = path != null && (File.Exists(path.HostPath) || Directory.Exists(path.HostPath));
+            condition = path != null && Exists(path);
         }
         else
         {
@@ -380,13 +380,13 @@ public partial class DosLibrary
         }
 
         var env = ResolvePath("ENV:");
-        if (env == null || !Directory.Exists(env.HostPath))
+        if (env == null || !IsDirectory(env))
         {
             return Enumerable.Empty<(string, string)>();
         }
 
-        return Directory.EnumerateFiles(env.HostPath)
-            .Select(x => (Path.GetFileName(x), GetVariableText(Path.GetFileName(x)) ?? string.Empty))
+        return volumes.ListNames(env).Where(x => IsFile(volumes.GetChild(env, x)))
+            .Select(x => (x, GetVariableText(x) ?? string.Empty))
             .OrderBy(x => x.Item1, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
@@ -426,12 +426,12 @@ public partial class DosLibrary
     private string ReadGlobalVariable(string name)
     {
         var path = GetEnvPath(name, false);
-        if (path == null || !File.Exists(path.HostPath))
+        if (path == null || !IsFile(path))
         {
             return null;
         }
 
-        var bytes = File.ReadAllBytes(path.HostPath);
+        var bytes = volumes.ReadAllBytes(path);
         var text = Ram.GetString(bytes, 0, bytes.Length);
         var lineFeed = text.IndexOf('\n');
         return lineFeed >= 0 ? text.Substring(0, lineFeed) : text;
@@ -555,7 +555,7 @@ public partial class DosLibrary
         }
 
         var path = ResolvePath(name);
-        if (path == null || !Directory.Exists(path.HostPath))
+        if (path == null || !IsDirectory(path))
         {
             SetIoErr(path == null ? DosErrors.DeviceNotMounted : DosErrors.ObjectNotFound);
             Print($"Can't find {name}\n");
@@ -588,7 +588,7 @@ public partial class DosLibrary
             }
 
             var resolved = ResolvePath(path);
-            if (resolved == null || !Directory.Exists(resolved.HostPath))
+            if (resolved == null || !IsDirectory(resolved))
             {
                 if (args[5] is not true)
                 {
@@ -746,9 +746,8 @@ public partial class DosLibrary
 
         try
         {
-            using var stream = File.OpenRead(path.HostPath);
-            var segList = loader.Load(stream).GetAwaiter().GetResult().Bptr;
-            var residentName = file == null ? Path.GetFileName(path.HostPath) : name;
+            var segList = LoadSegment(path).Bptr;
+            var residentName = file == null ? path.Name : name;
             if (residentSegments.TryGetValue(residentName, out var existing))
             {
                 loader.Unload(existing);

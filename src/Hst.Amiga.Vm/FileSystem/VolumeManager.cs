@@ -6,14 +6,14 @@ using System.IO;
 using System.Linq;
 
 /// <summary>
-/// Maps Amiga volumes to host directories and resolves Amiga paths with volumes, assigns, parent
-/// references and case insensitive names to host paths.
+/// Maps Amiga volumes to volume file systems, e.g. host directories or Amiga file systems in adf and disk image
+/// files, and resolves Amiga paths with volumes, assigns, parent references and case insensitive names.
 /// </summary>
 public class VolumeManager
 {
     private const int MaxAssignDepth = 16;
 
-    private readonly Dictionary<string, string> volumes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IVolumeFileSystem> volumes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<string>> assigns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> volumeNames = new(StringComparer.OrdinalIgnoreCase);
 
@@ -35,21 +35,30 @@ public class VolumeManager
     /// </summary>
     public void AddVolume(string name, string hostPath)
     {
+        var fullPath = Path.GetFullPath(hostPath);
+        if (!Directory.Exists(fullPath))
+        {
+            throw new DirectoryNotFoundException(
+                $"Volume {TrimColon(name)}: host directory '{fullPath}' doesn't exist");
+        }
+
+        AddVolume(name, new HostVolumeFileSystem(fullPath, Metadata));
+        Metadata.AddRoot(fullPath);
+    }
+
+    /// <summary>
+    /// Add volume mapped to volume file system, e.g. an Amiga file system in an adf or disk image file.
+    /// </summary>
+    public void AddVolume(string name, IVolumeFileSystem fileSystem)
+    {
         name = TrimColon(name);
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException("Volume name is empty", nameof(name));
         }
 
-        var fullPath = Path.GetFullPath(hostPath);
-        if (!Directory.Exists(fullPath))
-        {
-            throw new DirectoryNotFoundException($"Volume {name}: host directory '{fullPath}' doesn't exist");
-        }
-
-        volumes[name] = fullPath;
+        volumes[name] = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
         volumeNames[name] = name;
-        Metadata.AddRoot(fullPath);
     }
 
     /// <summary>
@@ -73,7 +82,80 @@ public class VolumeManager
 
     public bool HasAssign(string name) => assigns.ContainsKey(TrimColon(name));
 
-    public string GetVolumeHostPath(string name) => volumes.TryGetValue(TrimColon(name), out var path) ? path : null;
+    /// <summary>
+    /// Get host directory of volume.
+    /// </summary>
+    /// <returns>Host directory or null, if volume doesn't exist or isn't mapped to a host directory.</returns>
+    public string GetVolumeHostPath(string name) =>
+        volumes.TryGetValue(TrimColon(name), out var fileSystem) ? fileSystem.HostRoot : null;
+
+    /// <summary>
+    /// Get file system of volume.
+    /// </summary>
+    /// <returns>File system or null, if volume doesn't exist.</returns>
+    public IVolumeFileSystem GetFileSystem(string volume) =>
+        volumes.TryGetValue(TrimColon(volume), out var fileSystem) ? fileSystem : null;
+
+    /// <summary>
+    /// Get file system of path.
+    /// </summary>
+    public IVolumeFileSystem GetFileSystem(AmigaPath path) =>
+        GetFileSystem(path.Volume) ?? throw new InvalidOperationException($"Volume '{path.Volume}' not found");
+
+    /// <summary>
+    /// Get information about file or directory.
+    /// </summary>
+    /// <returns>Information or null, if path doesn't exist.</returns>
+    public VolumeEntryInfo GetInfo(AmigaPath path) => path == null ? null : GetFileSystem(path).GetInfo(path);
+
+    /// <summary>
+    /// Does file or directory exist.
+    /// </summary>
+    public bool Exists(AmigaPath path) => GetInfo(path) != null;
+
+    /// <summary>
+    /// Is path an existing directory.
+    /// </summary>
+    public bool IsDirectory(AmigaPath path) => GetInfo(path) is { IsDirectory: true };
+
+    /// <summary>
+    /// Is path an existing file.
+    /// </summary>
+    public bool IsFile(AmigaPath path) => GetInfo(path) is { IsDirectory: false };
+
+    /// <summary>
+    /// Read all bytes of file.
+    /// </summary>
+    public byte[] ReadAllBytes(AmigaPath path)
+    {
+        using var stream = GetFileSystem(path).OpenFile(path, VolumeFileMode.OldFile);
+        using var memoryStream = new MemoryStream();
+        stream.CopyTo(memoryStream);
+        return memoryStream.ToArray();
+    }
+
+    /// <summary>
+    /// Write all bytes to file, creating parent directories if they don't exist.
+    /// </summary>
+    public void WriteAllBytes(AmigaPath path, byte[] data)
+    {
+        var fileSystem = GetFileSystem(path);
+        CreateParentDirectories(path);
+        using var stream = fileSystem.OpenFile(path, VolumeFileMode.NewFile);
+        stream.Write(data, 0, data.Length);
+    }
+
+    private void CreateParentDirectories(AmigaPath path)
+    {
+        var parent = GetParent(path);
+        if (parent == null || IsDirectory(parent))
+        {
+            return;
+        }
+
+        CreateParentDirectories(parent);
+        GetFileSystem(parent).CreateDirectory(parent);
+    }
 
     private static string TrimColon(string name) => (name ?? string.Empty).TrimEnd(':');
 
@@ -83,8 +165,8 @@ public class VolumeManager
     public AmigaPath GetRoot(string volume)
     {
         volume = TrimColon(volume);
-        return volumes.TryGetValue(volume, out var hostPath)
-            ? new AmigaPath(volumeNames[volume], Array.Empty<string>(), hostPath)
+        return volumes.TryGetValue(volume, out var fileSystem)
+            ? fileSystem.GetRoot(volumeNames[volume])
             : null;
     }
 
@@ -143,7 +225,7 @@ public class VolumeManager
                 continue;
             }
 
-            if (File.Exists(resolved.HostPath) || Directory.Exists(resolved.HostPath))
+            if (Exists(resolved))
             {
                 return resolved;
             }
@@ -164,6 +246,7 @@ public class VolumeManager
             return null;
         }
 
+        var fileSystem = GetFileSystem(directory);
         var components = directory.Components.ToList();
         if (!string.IsNullOrEmpty(relativePath))
         {
@@ -188,7 +271,7 @@ public class VolumeManager
                     continue;
                 }
 
-                if (!Metadata.IsValidName(part))
+                if (!fileSystem.IsValidName(part))
                 {
                     return null;
                 }
@@ -197,42 +280,26 @@ public class VolumeManager
             }
         }
 
-        var volumeRoot = volumes[directory.Volume];
-        var hostPath = volumeRoot;
-        var resolvedComponents = new string[components.Count];
-        for (var i = 0; i < components.Count; i++)
+        var path = fileSystem.GetRoot(directory.Volume);
+        foreach (var component in components)
         {
-            var entry = FindEntry(hostPath, components[i]);
-            resolvedComponents[i] = entry.AmigaName;
-            hostPath = Path.Combine(hostPath, entry.HostName);
+            path = fileSystem.GetChild(path, component);
         }
 
-        return new AmigaPath(directory.Volume, resolvedComponents, hostPath);
+        return path;
     }
-
-    /// <summary>
-    /// Find entry in host directory by Amiga name ignoring case. Host name for a new entry is created, if entry
-    /// doesn't exist.
-    /// </summary>
-    private HostEntry FindEntry(string hostDirectory, string amigaName) =>
-        Metadata.Find(hostDirectory, amigaName) ??
-        new HostEntry(amigaName, Metadata.CreateHostName(hostDirectory, amigaName));
 
     /// <summary>
     /// Get entry in directory by Amiga name.
     /// </summary>
-    public AmigaPath GetChild(AmigaPath directory, string amigaName)
-    {
-        var entry = FindEntry(directory.HostPath, amigaName);
-        return new AmigaPath(directory.Volume, directory.Components.Concat(new[] { entry.AmigaName }).ToArray(),
-            Path.Combine(directory.HostPath, entry.HostName));
-    }
+    public AmigaPath GetChild(AmigaPath directory, string amigaName) =>
+        GetFileSystem(directory).GetChild(directory, amigaName);
 
     /// <summary>
     /// List Amiga names of entries in directory sorted by name.
     /// </summary>
     public string[] ListNames(AmigaPath directory) =>
-        Metadata.List(directory.HostPath).Select(x => x.AmigaName)
+        GetFileSystem(directory).ListNames(directory)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
 
     /// <summary>
@@ -247,6 +314,7 @@ public class VolumeManager
         }
 
         var components = path.Components.Take(path.Components.Length - 1).ToArray();
-        return new AmigaPath(path.Volume, components, Path.GetDirectoryName(path.HostPath));
+        return new AmigaPath(path.Volume, components,
+            path.HostPath == null ? null : Path.GetDirectoryName(path.HostPath));
     }
 }

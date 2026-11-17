@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using Exec;
+using FileSystem;
 using Structs;
 
 public partial class DosLibrary
@@ -171,57 +172,32 @@ public partial class DosLibrary
             return 0;
         }
 
-        if (path.IsRoot || Directory.Exists(path.HostPath))
+        if (path.IsRoot || IsDirectory(path))
         {
             SetIoErr(DosErrors.ObjectWrongType);
             return 0;
         }
 
-        FileStream stream;
-        var existed = File.Exists(path.HostPath);
+        if (mode != ModeNewFile && mode != ModeReadWrite && !IsFile(path))
+        {
+            SetIoErr(DosErrors.ObjectNotFound);
+            return 0;
+        }
+
+        Stream stream;
         try
         {
-            switch (mode)
+            stream = FileSystemOf(path).OpenFile(path, mode switch
             {
-                case ModeNewFile:
-                    stream = new FileStream(path.HostPath, FileMode.Create, FileAccess.ReadWrite,
-                        FileShare.ReadWrite | FileShare.Delete);
-                    break;
-                case ModeReadWrite:
-                    stream = new FileStream(path.HostPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
-                        FileShare.ReadWrite | FileShare.Delete);
-                    break;
-                default:
-                    if (!File.Exists(path.HostPath))
-                    {
-                        SetIoErr(DosErrors.ObjectNotFound);
-                        return 0;
-                    }
-
-                    try
-                    {
-                        stream = new FileStream(path.HostPath, FileMode.Open, FileAccess.ReadWrite,
-                            FileShare.ReadWrite | FileShare.Delete);
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        // read only file
-                        stream = new FileStream(path.HostPath, FileMode.Open, FileAccess.Read,
-                            FileShare.ReadWrite | FileShare.Delete);
-                    }
-
-                    break;
-            }
+                ModeNewFile => VolumeFileMode.NewFile,
+                ModeReadWrite => VolumeFileMode.ReadWrite,
+                _ => VolumeFileMode.OldFile
+            });
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             SetIoErr(MapException(e));
             return 0;
-        }
-
-        if (!existed)
-        {
-            Metadata.Created(path.HostPath, path.Name);
         }
 
         return CreateFileHandle(address => new DosFile(address, stream, stream, false, false, path, true));
@@ -408,12 +384,17 @@ public partial class DosLibrary
             }
 
             file.Flush();
-            ((FileStream)file.Input).SetLength(newSize);
+            file.Input.SetLength(newSize);
             D0 = (uint)newSize;
         }
         catch (IOException e)
         {
             SetIoErr(MapException(e));
+            D0 = 0xFFFFFFFF;
+        }
+        catch (NotSupportedException)
+        {
+            SetIoErr(DosErrors.DiskWriteProtected);
             D0 = 0xFFFFFFFF;
         }
     }

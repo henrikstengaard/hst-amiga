@@ -163,12 +163,16 @@ public partial class DosLibrary
             }
 
             var protection = D2;
-            if (!path.IsRoot)
+            try
             {
-                Metadata.Set(path.HostPath, path.Name, x => x.Protection = protection);
+                FileSystemOf(path).SetProtection(path, protection);
+                D0 = unchecked((uint)DosTrue);
             }
-
-            D0 = unchecked((uint)DosTrue);
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                SetIoErr(MapException(e));
+                D0 = 0;
+            }
         });
         Register("SetComment", () =>
         {
@@ -188,12 +192,16 @@ public partial class DosLibrary
                 return;
             }
 
-            if (!path.IsRoot)
+            try
             {
-                Metadata.Set(path.HostPath, path.Name, x => x.Comment = comment);
+                FileSystemOf(path).SetComment(path, comment);
+                D0 = unchecked((uint)DosTrue);
             }
-
-            D0 = unchecked((uint)DosTrue);
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                SetIoErr(MapException(e));
+                D0 = 0;
+            }
         });
         Register("SetFileDate", () =>
         {
@@ -207,22 +215,7 @@ public partial class DosLibrary
 
             try
             {
-                var date = ReadDateStamp(D2);
-                if (Directory.Exists(path.HostPath))
-                {
-                    Directory.SetLastWriteTime(path.HostPath, date);
-                }
-                else
-                {
-                    File.SetLastWriteTime(path.HostPath, date);
-                }
-
-                // date stored in metadata is used instead of host date, e.g. in uae metafiles
-                if (!path.IsRoot && Metadata.Get(path.HostPath).Date != null)
-                {
-                    Metadata.Set(path.HostPath, path.Name, x => x.Date = date);
-                }
-
+                FileSystemOf(path).SetDate(path, ReadDateStamp(D2));
                 D0 = unchecked((uint)DosTrue);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
@@ -346,10 +339,7 @@ public partial class DosLibrary
         return 0;
     }
 
-    private EntryMetadata GetMetadata(AmigaPath path) =>
-        path.IsRoot ? new EntryMetadata() : Metadata.Get(path.HostPath);
-
-    private uint GetProtection(AmigaPath path) => GetMetadata(path).Protection;
+    private uint GetProtection(AmigaPath path) => volumes.GetInfo(path)?.Protection ?? 0;
 
     /// <summary>
     /// Fill file info block with information about file or directory.
@@ -358,66 +348,34 @@ public partial class DosLibrary
     {
         Ram.Fill(fib, FileInfoBlockStruct.Size);
 
-        var isDirectory = path.IsRoot || Directory.Exists(path.HostPath);
+        var info = volumes.GetInfo(path) ?? new VolumeEntryInfo { Date = DateTime.Now };
+        var isDirectory = path.IsRoot || info.IsDirectory;
         var entryType = path.IsRoot ? StRoot : isDirectory ? StUserDir : StFile;
-        long size = 0;
-        DateTime date;
-        try
-        {
-            if (isDirectory)
-            {
-                date = Directory.GetLastWriteTime(path.HostPath);
-            }
-            else
-            {
-                var fileInfo = new FileInfo(path.HostPath);
-                size = fileInfo.Length;
-                date = fileInfo.LastWriteTime;
-            }
-        }
-        catch (IOException)
-        {
-            date = DateTime.Now;
-        }
-
-        var metadata = GetMetadata(path);
-        date = metadata.Date ?? date;
+        var size = isDirectory ? 0 : info.Size;
+        var date = info.Date;
 
         Ram.WriteLong(fib + FileInfoBlockStruct.DiskKey, (uint)diskKey);
         Ram.WriteLong(fib + FileInfoBlockStruct.DirEntryType, (uint)entryType);
         WriteString(fib + FileInfoBlockStruct.FileName, 108, path.Name);
-        Ram.WriteLong(fib + FileInfoBlockStruct.Protection, metadata.Protection);
+        Ram.WriteLong(fib + FileInfoBlockStruct.Protection, info.Protection);
         Ram.WriteLong(fib + FileInfoBlockStruct.EntryType, (uint)entryType);
         Ram.WriteLong(fib + FileInfoBlockStruct.FileSize, (uint)Math.Min(size, uint.MaxValue));
         Ram.WriteLong(fib + FileInfoBlockStruct.NumBlocks, (uint)Math.Min((size + 511) / 512, uint.MaxValue));
         WriteDateStamp(fib + FileInfoBlockStruct.Date, date);
-        WriteString(fib + FileInfoBlockStruct.Comment, 80, metadata.Comment);
+        WriteString(fib + FileInfoBlockStruct.Comment, 80, info.Comment ?? string.Empty);
     }
 
     private void FillInfoData(uint infoData, AmigaPath path)
     {
         Ram.Fill(infoData, InfoDataStruct.Size);
         const uint blockSize = 512;
-        long totalBlocks = 0x100000;
-        long freeBlocks = 0x80000;
-        try
-        {
-            var root = Path.GetPathRoot(path.HostPath);
-            if (!string.IsNullOrEmpty(root))
-            {
-                var drive = new DriveInfo(root);
-                totalBlocks = drive.TotalSize / blockSize;
-                freeBlocks = drive.AvailableFreeSpace / blockSize;
-            }
-        }
-        catch (Exception e) when (e is IOException or ArgumentException or UnauthorizedAccessException)
-        {
-        }
+        var fileSystem = FileSystemOf(path);
+        var (size, free) = fileSystem.GetSpace(path);
+        var totalBlocks = Math.Min(size / blockSize, int.MaxValue);
+        var freeBlocks = Math.Min(free / blockSize, totalBlocks);
 
-        totalBlocks = Math.Min(totalBlocks, int.MaxValue);
-        freeBlocks = Math.Min(freeBlocks, totalBlocks);
-
-        Ram.WriteLong(infoData + InfoDataStruct.DiskState, 82); // ID_VALIDATED
+        // ID_WRITE_PROTECTED or ID_VALIDATED
+        Ram.WriteLong(infoData + InfoDataStruct.DiskState, fileSystem.IsReadOnly ? 80u : 82u);
         Ram.WriteLong(infoData + InfoDataStruct.NumBlocks, (uint)totalBlocks);
         Ram.WriteLong(infoData + InfoDataStruct.NumBlocksUsed, (uint)(totalBlocks - freeBlocks));
         Ram.WriteLong(infoData + InfoDataStruct.BytesPerBlock, blockSize);
@@ -441,7 +399,7 @@ public partial class DosLibrary
             return;
         }
 
-        if (!Directory.Exists(dosLock.Path.HostPath))
+        if (!IsDirectory(dosLock.Path))
         {
             SetIoErr(DosErrors.ObjectWrongType);
             D0 = 0;
@@ -491,7 +449,7 @@ public partial class DosLibrary
         }
 
         var parent = volumes.GetParent(path);
-        if (parent == null || !Directory.Exists(parent.HostPath))
+        if (parent == null || !IsDirectory(parent))
         {
             SetIoErr(DosErrors.DirNotFound);
             D0 = 0;
@@ -500,8 +458,7 @@ public partial class DosLibrary
 
         try
         {
-            Directory.CreateDirectory(path.HostPath);
-            Metadata.Created(path.HostPath, path.Name);
+            FileSystemOf(path).CreateDirectory(path);
             D0 = CreateLock(path, ExclusiveLock);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -536,23 +493,7 @@ public partial class DosLibrary
 
         try
         {
-            if (Directory.Exists(path.HostPath))
-            {
-                if (!Metadata.IsEmptyDirectory(path.HostPath))
-                {
-                    SetIoErr(DosErrors.DirectoryNotEmpty);
-                    D0 = 0;
-                    return;
-                }
-
-                Metadata.DeleteDirectory(path.HostPath);
-            }
-            else
-            {
-                File.Delete(path.HostPath);
-            }
-
-            Metadata.Deleted(path.HostPath);
+            FileSystemOf(path).Delete(path);
             D0 = unchecked((uint)DosTrue);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -586,7 +527,7 @@ public partial class DosLibrary
             return;
         }
 
-        var caseOnly = string.Equals(oldPath.HostPath, newPath.HostPath, StringComparison.OrdinalIgnoreCase);
+        var caseOnly = oldPath.IsSame(newPath);
         if (Exists(newPath) && !caseOnly)
         {
             SetIoErr(DosErrors.ObjectExists);
@@ -596,17 +537,7 @@ public partial class DosLibrary
 
         try
         {
-            var metadata = Metadata.Get(oldPath.HostPath);
-            if (Directory.Exists(oldPath.HostPath))
-            {
-                Directory.Move(oldPath.HostPath, newPath.HostPath);
-            }
-            else
-            {
-                File.Move(oldPath.HostPath, newPath.HostPath);
-            }
-
-            Metadata.Renamed(oldPath.HostPath, newPath.HostPath, newPath.Name, metadata);
+            FileSystemOf(oldPath).Rename(oldPath, newPath);
             D0 = unchecked((uint)DosTrue);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -625,7 +556,7 @@ public partial class DosLibrary
             return;
         }
 
-        if (!File.Exists(path.HostPath))
+        if (!IsFile(path))
         {
             SetIoErr(DosErrors.ObjectNotFound);
             D0 = 0;
@@ -634,9 +565,7 @@ public partial class DosLibrary
 
         try
         {
-            using var stream = File.OpenRead(path.HostPath);
-            var segmentList = loader.Load(stream).GetAwaiter().GetResult();
-            D0 = segmentList.Bptr;
+            D0 = LoadSegment(path).Bptr;
         }
         catch (IOException)
         {
@@ -671,7 +600,7 @@ public partial class DosLibrary
             return;
         }
 
-        if (!Directory.Exists(dosLock.Path.HostPath))
+        if (!IsDirectory(dosLock.Path))
         {
             SetIoErr(DosErrors.ObjectWrongType);
             D0 = 0;
@@ -709,8 +638,8 @@ public partial class DosLibrary
 
             var entryPath = Child(dosLock.Path, name);
             var nameBytes = Ram.GetBytes(name);
-            var metadata = GetMetadata(entryPath);
-            var comment = metadata.Comment;
+            var info = volumes.GetInfo(entryPath) ?? new VolumeEntryInfo { Date = DateTime.Now };
+            var comment = info.Comment ?? string.Empty;
             var commentBytes = type >= edComment ? Ram.GetBytes(comment) : Array.Empty<byte>();
             var required = (uint)(structSize + nameBytes.Length + 1 + (type >= edComment ? commentBytes.Length + 1 : 0));
             required = (required + 3) & ~3u;
@@ -725,27 +654,9 @@ public partial class DosLibrary
             Ram.WriteLong(position + 4, stringPosition);
             stringPosition += (uint)nameBytes.Length + 1;
 
-            var isDirectory = Directory.Exists(entryPath.HostPath);
-            long fileSize = 0;
-            var date = DateTime.Now;
-            try
-            {
-                if (isDirectory)
-                {
-                    date = Directory.GetLastWriteTime(entryPath.HostPath);
-                }
-                else
-                {
-                    var fileInfo = new FileInfo(entryPath.HostPath);
-                    fileSize = fileInfo.Length;
-                    date = fileInfo.LastWriteTime;
-                }
-            }
-            catch (IOException)
-            {
-            }
-
-            date = metadata.Date ?? date;
+            var isDirectory = info.IsDirectory;
+            var fileSize = isDirectory ? 0 : info.Size;
+            var date = info.Date;
 
             if (type >= edType)
             {
@@ -759,7 +670,7 @@ public partial class DosLibrary
 
             if (type >= edProtection)
             {
-                Ram.WriteLong(position + 16, metadata.Protection);
+                Ram.WriteLong(position + 16, info.Protection);
             }
 
             if (type >= edDate)

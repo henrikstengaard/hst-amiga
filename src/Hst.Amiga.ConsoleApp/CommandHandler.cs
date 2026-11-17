@@ -160,7 +160,7 @@ public static class CommandHandler
     public static async Task<int> VmRun(VmRunMode mode, string executablePath, string[] arguments, string cpu,
         int? memory, int? stack, string[] volumes, string[] assigns, string[] stubLibraries, string currentDirectory,
         long? maxInstructions, bool trace, bool traceLibraries, string uaeMetadata, bool writeUaeMetadata,
-        CancellationToken token)
+        string[] images, bool imageContext, bool writeImage, CancellationToken token)
     {
         Vm.VmOptions options;
         try
@@ -196,7 +196,8 @@ public static class CommandHandler
 
         try
         {
-            var command = new VmRunCommand(executablePath, arguments, options, mode);
+            var command = new VmRunCommand(executablePath, arguments, options, mode, images, imageContext,
+                writeImage);
             var result = await command.Execute(x => vm = x, cancellationTokenSource.Token);
             if (!result.IsSuccess)
             {

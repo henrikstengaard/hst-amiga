@@ -163,11 +163,11 @@ public partial class DosLibrary
         else if ((flags & GvfLocalOnly) == 0)
         {
             var path = GetEnvPath(name, false);
-            if (path != null && File.Exists(path.HostPath))
+            if (path != null && IsFile(path))
             {
                 try
                 {
-                    value = File.ReadAllBytes(path.HostPath);
+                    value = volumes.ReadAllBytes(path);
                 }
                 catch (IOException)
                 {
@@ -269,13 +269,7 @@ public partial class DosLibrary
 
         try
         {
-            var directory = Path.GetDirectoryName(path.HostPath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            File.WriteAllBytes(path.HostPath, value);
+            volumes.WriteAllBytes(path, value);
             return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -304,7 +298,7 @@ public partial class DosLibrary
         }
 
         var path = GetEnvPath(name, false);
-        if (path == null || !File.Exists(path.HostPath))
+        if (path == null || !IsFile(path))
         {
             SetIoErr(DosErrors.ObjectNotFound);
             return false;
@@ -312,7 +306,7 @@ public partial class DosLibrary
 
         try
         {
-            File.Delete(path.HostPath);
+            FileSystemOf(path).Delete(path);
             return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)

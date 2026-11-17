@@ -18,6 +18,7 @@ Features:
 - Emulated version.library telling Workbench version 40.42 and Kickstart 40.68 in ExecBase, with resident modules for the emulated libraries, so the Version command shows versions.
 - Stub libraries, which can be opened, but stop the program if a function is called. Default stubs are intuition.library and graphics.library, which are often opened by compiler startup code.
 - Volumes mapping Amiga volume names to host directories and assigns mapping names to Amiga paths.
+- Adf and disk images with rigid disk block mounted as volumes, so programs run in the context of the Amiga file systems in the images using FFS, PFS3 and SFS support of Hst Amiga. Adf images are mounted as DF0:, DF1: etc. and partitions with their device names, e.g. DH0:. SYS: is assigned to the first image, which is an adf or the bootable partition with highest boot priority. Images are write protected, unless they are writable.
 - UAE metadata with Amiga names, protection bits, comments and dates stored as UAEFSDB `_UAEFSDB.___` files used by WinUAE or UAE metafiles `.uaem` used by FS-UAE.
 - AmigaDOS shell running scripts and interactive command lines:
     - Scripts run with Execute command from C:, e.g. from an AmigaOS 3.1 Workbench installation, including `.KEY` arguments handled by Execute.
@@ -70,6 +71,17 @@ var result = await new AmigaVm(options).Execute("SYS:S/SPat", "list sys:c/a#?");
 
 // interactive shell reading command lines from console input
 await new AmigaVm(options).Shell();
+```
+
+Example of running an Amiga executable from an adf image in the context of the adf with SYS: and DF0: mapped to the adf:
+```csharp
+await using var adf = File.OpenRead(@"c:\amiga\workbench.adf");
+
+var options = new VmOptions();
+options.Images.Add(new VmImage(adf, "workbench.adf"));
+
+// executable is read from adf and PROGDIR: is assigned to DF0:C
+var result = await new AmigaVm(options).RunFromVolume("DF0:C/List", "SYS:");
 ```
 
 A program, which sets current input of the command line interface to a script like Execute does, continues running the script in the shell after the program returns, so `Run` of the Execute command runs scripts too.

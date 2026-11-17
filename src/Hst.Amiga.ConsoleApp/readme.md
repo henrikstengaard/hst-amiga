@@ -534,6 +534,54 @@ Example of running Amiga executable `test` emulating a 68000 cpu with 2 MB memor
 hst.amiga vm run test -c 68000 -m 2 --trace-libs
 ```
 
+#### Adf and disk images
+
+The executable can be a host file or a path to a file in an adf or disk image file, e.g. `workbench.adf\c\list`. The first part of the path, which is an existing file, must be an image: an adf with the size of a double or high density floppy disk or a disk image with a rigid disk block in one of the first 16 sectors. The rest of the path is the executable in the image.
+
+Paths in disk images are in the boot partition, which is the bootable partition with highest boot priority, e.g. `disk.vhd\c\list`. Paths starting with `rdb`, the partition number starting from 1 or the device name of the partition are in that partition, e.g. `disk.vhd\rdb\1\c\list` or `disk.vhd\rdb\dh0\c\list`. Virtual hard disk files `.vhd` and raw images like `.hdf` and `.img` are supported.
+
+Option `--image-context` sets if image context is used and defaults to false. Without image context, the executable is read from the image and runs with host directories mapped as volumes, so paths are resolved on the host.
+
+Use `--image-context` or `--image-context true` to run the executable in the context of the image instead. The image is mounted, so paths are resolved in the Amiga file systems of the image, using FFS, PFS3 and SFS file system support of Hst Amiga:
+- Adf is mounted as DF0: and SYS: is assigned to DF0:.
+- Partitions in a disk image are mounted with their device names, e.g. DH0: and DH1:, and SYS: is assigned to the bootable partition with highest boot priority.
+- Volumes are added with their volume names, e.g. Workbench:, and device names are assigns to volumes. C:, S:, L:, LIBS: etc. are assigned to directories in SYS:.
+- RAM:, T: and ENV: are mapped to a temporary host directory and host directories can still be mapped as volumes with `-V`.
+
+Use `--image` to mount adf and disk images with `run`, `execute` and `shell` commands. Adf images are mounted as DF0:, DF1: etc. in order and SYS: is assigned to the first image. With `run` the executable can then be an Amiga path, e.g. `C:List`.
+
+Images are opened read only by default and volumes are write protected, so writing fails with `disk is write-protected`. Use `--write-image` to open images for writing.
+
+Example of running Amiga executable `list` from adf listing current directory with SYS: mapped to current directory:
+```
+hst.amiga vm run workbench.adf\c\list
+```
+
+Example of running Amiga executable `list` from adf in the context of the adf listing SYS:, which is the root of the adf:
+```
+hst.amiga vm run --image-context workbench.adf\c\list -- SYS:
+```
+
+Example of running Amiga executable `list` from first partition in disk image in the context of the disk image listing DH0:
+```
+hst.amiga vm run --image-context disk.vhd\rdb\1\c\list -- DH0:
+```
+
+Example of running Amiga executable `list` from boot partition in disk image in the context of the disk image listing SYS:, which is the boot partition:
+```
+hst.amiga vm run --image-context true disk.vhd\c\list -- SYS:
+```
+
+Example of running Amiga executable `version` from SYS: of disk image:
+```
+hst.amiga vm run --image disk.vhd C:Version
+```
+
+Example of running an interactive shell with adf mounted for writing:
+```
+hst.amiga vm shell --image workbench.adf --write-image
+```
+
 ### Execute AmigaDOS script
 
 Executes an AmigaDOS script in the virtual machine with the Execute command from C:, e.g. from an AmigaOS 3.1 Workbench installation mapped to SYS:. Execute handles `.KEY` arguments and the virtual machine shell runs the script lines with the AmigaOS 3.1 shell internal commands like `If`, `Skip`, `Echo` and `Set`. Commands run synchronously, as there is no multitasking. The script is a host path or an Amiga path and the options are the same as for running an Amiga executable.
