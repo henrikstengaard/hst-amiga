@@ -90,4 +90,31 @@ public class GivenFastFileSystemDirectoryIndex : FastFileSystemTestBase
             Assert.Equal(50, (await volume.ListEntries()).Count());
         }
     }
+
+    [Theory]
+    [MemberData(nameof(DosTypes))]
+    public async Task WhenCreateFileInDirectoryWithManyEntriesThenDirectoryIsIndexedWithBatchedReads(byte[] dosType)
+    {
+        // arrange - create disk with many files
+        var stream = new CountingStream(await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType));
+        const int files = 500;
+        await using (var volume = await MountVolume(stream))
+        {
+            for (var i = 0; i < files; i++)
+            {
+                await volume.CreateFile($"File{i}");
+            }
+        }
+
+        await using (var volume = await MountVolume(stream))
+        {
+            // act - create file, which indexes directory
+            stream.Reset();
+            await volume.CreateFile("New");
+
+            // assert - directory is indexed with less reads than entries
+            Assert.True(stream.Reads < files / 4, $"{stream.Reads} reads");
+            Assert.Equal(files + 1, (await volume.ListEntries()).Count());
+        }
+    }
 }

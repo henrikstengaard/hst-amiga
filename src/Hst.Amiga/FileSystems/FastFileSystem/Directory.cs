@@ -93,6 +93,41 @@
             secType == Constants.ST_DIR || secType == Constants.ST_FILE || secType == Constants.ST_LFILE ||
             secType == Constants.ST_LDIR || secType == Constants.ST_LSOFT;
 
+        /// <summary>
+        /// Read entry blocks in hash table and hash chains level by level of hash chains, where blocks in each
+        /// level are read sorted by sector with blocks close to each other read with a single read
+        /// </summary>
+        /// <returns>Entry blocks by sector</returns>
+        private static async Task<Dictionary<uint, EntryBlock>> ReadEntryBlocks(Volume volume, uint[] hashTable)
+        {
+            var entryBlocks = new Dictionary<uint, EntryBlock>();
+            var level = hashTable.Where(sector => IsChainHeadValid(volume, sector)).ToList();
+            while (level.Count > 0)
+            {
+                await Disk.PrefetchBlocks(volume, level);
+
+                var nextLevel = new List<uint>();
+                foreach (var sector in level)
+                {
+                    if (entryBlocks.ContainsKey(sector))
+                    {
+                        continue;
+                    }
+
+                    var entryBlock = await Disk.ReadEntryBlock(volume, sector);
+                    entryBlocks[sector] = entryBlock;
+                    if (entryBlock.NextSameHash != 0 && !entryBlocks.ContainsKey(entryBlock.NextSameHash))
+                    {
+                        nextLevel.Add(entryBlock.NextSameHash);
+                    }
+                }
+
+                level = nextLevel;
+            }
+
+            return entryBlocks;
+        }
+
         private static bool IsChainHeadValid(Volume volume, uint sector) =>
             sector != 0 && sector >= volume.FirstBlock && sector <= volume.LastBlock;
 
@@ -128,33 +163,7 @@
 
             var startEntryBlock = await Disk.ReadEntryBlock(volume, nSect);
             var hashTable = startEntryBlock.HashTable;
-
-            // read entry blocks level by level of hash chains, where blocks in each level are read sorted by sector
-            // with blocks close to each other read with a single read
-            var entryBlocks = new Dictionary<uint, EntryBlock>();
-            var level = hashTable.Where(sector => IsChainHeadValid(volume, sector)).ToList();
-            while (level.Count > 0)
-            {
-                await Disk.PrefetchBlocks(volume, level);
-
-                var nextLevel = new List<uint>();
-                foreach (var sector in level)
-                {
-                    if (entryBlocks.ContainsKey(sector))
-                    {
-                        continue;
-                    }
-
-                    var entryBlock = await Disk.ReadEntryBlock(volume, sector);
-                    entryBlocks[sector] = entryBlock;
-                    if (entryBlock.NextSameHash != 0 && !entryBlocks.ContainsKey(entryBlock.NextSameHash))
-                    {
-                        nextLevel.Add(entryBlock.NextSameHash);
-                    }
-                }
-
-                level = nextLevel;
-            }
+            var entryBlocks = await ReadEntryBlocks(volume, hashTable);
 
             // convert entry blocks to entries in hash table and hash chain order
             var entries = new List<Entry>(entryBlocks.Count);
@@ -312,15 +321,22 @@
 
             var intl = volume.UseIntl || volume.UseDirCache;
             index = new Dictionary<string, uint>();
-            var directoryBlock = await Disk.ReadEntryBlock(volume, directorySector);
-            foreach (var chainSector in directoryBlock.HashTable)
+
+            // index names and sectors from dir cache blocks, if volume uses dir cache
+            var cacheEntries = volume.UseDirCache ? await Cache.ReadEntries(volume, directorySector) : null;
+            if (cacheEntries != null)
             {
-                var sector = chainSector;
-                while (sector != 0 && Disk.IsSectorNumberValid(volume, sector))
+                foreach (var entry in cacheEntries)
                 {
-                    var entryBlock = await Disk.ReadEntryBlock(volume, sector);
-                    index[MyToUpper(entryBlock.Name, intl)] = sector;
-                    sector = entryBlock.NextSameHash;
+                    index[MyToUpper(entry.Name, intl)] = entry.Sector;
+                }
+            }
+            else
+            {
+                var directoryBlock = await Disk.ReadEntryBlock(volume, directorySector);
+                foreach (var entryBlock in await ReadEntryBlocks(volume, directoryBlock.HashTable))
+                {
+                    index[MyToUpper(entryBlock.Value.Name, intl)] = entryBlock.Key;
                 }
             }
 
