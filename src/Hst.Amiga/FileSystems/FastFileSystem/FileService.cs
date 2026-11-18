@@ -7,17 +7,27 @@
     using Exceptions;
     using FileMode = FileMode;
 
-    internal static class File
+    /// <summary>
+    /// Opens files and gets and frees file blocks of a volume.
+    /// </summary>
+    internal class FileService
     {
-        public static async Task<Stream> Open(Volume volume, Entry entry, FileMode mode = FileMode.Read)
+        private readonly Volume volume;
+
+        public FileService(Volume volume)
         {
-            return await Open(volume, entry.Parent, entry.Name, mode);
+            this.volume = volume;
         }
 
-        public static async Task<Stream> Open(Volume volume, uint parentSector, string name, FileMode mode,
+        public async Task<Stream> Open(Entry entry, FileMode mode = FileMode.Read)
+        {
+            return await Open(entry.Parent, entry.Name, mode);
+        }
+
+        public async Task<Stream> Open(uint parentSector, string name, FileMode mode,
             bool overwrite = false, bool ignoreProtectionBits = false)
         {
-            var parent = await Disk.ReadEntryBlock(volume, parentSector);
+            var parent = await volume.BlockStore.ReadEntryBlock(parentSector);
             
             var write = mode == FileMode.Write || mode == FileMode.Append;
 
@@ -26,7 +36,7 @@
                 throw new FileSystemException("Device is mounted read only");
             }
 
-            var result = await Directory.GetEntryBlock(volume, parent.HashTable, name, false);
+            var result = await volume.Directories.GetEntryBlock(parentSector, parent.HashTable, name);
             var nSect = result.NSect;
             if (!write && nSect == uint.MaxValue)
             {
@@ -42,13 +52,13 @@
             if (entry != null && entry.SecType == Constants.ST_LFILE)
             {
                 nSect = entry.RealEntry;
-                entry = await Disk.ReadEntryBlock(volume, entry.RealEntry);
+                entry = await volume.BlockStore.ReadEntryBlock(entry.RealEntry);
             }
             
             // free entry file blocks, if write and overwrite existing entry
             if (write && overwrite && nSect != uint.MaxValue)
             {
-                await AdfFreeFileBlocks(volume, entry);
+                await FreeFileBlocks(entry);
             }
             
             if (!write && entry == null)
@@ -87,7 +97,7 @@
 
             if (mode == FileMode.Write)
             {
-                fileHdr = overwrite && nSect != uint.MaxValue ? entry : await Directory.CreateFile(volume, parent, name);
+                fileHdr = overwrite && nSect != uint.MaxValue ? entry : await volume.Directories.CreateFile(parent, name);
                 if (overwrite)
                 {
                     // reset existing file header block for overwriting
@@ -120,26 +130,26 @@
  * adfFreeFileBlocks
  *
  */
-        public static async Task AdfFreeFileBlocks(Volume vol, EntryBlock entry)
+        public async Task FreeFileBlocks(EntryBlock entry)
         {
             // int i;
             // struct FileBlocks fileBlocks;
             // RETCODE rc = RC_OK;
 
-            var fileBlocks = await AdfGetFileBlocks(vol, entry);
+            var fileBlocks = await GetFileBlocks(entry);
 
             for(var i=0; i < fileBlocks.nbData; i++)
             {
-                Bitmap.AdfSetBlockFree(vol, fileBlocks.data[i]);
+                volume.Allocator.SetBlockFree(fileBlocks.data[i]);
             }
             for(var i=0; i < fileBlocks.nbExtens; i++)
             {
-                Bitmap.AdfSetBlockFree(vol, fileBlocks.extens[i]);
+                volume.Allocator.SetBlockFree(fileBlocks.extens[i]);
             }
             
             if (entry.Extension != 0)
             {
-                Bitmap.AdfSetBlockFree(vol, entry.Extension);
+                volume.Allocator.SetBlockFree(entry.Extension);
             }
 
             // free(fileBlocks.data);
@@ -152,7 +162,7 @@
  * adfGetFileBlocks
  *
  */
-        public static async Task<FileBlocks> AdfGetFileBlocks(Volume vol, EntryBlock entry)
+        public async Task<FileBlocks> GetFileBlocks(EntryBlock entry)
         {
             // int32_t n, m;
             // SECTNUM nSect;
@@ -162,8 +172,8 @@
             {
                 header = entry.HeaderKey,
             };
-            // adfFileRealSize( entry.ByteSize, vol.DataBlockSize, &(fileBlocks->nbData), &(fileBlocks->nbExtens) );
-            AdfFileRealSize(vol, entry.ByteSize, vol.DataBlockSize, fileBlocks);
+            // adfFileRealSize( entry.ByteSize, volume.DataBlockSize, &(fileBlocks->nbData), &(fileBlocks->nbExtens) );
+            CalculateFileBlockCounts(entry.ByteSize, volume.DataBlockSize, fileBlocks);
 
             fileBlocks.data = new uint[fileBlocks.nbData];
             // fileBlocks->data=(SECTNUM*)malloc(fileBlocks->nbData * sizeof(SECTNUM));
@@ -183,16 +193,16 @@
             var m = 0;	
             /* in file header block */
             for(var i=0; i < entry.HighSeq; i++)
-                fileBlocks.data[n++] = entry.DataBlocks[vol.IndexSize - 1 - i];
+                fileBlocks.data[n++] = entry.DataBlocks[volume.IndexSize - 1 - i];
 
             /* in file extension blocks */
             var nSect = entry.Extension;
             while(nSect!=0)
             {
                 fileBlocks.extens[m++] = nSect;
-                var extBlock = await Disk.ReadFileExtBlock(vol, nSect);
+                var extBlock = await volume.BlockStore.ReadFileExtBlock(nSect);
                 for(var i=0; i<extBlock.HighSeq; i++)
-                    fileBlocks.data[n++] = extBlock.Index[vol.IndexSize - 1 - i];
+                    fileBlocks.data[n++] = extBlock.Index[volume.IndexSize - 1 - i];
                 nSect = extBlock.Extension;
             }
             if (fileBlocks.nbExtens + fileBlocks.nbData != n + m)
@@ -208,7 +218,7 @@
  * Compute number of datablocks and file extension blocks
  *
  */
-        public static uint AdfFileRealSize(Volume volume, uint size, uint blockSize, FileBlocks fileBlocks) // int32_t *dataN, int32_t *extN
+        public uint CalculateFileBlockCounts(uint size, uint blockSize, FileBlocks fileBlocks) // int32_t *dataN, int32_t *extN
         {
             // int32_t data, ext;
 

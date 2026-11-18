@@ -19,6 +19,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         private readonly Volume volume;
         private readonly string name;
         private uint currentDirectoryNode;
+        private MountRegistration mountRegistration = MountRegistration.None;
 
         internal SmartFileSystemVolume(Volume volume, string name, uint currentDirectoryNode)
         {
@@ -55,9 +56,14 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <summary>
         /// Mount smart file system volume in stream using partition block.
         /// </summary>
-        public static async Task<SmartFileSystemVolume> Mount(Stream stream, PartitionBlock partitionBlock)
+        /// <param name="stream">Stream with smart file system volume.</param>
+        /// <param name="partitionBlock">Partition block of partition.</param>
+        /// <param name="force">Mount partition, even if partition is already mounted by another volume on the same stream.</param>
+        /// <exception cref="FileSystems.Exceptions.PartitionAlreadyMountedException">Partition is already mounted on the same stream.</exception>
+        public static async Task<SmartFileSystemVolume> Mount(Stream stream, PartitionBlock partitionBlock,
+            bool force = false)
         {
-            return await Create(await SmartFileSystemHelper.Mount(stream, partitionBlock));
+            return await Create(await SmartFileSystemHelper.Mount(stream, partitionBlock), force);
         }
 
         /// <summary>
@@ -67,16 +73,25 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         /// <param name="partitionOffset">Byte offset of partition in stream.</param>
         /// <param name="partitionSize">Size of partition in bytes.</param>
         /// <param name="blockSize">File system block size.</param>
+        /// <param name="force">Mount partition, even if partition is already mounted by another volume on the same stream.</param>
+        /// <exception cref="FileSystems.Exceptions.PartitionAlreadyMountedException">Partition is already mounted on the same stream.</exception>
         public static async Task<SmartFileSystemVolume> Mount(Stream stream, long partitionOffset, long partitionSize,
-            int blockSize)
+            int blockSize, bool force = false)
         {
-            return await Create(await SmartFileSystemHelper.Mount(stream, partitionOffset, partitionSize, blockSize));
+            return await Create(await SmartFileSystemHelper.Mount(stream, partitionOffset, partitionSize, blockSize),
+                force);
         }
 
-        private static async Task<SmartFileSystemVolume> Create(Volume volume)
+        private static async Task<SmartFileSystemVolume> Create(Volume volume, bool force)
         {
             var root = await Objects.ReadObject(volume, Constants.RootNode);
-            return new SmartFileSystemVolume(volume, root.Object.Name, Constants.RootNode);
+            var registration = MountRegistry.Register(volume.Stream, volume.PartitionOffset,
+                (long)volume.TotalBlocks * volume.BlockSize, force);
+
+            return new SmartFileSystemVolume(volume, root.Object.Name, Constants.RootNode)
+            {
+                mountRegistration = registration
+            };
         }
 
         /// <summary>
@@ -470,7 +485,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
             cancellationToken.ThrowIfCancellationRequested();
             if (!volume.IsReadOnly)
             {
-                await volume.Stream.FlushAsync();
+                await volume.Device.FlushAsync();
             }
         }
 
@@ -510,13 +525,29 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 
         public void Dispose()
         {
-            AsyncHelper.RunSync(() => Flush());
+            try
+            {
+                AsyncHelper.RunSync(() => Flush());
+            }
+            finally
+            {
+                mountRegistration.Release();
+            }
+
             GC.SuppressFinalize(this);
         }
 
         public async ValueTask DisposeAsync()
         {
-            await Flush();
+            try
+            {
+                await Flush();
+            }
+            finally
+            {
+                mountRegistration.Release();
+            }
+
             GC.SuppressFinalize(this);
         }
 

@@ -12,7 +12,7 @@ using FileSystems.FastFileSystem;
 using FileSystems.FastFileSystem.Doctor;
 using FileSystems.Salvage;
 using Xunit;
-using Directory = FileSystems.FastFileSystem.Directory;
+using Directory = FileSystems.FastFileSystem.DirectoryService;
 
 /// <summary>
 /// Salvage tests for fast file system doctor. Partial class shares disk and block helpers with check and repair

@@ -69,6 +69,45 @@ Example of mounting a Fast File System volume from a partition block in a stream
 var ffsVolume = await ffsVolume.Mount(stream, partitionBlock);
 ```
 
+### Flushing and disposing a Fast File System volume
+
+Changes to the bitmap (which blocks are used and free) from writing files, creating, renaming and deleting
+files, directories and links are kept in memory and written to disk when the volume is flushed with `Flush()` or
+disposed. This avoids writing bitmap blocks and the root block every time a file is created or closed, which
+makes writing many files a lot faster.
+
+Metadata blocks (root, directory, file header, file extension, bitmap, dir cache and comment blocks) are cached in
+a write-back cache. Changed blocks are written when the volume is flushed or disposed, in sector order with
+consecutive blocks merged into single writes and the root block written last. When more than 512 changed blocks
+are cached, the volume is flushed after the current file system operation completes. File data blocks are
+written directly.
+
+File data blocks are allocated in runs of consecutive free blocks, growing from 8 to 128 blocks while a file is
+written, and file extension blocks are allocated after each run, so large files are stored in long runs of
+consecutive blocks. Holes of free blocks smaller than the run wanted (max. 64 blocks) are only used, when no
+larger run of free blocks exists. Blocks preallocated, but not used, are freed when the file is closed.
+
+When the first file is closed after mounting, the root block bitmap flag is set to invalid, the same way AmigaOS
+does while a volume is in use. Flushing or disposing the volume writes changed bitmap blocks and sets the root
+block bitmap flag back to valid.
+
+**A Fast File System volume used for writing files must be flushed or disposed**, before the stream is closed or
+the partition is mounted again. Otherwise the bitmap on disk doesn't mark blocks used by written files and the
+root block bitmap flag stays invalid. AmigaOS will validate the volume and rebuild the bitmap, but a volume
+mounted again with Hst Amiga can allocate blocks already used by files and overwrite them. Mounting a partition
+already mounted on the same stream throws an exception, see
+[Mounting a partition only once](../readme.md#mounting-a-partition-only-once).
+
+Example of writing a file and disposing the volume with a using statement:
+```
+await using (var ffsVolume = await FastFileSystemVolume.MountPartition(stream, partitionBlock))
+{
+    await ffsVolume.CreateFile("New File");
+    await using var entryStream = await ffsVolume.OpenFile("New File", FileMode.Append);
+    await entryStream.WriteAsync(data, 0, data.Length);
+}
+```
+
 ### List entries
 
 Example of listing entries from current directory:

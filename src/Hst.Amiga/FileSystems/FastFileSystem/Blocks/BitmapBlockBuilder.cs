@@ -17,11 +17,7 @@
 
             BigEndianConverter.ConvertInt32ToBytes(bitmapBlock.Checksum, blockBytes, 0x0);
 
-            for (var i = 0; i < mapEntries; i++)
-            {
-                BigEndianConverter.ConvertUInt32ToBytes(i < bitmapBlock.Map.Length ? bitmapBlock.Map[i] : 0,
-                    blockBytes, 0x4 + i * SizeOf.ULong);
-            }
+            BigEndianArrays.WriteUInt32Array(blockBytes, 0x4, bitmapBlock.Map, mapEntries);
 
             bitmapBlock.Checksum = ChecksumHelper.UpdateChecksum(blockBytes, 0x0);
             bitmapBlock.BlockBytes = blockBytes;

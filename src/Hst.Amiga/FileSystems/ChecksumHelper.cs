@@ -1,23 +1,24 @@
 ﻿namespace Hst.Amiga.FileSystems
 {
+    using System;
+    using System.Buffers.Binary;
     using Core.Converters;
 
     public static class ChecksumHelper
     {
         public static int CalculateChecksum(byte[] blockBytes, int checksumOffset, int length = 0)
         {
+            var end = length > 0 ? length : blockBytes.Length;
             var checksum = 0;
-            for (var offset = 0; offset < (length > 0 ? length : blockBytes.Length); offset += 4)
+            for (var offset = 0; offset < end; offset += 4)
             {
-                var value = BigEndianConverter.ConvertBytesToInt32(blockBytes, offset);
-
                 // skip checksum offset
                 if (offset == checksumOffset)
                 {
                     continue;
                 }
 
-                checksum += value;
+                checksum += BinaryPrimitives.ReadInt32BigEndian(new ReadOnlySpan<byte>(blockBytes, offset, 4));
             }
 
             checksum = -checksum;

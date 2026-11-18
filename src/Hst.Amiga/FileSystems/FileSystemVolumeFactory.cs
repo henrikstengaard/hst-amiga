@@ -37,9 +37,12 @@ namespace Hst.Amiga.FileSystems
         /// </summary>
         /// <param name="stream">Stream with rigid disk block, e.g. a rigid disk block image file.</param>
         /// <param name="partitionBlock">Partition block of partition.</param>
+        /// <param name="force">Mount partition, even if partition is already mounted by another volume on the same stream.</param>
         /// <returns>Mounted file system volume, which must be disposed.</returns>
         /// <exception cref="NotSupportedException">File system of partition is not supported.</exception>
-        public static async Task<IFileSystemVolume> MountPartition(Stream stream, PartitionBlock partitionBlock)
+        /// <exception cref="Exceptions.PartitionAlreadyMountedException">Partition is already mounted on the same stream.</exception>
+        public static async Task<IFileSystemVolume> MountPartition(Stream stream, PartitionBlock partitionBlock,
+            bool force = false)
         {
             var dosType = partitionBlock.DosType ?? Array.Empty<byte>();
             if (dosType.Length != 4)
@@ -50,17 +53,17 @@ namespace Hst.Amiga.FileSystems
             var identifier = AmigaTextHelper.GetString(dosType, 0, 3);
             if ((identifier == "PFS" || identifier == "PDS") && dosType[3] == 3)
             {
-                return await Pfs3Volume.Mount(stream, partitionBlock);
+                return await Pfs3Volume.Mount(stream, partitionBlock, force: force);
             }
 
             if (identifier == "DOS" && dosType[3] <= 7)
             {
-                return await FastFileSystemVolume.MountPartition(stream, partitionBlock);
+                return await FastFileSystemVolume.MountPartition(stream, partitionBlock, force: force);
             }
 
             if (identifier == "SFS" && dosType[3] == 0)
             {
-                return await SmartFileSystemVolume.Mount(stream, partitionBlock);
+                return await SmartFileSystemVolume.Mount(stream, partitionBlock, force);
             }
 
             throw new NotSupportedException(

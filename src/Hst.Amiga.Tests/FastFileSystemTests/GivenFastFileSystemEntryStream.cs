@@ -155,4 +155,70 @@ public class GivenFastFileSystemEntryStream : FastFileSystemTestBase
             Assert.Equal(data, output.ToArray());
         }
     }
+
+    [Theory]
+    [MemberData(nameof(DosTypes))]
+    public async Task WhenWriteAndReadFragmentedFileThenDataIsEqual(byte[] dosType, int fileSystemBlockSize)
+    {
+        // arrange - create fast file system formatted disk with small files
+        var stream = await CreateFastFileSystemFormattedDisk(DiskSize100Mb, dosType, fileSystemBlockSize);
+        var smallData = CreateData(3 * fileSystemBlockSize);
+        const int smallFiles = 40;
+        await using (var ffsVolume = await MountVolume(stream))
+        {
+            for (var i = 0; i < smallFiles; i++)
+            {
+                await ffsVolume.CreateFile($"Small{i}");
+                await using var entryStream = await ffsVolume.OpenFile($"Small{i}", FileMode.Append);
+                await entryStream.WriteAsync(smallData, 0, smallData.Length);
+            }
+
+            // arrange - delete every other small file to leave holes of free blocks between used blocks
+            for (var i = 0; i < smallFiles; i += 2)
+            {
+                await ffsVolume.Delete($"Small{i}");
+            }
+        }
+
+        // act - remount, so free blocks are allocated from start of volume and write file filling holes
+        var data = CreateData(FileSize);
+        await using (var ffsVolume = await MountVolume(stream))
+        {
+            await ffsVolume.CreateFile(FileName);
+            await using var entryStream = await ffsVolume.OpenFile(FileName, FileMode.Append);
+            for (var position = 0; position < data.Length; position += 3000)
+            {
+                await entryStream.WriteAsync(data, position, Math.Min(3000, data.Length - position));
+            }
+        }
+
+        // assert - remount and data read is equal for fragmented and remaining small files
+        await using (var ffsVolume = await MountVolume(stream))
+        {
+            await using (var entryStream = await ffsVolume.OpenFile(FileName, FileMode.Read))
+            {
+                var output = new MemoryStream();
+                await entryStream.CopyToAsync(output, 777);
+                Assert.Equal(data, output.ToArray());
+
+                // assert - seek into fragmented file and read
+                foreach (var position in new[] { 5000, 100, 150000, 40000 })
+                {
+                    entryStream.Position = position;
+                    var buffer = new byte[3000];
+                    var bytesRead = await entryStream.ReadAsync(buffer, 0, buffer.Length);
+                    Assert.Equal(3000, bytesRead);
+                    Assert.Equal(data.Skip(position).Take(3000).ToArray(), buffer);
+                }
+            }
+
+            for (var i = 1; i < smallFiles; i += 2)
+            {
+                await using var entryStream = await ffsVolume.OpenFile($"Small{i}", FileMode.Read);
+                var output = new MemoryStream();
+                await entryStream.CopyToAsync(output);
+                Assert.Equal(smallData, output.ToArray());
+            }
+        }
+    }
 }

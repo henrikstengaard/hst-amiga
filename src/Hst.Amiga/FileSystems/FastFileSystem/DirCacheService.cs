@@ -9,13 +9,23 @@
     using Core.Converters;
     using Extensions;
 
-    internal static class Cache
+    /// <summary>
+    /// Reads and updates dir cache blocks of directories for volumes using dir cache.
+    /// </summary>
+    internal class DirCacheService
     {
-        public static async Task<IEnumerable<Entry>> ReadEntries(Volume vol, uint dir, bool recursive = false)
+        private readonly Volume volume;
+
+        public DirCacheService(Volume volume)
+        {
+            this.volume = volume;
+        }
+
+        public async Task<IEnumerable<Entry>> ReadEntries(uint dir, bool recursive = false)
         {
             var list = new List<Entry>();
 
-            var parent = await Disk.ReadEntryBlock(vol, dir);
+            var parent = await volume.BlockStore.ReadEntryBlock(dir);
 
             var nSect = parent.Extension;
 
@@ -24,7 +34,7 @@
                 /* one loop per cache block */
                 int offset;
                 var n = offset = 0;
-                var dirC = await Disk.ReadDirCacheBlock(vol, nSect);
+                var dirC = await volume.BlockStore.ReadDirCacheBlock(nSect);
                 while (n < dirC.RecordsNb)
                 {
                     var cacheEntry = GetCacheEntry(dirC, ref offset);
@@ -56,7 +66,7 @@
 
                     if (recursive && entry.IsDirectory())
                     {
-                        entry.SubDir = (await ReadEntries(vol, entry.Sector, true)).ToList();
+                        entry.SubDir = (await ReadEntries(entry.Sector, true)).ToList();
                     }
 
                     n++;
@@ -68,7 +78,7 @@
             return list;
         }
 
-        public static async Task AddInCache(Volume vol, EntryBlock parent, EntryBlock entry)
+        public async Task AddInCache(EntryBlock parent, EntryBlock entry)
         {
             DirCacheBlock dirCacheBlock;
 
@@ -79,7 +89,7 @@
             var nSect = parent.Extension;
             do
             {
-                dirCacheBlock = await Disk.ReadDirCacheBlock(vol, nSect);
+                dirCacheBlock = await volume.BlockStore.ReadDirCacheBlock(nSect);
                 offset = 0;
                 var n = 0;
 
@@ -101,7 +111,7 @@
             else
             {
                 /* request one new block free */
-                var nCache = Bitmap.AdfGet1FreeBlock(vol);
+                var nCache = volume.Allocator.AllocateBlock();
                 if (nCache == uint.MaxValue) // -1
                 {
                     throw new IOException("nCache==-1");
@@ -113,9 +123,9 @@
                 }
 
                 /* create a new dir cache block */
-                var newDirCacheBlock = new DirCacheBlock(vol.FileSystemBlockSize)
+                var newDirCacheBlock = new DirCacheBlock(volume.FileSystemBlockSize)
                 {
-                    Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey,
+                    Parent = parent.SecType == Constants.ST_ROOT ? volume.RootBlockOffset : parent.HeaderKey,
                     RecordsNb = 0,
                     NextDirC = 0
                 };
@@ -124,11 +134,11 @@
                 offset = 0;
                 PutCacheEntry(newDirCacheBlock, ref offset, newCacheEntry);
                 newDirCacheBlock.RecordsNb++;
-                await Disk.WriteDirCacheBlock(vol, nCache, newDirCacheBlock);
+                await volume.BlockStore.WriteDirCacheBlock(nCache, newDirCacheBlock);
                 dirCacheBlock.NextDirC = nCache;
             }
 
-            await Disk.WriteDirCacheBlock(vol, dirCacheBlock.HeaderKey, dirCacheBlock);
+            await volume.BlockStore.WriteDirCacheBlock(dirCacheBlock.HeaderKey, dirCacheBlock);
         }
 
         public static CacheEntry ConvertEntryBlockToCacheEntry(EntryBlock entry)
@@ -148,12 +158,11 @@
         /// <summary>
         /// Update cache entry in dir cache block(s) for entry block when the entry block has changed in the same parent entry block.
         /// </summary>
-        /// <param name="vol"></param>
         /// <param name="parent">Parent entry block where entry block exists.</param>
         /// <param name="entry">Entry block to update cache for.</param>
         /// <param name="entryLenChg">Indicates whether the entry length has changed.</param>
         /// <exception cref="IOException"></exception>
-        public static async Task UpdateCache(Volume vol, EntryBlock parent, EntryBlock entry, bool entryLenChg)
+        public async Task UpdateCache(EntryBlock parent, EntryBlock entry, bool entryLenChg)
         {
             var newCacheEntry = ConvertEntryBlockToCacheEntry(entry);
             var nLen = newCacheEntry.EntryLen;
@@ -162,7 +171,7 @@
             var found = false;
             do
             {
-                var dirCacheBlock = await Disk.ReadDirCacheBlock(vol, nSect);
+                var dirCacheBlock = await volume.BlockStore.ReadDirCacheBlock(nSect);
                 var offset = 0;
                 var n = 0;
                 /* search entry to update with its header_key */
@@ -181,7 +190,7 @@
                         {
                             /* same length : replace the old values */
                             PutCacheEntry(dirCacheBlock, ref oldOffset, newCacheEntry);
-                            await Disk.WriteDirCacheBlock(vol, dirCacheBlock.HeaderKey, dirCacheBlock);
+                            await volume.BlockStore.WriteDirCacheBlock(dirCacheBlock.HeaderKey, dirCacheBlock);
                         }
                         else if (oLen > nLen)
                         {
@@ -195,13 +204,13 @@
                             for (var i = 488 - sLen; i < 488; i++)
                                 dirCacheBlock.Records[i] = 0;
 
-                            await Disk.WriteDirCacheBlock(vol, dirCacheBlock.HeaderKey, dirCacheBlock);
+                            await volume.BlockStore.WriteDirCacheBlock(dirCacheBlock.HeaderKey, dirCacheBlock);
                         }
                         else
                         {
                             /* the new record is larger */
-                            await DeleteFromCache(vol, parent, entry.HeaderKey);
-                            await AddInCache(vol, parent, entry);
+                            await DeleteFromCache(parent, entry.HeaderKey);
+                            await AddInCache(parent, entry);
                         }
                     }
 
@@ -213,7 +222,7 @@
 
             if (found)
             {
-                await Bitmap.AdfUpdateBitmap(vol);
+                await volume.Allocator.DeferBitmapUpdate();
             }
             else
             {
@@ -221,7 +230,7 @@
             }
         }
 
-        public static async Task CreateEmptyCache(Volume vol, EntryBlock parent, uint nSect)
+        public async Task CreateEmptyCache(EntryBlock parent, uint nSect)
         {
             if (!(parent.SecType == Constants.ST_ROOT || parent.SecType == Constants.ST_DIR))
             {
@@ -232,7 +241,7 @@
 
             if (nSect == uint.MaxValue)
             {
-                nCache = Bitmap.AdfGet1FreeBlock(vol);
+                nCache = volume.Allocator.AllocateBlock();
                 if (nCache == uint.MaxValue)
                 {
                     throw new IOException("nCache==-1");
@@ -248,14 +257,14 @@
                 parent.Extension = nCache;
             }
 
-            var dirCacheBlock = new DirCacheBlock(vol.FileSystemBlockSize)
+            var dirCacheBlock = new DirCacheBlock(volume.FileSystemBlockSize)
             {
-                Parent = parent.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : parent.HeaderKey,
+                Parent = parent.SecType == Constants.ST_ROOT ? volume.RootBlockOffset : parent.HeaderKey,
                 RecordsNb = 0,
                 NextDirC = 0
             };
 
-            await Disk.WriteDirCacheBlock(vol, nCache, dirCacheBlock);
+            await volume.BlockStore.WriteDirCacheBlock(nCache, dirCacheBlock);
         }
 
         /// <summary>
@@ -326,18 +335,17 @@
         /// <summary>
         /// Delete cache entry from block (doesn't handle garbage collection) 
         /// </summary>
-        /// <param name="vol"></param>
         /// <param name="parent"></param>
         /// <param name="headerKey"></param>
         /// <exception cref="IOException"></exception>
-        public static async Task DeleteFromCache(Volume vol, EntryBlock parent, uint headerKey)
+        public async Task DeleteFromCache(EntryBlock parent, uint headerKey)
         {
             var prevSect = uint.MaxValue; // -1
             var nSect = parent.Extension;
             var found = false;
             do
             {
-                var dirCacheBlock = await Disk.ReadDirCacheBlock(vol, nSect);
+                var dirCacheBlock = await volume.BlockStore.ReadDirCacheBlock(nSect);
                 var offset = 0;
                 var n = 0;
                 while (n < dirCacheBlock.RecordsNb && !found)
@@ -367,19 +375,19 @@
                             }
 
                             dirCacheBlock.RecordsNb--;
-                            await Disk.WriteDirCacheBlock(vol, dirCacheBlock.HeaderKey, dirCacheBlock);
+                            await volume.BlockStore.WriteDirCacheBlock(dirCacheBlock.HeaderKey, dirCacheBlock);
                         }
                         else
                         {
                             /* dirCacheBlock.recordsNb ==1 or == 0 , prevSect!=-1 : 
                             * the only record in this dir cache block and a previous dir cache block exists 
                             */
-                            Bitmap.AdfSetBlockFree(vol, dirCacheBlock.HeaderKey);
-                            dirCacheBlock = await Disk.ReadDirCacheBlock(vol, prevSect);
+                            volume.Allocator.SetBlockFree(dirCacheBlock.HeaderKey);
+                            dirCacheBlock = await volume.BlockStore.ReadDirCacheBlock(prevSect);
                             dirCacheBlock.NextDirC = 0;
-                            await Disk.WriteDirCacheBlock(vol, prevSect, dirCacheBlock);
+                            await volume.BlockStore.WriteDirCacheBlock(prevSect, dirCacheBlock);
 
-                            await Bitmap.AdfUpdateBitmap(vol);
+                            await volume.Allocator.DeferBitmapUpdate();
                         }
                     }
 

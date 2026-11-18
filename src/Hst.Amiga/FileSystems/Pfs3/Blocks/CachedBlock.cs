@@ -47,6 +47,12 @@
 
         public IBlock blk { get; set; }
 
+        /// <summary>
+        /// node in lru queue or lru pool containing this cached block, if any.
+        /// used for O(1) removal from lru lists.
+        /// </summary>
+        public System.Collections.Generic.LinkedListNode<LruCachedBlock> LruNode { get; set; }
+
         public anodeblock ANodeBlock => blk as anodeblock;
 
         public indexblock IndexBlock => blk as indexblock;

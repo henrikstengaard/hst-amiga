@@ -31,11 +31,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
             }
             
             var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
-            var index = new List<uint>();
-            for (var i = 0; i < indexSize; i++)
-            {
-                index.Add(BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
-            }
+            var index = BigEndianArrays.ReadUInt32Array(blockBytes, 0x18, (int)indexSize);
 
             var access = BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0xc0);
             var byteSize = BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0xbc);
@@ -79,7 +75,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Blocks
                 FirstData = firstData,
                 Checksum = checksum,
                 IndexSize = indexSize,
-                Index = index.ToArray(),
+                Index = index,
                 Access = access,
                 ByteSize = byteSize,
                 Comment = comment,

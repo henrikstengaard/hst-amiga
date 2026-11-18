@@ -241,7 +241,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Doctor
                     ptr = 0;
                 }
 
-                ptr += Cache.PutCacheEntry(current, ref ptr, cacheEntry);
+                ptr += DirCacheService.PutCacheEntry(current, ref ptr, cacheEntry);
                 current.RecordsNb++;
             }
 

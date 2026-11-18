@@ -16,19 +16,14 @@
                 throw new IOException("Invalid bitmap block checksum");
             }
 
-            var map = new List<uint>();
             var entries = (blockBytes.Length - SizeOf.ULong) / SizeOf.ULong;
-            for (var i = 0; i < entries; i++)
-            {
-                var entry = BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x4 + i * SizeOf.ULong);
-                map.Add(entry);
-            }
+            var map = BigEndianArrays.ReadUInt32Array(blockBytes, 0x4, entries);
 
             return new BitmapBlock(blockBytes.Length)
             {
                 Checksum = checksum,
                 BlockBytes = blockBytes,
-                Map = map.ToArray()
+                Map = map
             };
         }
     }

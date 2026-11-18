@@ -16,6 +16,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
     {
         private readonly Volume volume;
         private uint currentDirectorySector;
+        private MountRegistration mountRegistration = MountRegistration.None;
 
         internal FastFileSystemVolume(Volume volume, uint currentDirectorySector)
         {
@@ -23,31 +24,64 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             this.currentDirectorySector = currentDirectorySector;
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            return new ValueTask();
+            try
+            {
+                await Flush();
+            }
+            finally
+            {
+                mountRegistration.Release();
+            }
+
+            GC.SuppressFinalize(this);
         }
 
         public void Dispose()
         {
+            try
+            {
+                AsyncHelper.RunSync(() => Flush());
+            }
+            finally
+            {
+                mountRegistration.Release();
+            }
+
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Create fast file system volume and register mounted partition
+        /// </summary>
+        private static FastFileSystemVolume Create(Volume volume, bool force)
+        {
+            var registration = MountRegistry.Register(volume.Stream, volume.PartitionStartOffset,
+                (long)volume.Blocks * volume.FileSystemBlockSize, force);
+
+            return new FastFileSystemVolume(volume, volume.RootBlockOffset)
+            {
+                mountRegistration = registration
+            };
         }
 
         public string Name => volume.RootBlock.DiskName;
 
         public long Size => (long)volume.Blocks * volume.FileSystemBlockSize;
 
-        public long Free => Bitmap.AdfCountFreeBlocks(volume) * volume.FileSystemBlockSize;
+        public long Free => volume.FreeBlocks * volume.FileSystemBlockSize;
 
         public async Task<IEnumerable<FileSystems.Entry>> ListEntries(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return (await Directory.ReadEntries(volume, currentDirectorySector)).Select(EntryConverter.ToEntry)
+            return (await volume.Directories.ReadEntries(currentDirectorySector)).Select(EntryConverter.ToEntry)
                 .ToList();
         }
         
         internal async Task<IEnumerable<Entry>> ListRawEntries()
         {
-            return (await Directory.ReadEntries(volume, currentDirectorySector)).ToList();
+            return (await volume.Directories.ReadEntries(currentDirectorySector)).ToList();
         }
 
         /// <summary>
@@ -64,7 +98,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
                 throw new ArgumentException("Name contains directory separator", nameof(name));
             }
             
-            var findEntryResult = await Directory.FindEntry(currentDirectorySector, name, volume);
+            var findEntryResult = await volume.Directories.FindEntry(currentDirectorySector, name);
 
             var entry = findEntryResult.Entries.LastOrDefault();
             return new FileSystems.FindEntryResult
@@ -79,7 +113,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             cancellationToken.ThrowIfCancellationRequested();
             // find entry starts from root for absolute path, current directory is only changed, if path is found
             var isRootPath = path.StartsWith("/");
-            var findEntryResult = await Directory.FindEntry(currentDirectorySector, path, volume);
+            var findEntryResult = await volume.Directories.FindEntry(currentDirectorySector, path);
             if (findEntryResult.PartsNotFound.Any())
             {
                 throw new PathNotFoundException($"Path '{path}' not found");
@@ -108,7 +142,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
                 throw new PathNotFoundException($"Path '{path}' is not a directory");
             }
 
-            entry = await Directory.ResolveLinkEntry(volume, entry);
+            entry = await volume.Directories.ResolveLinkEntry(entry);
             
             currentDirectorySector = entry.Sector;
         }
@@ -121,7 +155,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task CreateDirectory(string dirName, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.CreateDirectory(volume, currentDirectorySector, dirName);
+            await volume.Directories.CreateDirectory(currentDirectorySector, dirName);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -134,7 +169,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using (var _ = await File.Open(volume, currentDirectorySector, fileName, FileMode.Write, overwrite,
+            using (var _ = await volume.Files.Open(currentDirectorySector, fileName, FileMode.Write, overwrite,
                        ignoreProtectionBits))
             {
             }
@@ -152,7 +187,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.CreateLink(volume, currentDirectorySector, linkName, name);
+            await volume.Directories.CreateLink(currentDirectorySector, linkName, name);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -167,7 +203,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await File.Open(volume, currentDirectorySector, fileName, mode, overwrite, ignoreProtectionBits);
+            return await volume.Files.Open(currentDirectorySector, fileName, mode, overwrite, ignoreProtectionBits);
         }
 
         /// <summary>
@@ -179,7 +215,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task Delete(string name, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.RemoveEntry(volume, currentDirectorySector, name, ignoreProtectionBits);
+            await volume.Directories.RemoveEntry(currentDirectorySector, name, ignoreProtectionBits);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -192,14 +229,14 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task Rename(string oldName, string newName, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var srcEntryResult = await Directory.FindEntry(currentDirectorySector, oldName, volume);
+            var srcEntryResult = await volume.Directories.FindEntry(currentDirectorySector, oldName);
 
             if (srcEntryResult.PartsNotFound.Any())
             {
                 throw new PathNotFoundException($"Path '{oldName}' not found");
             }
 
-            var destEntryResult = await Directory.FindEntry(currentDirectorySector, newName, volume);
+            var destEntryResult = await volume.Directories.FindEntry(currentDirectorySector, newName);
             var partsNotFound = destEntryResult.PartsNotFound.ToList();
 
             if (!partsNotFound.Any())
@@ -212,8 +249,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
                 throw new PathNotFoundException($"Path '{partsNotFound[0]}' not found");
             }
 
-            await Directory.RenameEntry(volume, currentDirectorySector, srcEntryResult.Name, destEntryResult.Sector,
+            await volume.Directories.RenameEntry(currentDirectorySector, srcEntryResult.Name, destEntryResult.Sector,
                 destEntryResult.Name);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -225,7 +263,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task SetComment(string name, string comment, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.SetEntryComment(volume, currentDirectorySector, name, comment);
+            await volume.Directories.SetEntryComment(currentDirectorySector, name, comment);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -237,8 +276,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task SetProtectionBits(string name, ProtectionBits protectionBits, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.SetEntryAccess(volume, currentDirectorySector, name,
+            await volume.Directories.SetEntryAccess(currentDirectorySector, name,
                 ProtectionBitsConverter.ToProtectionValue(protectionBits));
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -250,17 +290,20 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task SetDate(string name, DateTime date, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.SetEntryDate(volume, currentDirectorySector, name, date);
+            await volume.Directories.SetEntryDate(currentDirectorySector, name, date);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
         /// Flush file system changes
         /// </summary>
         /// <returns></returns>
-        public Task Flush(CancellationToken cancellationToken = default)
+        public async Task Flush(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.CompletedTask;
+
+            // write changed bitmap blocks, dirty cached blocks and set root block bitmap flags valid
+            await volume.BlockStore.FlushVolume();
         }
 
         public IEnumerable<string> GetStatus()
@@ -274,15 +317,17 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// <param name="stream"></param>
         /// <param name="partitionBlock"></param>
         /// <param name="resolveLinkPaths"></param>
+        /// <param name="force">Mount partition, even if partition is already mounted by another volume on the same stream</param>
         /// <returns></returns>
+        /// <exception cref="PartitionAlreadyMountedException">Partition is already mounted on the same stream</exception>
         public static async Task<FastFileSystemVolume> MountPartition(Stream stream, PartitionBlock partitionBlock,
-            bool resolveLinkPaths = true)
+            bool resolveLinkPaths = true, bool force = false)
         {
             return await Mount(stream, partitionBlock.LowCyl, partitionBlock.HighCyl,
                 partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved,
                 partitionBlock.BlockSize,
                 partitionBlock.FileSystemBlockSize,
-                resolveLinkPaths);
+                resolveLinkPaths, force);
         }
 
         /// <summary>
@@ -290,13 +335,16 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="resolveLinkPaths"></param>
+        /// <param name="force">Mount adf, even if adf is already mounted by another volume on the same stream</param>
         /// <returns>Fast file system volume</returns>
-        public static async Task<FastFileSystemVolume> MountAdf(Stream stream, bool resolveLinkPaths = true)
+        /// <exception cref="PartitionAlreadyMountedException">Adf is already mounted on the same stream</exception>
+        public static async Task<FastFileSystemVolume> MountAdf(Stream stream, bool resolveLinkPaths = true,
+            bool force = false)
         {
             var volume = await FastFileSystemHelper.MountAdf(stream);
             volume.ResolveLinkPaths = resolveLinkPaths;
 
-            return new FastFileSystemVolume(volume, volume.RootBlockOffset);
+            return Create(volume, force);
         }
 
         /// <summary>
@@ -311,17 +359,19 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// <param name="blockSize"></param>
         /// <param name="fileSystemBlockSize"></param>
         /// <param name="resolveLinkPaths"></param>
+        /// <param name="force">Mount partition, even if partition is already mounted by another volume on the same stream</param>
         /// <returns></returns>
+        /// <exception cref="PartitionAlreadyMountedException">Partition is already mounted on the same stream</exception>
         public static async Task<FastFileSystemVolume> Mount(Stream stream, uint lowCyl, uint highCyl,
             uint surfaces, uint blocksPerTrack, uint reserved, uint blockSize, uint fileSystemBlockSize,
-            bool resolveLinkPaths = true)
+            bool resolveLinkPaths = true, bool force = false)
         {
             var volume = await FastFileSystemHelper.Mount(stream, lowCyl, highCyl, surfaces, blocksPerTrack, reserved,
                 blockSize,
                 fileSystemBlockSize);
             volume.ResolveLinkPaths = resolveLinkPaths;
 
-            return new FastFileSystemVolume(volume, volume.RootBlockOffset);
+            return Create(volume, force);
         }
 
         /// <summary>
@@ -338,7 +388,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             EntryBlock entryBlock;
             do
             {
-                entryBlock = await Disk.ReadEntryBlock(volume, directorySector);
+                entryBlock = await volume.BlockStore.ReadEntryBlock(directorySector);
                 
                 if (entryBlock == null)
                 {

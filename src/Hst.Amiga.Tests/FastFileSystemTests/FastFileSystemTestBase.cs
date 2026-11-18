@@ -44,13 +44,13 @@
             return stream;
         }
 
-        protected async Task<FastFileSystemVolume> MountVolume(Stream stream)
+        protected async Task<FastFileSystemVolume> MountVolume(Stream stream, bool force = false)
         {
             var rigidDiskBlock = await RigidDiskBlockReader.Read(stream);
 
             var partitionBlock = rigidDiskBlock.PartitionBlocks.First();
 
-            return await FastFileSystemVolume.MountPartition(stream, partitionBlock);
+            return await FastFileSystemVolume.MountPartition(stream, partitionBlock, force: force);
         }
 
         protected readonly DateTime Date = new(2022, 2, 3, 14, 45, 33, DateTimeKind.Utc);

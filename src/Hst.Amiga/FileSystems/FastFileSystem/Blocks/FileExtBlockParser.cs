@@ -28,11 +28,7 @@
 
             var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
             
-            var index = new List<uint>();
-            for (var i = 0; i < indexSize; i++)
-            {
-                index.Add(BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
-            }
+            var index = BigEndianArrays.ReadUInt32Array(blockBytes, 0x18, (int)indexSize);
 
             var info = BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0x14);
             var nextSameHash = BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0x10);
@@ -53,7 +49,7 @@
                 IndexSize = indexSize,
                 FirstData = firstData,
                 Checksum = checksum,
-                Index = index.ToArray(),
+                Index = index,
                 Info = info,
                 NextSameHash = nextSameHash,
                 Parent = parent,

@@ -182,14 +182,22 @@
 
             volume.anodechainlist.Clear();
 
-            foreach (var node in g.glob_lrudata.LRUpool.Where(x => x.cblk?.blk == null).ToList())
+            RemoveEmptyLruNodes(g.glob_lrudata.LRUpool);
+            RemoveEmptyLruNodes(g.glob_lrudata.LRUqueue);
+        }
+
+        private static void RemoveEmptyLruNodes(LinkedList<LruCachedBlock> list)
+        {
+            var node = list.First;
+            while (node != null)
             {
-                g.glob_lrudata.LRUpool.Remove(node);
-            }
-            
-            foreach (var node in g.glob_lrudata.LRUqueue.Where(x => x.cblk?.blk == null).ToList())
-            {
-                g.glob_lrudata.LRUqueue.Remove(node);
+                var next = node.Next;
+                if (node.Value.cblk?.blk == null)
+                {
+                    list.Remove(node);
+                }
+
+                node = next;
             }
         }
 

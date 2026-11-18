@@ -133,7 +133,7 @@
             var bitmapBlocks = new List<BitmapBlock>();
             foreach (var bitmapBlockOffset in bitmapBlockOffsets)
             {
-                var bitmapBlock = await Disk.ReadBitmapBlock(volume, bitmapBlockOffset);
+                var bitmapBlock = await volume.BlockStore.ReadBitmapBlock(bitmapBlockOffset);
                 bitmapBlock.Offset = bitmapBlockOffset;
 
                 bitmapBlocks.Add(bitmapBlock);
@@ -149,7 +149,7 @@
 
             while (bitmapExtensionBlocksOffset != 0)
             {
-                var bitmapExtensionBlock = await Disk.ReadBitmapExtensionBlock(volume, bitmapExtensionBlocksOffset);
+                var bitmapExtensionBlock = await volume.BlockStore.ReadBitmapExtensionBlock(bitmapExtensionBlocksOffset);
                 bitmapExtensionBlock.BitmapBlocks =
                     await ReadBitmapBlocks(volume, bitmapExtensionBlock.BitmapBlockOffsets);
 

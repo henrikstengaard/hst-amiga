@@ -2,6 +2,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
 {
     using System.Collections.Generic;
     using System.IO;
+    using BlockDevices;
     using Blocks;
 
     /// <summary>
@@ -9,7 +10,23 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
     /// </summary>
     internal class Volume
     {
-        public Stream Stream { get; set; }
+        private Stream stream;
+        private BlockDevice device;
+
+        public Stream Stream
+        {
+            get => stream;
+            set
+            {
+                stream = value;
+                device = null;
+            }
+        }
+
+        /// <summary>
+        /// Block device used for all block I/O on stream
+        /// </summary>
+        public BlockDevice Device => device ?? (device = BlockDevice.Create(stream));
 
         /// <summary>
         /// Byte offset of partition start in stream.
