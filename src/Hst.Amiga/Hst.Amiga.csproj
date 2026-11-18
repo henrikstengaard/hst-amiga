@@ -4,7 +4,8 @@
     <PackageTags>Hst;Amiga;RDB;FFS;PFS3;SFS;UAEFSDB</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- CS1591: missing XML comment for publicly visible type or member -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- CS8981: lowercase type names kept to match PFS3 C source -->
+    <NoWarn>$(NoWarn);CS1591;CS8981</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <None Include="readme.md" Pack="true" PackagePath="\" />

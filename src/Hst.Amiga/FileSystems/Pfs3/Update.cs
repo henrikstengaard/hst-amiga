@@ -785,7 +785,7 @@
         {
             // canodeblock
             CachedBlock blk;
-            uint indexblknr, indexoffset, i;
+            uint indexblknr, indexoffset;
             // struct cindexblock *index;
             var andata = g.glob_anodedata;
 

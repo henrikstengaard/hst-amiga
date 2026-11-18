@@ -309,7 +309,6 @@
         {
             objectinfo info = new objectinfo();
             uint anodenr;
-            int entryindex = 0;
             //byte[] entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
             extrafields extrafields = new extrafields();
             direntry destentry;
@@ -835,7 +834,7 @@
             direntry de = null;
             uint anodeoffset = 0;
             uint childanodenr, parentanodenr;
-            bool eod = false, eob = false, found = false;
+            bool eod = false, found = false;
 
             // -I- Find anode of parent
             if (childfi == null || Macro.IsVolume(childfi)) // child is rootdir
@@ -1606,7 +1605,6 @@
  */
         public static async Task<string> GetFullPath(objectinfo basispath, string filename, objectinfo fullpath, globaldata g)
         {
-	        bool eop = false, success;
 	        volumedata volume;
 
             // VVV Init:getrootvolume
@@ -2354,7 +2352,6 @@
         public static bool CheckFit(CachedBlock blok, int needed, globaldata g)
         {
             // struct cdirblock *blok
-            direntry entry;
             int i;
 
             /* goto end of dirblock */
@@ -2376,7 +2373,6 @@
             direntry dest;
             CachedBlock prevblock = new CachedBlock(); // cdirblock
             canode anode = new canode();
-            int removedlen;
             uint prev;
 
             Macro.Lock(de.file.dirblock, g);
@@ -2533,7 +2529,6 @@
         public static async Task RenameAcrossDirs(objectinfo from, direntry to, objectinfo destdir, fileinfo result,
             globaldata g)
         {
-            ushort removedlen;
 
             /* remove old entry (invalidates 'destdir') */
             //removedlen = from.file.direntry.next;
@@ -3021,7 +3016,6 @@
             direntry srcdirentry, destentry;
             // var entrybuffer = new byte[Macro.MAX_ENTRYSIZE];
             uint srcanodenr, destanodenr;
-            short srcfieldoffset, destfieldoffset, fieldsize;
             objectinfo destinfo = new objectinfo();
             //objectinfo destdi = new objectinfo();
             //string srccomment, destcomment;
@@ -3242,7 +3236,6 @@
             direntry sourceentry, destentry;
             objectinfo directory = new objectinfo();
             //UBYTE *destcomment, *srccomment, entrybuffer[MAX_ENTRYSIZE];
-            short srcfieldoffset, destfieldoffset, fieldsize;
 
 //            DB(Trace(1, "AddComment", "%s\n", comment));
             // #if DELDIR
@@ -3339,7 +3332,7 @@
         {
 	        var info = new objectinfo();
             var odi = new objectinfo();
-	        uint anodenr, linklist;
+	        uint anodenr;
             direntry objectentry;
             direntry destentry;
 	        //byte[] entrybuffer = new byte[MAX_ENTRYSIZE];

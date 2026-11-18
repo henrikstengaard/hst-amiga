@@ -252,7 +252,8 @@ public class GivenBlockMemoryStream
         // assert - bytes before written data are zeroes
         stream.Position = 0;
         var before = new byte[300];
-        stream.Read(before, 0, before.Length);
+        var beforeBytesRead = stream.Read(before, 0, before.Length);
+        Assert.Equal(300, beforeBytesRead);
         Assert.Equal(new byte[300], before);
     }
 
