@@ -26,7 +26,7 @@
                 throw new FileSystemException("Device is mounted read only");
             }
 
-            var result = await Directory.GetEntryBlock(volume, parent.HashTable, name, false);
+            var result = await Directory.GetEntryBlock(volume, parentSector, parent.HashTable, name);
             var nSect = result.NSect;
             if (!write && nSect == uint.MaxValue)
             {

@@ -68,6 +68,11 @@
         public BlockCache BlockCache { get; }
 
         /// <summary>
+        /// Index of entry names to entry block sectors per directory
+        /// </summary>
+        public DirectoryIndex DirectoryIndex { get; } = new DirectoryIndex();
+
+        /// <summary>
         /// Number of metadata blocks cached
         /// </summary>
         public const int BlockCacheSize = 1024;

@@ -62,6 +62,26 @@
         
         public static async Task<IEnumerable<Entry>> ReadEntries(Volume volume, uint nSect, bool recursive = false)
         {
+            var entries = (await ReadEntriesFromDisk(volume, nSect, recursive)).ToList();
+
+            // index entries listed, if directory is not indexed
+            if (!volume.DirectoryIndex.TryGet(nSect, out _))
+            {
+                var intl = volume.UseIntl || volume.UseDirCache;
+                var index = new Dictionary<string, uint>(entries.Count);
+                foreach (var entry in entries)
+                {
+                    index[MyToUpper(entry.Name, intl)] = entry.Sector;
+                }
+
+                volume.DirectoryIndex.Set(nSect, index);
+            }
+
+            return entries;
+        }
+
+        private static async Task<IEnumerable<Entry>> ReadEntriesFromDisk(Volume volume, uint nSect, bool recursive)
+        {
             if (volume.UseDirCache)
             {
                 return await Cache.ReadEntries(volume, nSect, recursive);
@@ -219,6 +239,96 @@
             return new string(nstr);
         }
 
+        /// <summary>
+        /// Compare names using Amiga upper case rules without allocating strings
+        /// </summary>
+        public static bool NamesEqual(string name1, string name2, bool intl)
+        {
+            if (name1.Length != name2.Length)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < name1.Length; i++)
+            {
+                if (intl
+                        ? IntlToUpper(name1[i]) != IntlToUpper(name2[i])
+                        : ToUpper(name1[i]) != ToUpper(name2[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Get index of entry names to entry block sectors for directory. Index is built from hash table and
+        /// hash chains of directory block, if directory is not indexed.
+        /// </summary>
+        private static async Task<Dictionary<string, uint>> GetDirectoryIndex(Volume volume, uint directorySector)
+        {
+            if (volume.DirectoryIndex.TryGet(directorySector, out var index))
+            {
+                return index;
+            }
+
+            var intl = volume.UseIntl || volume.UseDirCache;
+            index = new Dictionary<string, uint>();
+            var directoryBlock = await Disk.ReadEntryBlock(volume, directorySector);
+            foreach (var chainSector in directoryBlock.HashTable)
+            {
+                var sector = chainSector;
+                while (sector != 0 && Disk.IsSectorNumberValid(volume, sector))
+                {
+                    var entryBlock = await Disk.ReadEntryBlock(volume, sector);
+                    index[MyToUpper(entryBlock.Name, intl)] = sector;
+                    sector = entryBlock.NextSameHash;
+                }
+            }
+
+            volume.DirectoryIndex.Set(directorySector, index);
+            return index;
+        }
+
+        /// <summary>
+        /// Get entry block by name in directory using directory index
+        /// </summary>
+        /// <param name="volume">Volume</param>
+        /// <param name="directorySector">Sector of directory block</param>
+        /// <param name="ht">Hash table of directory block</param>
+        /// <param name="name">Name of entry</param>
+        /// <returns>Result with entry block and sector. Sector is uint.MaxValue, if entry is not found</returns>
+        public static async Task<NameToEntryBlockResult> GetEntryBlock(Volume volume, uint directorySector, uint[] ht,
+            string name)
+        {
+            name = TrimName(volume, name);
+
+            var intl = volume.UseIntl || volume.UseDirCache;
+            var index = await GetDirectoryIndex(volume, directorySector);
+            if (!index.TryGetValue(MyToUpper(name, intl), out var sector))
+            {
+                return new NameToEntryBlockResult
+                {
+                    NSect = uint.MaxValue
+                };
+            }
+
+            var entryBlock = await Disk.ReadEntryBlock(volume, sector);
+            if (NamesEqual(entryBlock.Name, name, intl))
+            {
+                return new NameToEntryBlockResult
+                {
+                    NSect = sector,
+                    EntryBlock = entryBlock
+                };
+            }
+
+            // index is not valid, remove index and walk hash chain
+            volume.DirectoryIndex.Invalidate(directorySector);
+            return await GetEntryBlock(volume, ht, name, false);
+        }
+
         public static async Task<NameToEntryBlockResult> GetEntryBlock(Volume volume, uint[] ht, string name,
             bool nUpdSect)
         {
@@ -226,8 +336,6 @@
 
             var intl = volume.UseIntl || volume.UseDirCache;
             var hashVal = GetHashValue(ht.Length, name, intl);
-            var nameLen = name.Length;
-            var upperName = MyToUpper(name, intl);
 
             var nSect = ht[hashVal];
             if (nSect == 0)
@@ -250,11 +358,7 @@
                     };
                 }
 
-                if (nameLen == entry.Name.Length)
-                {
-                    var upperName2 = MyToUpper(entry.Name, intl);
-                    found = upperName == upperName2;
-                }
+                found = NamesEqual(entry.Name, name, intl);
 
                 if (!found)
                 {
@@ -357,6 +461,7 @@
                 await WriteEntryBlock(vol, dir.SecType == Constants.ST_ROOT ? vol.RootBlockOffset : dir.HeaderKey,
                     dir);
 
+                vol.DirectoryIndex.Add(GetSector(vol, dir), name2, newSect);
                 return newSect;
             }
 
@@ -369,13 +474,9 @@
                     return uint.MaxValue;
                 }
 
-                if (updEntry.Name.Length == len)
+                if (updEntry.Name.Length == len && NamesEqual(updEntry.Name, name, intl))
                 {
-                    var name3 = MyToUpper(updEntry.Name, intl);
-                    if (name3 == name2)
-                    {
-                        throw new PathAlreadyExistsException($"Path '{updEntry.Name}' already exists");
-                    }
+                    throw new PathAlreadyExistsException($"Path '{updEntry.Name}' already exists");
                 }
 
                 nSect = updEntry.NextSameHash;
@@ -401,6 +502,7 @@
             updEntry.NextSameHash = newSect2;
             await WriteEntryBlock(vol, updEntry.HeaderKey, updEntry);
 
+            vol.DirectoryIndex.Add(GetSector(vol, dir), name2, newSect2);
             return newSect2;
         }
 
@@ -627,13 +729,9 @@
                 {
                     previous = await Disk.ReadEntryBlock(vol, nSect2);
 
-                    if (previous.Name.Length == len)
+                    if (previous.Name.Length == len && NamesEqual(previous.Name, newName, intl))
                     {
-                        name3 = MyToUpper(previous.Name, intl);
-                        if (name3 == name2)
-                        {
-                            throw new PathAlreadyExistsException($"Path '{previous.Name}' already exists");
-                        }
+                        throw new PathAlreadyExistsException($"Path '{previous.Name}' already exists");
                     }
 
                     nSect2 = previous.NextSameHash;
@@ -647,6 +745,10 @@
                 previous.NextSameHash = nSect;
                 await WriteEntryBlock(vol, previous.HeaderKey, previous);
             }
+
+            // remove old name before adding new name, as names can be equal ignoring case
+            vol.DirectoryIndex.Remove(pSect, name3);
+            vol.DirectoryIndex.Add(nPSect, name2, nSect);
 
             if (vol.UseDirCache)
             {
@@ -734,6 +836,13 @@
             if (entryBlock.SecType == Constants.ST_DIR && !IsEmpty(entryBlock))
             {
                 throw new DirectoryNotEmptyException($"Directory '{name}' is not empty");
+            }
+
+            var removeIntl = vol.UseIntl || vol.UseDirCache;
+            vol.DirectoryIndex.Remove(pSect, MyToUpper(name, removeIntl));
+            if (entryBlock.SecType == Constants.ST_DIR)
+            {
+                vol.DirectoryIndex.Invalidate(nSect);
             }
 
             /* in parent hashTable */
@@ -844,7 +953,7 @@
         {
             var parent = await Disk.ReadEntryBlock(volume, parentSector);
 
-            var result = await GetEntryBlock(volume, parent.HashTable, name, false);
+            var result = await GetEntryBlock(volume, parentSector, parent.HashTable, name);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
             if (nSect == uint.MaxValue)
@@ -878,7 +987,7 @@
         {
             var parent = await Disk.ReadEntryBlock(volume, parentSector);
 
-            var result = await GetEntryBlock(volume, parent.HashTable, name, false);
+            var result = await GetEntryBlock(volume, parentSector, parent.HashTable, name);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
             if (nSect == uint.MaxValue)
@@ -912,7 +1021,7 @@
         {
             var parent = await Disk.ReadEntryBlock(volume, parentSector);
 
-            var result = await GetEntryBlock(volume, parent.HashTable, name, false);
+            var result = await GetEntryBlock(volume, parentSector, parent.HashTable, name);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
             if (nSect == uint.MaxValue)
@@ -934,6 +1043,39 @@
             {
                 await Cache.UpdateCache(volume, parent, entryBlock, true);
             }
+        }
+
+        /// <summary>
+        /// Find entry by name in directory using directory index
+        /// </summary>
+        /// <returns>Entry found or null, if not found</returns>
+        private static async Task<Entry> FindEntryInDirectory(Volume volume, uint directorySector, string name)
+        {
+            var directoryBlock = await Disk.ReadEntryBlock(volume, directorySector);
+            var result = await GetEntryBlock(volume, directorySector, directoryBlock.HashTable, name);
+            if (result.NSect == uint.MaxValue)
+            {
+                // names with characters not upper cased by amiga upper case rules are matched ignoring case
+                if (name.All(c => c < 128))
+                {
+                    return null;
+                }
+
+                return (await ReadEntries(volume, directorySector)).FirstOrDefault(x =>
+                    x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var entry = ConvertEntryBlockToEntry(volume, result.EntryBlock);
+            if (volume.ResolveLinkPaths && entry.Type == Constants.ST_LFILE || entry.Type == Constants.ST_LDIR)
+            {
+                entry.LinkEntryBlock = await Disk.ReadEntryBlock(volume, entry.Real);
+                var linkPath = await GetPath(volume, entry.LinkEntryBlock.Parent, entry.Parent);
+                entry.LinkPath = string.Concat(linkPath, string.IsNullOrEmpty(linkPath) ? string.Empty : "/",
+                    entry.LinkEntryBlock.Name);
+            }
+
+            entry.Sector = result.NSect;
+            return entry;
         }
 
         public static async Task<FindEntryResult> FindEntry(uint sector, string path, Volume volume)
@@ -965,8 +1107,7 @@
             {
                 var part = parts[i];
 
-                var currentEntry = (await ReadEntries(volume, sector)).FirstOrDefault(x =>
-                    x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
+                var currentEntry = await FindEntryInDirectory(volume, sector, part);
                 if (currentEntry == null)
                 {
                     break;
