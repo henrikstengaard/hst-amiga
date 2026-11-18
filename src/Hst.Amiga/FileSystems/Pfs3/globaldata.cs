@@ -56,6 +56,11 @@
         
         // stream for data io
         public Stream stream;
+
+        /// <summary>
+        /// Block device used for block I/O on stream
+        /// </summary>
+        public BlockDevices.BlockDevice device;
         
         public ushort infoblockshift;
         public bool updateok;

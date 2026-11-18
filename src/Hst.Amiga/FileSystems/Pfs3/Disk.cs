@@ -46,6 +46,19 @@
         /// Bytes past end of stream are zero filled.
         /// </summary>
         /// <returns>False, if block nr is uninitialised anode. Otherwise true.</returns>
+        /// <summary>
+        /// Get block device for stream of global data
+        /// </summary>
+        public static BlockDevices.BlockDevice Device(globaldata g)
+        {
+            if (g.device == null || !ReferenceEquals(g.device.Stream, g.stream))
+            {
+                g.device = BlockDevices.BlockDevice.Create(g.stream);
+            }
+
+            return g.device;
+        }
+
         public static async Task<bool> RawRead(byte[] dest, int destOffset, uint blocks, uint blocknr, globaldata g)
         {
             if (blocknr == UInt32.MaxValue) // blocknr of uninitialised anode
@@ -70,21 +83,12 @@
             }
 
             var offset = (long)g.blocksize * blocknr;
-            g.stream.Seek(offset, SeekOrigin.Begin);
 
-            // read block bytes, stream can return fewer bytes than requested
-            var bytesRead = 0;
-            while (bytesRead < count)
+            // read block bytes, clear bytes after end of stream
+            var bytesRead = await Device(g).ReadAsync(offset, dest, destOffset, count);
+            if (bytesRead < count)
             {
-                var n = await g.stream.ReadAsync(dest, destOffset + bytesRead, count - bytesRead);
-                if (n <= 0)
-                {
-                    // end of stream
-                    Array.Clear(dest, destOffset + bytesRead, count - bytesRead);
-                    break;
-                }
-
-                bytesRead += n;
+                Array.Clear(dest, destOffset + bytesRead, count - bytesRead);
             }
 
             return true;
@@ -159,10 +163,17 @@
             BoundsCheck(true, blocknr, blocks, g);
 
             var blockOffset = (long)g.blocksize * blocknr;
-            
-            stream.Seek(blockOffset, SeekOrigin.Begin);
-            await stream.WriteAsync(buffer, bufferOffset,
-                Convert.ToInt32(Math.Min(buffer.Length - bufferOffset, g.blocksize * blocks)));
+            var count = Convert.ToInt32(Math.Min(buffer.Length - bufferOffset, g.blocksize * blocks));
+
+            if (ReferenceEquals(stream, g.stream))
+            {
+                await Device(g).WriteAsync(blockOffset, buffer, bufferOffset, count);
+            }
+            else
+            {
+                stream.Seek(blockOffset, SeekOrigin.Begin);
+                await stream.WriteAsync(buffer, bufferOffset, count);
+            }
 
             return true;
         }

@@ -3,13 +3,30 @@
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using BlockDevices;
     using Blocks;
 
     internal class Volume
     {
         public int BlockSize { get; set; }
         public int FileSystemBlockSize { get; set; }
-        public Stream Stream { get; set; }
+        private Stream stream;
+        private BlockDevice device;
+
+        public Stream Stream
+        {
+            get => stream;
+            set
+            {
+                stream = value;
+                device = null;
+            }
+        }
+
+        /// <summary>
+        /// Block device used for all block I/O on stream
+        /// </summary>
+        public BlockDevice Device => device ?? (device = BlockDevice.Create(stream));
         public uint FirstBlock { get; set; }
         public uint LastBlock { get; set; }
         public uint Blocks { get; set; }

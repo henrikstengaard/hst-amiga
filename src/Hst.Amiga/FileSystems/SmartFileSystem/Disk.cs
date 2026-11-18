@@ -25,19 +25,9 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
                 return copy;
             }
 
-            volume.Stream.Seek(volume.PartitionOffset + (long)block * volume.BlockSize, SeekOrigin.Begin);
             var blockBytes = new byte[volume.BlockSize];
-            var offset = 0;
-            while (offset < blockBytes.Length)
-            {
-                var bytesRead = await volume.Stream.ReadAsync(blockBytes, offset, blockBytes.Length - offset);
-                if (bytesRead <= 0)
-                {
-                    break;
-                }
-
-                offset += bytesRead;
-            }
+            await volume.Device.ReadAsync(volume.PartitionOffset + (long)block * volume.BlockSize, blockBytes, 0,
+                blockBytes.Length);
 
             return blockBytes;
         }
@@ -60,8 +50,8 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
             }
 
             volume.Overlay.Remove(block);
-            volume.Stream.Seek(volume.PartitionOffset + (long)block * volume.BlockSize, SeekOrigin.Begin);
-            await volume.Stream.WriteAsync(blockBytes, 0, blockBytes.Length);
+            await volume.Device.WriteAsync(volume.PartitionOffset + (long)block * volume.BlockSize, blockBytes, 0,
+                blockBytes.Length);
         }
 
         /// <summary>

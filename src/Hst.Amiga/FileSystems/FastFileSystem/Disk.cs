@@ -10,16 +10,16 @@
     {
         private static async Task<byte[]> ReadBlockBytes(Volume volume, uint sector)
         {
-            var blockOffset = volume.PartitionStartOffset + sector * volume.FileSystemBlockSize;
-            volume.Stream.Seek(blockOffset, SeekOrigin.Begin);
-            return await Amiga.Disk.ReadBlock(volume.Stream, volume.FileSystemBlockSize);
+            var blockOffset = volume.PartitionStartOffset + (long)sector * volume.FileSystemBlockSize;
+            var blockBytes = new byte[volume.FileSystemBlockSize];
+            await volume.Device.ReadExactlyAsync(blockOffset, blockBytes, 0, blockBytes.Length);
+            return blockBytes;
         }
 
         private static async Task WriteBlockBytes(Volume volume, uint sector, byte[] blockBytes)
         {
-            var blockOffset = volume.PartitionStartOffset + sector * volume.FileSystemBlockSize;
-            volume.Stream.Seek(blockOffset, SeekOrigin.Begin);
-            await Amiga.Disk.WriteBlock(volume.Stream, blockBytes);
+            var blockOffset = volume.PartitionStartOffset + (long)sector * volume.FileSystemBlockSize;
+            await volume.Device.WriteAsync(blockOffset, blockBytes, 0, blockBytes.Length);
         }
         
         public static async Task<RootBlock> ReadRootBlock(Volume volume, uint sector)
@@ -316,9 +316,9 @@
             ThrowExceptionIfBlockRangeInvalid(volume, logicalSector, blocks, buffer, offset);
 
             var physicalSector = logicalSector + volume.FirstBlock;
-            volume.Stream.Seek(volume.PartitionStartOffset + (long)physicalSector * volume.FileSystemBlockSize,
-                SeekOrigin.Begin);
-            await Amiga.Disk.ReadExactly(volume.Stream, buffer, offset, blocks * volume.FileSystemBlockSize);
+            await volume.Device.ReadExactlyAsync(
+                volume.PartitionStartOffset + (long)physicalSector * volume.FileSystemBlockSize, buffer, offset,
+                blocks * volume.FileSystemBlockSize);
 
             // overlay dirty cached blocks not written to disk yet
             if (volume.BlockCache.DirtyCount == 0)
@@ -360,10 +360,10 @@
             ThrowExceptionIfBlockRangeInvalid(volume, logicalSector, blocks, buffer, offset);
 
             var physicalSector = logicalSector + volume.FirstBlock;
-            volume.Stream.Seek(volume.PartitionStartOffset + (long)physicalSector * volume.FileSystemBlockSize,
-                SeekOrigin.Begin);
             volume.BlockCache.Invalidate(logicalSector, blocks);
-            await volume.Stream.WriteAsync(buffer, offset, blocks * volume.FileSystemBlockSize);
+            await volume.Device.WriteAsync(
+                volume.PartitionStartOffset + (long)physicalSector * volume.FileSystemBlockSize, buffer, offset,
+                blocks * volume.FileSystemBlockSize);
         }
 
         private static void ThrowExceptionIfBlockRangeInvalid(Volume volume, uint logicalSector, int blocks,
@@ -460,7 +460,7 @@
                 }
 
                 await WriteDirtyBlocks(volume);
-                await volume.Stream.FlushAsync();
+                await volume.Device.FlushAsync();
             }
             finally
             {
@@ -516,9 +516,8 @@
                     }
 
                     var physicalSector = dirtyBlocks[i].Sector + volume.FirstBlock;
-                    volume.Stream.Seek(volume.PartitionStartOffset + (long)physicalSector * blockSize,
-                        SeekOrigin.Begin);
-                    await volume.Stream.WriteAsync(runBuffer, 0, runLength * blockSize);
+                    await volume.Device.WriteAsync(volume.PartitionStartOffset + (long)physicalSector * blockSize,
+                        runBuffer, 0, runLength * blockSize);
                 }
 
                 for (var j = 0; j < runLength; j++)

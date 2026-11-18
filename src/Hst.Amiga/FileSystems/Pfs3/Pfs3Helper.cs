@@ -37,7 +37,7 @@
             }
             
             Volume.FreeVolumeResources(g.currentvolume, g);
-            await g.stream.FlushAsync();
+            await Disk.Device(g).FlushAsync();
         }
 
         public static int CalculateBitmapBlocksCount(int bitmapsCount, globaldata g)

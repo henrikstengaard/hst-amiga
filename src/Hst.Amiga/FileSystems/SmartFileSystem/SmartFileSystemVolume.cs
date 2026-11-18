@@ -485,7 +485,7 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
             cancellationToken.ThrowIfCancellationRequested();
             if (!volume.IsReadOnly)
             {
-                await volume.Stream.FlushAsync();
+                await volume.Device.FlushAsync();
             }
         }
 
