@@ -156,6 +156,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Directory.CreateDirectory(volume, currentDirectorySector, dirName);
+            await Disk.CheckpointIfNeeded(volume);
         }
 
         /// <summary>
@@ -187,6 +188,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Directory.CreateLink(volume, currentDirectorySector, linkName, name);
+            await Disk.CheckpointIfNeeded(volume);
         }
 
         /// <summary>
@@ -214,6 +216,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Directory.RemoveEntry(volume, currentDirectorySector, name, ignoreProtectionBits);
+            await Disk.CheckpointIfNeeded(volume);
         }
 
         /// <summary>
@@ -248,6 +251,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
 
             await Directory.RenameEntry(volume, currentDirectorySector, srcEntryResult.Name, destEntryResult.Sector,
                 destEntryResult.Name);
+            await Disk.CheckpointIfNeeded(volume);
         }
 
         /// <summary>
@@ -260,6 +264,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Directory.SetEntryComment(volume, currentDirectorySector, name, comment);
+            await Disk.CheckpointIfNeeded(volume);
         }
 
         /// <summary>
@@ -273,6 +278,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             cancellationToken.ThrowIfCancellationRequested();
             await Directory.SetEntryAccess(volume, currentDirectorySector, name,
                 ProtectionBitsConverter.ToProtectionValue(protectionBits));
+            await Disk.CheckpointIfNeeded(volume);
         }
 
         /// <summary>
@@ -285,6 +291,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Directory.SetEntryDate(volume, currentDirectorySector, name, date);
+            await Disk.CheckpointIfNeeded(volume);
         }
 
         /// <summary>
@@ -295,11 +302,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // write changed bitmap blocks and set root block bitmap flags valid
-            if (volume.BitmapUpdatePending && volume.Mounted && !volume.ReadOnly)
-            {
-                await Bitmap.AdfUpdateBitmap(volume);
-            }
+            // write changed bitmap blocks, dirty cached blocks and set root block bitmap flags valid
+            await Disk.FlushVolume(volume);
         }
 
         public IEnumerable<string> GetStatus()

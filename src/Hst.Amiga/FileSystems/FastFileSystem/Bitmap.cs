@@ -74,23 +74,18 @@
                 return;
             }
 
-            var root = await Disk.ReadRootBlock(vol, vol.RootBlockOffset);
-            root.BitmapFlags = Constants.BM_INVALID;
-            await Disk.WriteRootBlock(vol, vol.RootBlockOffset, root);
+            await Disk.WriteRootBlockBitmapFlagsInvalid(vol);
 
             vol.BitmapUpdatePending = true;
         }
 
+        /// <summary>
+        /// Update bitmap by writing changed bitmap blocks and root block with bitmap flags valid to block cache,
+        /// which are written to disk by flushing volume
+        /// </summary>
         public static async Task AdfUpdateBitmap(Volume vol)
         {
             var root = await Disk.ReadRootBlock(vol, vol.RootBlockOffset);
-
-            // root block bitmap flags are already set invalid, if bitmap update is pending
-            if (!vol.BitmapUpdatePending)
-            {
-                root.BitmapFlags = Constants.BM_INVALID;
-                await Disk.WriteRootBlock(vol, vol.RootBlockOffset, root);
-            }
 
             for (var i = 0; i < vol.BitmapSize; i++)
                 if (vol.BitmapBlocksChg[i])

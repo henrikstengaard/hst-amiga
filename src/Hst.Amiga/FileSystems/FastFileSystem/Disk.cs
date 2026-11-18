@@ -205,11 +205,19 @@
                 return cachedBlockBytes;
             }
 
+            // return dirty cached block not written to disk yet, if block is read without cache
+            if (!cache && volume.BlockCache.TryGetDirty(logicalSector, out var dirtyBlockBytes))
+            {
+                var copy = new byte[dirtyBlockBytes.Length];
+                Array.Copy(dirtyBlockBytes, copy, copy.Length);
+                return copy;
+            }
+
             var blockBytes = await ReadBlockBytes(volume, physicalSector);
 
             if (cache)
             {
-                volume.BlockCache.Set(logicalSector, blockBytes);
+                volume.BlockCache.Set(logicalSector, blockBytes, false);
             }
 
             return blockBytes;
@@ -237,6 +245,21 @@
             volume.Stream.Seek(volume.PartitionStartOffset + (long)physicalSector * volume.FileSystemBlockSize,
                 SeekOrigin.Begin);
             await Amiga.Disk.ReadExactly(volume.Stream, buffer, offset, blocks * volume.FileSystemBlockSize);
+
+            // overlay dirty cached blocks not written to disk yet
+            if (volume.BlockCache.DirtyCount == 0)
+            {
+                return;
+            }
+
+            for (var i = 0; i < blocks; i++)
+            {
+                if (volume.BlockCache.TryGetDirty(logicalSector + (uint)i, out var dirtyBlockBytes))
+                {
+                    Array.Copy(dirtyBlockBytes, 0, buffer, offset + i * volume.FileSystemBlockSize,
+                        volume.FileSystemBlockSize);
+                }
+            }
         }
 
         /// <summary>
@@ -296,7 +319,8 @@
         /// <param name="volume"></param>
         /// <param name="logicalSector">Logical block number</param>
         /// <param name="blockBytes">Block bytes to write</param>
-        /// <param name="cache">Add block to metadata block cache. Otherwise block is removed from cache</param>
+        /// <param name="cache">Add block to metadata block cache as dirty block, which is written when volume is
+        /// flushed. Otherwise block is removed from cache and written to disk</param>
         public static async Task WriteBlock(Volume volume, uint logicalSector, byte[] blockBytes, bool cache = true)
         {
             if (!volume.Mounted)
@@ -319,14 +343,153 @@
             
             if (cache)
             {
-                volume.BlockCache.Set(logicalSector, blockBytes);
+                volume.BlockCache.Set(logicalSector, blockBytes, true);
+                return;
+            }
+
+            volume.BlockCache.Invalidate(logicalSector);
+            await WriteBlockBytes(volume, physicalSector, blockBytes);
+        }
+
+        /// <summary>
+        /// Flush volume, if number of dirty cached blocks exceeds max dirty blocks. Must only be called, when
+        /// a file system operation is completed, so a consistent state is written to disk.
+        /// </summary>
+        public static async Task CheckpointIfNeeded(Volume volume)
+        {
+            if (volume.BlockCache.DirtyCount < Volume.MaxDirtyBlocks)
+            {
+                return;
+            }
+
+            await FlushVolume(volume);
+        }
+
+        /// <summary>
+        /// Flush volume by writing changed bitmap blocks, root block with bitmap flags valid and all dirty cached
+        /// blocks in sector order with consecutive dirty blocks merged into single writes. Root block is written
+        /// last.
+        /// </summary>
+        public static async Task FlushVolume(Volume volume)
+        {
+            if (!volume.Mounted || volume.ReadOnly || volume.Flushing)
+            {
+                return;
+            }
+
+            volume.Flushing = true;
+            try
+            {
+                if (volume.BitmapUpdatePending)
+                {
+                    await Bitmap.AdfUpdateBitmap(volume);
+                }
+
+                await WriteDirtyBlocks(volume);
+                await volume.Stream.FlushAsync();
+            }
+            finally
+            {
+                volume.Flushing = false;
+            }
+        }
+
+        private static async Task WriteDirtyBlocks(Volume volume)
+        {
+            var dirtyBlocks = volume.BlockCache.GetDirtyBlocks();
+            if (dirtyBlocks.Count == 0)
+            {
+                return;
+            }
+
+            var blockSize = volume.FileSystemBlockSize;
+            BlockCache.CachedBlock rootBlock = null;
+            byte[] runBuffer = null;
+
+            var i = 0;
+            while (i < dirtyBlocks.Count)
+            {
+                if (dirtyBlocks[i].Sector == volume.RootBlockOffset)
+                {
+                    rootBlock = dirtyBlocks[i];
+                    i++;
+                    continue;
+                }
+
+                // find run of consecutive dirty blocks, root block is not part of runs as it's written last
+                var runLength = 1;
+                while (i + runLength < dirtyBlocks.Count &&
+                       dirtyBlocks[i + runLength].Sector == dirtyBlocks[i].Sector + (uint)runLength &&
+                       dirtyBlocks[i + runLength].Sector != volume.RootBlockOffset)
+                {
+                    runLength++;
+                }
+
+                if (runLength == 1)
+                {
+                    await WriteBlockBytes(volume, dirtyBlocks[i].Sector + volume.FirstBlock, dirtyBlocks[i].Bytes);
+                }
+                else
+                {
+                    if (runBuffer == null || runBuffer.Length < runLength * blockSize)
+                    {
+                        runBuffer = new byte[runLength * blockSize];
+                    }
+
+                    for (var j = 0; j < runLength; j++)
+                    {
+                        Array.Copy(dirtyBlocks[i + j].Bytes, 0, runBuffer, j * blockSize, blockSize);
+                    }
+
+                    var physicalSector = dirtyBlocks[i].Sector + volume.FirstBlock;
+                    volume.Stream.Seek(volume.PartitionStartOffset + (long)physicalSector * blockSize,
+                        SeekOrigin.Begin);
+                    await volume.Stream.WriteAsync(runBuffer, 0, runLength * blockSize);
+                }
+
+                for (var j = 0; j < runLength; j++)
+                {
+                    volume.BlockCache.MarkClean(dirtyBlocks[i + j]);
+                }
+
+                i += runLength;
+            }
+
+            if (rootBlock != null)
+            {
+                await WriteBlockBytes(volume, rootBlock.Sector + volume.FirstBlock, rootBlock.Bytes);
+                volume.BlockCache.MarkClean(rootBlock);
+            }
+
+            volume.BlockCache.EvictCleanBlocks();
+        }
+
+        /// <summary>
+        /// Write root block bitmap flags invalid directly to root block on disk, so volume is validated, if
+        /// changes are not flushed. Root block on disk is used, so changes to root block not flushed yet are
+        /// not written. Cached root block is updated with bitmap flags invalid.
+        /// </summary>
+        public static async Task WriteRootBlockBitmapFlagsInvalid(Volume volume)
+        {
+            var rootSector = volume.RootBlockOffset + volume.FirstBlock;
+            var diskRoot = RootBlockParser.Parse(await ReadBlockBytes(volume, rootSector));
+            diskRoot.BitmapFlags = Constants.BM_INVALID;
+            var diskRootBytes = RootBlockBuilder.Build(diskRoot, volume.FileSystemBlockSize);
+            await WriteBlockBytes(volume, rootSector, diskRootBytes);
+
+            if (volume.BlockCache.TryGetDirty(volume.RootBlockOffset, out var dirtyRootBytes))
+            {
+                // update bitmap flags in dirty cached root block, which is written when volume is flushed
+                var cachedRoot = RootBlockParser.Parse(dirtyRootBytes);
+                cachedRoot.BitmapFlags = Constants.BM_INVALID;
+                volume.BlockCache.Set(volume.RootBlockOffset,
+                    RootBlockBuilder.Build(cachedRoot, volume.FileSystemBlockSize), true);
             }
             else
             {
-                volume.BlockCache.Invalidate(logicalSector);
+                // cached root block is equal to root block on disk
+                volume.BlockCache.Set(volume.RootBlockOffset, diskRootBytes, false);
             }
-
-            await WriteBlockBytes(volume, physicalSector, blockBytes);
         }        
     }
 }

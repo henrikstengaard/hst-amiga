@@ -76,6 +76,12 @@ files, directories and links are kept in memory and written to disk when the vol
 disposed. This avoids writing bitmap blocks and the root block every time a file is created or closed, which
 makes writing many files a lot faster.
 
+Metadata blocks (root, directory, file header, file extension, bitmap, dir cache and comment blocks) are cached in
+a write-back cache. Changed blocks are written when the volume is flushed or disposed, in sector order with
+consecutive blocks merged into single writes and the root block written last. When more than 512 changed blocks
+are cached, the volume is flushed after the current file system operation completes. File data blocks are
+written directly.
+
 File data blocks are allocated in runs of consecutive free blocks, growing from 8 to 128 blocks while a file is
 written, and file extension blocks are allocated after each run, so large files are stored in long runs of
 consecutive blocks. Holes of free blocks smaller than the run wanted (max. 64 blocks) are only used, when no

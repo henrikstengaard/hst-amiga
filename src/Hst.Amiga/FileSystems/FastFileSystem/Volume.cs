@@ -63,14 +63,24 @@
         public bool ResolveLinkPaths { get; set; }
 
         /// <summary>
-        /// Write-through cache of metadata blocks
+        /// Write-back cache of metadata blocks
         /// </summary>
         public BlockCache BlockCache { get; }
 
         /// <summary>
         /// Number of metadata blocks cached
         /// </summary>
-        public const int BlockCacheSize = 256;
+        public const int BlockCacheSize = 1024;
+
+        /// <summary>
+        /// Max number of dirty cached blocks before volume is flushed, when a file system operation completes
+        /// </summary>
+        public const int MaxDirtyBlocks = 512;
+
+        /// <summary>
+        /// Volume is being flushed
+        /// </summary>
+        public bool Flushing { get; set; }
 
         public Volume()
         {

@@ -798,6 +798,7 @@
 
                 // bitmap is written when volume is flushed or disposed
                 await Bitmap.AdfDeferUpdateBitmap(volume);
+                await Disk.CheckpointIfNeeded(volume);
             }
         }
     }
