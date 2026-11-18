@@ -40,6 +40,11 @@
         public int DirtyCount { get; private set; }
 
         /// <summary>
+        /// Is block for logical sector cached
+        /// </summary>
+        public bool Contains(uint sector) => blocks.ContainsKey(sector);
+
+        /// <summary>
         /// Try get copy of cached block bytes for logical sector
         /// </summary>
         public bool TryGet(uint sector, out byte[] blockBytes)

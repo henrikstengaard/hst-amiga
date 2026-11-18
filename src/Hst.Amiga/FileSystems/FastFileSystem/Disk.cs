@@ -1,6 +1,7 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
@@ -223,6 +224,79 @@
             return blockBytes;
         }
         
+        /// <summary>
+        /// Max number of blocks between blocks to prefetch, which are read with a single read
+        /// </summary>
+        private const int PrefetchMaxGap = 8;
+
+        /// <summary>
+        /// Max number of blocks read with a single read, when prefetching blocks
+        /// </summary>
+        private const int PrefetchMaxBlocks = 128;
+
+        /// <summary>
+        /// Prefetch metadata blocks into block cache. Sectors not cached are read sorted by sector, where sectors
+        /// close to each other are read with a single read. Only sectors prefetched are added to block cache.
+        /// </summary>
+        /// <param name="volume">Volume</param>
+        /// <param name="sectors">Logical sectors to prefetch</param>
+        public static async Task PrefetchBlocks(Volume volume, IEnumerable<uint> sectors)
+        {
+            var sectorsToRead = new List<uint>();
+            foreach (var sector in sectors)
+            {
+                if (IsSectorNumberValid(volume, sector) && !volume.BlockCache.Contains(sector))
+                {
+                    sectorsToRead.Add(sector);
+                }
+            }
+
+            if (sectorsToRead.Count <= 1)
+            {
+                return;
+            }
+
+            sectorsToRead.Sort();
+
+            var blockSize = volume.FileSystemBlockSize;
+            byte[] buffer = null;
+            var i = 0;
+            while (i < sectorsToRead.Count)
+            {
+                // find run of sectors with max gap between them
+                var first = sectorsToRead[i];
+                var last = i;
+                while (last + 1 < sectorsToRead.Count &&
+                       sectorsToRead[last + 1] - sectorsToRead[last] <= PrefetchMaxGap + 1 &&
+                       sectorsToRead[last + 1] - first < PrefetchMaxBlocks)
+                {
+                    last++;
+                }
+
+                var blocks = (int)(sectorsToRead[last] - first + 1);
+                if (buffer == null || buffer.Length < blocks * blockSize)
+                {
+                    buffer = new byte[blocks * blockSize];
+                }
+
+                await ReadBlocks(volume, first, blocks, buffer, 0);
+
+                var blockBytes = new byte[blockSize];
+                for (var j = i; j <= last; j++)
+                {
+                    if (j > i && sectorsToRead[j] == sectorsToRead[j - 1])
+                    {
+                        continue;
+                    }
+
+                    Array.Copy(buffer, (int)(sectorsToRead[j] - first) * blockSize, blockBytes, 0, blockSize);
+                    volume.BlockCache.Set(sectorsToRead[j], blockBytes, false);
+                }
+
+                i = last + 1;
+            }
+        }
+
         /// <summary>
         /// Read consecutive blocks into buffer with a single read
         /// </summary>

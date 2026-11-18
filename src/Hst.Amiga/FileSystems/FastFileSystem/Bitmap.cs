@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using Blocks;
     using Exceptions;
@@ -26,6 +27,9 @@
                 vol.BitmapTable[i] = new BitmapBlock(vol.FileSystemBlockSize);
             }
 
+            // prefetch bitmap blocks in root block, which are usually located after each other
+            await Disk.PrefetchBlocks(vol, root.BitmapBlockOffsets.Take(Constants.BM_SIZE).Where(x => x != 0));
+
             var j = 0;
             i = 0;
             uint nSect;
@@ -43,6 +47,8 @@
             while (nSect != 0)
             {
                 var bmExt = await Disk.ReadBitmapExtensionBlock(vol, nSect);
+                await Disk.PrefetchBlocks(vol, bmExt.BitmapBlockOffsets.Where(x => x != 0)
+                    .Take((int)Math.Min(vol.OffsetsPerBitmapBlock, mapSize - j)));
                 i = 0;
                 while (i < vol.OffsetsPerBitmapBlock && j < mapSize)
                 {

@@ -62,7 +62,13 @@
         
         public static async Task<IEnumerable<Entry>> ReadEntries(Volume volume, uint nSect, bool recursive = false)
         {
-            var entries = (await ReadEntriesFromDisk(volume, nSect, recursive)).ToList();
+            var entriesRead = await ReadEntriesFromDisk(volume, nSect, recursive);
+            if (entriesRead == null)
+            {
+                return null;
+            }
+
+            var entries = entriesRead.ToList();
 
             // index entries listed, if directory is not indexed
             if (!volume.DirectoryIndex.TryGet(nSect, out _))
@@ -80,6 +86,39 @@
             return entries;
         }
 
+        /// <summary>
+        /// Is secondary type an entry type, which can be part of a hash chain: directories, files and links
+        /// </summary>
+        private static bool IsHashChainEntryType(int secType) =>
+            secType == Constants.ST_DIR || secType == Constants.ST_FILE || secType == Constants.ST_LFILE ||
+            secType == Constants.ST_LDIR || secType == Constants.ST_LSOFT;
+
+        private static bool IsChainHeadValid(Volume volume, uint sector) =>
+            sector != 0 && sector >= volume.FirstBlock && sector <= volume.LastBlock;
+
+        /// <summary>
+        /// Resolve link entry block and link path for hard links, if volume resolves link paths. Paths of
+        /// link entry parents are cached in link paths, so parents are only walked once per directory listed.
+        /// </summary>
+        private static async Task ResolveLink(Volume volume, Entry entry, IDictionary<uint, string> linkPaths)
+        {
+            if (!volume.ResolveLinkPaths || (entry.Type != Constants.ST_LFILE && entry.Type != Constants.ST_LDIR))
+            {
+                return;
+            }
+
+            entry.LinkEntryBlock = await Disk.ReadEntryBlock(volume, entry.Real);
+            var linkParent = entry.LinkEntryBlock.Parent;
+            if (linkPaths == null || !linkPaths.TryGetValue(linkParent, out var linkPath))
+            {
+                linkPath = await GetPath(volume, linkParent, entry.Parent);
+                linkPaths?.Add(linkParent, linkPath);
+            }
+
+            entry.LinkPath = string.Concat(linkPath, string.IsNullOrEmpty(linkPath) ? string.Empty : "/",
+                entry.LinkEntryBlock.Name);
+        }
+
         private static async Task<IEnumerable<Entry>> ReadEntriesFromDisk(Volume volume, uint nSect, bool recursive)
         {
             if (volume.UseDirCache)
@@ -88,55 +127,53 @@
             }
 
             var startEntryBlock = await Disk.ReadEntryBlock(volume, nSect);
+            var hashTable = startEntryBlock.HashTable;
 
-            var hashTable = startEntryBlock.HashTable.ToList();
-            var entries = new List<Entry>();
-
-            for (var i = 0; i < hashTable.Count; i++)
+            // read entry blocks level by level of hash chains, where blocks in each level are read sorted by sector
+            // with blocks close to each other read with a single read
+            var entryBlocks = new Dictionary<uint, EntryBlock>();
+            var level = hashTable.Where(sector => IsChainHeadValid(volume, sector)).ToList();
+            while (level.Count > 0)
             {
-                if (hashTable[i] == 0)
+                await Disk.PrefetchBlocks(volume, level);
+
+                var nextLevel = new List<uint>();
+                foreach (var sector in level)
+                {
+                    if (entryBlocks.ContainsKey(sector))
+                    {
+                        continue;
+                    }
+
+                    var entryBlock = await Disk.ReadEntryBlock(volume, sector);
+                    entryBlocks[sector] = entryBlock;
+                    if (entryBlock.NextSameHash != 0 && !entryBlocks.ContainsKey(entryBlock.NextSameHash))
+                    {
+                        nextLevel.Add(entryBlock.NextSameHash);
+                    }
+                }
+
+                level = nextLevel;
+            }
+
+            // convert entry blocks to entries in hash table and hash chain order
+            var entries = new List<Entry>(entryBlocks.Count);
+            var linkPaths = new Dictionary<uint, string>();
+            var added = new HashSet<uint>();
+            foreach (var chainHead in hashTable)
+            {
+                if (!IsChainHeadValid(volume, chainHead))
                 {
                     continue;
                 }
 
-                if (hashTable[i] < volume.FirstBlock || hashTable[i] > volume.LastBlock)
+                var sector = chainHead;
+                while (sector != 0 && added.Add(sector))
                 {
-                    continue;
-                }
-
-                var entryBlock = await Disk.ReadEntryBlock(volume, hashTable[i]);
-
-                // convert entry block to entry and add to list
-                var entry = ConvertEntryBlockToEntry(volume, entryBlock);
-
-                if (volume.ResolveLinkPaths && entry.Type == Constants.ST_LFILE || entry.Type == Constants.ST_LDIR)
-                {
-                    entry.LinkEntryBlock = await Disk.ReadEntryBlock(volume, entry.Real);
-                    var linkPath = await GetPath(volume, entry.LinkEntryBlock.Parent, entry.Parent);
-                    entry.LinkPath = string.Concat(linkPath, string.IsNullOrEmpty(linkPath) ? string.Empty : "/",
-                        entry.LinkEntryBlock.Name);
-                }
-                
-                entry.Sector = hashTable[i];
-                entries.Add(entry);
-
-                if (recursive && entry.IsDirectory())
-                {
-                    entry.SubDir = (await ReadEntries(volume,
-                        FastFileSystemHelper.GetSector(volume, entryBlock), true)).ToList();
-                }
-
-                //         /* same hashcode linked list */
-                //         nextSector = entryBlk.nextSameHash;
-                //         while( nextSector!=0 ) {
-                var nextSector = entryBlock.NextSameHash;
-                while (nextSector != 0)
-                {
-                    entryBlock = await Disk.ReadEntryBlock(volume, nextSector);
-
-                    // convert entry block to entry and add to list
-                    entry = ConvertEntryBlockToEntry(volume, entryBlock);
-                    entry.Sector = nextSector;
+                    var entryBlock = entryBlocks[sector];
+                    var entry = ConvertEntryBlockToEntry(volume, entryBlock);
+                    await ResolveLink(volume, entry, linkPaths);
+                    entry.Sector = sector;
                     entries.Add(entry);
 
                     if (recursive && entry.IsDirectory())
@@ -145,7 +182,7 @@
                             FastFileSystemHelper.GetSector(volume, entryBlock), true)).ToList();
                     }
 
-                    nextSector = entryBlock.NextSameHash;
+                    sector = entryBlock.NextSameHash;
                 }
             }
 
@@ -494,7 +531,7 @@
                 }
             }
 
-            if (!(updEntry.SecType == Constants.ST_DIR || updEntry.SecType == Constants.ST_FILE))
+            if (!IsHashChainEntryType(updEntry.SecType))
             {
                 throw new FileSystemException($"Invalid secondary type '{updEntry.SecType}'");
             }
@@ -737,7 +774,7 @@
                     nSect2 = previous.NextSameHash;
                 } while (nSect2 != 0);
 
-                if (!(previous.SecType == Constants.ST_DIR || previous.SecType == Constants.ST_FILE))
+                if (!IsHashChainEntryType(previous.SecType))
                 {
                     throw new FileSystemException($"Invalid entry secType {previous.SecType}");
                 }
@@ -1066,13 +1103,7 @@
             }
 
             var entry = ConvertEntryBlockToEntry(volume, result.EntryBlock);
-            if (volume.ResolveLinkPaths && entry.Type == Constants.ST_LFILE || entry.Type == Constants.ST_LDIR)
-            {
-                entry.LinkEntryBlock = await Disk.ReadEntryBlock(volume, entry.Real);
-                var linkPath = await GetPath(volume, entry.LinkEntryBlock.Parent, entry.Parent);
-                entry.LinkPath = string.Concat(linkPath, string.IsNullOrEmpty(linkPath) ? string.Empty : "/",
-                    entry.LinkEntryBlock.Name);
-            }
+            await ResolveLink(volume, entry, null);
 
             entry.Sector = result.NSect;
             return entry;
