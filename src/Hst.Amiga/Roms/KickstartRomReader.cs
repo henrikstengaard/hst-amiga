@@ -30,12 +30,19 @@ namespace Hst.Amiga.Roms
         /// <exception cref="InvalidDataException">The image is invalid, unsupported, or has no credible resident modules.</exception>
         public static KickstartRom Read(byte[] romBytes, byte[] keyBytes = null)
         {
+            var decodedBytes = Decode(romBytes, keyBytes, out var isEncrypted);
+            var modules = FindModules(decodedBytes, out var baseAddress);
+            return new KickstartRom(decodedBytes, isEncrypted, baseAddress, modules);
+        }
+
+        internal static byte[] Decode(byte[] romBytes, byte[] keyBytes, out bool isEncrypted)
+        {
             if (romBytes == null)
             {
                 throw new ArgumentNullException(nameof(romBytes));
             }
 
-            var isEncrypted = romBytes.Length >= CloantoHeaderSize &&
+            isEncrypted = romBytes.Length >= CloantoHeaderSize &&
                               string.Equals(AmigaTextHelper.Iso88591.GetString(romBytes, 0, CloantoHeaderSize),
                                   CloantoHeader, StringComparison.Ordinal);
             var hasKickImageHeader = !isEncrypted && romBytes.Length > KickImageHeaderSize &&
@@ -63,8 +70,7 @@ namespace Hst.Amiga.Roms
                 Array.Copy(romBytes, headerSize, decodedBytes, 0, decodedBytes.Length);
             }
 
-            var modules = FindModules(decodedBytes, out var baseAddress);
-            return new KickstartRom(decodedBytes, isEncrypted, baseAddress, modules);
+            return decodedBytes;
         }
 
         private static IReadOnlyList<KickstartRomModule> FindModules(byte[] bytes, out uint baseAddress)

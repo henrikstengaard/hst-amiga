@@ -15,6 +15,39 @@ public class GivenKickstartRomReader
 {
     private const uint BaseAddress = 0xF80000;
 
+    [Theory]
+    [InlineData(0x20005)]
+    [InlineData(0x20007)]
+    public async Task WhenExtractingWithRemusDataThenCatalogControlsModuleLayoutAndFixes(int version)
+    {
+        var (rom, catalog) = CreateRemusFixture(version);
+
+        // The image deliberately has no resident tags: the catalog defines the entire module.
+        Assert.Equal((8, 16, "test.device"), Assert.Single(RemusRomSplitter.List(rom, catalog)));
+        var (offset, name, bytes) = Assert.Single(RemusRomSplitter.Extract(rom, catalog));
+        var hunks = (await HunkReader.Read(new MemoryStream(bytes))).ToList();
+        var code = Assert.IsType<Code>(hunks[1]).Data;
+        Assert.Equal(8, offset);
+        Assert.Equal("test.device", name);
+        Assert.Equal(16, code.Length);
+        Assert.Equal(12U, ReadUInt32(code, 0)); // catalog relocation uses the module start
+        Assert.Equal(BaseAddress + 20, ReadUInt32(code, 4)); // equally plausible pointer, not listed
+        Assert.Equal(0x11223344U, ReadUInt32(code, 8)); // extraction fix
+        Assert.Equal(0U, ReadUInt32(code, 12)); // optional patch skipped
+        Assert.Equal(0U, Assert.Single(Assert.Single(Assert.IsType<ReLoc32>(hunks[2]).Entries).Offsets));
+    }
+
+    [Fact]
+    public void WhenRomChangesWithoutUpdatingItsChecksumThenRemusDataIsRejected()
+    {
+        var (rom, catalog) = CreateRemusFixture(0x20007);
+        rom[0] = 1;
+
+        var error = Assert.Throws<InvalidDataException>(() => RemusRomSplitter.Extract(rom, catalog));
+
+        Assert.Contains("No matching ROM", error.Message);
+    }
+
     [Fact]
     public void WhenReadingRawRomThenResidentModulesAreFound()
     {
@@ -93,6 +126,11 @@ public class GivenKickstartRomReader
         // The synthetic ROM stores the first module's resident strings after its end pointer.
         // Extend its test slice so all resident relocations target bytes in the Hunk segment.
         rom.Modules[0].Size = 160;
+        // A short branch immediately before the resident tag is the module's entry prelude.
+        rom.Bytes[0] = 0x60;
+        rom.Bytes[1] = 0x00;
+        rom.Bytes[2] = 0x00;
+        rom.Bytes[3] = 0x0E;
 
         var hunkBytes = rom.GetModuleHunkBytes(rom.Modules[0]);
         var hunks = (await HunkReader.Read(new MemoryStream(hunkBytes))).ToList();
@@ -100,18 +138,110 @@ public class GivenKickstartRomReader
         Assert.Equal(HunkIdentifiers.Header, hunks[0].Identifier);
         Assert.Equal(HunkIdentifiers.Code, hunks[1].Identifier);
         var code = Assert.IsType<Code>(hunks[1]).Data;
-        Assert.Equal(0U, ReadUInt32(code, 2)); // rt_MatchTag rebased to the code hunk
-        Assert.Equal(64U, ReadUInt32(code, 6)); // rt_EndSkip rebased to the code hunk
-        Assert.Equal(104U, ReadUInt32(code, 14)); // rt_Name rebased to the code hunk
-        Assert.Equal(120U, ReadUInt32(code, 18)); // rt_IdString rebased to the code hunk
+        Assert.Equal(0x60, code[0]); // preserve the branch prelude before the resident tag
+        Assert.Equal(16U, ReadUInt32(code, 18)); // rt_MatchTag rebased to the code hunk
+        Assert.Equal(80U, ReadUInt32(code, 22)); // rt_EndSkip rebased to the code hunk
+        Assert.Equal(120U, ReadUInt32(code, 30)); // rt_Name rebased to the code hunk
+        Assert.Equal(136U, ReadUInt32(code, 34)); // rt_IdString rebased to the code hunk
         Assert.Equal(HunkIdentifiers.ReLoc32, hunks[2].Identifier);
         var relocations = Assert.IsType<ReLoc32>(hunks[2]).Entries.Single();
         Assert.Equal(0U, relocations.HunkNumber);
-        Assert.Contains(2U, relocations.Offsets); // rt_MatchTag
-        Assert.Contains(6U, relocations.Offsets); // rt_EndSkip
-        Assert.Contains(14U, relocations.Offsets); // rt_Name
-        Assert.Contains(18U, relocations.Offsets); // rt_IdString
+        Assert.Contains(18U, relocations.Offsets); // rt_MatchTag
+        Assert.Contains(22U, relocations.Offsets); // rt_EndSkip
+        Assert.Contains(30U, relocations.Offsets); // rt_Name
+        Assert.Contains(34U, relocations.Offsets); // rt_IdString
         Assert.Equal(HunkIdentifiers.End, hunks[3].Identifier);
+    }
+
+    [Fact]
+    public async Task WhenExtractingA1200ScsiDeviceThenLibraryReferencesMatchGetScsi()
+    {
+        var bytes = CreateScsiRomBytes();
+        var rom = KickstartRomReader.Read(bytes);
+        var hunkBytes = GetScsiCompatibility.Extract(rom);
+        var hunks = (await HunkReader.Read(new MemoryStream(hunkBytes))).ToList();
+        var code = Assert.IsType<Code>(hunks[1]).Data;
+
+        Assert.Equal(0x29D8, code.Length);
+        Assert.Equal("dos.library", Encoding.ASCII.GetString(code, 0x34, 11));
+        Assert.Equal("expansion.library", Encoding.ASCII.GetString(code, 0x29B4, 17));
+        Assert.Equal(0x6100291AU, ReadUInt32(code, 0x90));
+        Assert.Equal(0x61001F6AU, ReadUInt32(code, 0xA40));
+        Assert.Equal(0x61001EEEU, ReadUInt32(code, 0xAD8));
+        Assert.Equal(0x40U, ReadUInt32(code, 0x42));
+        Assert.Equal(0x29ACU, ReadUInt32(code, 0x46));
+        var relocations = Assert.IsType<ReLoc32>(hunks[2]).Entries.Single();
+        Assert.Equal(new uint[] { 0x42, 0x46, 0x4E, 0x52, 0x56 }, relocations.Offsets);
+        Assert.Equal(bytes, rom.Bytes); // extraction must not patch the source ROM
+    }
+
+    [Fact]
+    public async Task WhenPatchingExtractedScsiHunkThenItMatchesDedicatedExtractionAndIsIdempotent()
+    {
+        var rom = KickstartRomReader.Read(CreateScsiRomBytes());
+        var original = rom.GetModuleHunkBytes(rom.Modules[0]);
+        var hunks = (await HunkReader.Read(new MemoryStream(original))).ToList();
+        Assert.Equal(0x29AC, Assert.IsType<Code>(hunks[1]).Data.Length);
+
+        var patched = await GetScsiCompatibility.Patch(original);
+        Assert.Equal(GetScsiCompatibility.Extract(rom), patched);
+        Assert.Same(patched, await GetScsiCompatibility.Patch(patched));
+    }
+
+    [Fact]
+    public async Task WhenScsiPreludeAndCallOffsetsDifferThenBothCommandsPatchTheDetectedLayout()
+    {
+        var bytes = CreateScsiRomBytes();
+        Array.Clear(bytes, 0x40, 16); // ROM has the DOS helper but lacks the 16-byte branch stub.
+        Encoding.ASCII.GetBytes("scsidisk 40.20 (18.2.94)\0").CopyTo(bytes, 0xA6);
+        Array.Copy(bytes, 0x80 + 0xA00 - 6, bytes, 0x80 + 0xB30 - 6, 14);
+        Array.Clear(bytes, 0x80 + 0xA00 - 6, 14);
+        var rom = KickstartRomReader.Read(bytes);
+
+        var patched = GetScsiCompatibility.Extract(rom);
+        Assert.Equal(patched, await GetScsiCompatibility.Patch(rom.GetModuleHunkBytes(rom.Modules[0])));
+        var hunks = (await HunkReader.Read(new MemoryStream(patched))).ToArray();
+        var code = Assert.IsType<Code>(hunks[1]).Data;
+        Assert.Equal(0x30U, ReadUInt32(code, 0x32)); // rt_MatchTag uses the shorter prelude
+        Assert.Equal(0x61001E3AU, ReadUInt32(code, 0x30 + 0xB30)); // BSR to the appended helper
+    }
+
+    [Fact]
+    public async Task WhenScsiHasAnExternalRomJumpThenNeitherCommandWritesAStandalonePatchedHunk()
+    {
+        var bytes = CreateScsiRomBytes();
+        WriteUInt16(bytes, 0x80 + 0xD00, 0x4EF9);
+        WriteUInt32(bytes, 0x80 + 0xD02, BaseAddress + 0x2A00);
+        var rom = KickstartRomReader.Read(bytes);
+
+        Assert.Contains("outside the module", Assert.Throws<InvalidDataException>(() => GetScsiCompatibility.Extract(rom)).Message);
+        Assert.Contains("unrelocated", (await Assert.ThrowsAsync<InvalidDataException>(() =>
+            GetScsiCompatibility.Patch(rom.GetModuleHunkBytes(rom.Modules[0])))).Message);
+    }
+
+    [Theory]
+    [InlineData(-1, 4)] // TaggedOpenLibrary would open dos.library instead.
+    [InlineData(3, 0)]  // The target vector no longer matches.
+    public async Task WhenScsiCallSiteDiffersThenCompatibilityPatchIsRejected(int relativeOffset, byte value)
+    {
+        var rom = KickstartRomReader.Read(CreateScsiRomBytes());
+        rom.Bytes[0x80 + 0x50 + relativeOffset] = value;
+
+        Assert.Throws<InvalidDataException>(() => GetScsiCompatibility.Extract(rom));
+        await Assert.ThrowsAsync<InvalidDataException>(() => GetScsiCompatibility.Patch(
+            rom.GetModuleHunkBytes(rom.Modules[0])));
+    }
+
+    [Fact]
+    public async Task WhenWordBranchTargetsBeforeResidentThenItIsNotIncludedAsPrefix()
+    {
+        var rom = KickstartRomReader.Read(CreateRomBytes());
+        rom.Bytes[0] = 0x60;
+        WriteUInt16(rom.Bytes, 2, 12); // target 14, not resident offset 16
+
+        var hunks = (await HunkReader.Read(new MemoryStream(rom.GetModuleHunkBytes(rom.Modules[0])))).ToList();
+
+        Assert.Equal(0x4A, Assert.IsType<Code>(hunks[1]).Data[0]);
     }
 
     [Fact]
@@ -145,6 +275,73 @@ public class GivenKickstartRomReader
                 Directory.Delete(outputDirectory, true);
             }
         }
+    }
+
+    private static (byte[] Rom, byte[] Catalog) CreateRemusFixture(int version)
+    {
+        var rom = new byte[32];
+        WriteUInt32(rom, 8, BaseAddress + 20);
+        WriteUInt32(rom, 12, BaseAddress + 20);
+        WriteUInt32(rom, 28, 0xFE0FFFD7); // complement of the two pointer values
+
+        var catalog = new byte[0x90];
+        uint[] header = { 0x524D5346, (uint)version, 1, 28, 0xFE0FFFD7, 32, 0, BaseAddress, 0 };
+        for (var i = 0; i < header.Length; i++)
+        {
+            WriteUInt32(catalog, i * 4, header[i]);
+        }
+
+        var entry = version == 0x20007 ? 40 : 36;
+        WriteUInt32(catalog, entry, 0x80); // module name offset
+        WriteUInt32(catalog, entry + 4, 8);
+        WriteUInt32(catalog, entry + 8, 16);
+        WriteUInt32(catalog, entry + 12, 0x50); // extras offset
+        WriteUInt32(catalog, entry + 16, uint.MaxValue);
+        WriteUInt32(catalog, entry + 20, uint.MaxValue);
+        WriteUInt16(catalog, 0x50, 0x85); // short patches, short relocations, fixes
+        WriteUInt16(catalog, 0x52, 1);
+        WriteUInt16(catalog, 0x54, 12);
+        WriteUInt32(catalog, 0x56, 0xFFFFFFFF);
+        WriteUInt16(catalog, 0x5A, 1);
+        WriteUInt16(catalog, 0x5C, 0);
+        WriteUInt16(catalog, 0x5E, 1);
+        WriteUInt32(catalog, 0x60, 8);
+        WriteUInt32(catalog, 0x64, 0x11223344);
+        Encoding.ASCII.GetBytes("test.device\0").CopyTo(catalog, 0x80);
+        return (rom, catalog);
+    }
+
+    private static byte[] CreateScsiRomBytes()
+    {
+        var bytes = new byte[0x2B00];
+        WriteResident(bytes, 0x80, 0x29EC, 40, 0x9A, 0xA6);
+        Encoding.ASCII.GetBytes("scsi.device\0").CopyTo(bytes, 0x9A);
+        Encoding.ASCII.GetBytes("scsidisk 40.12 (21.12.93)\0").CopyTo(bytes, 0xA6);
+        WriteUInt32(bytes, 0x80 + 22, BaseAddress + 0xC2);
+        WriteResident(bytes, 0x29EC, bytes.Length, 40, 0x2A10, 0x2A30);
+        Encoding.ASCII.GetBytes("dos.library\0").CopyTo(bytes, 0x2A10);
+        Encoding.ASCII.GetBytes("dos 40.3 (01.01.1993)\0").CopyTo(bytes, 0x2A30);
+        WriteUInt32(bytes, 0x40, 0x6000200A);
+        WriteUInt32(bytes, 0x44, 0x4CDF4C00);
+        WriteUInt32(bytes, 0x50, 0x90000000);
+        WriteUInt32(bytes, 0x5E, 0x43FA0014);
+        WriteUInt32(bytes, 0x62, 0x4EAEFFA0);
+        Encoding.ASCII.GetBytes("dos.library\0").CopyTo(bytes, 0x74);
+        WriteUInt32(bytes, 0x80 + 0x50 - 8, 0x4EAEFEDA);
+        WriteUInt16(bytes, 0x80 + 0x50 - 4, 0x2A00);
+        WriteUInt16(bytes, 0x80 + 0x50 - 2, 0x7006);
+        WriteUInt32(bytes, 0x80 + 0x50, 0x4EAEFCD6);
+        WriteUInt16(bytes, 0x80 + 0x50 + 4, 0x4A80);
+        WriteUInt16(bytes, 0x80 + 0xA00 - 6, 0x6600);
+        WriteUInt16(bytes, 0x80 + 0xA00 - 2, 0x7006);
+        WriteUInt32(bytes, 0x80 + 0xA00, 0x4EAEFCD6);
+        WriteUInt32(bytes, 0x80 + 0xA00 + 4, 0x4A806700);
+        WriteUInt32(bytes, 0x80 + 0xA98 - 8, 0x226D003C);
+        WriteUInt32(bytes, 0x80 + 0xA98 - 4, 0x72012003);
+        WriteUInt32(bytes, 0x80 + 0xA98, 0x4EAEFFDC);
+        WriteUInt16(bytes, 0x80 + 0xA98 + 4, 0x2F0E);
+        WriteUInt32(bytes, 0x80 + 0xA98 + 6, 0x2C6D0024);
+        return bytes;
     }
 
     private static byte[] CreateRomBytes()

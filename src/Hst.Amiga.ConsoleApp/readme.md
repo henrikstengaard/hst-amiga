@@ -326,6 +326,12 @@ Specify a key file in another location:
 hst.amiga kickstart list amiga-os-310-a1200.rom --key-file "C:\Amiga Forever\rom\rom.key"
 ```
 
+Use a ROMSplit catalog to list its exact module ranges and names:
+
+```
+hst.amiga kickstart list amiga-os-310-a1200.rom --remus-split-data KS40.dat
+```
+
 ### Extract ROM modules
 
 Extract modules as decoded `.bin` files. By default files are written to `<rom-name>.modules` beside the ROM; an output directory can be specified:
@@ -342,7 +348,26 @@ Use `--hunk` to wrap each extracted slice as a single-code-hunk relocatable Amig
 hst.amiga kickstart extract amiga-os-310-a1200.rom --hunk
 ```
 
-Absolute pointers that resolve inside the module slice are rebased and emitted as `HUNK_RELOC32` entries.
+Executable branch preludes immediately before resident tags are preserved, and absolute pointers that resolve inside the module are rebased and emitted as `HUNK_RELOC32` entries.
+
+To use the module layout from a Remus/ROMSplit catalog, supply its `.dat` file:
+
+```
+hst.amiga kickstart extract amiga-os-310-a1200.rom --hunk --remus-split-data ks40.dat
+```
+
+The catalog must match the decoded ROM's size and checksum. The output filenames use the catalog's module offsets and names. Extraction uses the catalog's exact module ranges, relocation offsets and fixes. Optional catalog patches are skipped. Catalog modules that require BCPL relocations can be listed but cannot currently be extracted as Hunks.
+
+### Extract or patch scsi.device for older Kickstarts
+
+These commands detect the `scsi.device` layout and apply GetSCSI-style compatibility changes: open `expansion.library` by name where needed and guard `AddBootNode` so it only runs on expansion.library V36 or newer. Tested ROMs include Kickstart 3.0 (A1200/A4000) and 3.1 (A600/A1200/A3000/A4000/A4000T/CD32). Drivers with unrecognized call sites or absolute jumps outside the module are rejected. The patch does not change which hardware the driver supports.
+
+```
+hst.amiga kickstart scsi extract amiga-os-310-a1200.rom --output scsi.device
+hst.amiga kickstart scsi patch 035040-scsi.device.hunk scsi.device
+```
+
+`scsi extract` defaults to writing `scsi.device` in the current directory. Use `--output` (`-o`) or pass the destination as the second positional argument. Use `--key-file` for encrypted ROMs. `scsi patch` accepts a single-code-hunk export with the original prelude and relocations, including the ROMSplit `KS40.dat` export. It preserves that file's code layout, so a ROMSplit export can still differ from the GetSCSI file. With no destination, `scsi patch` updates the input file. An already patched file is accepted unchanged. Raw module slices lack the required Hunk and relocation information; extract again from the ROM if you only have a raw slice.
 
 ## EPROM commands
 

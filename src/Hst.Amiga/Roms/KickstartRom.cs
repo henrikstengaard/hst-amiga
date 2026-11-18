@@ -64,14 +64,28 @@ namespace Hst.Amiga.Roms
         /// </summary>
         public byte[] GetModuleHunkBytes(KickstartRomModule module)
         {
-            var code = GetModuleBytes(module);
-            if (code.Length == 0)
+            var moduleBytes = GetModuleBytes(module);
+            if (moduleBytes.Length == 0)
             {
                 throw new ArgumentException("Module is empty.", nameof(module));
             }
 
-            var moduleAddress = (ulong)BaseAddress + (uint)module.Offset;
-            var moduleEndAddress = moduleAddress + (uint)module.Size;
+            var scsiPrelude = module.Name == "scsi.device" ? GetScsiCompatibility.FindPrelude(Bytes, module.Offset) : 0;
+            var prefixSize = scsiPrelude != 0 ? scsiPrelude : FindExecutablePrefixSize(module);
+            var codeOffset = module.Offset - prefixSize;
+            var codeLength = prefixSize + module.Size;
+            var code = new byte[codeLength];
+            Array.Copy(Bytes, codeOffset, code, 0, codeLength);
+
+            if (scsiPrelude != 0)
+            {
+                var scsiRelocations = GetScsiCompatibility.RebaseRomCode(code, scsiPrelude,
+                    BaseAddress + (uint)codeOffset, false);
+                return WriteCodeHunk(code, scsiRelocations);
+            }
+
+            var codeAddress = (ulong)BaseAddress + (uint)codeOffset;
+            var moduleEndAddress = (ulong)BaseAddress + (uint)module.Offset + (uint)module.Size;
             var relocations = new List<uint>();
 
             // Resident structures and other pointers can be only word-aligned, so examine
@@ -79,27 +93,32 @@ namespace Hst.Amiga.Roms
             for (var offset = 0; offset <= code.Length - 4; offset += 2)
             {
                 var address = ReadUInt32(code, offset);
-                if (address < moduleAddress || address > moduleEndAddress)
+                if (address < codeAddress || address > moduleEndAddress)
                 {
                     continue;
                 }
 
-                WriteUInt32(code, offset, (uint)(address - moduleAddress));
+                WriteUInt32(code, offset, (uint)(address - codeAddress));
                 relocations.Add((uint)offset);
             }
 
+            return WriteCodeHunk(code, relocations);
+        }
+
+        internal static byte[] WriteCodeHunk(byte[] hunkCode, IReadOnlyList<uint> relocations)
+        {
             using var stream = new MemoryStream();
             WriteUInt32(stream, 0x3F3); // HUNK_HEADER
             WriteUInt32(stream, 0); // resident library names terminator
             WriteUInt32(stream, 1); // table size
             WriteUInt32(stream, 0); // first hunk
             WriteUInt32(stream, 0); // last hunk
-            WriteUInt32(stream, (uint)((code.Length + 3) / 4));
+            WriteUInt32(stream, (uint)((hunkCode.Length + 3) / 4));
 
             WriteUInt32(stream, 0x3E9); // HUNK_CODE
-            WriteUInt32(stream, (uint)((code.Length + 3) / 4));
-            stream.Write(code, 0, code.Length);
-            var padding = (4 - code.Length % 4) % 4;
+            WriteUInt32(stream, (uint)((hunkCode.Length + 3) / 4));
+            stream.Write(hunkCode, 0, hunkCode.Length);
+            var padding = (4 - hunkCode.Length % 4) % 4;
             for (var i = 0; i < padding; i++)
             {
                 stream.WriteByte(0);
@@ -121,6 +140,48 @@ namespace Hst.Amiga.Roms
             WriteUInt32(stream, 0x3F2); // HUNK_END
             return stream.ToArray();
         }
+
+        private int FindExecutablePrefixSize(KickstartRomModule module)
+        {
+            // Some resident modules have an entry stub immediately before the resident tag.
+            // Retain a branch prefix only when its target falls inside the module range.
+            var minimumOffset = Math.Max(0, module.Offset - 0x100);
+            for (var candidate = module.Offset - 2; candidate >= minimumOffset; candidate -= 2)
+            {
+                var opcode = ReadUInt16(Bytes, candidate);
+                if ((opcode & 0xFF00) != 0x6000)
+                {
+                    continue;
+                }
+
+                int branchTarget;
+                var displacement = opcode & 0x00FF;
+                if (displacement == 0)
+                {
+                    if (candidate + 4 > Bytes.Length)
+                    {
+                        continue;
+                    }
+
+                    // A 68000 word branch is relative to the displacement word.
+                    branchTarget = candidate + 2 + (short)ReadUInt16(Bytes, candidate + 2);
+                }
+                else
+                {
+                    branchTarget = candidate + 2 + (sbyte)displacement;
+                }
+
+                if (branchTarget >= module.Offset && branchTarget < module.Offset + module.Size)
+                {
+                    return module.Offset - candidate;
+                }
+            }
+
+            return 0;
+        }
+
+        private static ushort ReadUInt16(byte[] bytes, int offset) =>
+            (ushort)(bytes[offset] << 8 | bytes[offset + 1]);
 
         private static uint ReadUInt32(byte[] bytes, int offset) =>
             (uint)(bytes[offset] << 24 | bytes[offset + 1] << 16 | bytes[offset + 2] << 8 | bytes[offset + 3]);
