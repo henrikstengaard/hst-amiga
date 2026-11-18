@@ -19,6 +19,7 @@ Features:
   - Read, write and format Smart File System (SFS) partitions. Supports DOS type SFS\0.
   - Doctors to check and repair FFS, PFS3 and SFS volumes, and salvage files from damaged volumes to a directory or another volume.
 - Read version strings from `$VER` or the resident structure id string in Amiga files.
+- Read and extract resident modules from raw, `KICK`-header, and Amiga Forever encrypted Kickstart ROM images, and wrap ROM slices as relocatable Hunk files.
 - Build EPROMs from Kickstart ROMs.
 
 Supports .NET Standard 2.1, .NET 8, .NET 9 and .NET 10.

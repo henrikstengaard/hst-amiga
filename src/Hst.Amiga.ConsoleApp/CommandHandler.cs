@@ -156,6 +156,25 @@ public static class CommandHandler
     {
         await Execute(new EpromByteSwapCommand(kickstartRomPath));
     }
+
+    public static async Task KickstartList(string kickstartRomPath, string keyFilePath, string remusSplitDataPath = null)
+    {
+        await Execute(new KickstartCommand(kickstartRomPath, null, keyFilePath, false,
+            remusSplitDataPath: remusSplitDataPath));
+    }
+
+    public static async Task KickstartExtract(string kickstartRomPath, string outputDirectory, string keyFilePath,
+        bool hunkOutput = false, string remusSplitDataPath = null)
+    {
+        await Execute(new KickstartCommand(kickstartRomPath, outputDirectory, keyFilePath, true, hunkOutput,
+            remusSplitDataPath));
+    }
+
+    public static Task KickstartScsiExtract(string romPath, string outputPath, string keyFilePath) =>
+        Execute(new KickstartScsiCommand(romPath, outputPath, true, keyFilePath));
+
+    public static Task KickstartScsiPatch(string devicePath, string outputPath) =>
+        Execute(new KickstartScsiCommand(devicePath, outputPath, false));
     
     public static async Task<int> VmRun(VmRunMode mode, string executablePath, string[] arguments, string cpu,
         int? memory, int? stack, string[] volumes, string[] assigns, string[] stubLibraries, string currentDirectory,

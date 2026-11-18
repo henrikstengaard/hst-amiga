@@ -29,6 +29,7 @@ Hst Amiga Nuget package contains following features:
   - Read, write and format Smart File System (SFS) partitions. Supports DOS type SFS\0.
   - Doctors to check and repair FFS, PFS3 and SFS volumes, and salvage files from damaged volumes to a directory or another volume.
 - Read version strings from `$VER` or the resident structure id string in Amiga files.
+- List and extract resident modules from raw and Amiga Forever encrypted Kickstart ROM images.
 - Build EPROMs from Kickstart ROMs.
 
 Hst Amiga Vm Nuget package contains following features:
@@ -50,6 +51,8 @@ Hst Amiga console version comes with following features:
   - Build EPROMs from Amiga Kickstart ROMs for A500, A600, A2000, A1200, A3000 and A4000, for AM27C400, AM27C800, AM27C160 and AM27C322 EPROMs or a custom size.
   - Fill EPROMs by concatenating Kickstart ROM until EPROM size is reached or fill EPROM with zeroes until EPROM size is reached.
   - Byte swap EPROMs.
+- Kickstart ROMs
+  - List and extract resident modules from raw, `KICK`-header, or Amiga Forever encrypted Kickstart ROMs. Encrypted ROMs use the supplied `rom.key` file; extracted slices can optionally be wrapped as relocatable Hunk executables.
 - Vm
   - Run Amiga CLI executables with Amiga volumes mapped to host directories.
   - Run Amiga CLI executables from adf and disk images, optionally in the context of the image.
