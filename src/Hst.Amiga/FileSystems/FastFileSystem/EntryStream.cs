@@ -1,7 +1,9 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
     using System;
+    using System.Buffers;
     using System.IO;
+    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
     using Blocks;
@@ -34,7 +36,10 @@
         private byte[] readAheadBuffer;
         private uint readAheadFirstSector;
         private int readAheadBlocks;
-        private DataBlock readAheadDataBlock;
+
+        // current data block bytes located in current data block, read ahead buffer, write buffer or buffer read into
+        private byte[] currentBlockBuffer;
+        private int currentBlockOffset;
 
         // pending writes of consecutive data blocks
         private byte[] writeBuffer;
@@ -65,13 +70,49 @@
             {
                 Data = new byte[volume.DataBlockSize]
             };
+            SetCurrentBlock(currentData.Data, 0);
+        }
+
+        private void SetCurrentBlock(byte[] buffer, int offset)
+        {
+            currentBlockBuffer = buffer;
+            currentBlockOffset = offset;
+        }
+
+        /// <summary>
+        /// Return buffers rented from array pool
+        /// </summary>
+        private void ReturnBuffers()
+        {
+            if (readAheadBuffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(readAheadBuffer);
+                readAheadBuffer = null;
+                readAheadBlocks = 0;
+            }
+
+            if (writeBuffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(writeBuffer);
+                writeBuffer = null;
+                writeBlocks = 0;
+            }
+
+            SetCurrentBlock(currentData.Data, 0);
         }
 
         protected override void Dispose(bool disposing)
         {
             if (!disposed && disposing)
             {
-                AsyncHelper.RunSync(() => AdfCloseFile());
+                try
+                {
+                    AsyncHelper.RunSync(() => AdfCloseFile());
+                }
+                finally
+                {
+                    ReturnBuffers();
+                }
             }
 
             disposed = true;
@@ -82,7 +123,14 @@
         {
             if (!disposed)
             {
-                await AdfCloseFile();
+                try
+                {
+                    await AdfCloseFile();
+                }
+                finally
+                {
+                    ReturnBuffers();
+                }
             }
 
             disposed = true;
@@ -110,6 +158,79 @@
         {
             cancellationToken.ThrowIfCancellationRequested();
             return await AdfReadFile(buffer, offset, count);
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                var bytesRead = Read(rented, 0, buffer.Length);
+                new ReadOnlySpan<byte>(rented, 0, bytesRead).CopyTo(buffer);
+                return bytesRead;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment))
+            {
+                return await AdfReadFile(segment.Array, segment.Offset, segment.Count);
+            }
+
+            var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                var bytesRead = await AdfReadFile(rented, 0, buffer.Length);
+                new ReadOnlyMemory<byte>(rented, 0, bytesRead).CopyTo(buffer);
+                return bytesRead;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                buffer.CopyTo(rented);
+                Write(rented, 0, buffer.Length);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
+
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (MemoryMarshal.TryGetArray(buffer, out var segment))
+            {
+                await AdfWriteFile(segment.Array, segment.Offset, segment.Count);
+                return;
+            }
+
+            var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                buffer.CopyTo(rented);
+                await AdfWriteFile(rented, 0, buffer.Length);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -204,6 +325,7 @@
 
             var dataBlockSector = await GetDataBlockSector(dataBlockIndex);
             currentData = await Disk.ReadDataBlock(volume, dataBlockSector);
+            SetCurrentBlock(currentData.Data, 0);
 
             if (volume.UseOfs && currentData.SeqNum != dataBlockIndex + 1)
             {
@@ -284,41 +406,37 @@
                 return 0;
             }
 
-            if (pos == 0 || posInDataBlk == blockSize)
-            {
-                await AdfReadNextFileBlock();
-                posInDataBlk = 0;
-            }
-
-            //var dataPtr = currentData.Data;
-
-            // if (Macro.isOFS(volume.DosType))
-            // {
-            //     var ofsCurrentData = new byte[currentData.BlockBytes.Length - 24];
-            //     Array.Copy(currentData.BlockBytes);
-            //     dataPtr = (uint8_t*)(file->currentData)+24;
-            // }
-            // else
-            // {
-            //     dataPtr = currentData.BlockBytes;
-            // }
-
             var bytesRead = 0;
             var bufPtr = offset;
+            var needBlock = pos == 0 || posInDataBlk == blockSize;
             while (bytesRead < n)
             {
-                var size = (int)Math.Min(n - bytesRead, blockSize - posInDataBlk);
-
-                Array.Copy(currentData.Data, posInDataBlk, buffer, bufPtr, size);
-                bufPtr += size;
-                pos += (uint)size;
-                bytesRead += size;
-                posInDataBlk += (uint)size;
-                if (posInDataBlk == blockSize && bytesRead < n)
+                if (needBlock)
                 {
+                    // read whole ffs data blocks directly into buffer
+                    var wholeBlocks = (n - bytesRead) / (int)blockSize;
+                    if (!volume.UseOfs && !writeMode && wholeBlocks > 0)
+                    {
+                        var blocksRead = await ReadFfsDataBlocks(buffer, bufPtr, wholeBlocks);
+                        var size = blocksRead * (int)blockSize;
+                        bufPtr += size;
+                        pos += (uint)size;
+                        bytesRead += size;
+                        posInDataBlk = blockSize;
+                        continue;
+                    }
+
                     await AdfReadNextFileBlock();
                     posInDataBlk = 0;
                 }
+
+                var copySize = (int)Math.Min(n - bytesRead, blockSize - posInDataBlk);
+                Array.Copy(currentBlockBuffer, currentBlockOffset + (int)posInDataBlk, buffer, bufPtr, copySize);
+                bufPtr += copySize;
+                pos += (uint)copySize;
+                bytesRead += copySize;
+                posInDataBlk += (uint)copySize;
+                needBlock = posInDataBlk == blockSize;
             }
 
             eof = pos == fileHdr.ByteSize;
@@ -353,29 +471,19 @@
             }
             else
             {
-                if (nDataBlock < volume.IndexSize)
-                    nSect = fileHdr.DataBlocks[volume.IndexSize - 1 - nDataBlock];
-                else
-                {
-                    if (nDataBlock == volume.IndexSize)
-                    {
-                        currentExt = await Disk.ReadFileExtBlock(volume, fileHdr.Extension);
-                        posInExtBlk = 0;
-                    }
-                    else if (posInExtBlk == volume.IndexSize)
-                    {
-                        currentExt = await Disk.ReadFileExtBlock(volume, currentExt.Extension);
-                        posInExtBlk = 0;
-                    }
-
-                    nSect = currentExt.Index[volume.IndexSize - 1 - posInExtBlk];
-                    posInExtBlk++;
-                }
+                nSect = await NextFfsDataBlockSector();
             }
 
-            currentData = !volume.UseOfs && !writeMode
-                ? await ReadFfsDataBlock(nSect)
-                : await Disk.ReadDataBlock(volume, nSect);
+            if (!volume.UseOfs && !writeMode)
+            {
+                await ReadFfsDataBlock(nSect);
+            }
+            else
+            {
+                currentData = await Disk.ReadDataBlock(volume, nSect);
+                SetCurrentBlock(currentData.Data, 0);
+            }
+
             data = currentData;
 
             if (volume.UseOfs && data.SeqNum != nDataBlock + 1)
@@ -387,25 +495,121 @@
         }
 
         /// <summary>
+        /// Get sector of ffs data block number nDataBlock from file header or file ext blocks and update current
+        /// file ext block and position in file ext block. Data block number is not incremented.
+        /// </summary>
+        private async Task<uint> NextFfsDataBlockSector()
+        {
+            if (nDataBlock == 0)
+            {
+                return fileHdr.FirstData;
+            }
+
+            if (nDataBlock < volume.IndexSize)
+            {
+                return fileHdr.DataBlocks[volume.IndexSize - 1 - nDataBlock];
+            }
+
+            if (nDataBlock == volume.IndexSize)
+            {
+                currentExt = await Disk.ReadFileExtBlock(volume, fileHdr.Extension);
+                posInExtBlk = 0;
+            }
+            else if (posInExtBlk == volume.IndexSize)
+            {
+                currentExt = await Disk.ReadFileExtBlock(volume, currentExt.Extension);
+                posInExtBlk = 0;
+            }
+
+            var nSect = currentExt.Index[volume.IndexSize - 1 - posInExtBlk];
+            posInExtBlk++;
+            return nSect;
+        }
+
+        /// <summary>
+        /// Read consecutive ffs data blocks starting with data block number nDataBlock into buffer. Consecutive
+        /// data blocks fitting in buffer are read directly into buffer. Otherwise consecutive data blocks are read
+        /// into read ahead buffer and copied to buffer, so consecutive data blocks are read with a single read
+        /// independent of buffer size.
+        /// </summary>
+        /// <returns>Number of data blocks read, between 1 and max blocks</returns>
+        private async Task<int> ReadFfsDataBlocks(byte[] buffer, int offset, int maxBlocks)
+        {
+            var blockSize = volume.FileSystemBlockSize;
+            var nSect = await NextFfsDataBlockSector();
+            var consecutiveBlocks = await CountConsecutiveDataBlockSectors(nSect);
+
+            int blocks;
+            if (!IsReadAhead(nSect) && consecutiveBlocks <= maxBlocks)
+            {
+                // read consecutive data blocks directly into buffer
+                blocks = consecutiveBlocks;
+                await Disk.ReadBlocks(volume, nSect, blocks, buffer, offset);
+            }
+            else
+            {
+                // read consecutive data blocks into read ahead buffer, if not read ahead, and copy to buffer
+                if (!IsReadAhead(nSect))
+                {
+                    await ReadAhead(nSect, consecutiveBlocks);
+                }
+
+                blocks = Math.Min(Math.Min(consecutiveBlocks, maxBlocks),
+                    (int)(readAheadFirstSector + (uint)readAheadBlocks - nSect));
+                Array.Copy(readAheadBuffer, (int)(nSect - readAheadFirstSector) * blockSize, buffer, offset,
+                    blocks * blockSize);
+            }
+
+            // advance data block number and file ext block position past data blocks read
+            nDataBlock++;
+            for (var i = 1; i < blocks; i++)
+            {
+                await NextFfsDataBlockSector();
+                nDataBlock++;
+            }
+
+            SetCurrentBlock(buffer, offset + (blocks - 1) * blockSize);
+            return blocks;
+        }
+
+        /// <summary>
         /// Read ffs data block using read ahead. If sector isn't read ahead, then consecutive data block sectors
         /// following current data block are read with a single read.
         /// </summary>
         /// <param name="nSect">Sector of current data block (data block number nDataBlock)</param>
-        private async Task<DataBlock> ReadFfsDataBlock(uint nSect)
+        private async Task ReadFfsDataBlock(uint nSect)
+        {
+            if (!IsReadAhead(nSect))
+            {
+                await ReadAhead(nSect, await CountConsecutiveDataBlockSectors(nSect));
+            }
+
+            SetCurrentBlock(readAheadBuffer,
+                (int)(nSect - readAheadFirstSector) * volume.FileSystemBlockSize);
+        }
+
+        private bool IsReadAhead(uint nSect) => readAheadBlocks > 0 && nSect >= readAheadFirstSector &&
+                                               nSect < readAheadFirstSector + (uint)readAheadBlocks;
+
+        /// <summary>
+        /// Read consecutive data blocks starting with sector into read ahead buffer
+        /// </summary>
+        private async Task ReadAhead(uint nSect, int blocks)
         {
             var blockSize = volume.FileSystemBlockSize;
-
-            if (readAheadBlocks == 0 || nSect < readAheadFirstSector ||
-                nSect >= readAheadFirstSector + (uint)readAheadBlocks)
             {
-                var blocks = await CountConsecutiveDataBlockSectors(nSect);
                 if (readAheadBuffer == null || readAheadBuffer.Length < blocks * blockSize)
                 {
-                    // size read ahead buffer to file size, so small files don't allocate max buffer size
+                    // size read ahead buffer to file size, so small files don't rent max buffer size
                     var dataBlockSize = volume.DataBlockSize;
                     var totalDataBlocks = (fileHdr.ByteSize + dataBlockSize - 1) / dataBlockSize;
                     var bufferBlocks = Math.Max(blocks, (int)Math.Min(MaxBufferedBlocks, totalDataBlocks));
-                    readAheadBuffer = new byte[bufferBlocks * blockSize];
+                    if (readAheadBuffer != null)
+                    {
+                        ArrayPool<byte>.Shared.Return(readAheadBuffer);
+                    }
+
+                    readAheadBuffer = ArrayPool<byte>.Shared.Rent(bufferBlocks * blockSize);
                 }
 
                 readAheadBlocks = 0;
@@ -413,19 +617,6 @@
                 readAheadFirstSector = nSect;
                 readAheadBlocks = blocks;
             }
-
-            if (readAheadDataBlock == null)
-            {
-                readAheadDataBlock = new DataBlock
-                {
-                    Data = new byte[blockSize]
-                };
-                readAheadDataBlock.BlockBytes = readAheadDataBlock.Data;
-            }
-
-            Array.Copy(readAheadBuffer, (int)(nSect - readAheadFirstSector) * blockSize,
-                readAheadDataBlock.Data, 0, blockSize);
-            return readAheadDataBlock;
         }
 
         /// <summary>
@@ -534,13 +725,7 @@
                 var bufferBlocks = writeBuffer == null
                     ? 8
                     : Math.Min(MaxBufferedBlocks, writeBuffer.Length / blockSize * 2);
-                var newWriteBuffer = new byte[bufferBlocks * blockSize];
-                if (writeBuffer != null && writeBlocks > 0)
-                {
-                    Array.Copy(writeBuffer, newWriteBuffer, writeBlocks * blockSize);
-                }
-
-                writeBuffer = newWriteBuffer;
+                GrowWriteBuffer(bufferBlocks * blockSize);
             }
 
             if (writeBlocks == 0)
@@ -562,6 +747,108 @@
             var blocks = writeBlocks;
             writeBlocks = 0;
             await Disk.WriteBlocks(volume, writeFirstSector, blocks, writeBuffer, 0);
+
+            // move current ffs data block located after queued data blocks to start of write buffer
+            if (currentBlockBuffer == writeBuffer && currentBlockOffset != 0)
+            {
+                Array.Copy(writeBuffer, currentBlockOffset, writeBuffer, 0, volume.FileSystemBlockSize);
+                SetCurrentBlock(writeBuffer, 0);
+            }
+        }
+
+        /// <summary>
+        /// Write queued ffs data blocks and current data block located in write buffer after queued data blocks.
+        /// Current data block is written together with queued data blocks, if consecutive. Bytes after data in
+        /// current data block are cleared. Current data block is kept, so writing can continue after flush.
+        /// </summary>
+        private async Task FlushFfsDataBlockWrites()
+        {
+            if (fileHdr.ByteSize == 0 || currentBlockBuffer != writeBuffer)
+            {
+                await FlushDataBlockWrites();
+                return;
+            }
+
+            var blockSize = volume.FileSystemBlockSize;
+            Array.Clear(writeBuffer, currentBlockOffset + (int)posInDataBlk, blockSize - (int)posInDataBlk);
+
+            if (writeBlocks > 0 && curDataPtr == writeFirstSector + (uint)writeBlocks &&
+                currentBlockOffset == writeBlocks * blockSize)
+            {
+                // write queued data blocks and current data block with a single write
+                await Disk.WriteBlocks(volume, writeFirstSector, writeBlocks + 1, writeBuffer, 0);
+                Array.Copy(writeBuffer, currentBlockOffset, writeBuffer, 0, blockSize);
+                writeBlocks = 0;
+                SetCurrentBlock(writeBuffer, 0);
+                return;
+            }
+
+            await FlushDataBlockWrites();
+            await Disk.WriteBlocks(volume, curDataPtr, 1, writeBuffer, currentBlockOffset);
+        }
+
+        /// <summary>
+        /// Grow write buffer to size keeping queued data blocks and current data block located in write buffer
+        /// </summary>
+        private void GrowWriteBuffer(int size)
+        {
+            var newWriteBuffer = ArrayPool<byte>.Shared.Rent(size);
+            if (writeBuffer != null)
+            {
+                var used = Math.Min(writeBuffer.Length, newWriteBuffer.Length);
+                Array.Copy(writeBuffer, newWriteBuffer, used);
+                if (currentBlockBuffer == writeBuffer)
+                {
+                    SetCurrentBlock(newWriteBuffer, currentBlockOffset);
+                }
+
+                ArrayPool<byte>.Shared.Return(writeBuffer);
+            }
+
+            writeBuffer = newWriteBuffer;
+        }
+
+        /// <summary>
+        /// Queue current ffs data block located in write buffer after queued data blocks. Queued data blocks are
+        /// written first, if current data block is not consecutive with queued data blocks.
+        /// </summary>
+        private async Task QueueCurrentFfsDataBlock()
+        {
+            if (writeBlocks > 0 && curDataPtr != writeFirstSector + (uint)writeBlocks)
+            {
+                await FlushDataBlockWrites();
+            }
+
+            if (writeBlocks == 0)
+            {
+                writeFirstSector = curDataPtr;
+            }
+
+            writeBlocks++;
+
+            if (writeBlocks >= MaxBufferedBlocks)
+            {
+                await FlushDataBlockWrites();
+            }
+        }
+
+        /// <summary>
+        /// Locate current ffs data block in write buffer after queued data blocks, so data written is copied
+        /// directly into write buffer
+        /// </summary>
+        private void LocateCurrentFfsDataBlock()
+        {
+            var blockSize = volume.FileSystemBlockSize;
+            if (writeBuffer == null || writeBuffer.Length < (writeBlocks + 1) * blockSize)
+            {
+                // grow write buffer as data blocks are queued, so small files don't rent max buffer size
+                var bufferBlocks = writeBuffer == null
+                    ? 8
+                    : Math.Min(MaxBufferedBlocks, writeBuffer.Length / blockSize * 2);
+                GrowWriteBuffer(Math.Max(bufferBlocks, writeBlocks + 1) * blockSize);
+            }
+
+            SetCurrentBlock(writeBuffer, writeBlocks * blockSize);
         }
 
 /*
@@ -576,7 +863,6 @@
             }
 
             var blockSize = volume.DataBlockSize;
-            var dataPtr = currentData.Data;
 
             if (pos == 0 || posInDataBlk == blockSize)
             {
@@ -595,7 +881,7 @@
             {
                 var size = (int)Math.Min(n - bytesWritten, blockSize - posInDataBlk);
 
-                Array.Copy(buffer, bufPtr, dataPtr, posInDataBlk, size);
+                Array.Copy(buffer, bufPtr, currentBlockBuffer, currentBlockOffset + (int)posInDataBlk, size);
 
                 bufPtr += size;
                 pos += (uint)size;
@@ -691,6 +977,8 @@
                 /* writes previous data block and link it  */
                 if (pos >= blockSize)
                 {
+                    // previous data block is full, data size can be less, if entry stream was flushed
+                    data.DataSize = blockSize;
                     data.NextData = nSect;
                     await QueueDataBlockWrite(curDataPtr, currentData);
                 }
@@ -702,9 +990,14 @@
                 data.NextData = 0;
                 data.HeaderKey = fileHdr.HeaderKey;
             }
-            else if (pos >= blockSize)
+            else
             {
-                await QueueDataBlockWrite(curDataPtr, currentData);
+                if (pos >= blockSize)
+                {
+                    await QueueCurrentFfsDataBlock();
+                }
+
+                LocateCurrentFfsDataBlock();
             }
 
             curDataPtr = nSect;
@@ -774,12 +1067,19 @@
                         currentData.DataSize = posInDataBlk;
                     }
 
-                    if (fileHdr.ByteSize > 0)
+                    if (volume.UseOfs)
                     {
-                        await QueueDataBlockWrite(curDataPtr, currentData);
-                    }
+                        if (fileHdr.ByteSize > 0)
+                        {
+                            await QueueDataBlockWrite(curDataPtr, currentData);
+                        }
 
-                    await FlushDataBlockWrites();
+                        await FlushDataBlockWrites();
+                    }
+                    else
+                    {
+                        await FlushFfsDataBlockWrites();
+                    }
                 }
             }
 
