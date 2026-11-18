@@ -9,7 +9,7 @@
 
     internal static class Bitmap
     {
-        public static async Task AdfReadBitmap(Volume vol, uint nBlock, RootBlock root)
+        public static async Task ReadBitmap(Volume vol, uint nBlock, RootBlock root)
         {
             int i;
 
@@ -65,7 +65,7 @@
                 nSect = bmExt.NextBitmapExtensionBlockPointer;
             }
 
-            vol.FreeBlocks = AdfCountFreeBlocks(vol);
+            vol.FreeBlocks = CountFreeBlocks(vol);
             vol.MaxFreeRunLength = -1;
         }
 
@@ -73,7 +73,7 @@
         /// Defer writing changed bitmap blocks until volume is flushed or disposed. Root block bitmap flags are
         /// set invalid on first deferred update, so bitmap is validated if volume isn't flushed (like AmigaDOS).
         /// </summary>
-        public static async Task AdfDeferUpdateBitmap(Volume vol)
+        public static async Task DeferBitmapUpdate(Volume vol)
         {
             if (vol.BitmapUpdatePending)
             {
@@ -89,7 +89,7 @@
         /// Update bitmap by writing changed bitmap blocks and root block with bitmap flags valid to block cache,
         /// which are written to disk by flushing volume
         /// </summary>
-        public static async Task AdfUpdateBitmap(Volume vol)
+        public static async Task UpdateBitmap(Volume vol)
         {
             var root = await Disk.ReadRootBlock(vol, vol.RootBlockOffset);
 
@@ -118,18 +118,18 @@
         /// </summary>
         private static uint AllocatableEnd(Volume vol) => vol.LastBlock - vol.FirstBlock;
 
-        public static uint AdfGet1FreeBlock(Volume vol)
+        public static uint AllocateBlock(Volume vol)
         {
             var (start, _) = AllocateRun(vol, 1);
             return start;
         }
 
-        public static uint[] AdfGetFreeBlocks(Volume vol, uint nbSect)
+        public static uint[] AllocateBlocks(Volume vol, uint nbSect)
         {
             var sectors = new uint[nbSect];
             for (var i = 0; i < nbSect; i++)
             {
-                sectors[i] = AdfGet1FreeBlock(vol);
+                sectors[i] = AllocateBlock(vol);
             }
 
             return sectors;
@@ -194,7 +194,7 @@
         {
             for (var i = 0; i < count; i++)
             {
-                AdfSetBlockFree(vol, start + (uint)i);
+                SetBlockFree(vol, start + (uint)i);
             }
 
             if (count > 0 && vol.NextFreeBlock == start + (uint)count)
@@ -207,7 +207,7 @@
         {
             for (var i = 0; i < count; i++)
             {
-                AdfSetBlockUsed(vol, start + (uint)i);
+                SetBlockUsed(vol, start + (uint)i);
             }
 
             var next = start + (uint)count;
@@ -352,7 +352,7 @@
             0x10000000, 0x20000000, 0x40000000, 0x80000000
         };
 
-        public static void AdfSetBlockUsed(Volume vol, uint nSect)
+        public static void SetBlockUsed(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
@@ -374,7 +374,7 @@
         /// </summary>
         /// <param name="vol">Volume to count free blocks of.</param>
         /// <returns>Number of free blocks.</returns>
-        public static long AdfCountFreeBlocks(Volume vol)
+        public static long CountFreeBlocks(Volume vol)
         {
             long remainingBlocks = vol.Blocks > vol.Reserved ? vol.Blocks - vol.Reserved : 0;
             long freeBlocks = 0;
@@ -409,7 +409,7 @@
             return (int)((((value + (value >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24);
         }
 
-        public static bool AdfIsBlockFree(Volume vol, uint nSect)
+        public static bool IsBlockFree(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);
@@ -418,7 +418,7 @@
             return (vol.BitmapTable[block].Map[indexInMap] & BitMask[sectOfMap % 32]) != 0;
         }
 
-        public static void AdfSetBlockFree(Volume vol, uint nSect)
+        public static void SetBlockFree(Volume vol, uint nSect)
         {
             var sectOfMap = nSect - vol.Reserved;
             var block = sectOfMap / (vol.OffsetsPerBitmapBlock * 32);

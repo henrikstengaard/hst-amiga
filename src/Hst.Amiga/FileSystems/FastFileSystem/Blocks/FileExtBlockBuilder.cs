@@ -22,10 +22,7 @@
             BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.FirstData, blockBytes, 0x10);
             BigEndianConverter.ConvertInt32ToBytes(fileExtBlock.Checksum, blockBytes, 0x14);
 
-            for (var i = 0; i < fileExtBlock.IndexSize; i++)
-            {
-                BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.Index[i], blockBytes, 0x18 + (i * SizeOf.Long));
-            }
+            BigEndianArrays.WriteUInt32Array(blockBytes, 0x18, fileExtBlock.Index, (int)fileExtBlock.IndexSize);
             
             BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.Info, blockBytes, blockBytes.Length - 0x14);
             BigEndianConverter.ConvertUInt32ToBytes(fileExtBlock.NextSameHash, blockBytes, blockBytes.Length - 0x10);

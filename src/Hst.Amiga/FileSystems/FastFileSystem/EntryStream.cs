@@ -107,7 +107,7 @@
             {
                 try
                 {
-                    AsyncHelper.RunSync(() => AdfCloseFile());
+                    AsyncHelper.RunSync(() => CloseFile());
                 }
                 finally
                 {
@@ -125,7 +125,7 @@
             {
                 try
                 {
-                    await AdfCloseFile();
+                    await CloseFile();
                 }
                 finally
                 {
@@ -139,25 +139,25 @@
 
         public override void Flush()
         {
-            AsyncHelper.RunSync(() => AdfFlushFile());
+            AsyncHelper.RunSync(() => FlushFile());
         }
 
         public override async Task FlushAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await AdfFlushFile();
+            await FlushFile();
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return AsyncHelper.RunSync(() => AdfReadFile(buffer, offset, count));
+            return AsyncHelper.RunSync(() => ReadFile(buffer, offset, count));
         }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await AdfReadFile(buffer, offset, count);
+            return await ReadFile(buffer, offset, count);
         }
 
         public override int Read(Span<byte> buffer)
@@ -181,13 +181,13 @@
             cancellationToken.ThrowIfCancellationRequested();
             if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment))
             {
-                return await AdfReadFile(segment.Array, segment.Offset, segment.Count);
+                return await ReadFile(segment.Array, segment.Offset, segment.Count);
             }
 
             var rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
             try
             {
-                var bytesRead = await AdfReadFile(rented, 0, buffer.Length);
+                var bytesRead = await ReadFile(rented, 0, buffer.Length);
                 new ReadOnlyMemory<byte>(rented, 0, bytesRead).CopyTo(buffer);
                 return bytesRead;
             }
@@ -217,7 +217,7 @@
             cancellationToken.ThrowIfCancellationRequested();
             if (MemoryMarshal.TryGetArray(buffer, out var segment))
             {
-                await AdfWriteFile(segment.Array, segment.Offset, segment.Count);
+                await WriteFile(segment.Array, segment.Offset, segment.Count);
                 return;
             }
 
@@ -225,7 +225,7 @@
             try
             {
                 buffer.CopyTo(rented);
-                await AdfWriteFile(rented, 0, buffer.Length);
+                await WriteFile(rented, 0, buffer.Length);
             }
             finally
             {
@@ -266,7 +266,7 @@
                 throw new NotSupportedException("Seek is not supported for entry stream in write mode");
             }
 
-            AsyncHelper.RunSync(() => AdfFileSeek((uint)Math.Min(position, length)));
+            AsyncHelper.RunSync(() => SeekFile((uint)Math.Min(position, length)));
             return this.pos;
         }
 
@@ -278,13 +278,13 @@
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            AsyncHelper.RunSync(() => AdfWriteFile(buffer, offset, count));
+            AsyncHelper.RunSync(() => WriteFile(buffer, offset, count));
         }
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await AdfWriteFile(buffer, offset, count);
+            await WriteFile(buffer, offset, count);
         }
 
         public override bool CanRead => true;
@@ -297,7 +297,7 @@
             set => Seek(value, SeekOrigin.Begin);
         }
 
-        private async Task AdfFileSeek(uint position)
+        private async Task SeekFile(uint position)
         {
             var blockSize = volume.DataBlockSize;
 
@@ -337,7 +337,7 @@
 
         /// <summary>
         /// Get sector for data block index and update current file ext block and position in file ext block
-        /// to same state as after reading data block with AdfReadNextFileBlock
+        /// to same state as after reading data block with ReadNextDataBlock
         /// </summary>
         private async Task<uint> GetDataBlockSector(uint dataBlockIndex)
         {
@@ -382,7 +382,7 @@
  * adfReadFile
  *
  */
-        private async Task<int> AdfReadFile(byte[] buffer, int offset, int n)
+        private async Task<int> ReadFile(byte[] buffer, int offset, int n)
         {
             // https://github.com/lclevy/ADFlib/blob/be8a6f6e8d0ca8fda963803eef77366c7584649a/src/adf_file.c#L369
 
@@ -426,7 +426,7 @@
                         continue;
                     }
 
-                    await AdfReadNextFileBlock();
+                    await ReadNextDataBlock();
                     posInDataBlk = 0;
                 }
 
@@ -447,7 +447,7 @@
  * adfReadNextFileBlock
  *
  */
-        public async Task AdfReadNextFileBlock()
+        public async Task ReadNextDataBlock()
         {
             uint nSect;
             // struct bOFSDataBlock *data;
@@ -855,7 +855,7 @@
  * adfWriteFile
  *
  */
-        public async Task<int> AdfWriteFile(byte[] buffer, int offset, int n)
+        public async Task<int> WriteFile(byte[] buffer, int offset, int n)
         {
             if (n == 0)
             {
@@ -866,7 +866,7 @@
 
             if (pos == 0 || posInDataBlk == blockSize)
             {
-                if (await AdfCreateNextFileBlock() == uint.MaxValue)
+                if (await CreateNextDataBlock() == uint.MaxValue)
                 {
                     /* bug found by Rikard */
                     throw new IOException("adfWritefile : no more free sector availbale");
@@ -889,7 +889,7 @@
                 posInDataBlk += (uint)size;
                 if (posInDataBlk == blockSize && bytesWritten < n)
                 {
-                    if (await AdfCreateNextFileBlock() == uint.MaxValue)
+                    if (await CreateNextDataBlock() == uint.MaxValue)
                     {
                         /* bug found by Rikard */
                         throw new IOException("adfWritefile : no more free sector available");
@@ -902,7 +902,7 @@
             return bytesWritten;
         }
 
-        public async Task<uint> AdfCreateNextFileBlock()
+        public async Task<uint> CreateNextDataBlock()
         {
             uint nSect;
             var blockSize = volume.DataBlockSize;
@@ -929,7 +929,7 @@
                 /* one more sector is needed for one file extension block */
                 if (nDataBlock % volume.IndexSize == 0)
                 {
-                    var extSect = Bitmap.AdfGet1FreeBlock(volume);
+                    var extSect = Bitmap.AllocateBlock(volume);
                     if (extSect == uint.MaxValue)
                     {
                         return uint.MaxValue;
@@ -1041,12 +1041,12 @@
             preallocCount = 0;
         }
 
-        public async Task AdfCloseFile()
+        public async Task CloseFile()
         {
-            await AdfFlushFile();
+            await FlushFile();
         }
 
-        public async Task AdfFlushFile()
+        public async Task FlushFile()
         {
             if (currentExt != null)
             {
@@ -1097,7 +1097,7 @@
                 }
 
                 // bitmap is written when volume is flushed or disposed
-                await Bitmap.AdfDeferUpdateBitmap(volume);
+                await Bitmap.DeferBitmapUpdate(volume);
                 await Disk.CheckpointIfNeeded(volume);
             }
         }

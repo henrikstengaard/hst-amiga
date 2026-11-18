@@ -456,7 +456,7 @@
             {
                 if (volume.BitmapUpdatePending)
                 {
-                    await Bitmap.AdfUpdateBitmap(volume);
+                    await Bitmap.UpdateBitmap(volume);
                 }
 
                 await WriteDirtyBlocks(volume);

@@ -461,7 +461,7 @@
                 await Cache.AddInCache(vol, parent, entryBlock);
             }
 
-            await Bitmap.AdfDeferUpdateBitmap(vol);
+            await Bitmap.DeferBitmapUpdate(vol);
 
             return entryBlock;
         }
@@ -502,7 +502,7 @@
                     newSect = thisSect;
                 else
                 {
-                    newSect = Bitmap.AdfGet1FreeBlock(vol);
+                    newSect = Bitmap.AllocateBlock(vol);
                     if (newSect == uint.MaxValue)
                     {
                         throw new FileSystemException("No sector available");
@@ -540,7 +540,7 @@
                 newSect2 = thisSect;
             else
             {
-                newSect2 = Bitmap.AdfGet1FreeBlock(vol);
+                newSect2 = Bitmap.AllocateBlock(vol);
                 if (newSect2 == uint.MaxValue)
                 {
                     throw new FileSystemException("No sector available");
@@ -594,7 +594,7 @@
 
             await WriteEntryBlock(vol, nSect, dirBlock);
 
-            await Bitmap.AdfDeferUpdateBitmap(vol);
+            await Bitmap.DeferBitmapUpdate(vol);
         }
 
         /// <summary>
@@ -691,7 +691,7 @@
                 await Cache.AddInCache(volume, parentEntryBlock, linkEntryBlock);
             }
 
-            await Bitmap.AdfDeferUpdateBitmap(volume);
+            await Bitmap.DeferBitmapUpdate(volume);
 
             // update real entry next link to new link entry block
             realEntryBlock.NextLink = linkEntryBlock.HeaderKey;
@@ -833,7 +833,7 @@
                     // get free block for comment block, if use comment block and no block is allocated
                     if (ent.CommentBlock == 0)
                     {
-                        ent.CommentBlock = Bitmap.AdfGet1FreeBlock(vol);
+                        ent.CommentBlock = Bitmap.AllocateBlock(vol);
                     }
 
                     // create comment block
@@ -856,8 +856,8 @@
                     // free comment block, if not using comment block and block is allocated
                     if (ent.CommentBlock != 0)
                     {
-                        Bitmap.AdfSetBlockFree(vol, ent.CommentBlock);
-                        await Bitmap.AdfDeferUpdateBitmap(vol);
+                        Bitmap.SetBlockFree(vol, ent.CommentBlock);
+                        await Bitmap.DeferBitmapUpdate(vol);
                     }
                 }
             }
@@ -926,20 +926,20 @@
             {
                 case Constants.ST_FILE:
                     var fileHeaderBlock = EntryBlockParser.Parse(entryBlock.BlockBytes, vol.UseLnfs);
-                    await File.AdfFreeFileBlocks(vol, fileHeaderBlock);
-                    Bitmap.AdfSetBlockFree(vol, nSect); //marks the entry block as free in BitmapBlock
+                    await File.FreeFileBlocks(vol, fileHeaderBlock);
+                    Bitmap.SetBlockFree(vol, nSect); //marks the entry block as free in BitmapBlock
                     if (vol.UseLnfs && fileHeaderBlock.CommentBlock != 0)
                     {
-                        Bitmap.AdfSetBlockFree(vol,
+                        Bitmap.SetBlockFree(vol,
                             fileHeaderBlock.CommentBlock); //marks the comment block as free in BitmapBlock
                     }
                     break;
                 case Constants.ST_DIR:
-                    Bitmap.AdfSetBlockFree(vol, nSect);
+                    Bitmap.SetBlockFree(vol, nSect);
                     /* free dir cache block : the directory must be empty, so there's only one cache block */
                     if (vol.UseDirCache)
                     {
-                        Bitmap.AdfSetBlockFree(vol, entryBlock.Extension);
+                        Bitmap.SetBlockFree(vol, entryBlock.Extension);
                     }
                     break;
                 case Constants.ST_LFILE:
@@ -973,7 +973,7 @@
                         await Disk.WriteEntryBlock(vol, firstLinkEntryBlock.HeaderKey, firstLinkEntryBlock);
                     }
                     
-                    Bitmap.AdfSetBlockFree(vol, nSect); //marks the entry block as free in BitmapBlock
+                    Bitmap.SetBlockFree(vol, nSect); //marks the entry block as free in BitmapBlock
                     break;
             }
             
@@ -982,7 +982,7 @@
                 await Cache.DeleteFromCache(vol, parent, entryBlock.HeaderKey);
             }
 
-            await Bitmap.AdfDeferUpdateBitmap(vol);
+            await Bitmap.DeferBitmapUpdate(vol);
         }
 
         public static bool IsEmpty(EntryBlock dirBlock)

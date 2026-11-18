@@ -255,7 +255,7 @@
                 Mounted = true
             };
 
-            await Bitmap.AdfReadBitmap(volume, blocks, rootBlock);
+            await Bitmap.ReadBitmap(volume, blocks, rootBlock);
 
             volume.NextFreeBlock = volume.BitmapBlocks[volume.BitmapBlocks.Length - 1] + 1;
 

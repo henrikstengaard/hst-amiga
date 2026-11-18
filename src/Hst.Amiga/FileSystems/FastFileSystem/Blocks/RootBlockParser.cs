@@ -19,11 +19,7 @@
             var checksum = BigEndianConverter.ConvertBytesToInt32(blockBytes, 0x14);
             
             var indexSize = FastFileSystemHelper.CalculateHashtableSize((uint)blockBytes.Length);
-            var index = new List<uint>();
-            for (var i = 0; i < indexSize; i++)
-            {
-                index.Add(BigEndianConverter.ConvertBytesToUInt32(blockBytes, 0x18 + (i * SizeOf.Long)));
-            }
+            var index = BigEndianArrays.ReadUInt32Array(blockBytes, 0x18, (int)indexSize);
 
             var bitmapFlags = BigEndianConverter.ConvertBytesToUInt32(blockBytes, blockBytes.Length - 0xc8); // bm_flag
             
@@ -57,7 +53,7 @@
                 BlockBytes = blockBytes,
                 HighSeq = 0,
                 HashTableSize = indexSize,
-                HashTable = index.ToArray(),
+                HashTable = index,
                 FirstData = 0,
                 Checksum = checksum,
                 BitmapFlags = bitmapFlags,

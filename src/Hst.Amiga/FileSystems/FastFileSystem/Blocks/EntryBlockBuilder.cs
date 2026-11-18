@@ -61,10 +61,7 @@
             BigEndianConverter.ConvertUInt32ToBytes(entryBlock.FirstData, blockBytes, 0x10);
             BigEndianConverter.ConvertInt32ToBytes(entryBlock.Checksum, blockBytes, 0x14);
 
-            for (var i = 0; i < entryBlock.IndexSize; i++)
-            {
-                BigEndianConverter.ConvertUInt32ToBytes(entryBlock.Index[i], blockBytes, 0x18 + (i * SizeOf.Long));
-            }
+            BigEndianArrays.WriteUInt32Array(blockBytes, 0x18, entryBlock.Index, (int)entryBlock.IndexSize);
 
             BigEndianConverter.ConvertUInt32ToBytes(entryBlock.Access, blockBytes, blockBytes.Length - 0xc0); // block size - 0xc0: access / protection
             BigEndianConverter.ConvertUInt32ToBytes(entryBlock.ByteSize, blockBytes, blockBytes.Length - 0xbc); // block size - 0xbc: byte size

@@ -46,7 +46,7 @@ public class GivenFastFileSystemAllocator : FastFileSystemTestBase
     {
         var entry = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlockOffset)).First(x => x.Name == name);
         var entryBlock = await FfsDisk.ReadEntryBlock(volume, entry.Sector);
-        return await FfsFile.AdfGetFileBlocks(volume, entryBlock);
+        return await FfsFile.GetFileBlocks(volume, entryBlock);
     }
 
     [Fact]

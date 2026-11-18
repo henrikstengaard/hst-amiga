@@ -101,7 +101,7 @@
             else
             {
                 /* request one new block free */
-                var nCache = Bitmap.AdfGet1FreeBlock(vol);
+                var nCache = Bitmap.AllocateBlock(vol);
                 if (nCache == uint.MaxValue) // -1
                 {
                     throw new IOException("nCache==-1");
@@ -213,7 +213,7 @@
 
             if (found)
             {
-                await Bitmap.AdfDeferUpdateBitmap(vol);
+                await Bitmap.DeferBitmapUpdate(vol);
             }
             else
             {
@@ -232,7 +232,7 @@
 
             if (nSect == uint.MaxValue)
             {
-                nCache = Bitmap.AdfGet1FreeBlock(vol);
+                nCache = Bitmap.AllocateBlock(vol);
                 if (nCache == uint.MaxValue)
                 {
                     throw new IOException("nCache==-1");
@@ -374,12 +374,12 @@
                             /* dirCacheBlock.recordsNb ==1 or == 0 , prevSect!=-1 : 
                             * the only record in this dir cache block and a previous dir cache block exists 
                             */
-                            Bitmap.AdfSetBlockFree(vol, dirCacheBlock.HeaderKey);
+                            Bitmap.SetBlockFree(vol, dirCacheBlock.HeaderKey);
                             dirCacheBlock = await Disk.ReadDirCacheBlock(vol, prevSect);
                             dirCacheBlock.NextDirC = 0;
                             await Disk.WriteDirCacheBlock(vol, prevSect, dirCacheBlock);
 
-                            await Bitmap.AdfDeferUpdateBitmap(vol);
+                            await Bitmap.DeferBitmapUpdate(vol);
                         }
                     }
 

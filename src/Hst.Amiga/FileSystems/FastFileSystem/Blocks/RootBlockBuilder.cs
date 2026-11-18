@@ -33,10 +33,7 @@
             BigEndianConverter.ConvertUInt32ToBytes(0, blockBytes, 0x10); // reserved
             BigEndianConverter.ConvertInt32ToBytes(0, blockBytes, 0x14); // checksum
 
-            for (var i = 0; i < rootBlock.IndexSize; i++)
-            {
-                BigEndianConverter.ConvertUInt32ToBytes(rootBlock.Index[i], blockBytes, 0x18 + (i * SizeOf.Long));
-            }
+            BigEndianArrays.WriteUInt32Array(blockBytes, 0x18, rootBlock.Index, (int)rootBlock.IndexSize);
 
             BigEndianConverter.ConvertUInt32ToBytes(rootBlock.BitmapFlags, blockBytes, blockBytes.Length - 0xc8); // bm_flag
 

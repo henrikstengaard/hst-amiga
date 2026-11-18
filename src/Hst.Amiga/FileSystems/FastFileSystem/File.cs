@@ -48,7 +48,7 @@
             // free entry file blocks, if write and overwrite existing entry
             if (write && overwrite && nSect != uint.MaxValue)
             {
-                await AdfFreeFileBlocks(volume, entry);
+                await FreeFileBlocks(volume, entry);
             }
             
             if (!write && entry == null)
@@ -120,26 +120,26 @@
  * adfFreeFileBlocks
  *
  */
-        public static async Task AdfFreeFileBlocks(Volume vol, EntryBlock entry)
+        public static async Task FreeFileBlocks(Volume vol, EntryBlock entry)
         {
             // int i;
             // struct FileBlocks fileBlocks;
             // RETCODE rc = RC_OK;
 
-            var fileBlocks = await AdfGetFileBlocks(vol, entry);
+            var fileBlocks = await GetFileBlocks(vol, entry);
 
             for(var i=0; i < fileBlocks.nbData; i++)
             {
-                Bitmap.AdfSetBlockFree(vol, fileBlocks.data[i]);
+                Bitmap.SetBlockFree(vol, fileBlocks.data[i]);
             }
             for(var i=0; i < fileBlocks.nbExtens; i++)
             {
-                Bitmap.AdfSetBlockFree(vol, fileBlocks.extens[i]);
+                Bitmap.SetBlockFree(vol, fileBlocks.extens[i]);
             }
             
             if (entry.Extension != 0)
             {
-                Bitmap.AdfSetBlockFree(vol, entry.Extension);
+                Bitmap.SetBlockFree(vol, entry.Extension);
             }
 
             // free(fileBlocks.data);
@@ -152,7 +152,7 @@
  * adfGetFileBlocks
  *
  */
-        public static async Task<FileBlocks> AdfGetFileBlocks(Volume vol, EntryBlock entry)
+        public static async Task<FileBlocks> GetFileBlocks(Volume vol, EntryBlock entry)
         {
             // int32_t n, m;
             // SECTNUM nSect;
@@ -163,7 +163,7 @@
                 header = entry.HeaderKey,
             };
             // adfFileRealSize( entry.ByteSize, vol.DataBlockSize, &(fileBlocks->nbData), &(fileBlocks->nbExtens) );
-            AdfFileRealSize(vol, entry.ByteSize, vol.DataBlockSize, fileBlocks);
+            CalculateFileBlockCounts(vol, entry.ByteSize, vol.DataBlockSize, fileBlocks);
 
             fileBlocks.data = new uint[fileBlocks.nbData];
             // fileBlocks->data=(SECTNUM*)malloc(fileBlocks->nbData * sizeof(SECTNUM));
@@ -208,7 +208,7 @@
  * Compute number of datablocks and file extension blocks
  *
  */
-        public static uint AdfFileRealSize(Volume volume, uint size, uint blockSize, FileBlocks fileBlocks) // int32_t *dataN, int32_t *extN
+        public static uint CalculateFileBlockCounts(Volume volume, uint size, uint blockSize, FileBlocks fileBlocks) // int32_t *dataN, int32_t *extN
         {
             // int32_t data, ext;
 
