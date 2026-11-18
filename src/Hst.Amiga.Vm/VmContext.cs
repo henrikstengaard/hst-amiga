@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Libraries;
 using Processor;
+using Roms;
 using Traps;
 
 /// <summary>
@@ -41,7 +42,21 @@ public sealed class VmContext
             throw new ArgumentException("Memory size for 68000 is max 16 MB");
         }
 
-        Ram = new Ram(options.MemorySize, addressMask);
+        var kickstartRom = options.KickstartRom;
+        if (kickstartRom != null)
+        {
+            if (options.MemorySize > kickstartRom.BaseAddress)
+            {
+                throw new ArgumentException(
+                    $"Memory size {options.MemorySize / 1024 / 1024} MB overlaps Kickstart ROM at 0x{kickstartRom.BaseAddress:X6}");
+            }
+
+            Ram = new Ram(options.MemorySize, addressMask, kickstartRom.BaseAddress, kickstartRom.Bytes);
+        }
+        else
+        {
+            Ram = new Ram(options.MemorySize, addressMask);
+        }
         Cpu = new M68kCpu(Ram, options.CpuType)
         {
             DefaultExceptionHandler = DefaultExceptionHandlerAddress
@@ -73,6 +88,11 @@ public sealed class VmContext
     }
 
     public VmOptions Options { get; }
+
+    /// <summary>
+    /// Kickstart ROM mapped read-only at its base address, if any.
+    /// </summary>
+    public KickstartRom KickstartRom => Options.KickstartRom;
     public CancellationToken CancellationToken { get; }
     public Ram Ram { get; }
     public M68kCpu Cpu { get; }

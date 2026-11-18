@@ -39,6 +39,7 @@ Hst Amiga Vm Nuget package contains following features:
 - Adf and disk images mounted as volumes using FFS, PFS3 and SFS support of Hst Amiga.
 - UAE metadata for Amiga names, protection bits and comments in host directories.
 - AmigaDOS shell running scripts with Execute and interactive command lines.
+- Kickstart ROM mapped read-only with its resident modules, so programs like Version and GetSCSI find modules in ROM.
 
 Hst Amiga console version comes with following features:
 - Icons
@@ -57,6 +58,7 @@ Hst Amiga console version comes with following features:
   - Run Amiga CLI executables with Amiga volumes mapped to host directories.
   - Run Amiga CLI executables from adf and disk images, optionally in the context of the image.
   - Execute AmigaDOS scripts and run an interactive AmigaDOS shell.
+  - Load a Kickstart ROM, so programs can find resident modules in ROM, e.g. GetSCSI extracting scsi.device.
 - Script
   - Run multiple commands using a script file.
 

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RigidDiskBlocks;
+using Roms;
 using Vm;
 using Vm.FileSystem;
 using Vm.Processor;
@@ -24,6 +25,8 @@ public class VmRunCommand
     private readonly IEnumerable<string> images;
     private readonly bool imageContext;
     private readonly bool writeImage;
+    private readonly string kickstartPath;
+    private readonly string romKeyPath;
 
     /// <summary>
     /// Create command running Amiga executable, script or interactive shell in virtual machine.
@@ -38,9 +41,12 @@ public class VmRunCommand
     /// "workbench.adf\c\list". True resolves paths in the Amiga file systems of the image by mounting it as
     /// volumes, false reads executable from image and resolves host paths.</param>
     /// <param name="writeImage">Open images for writing, otherwise volumes in images are write protected.</param>
+    /// <param name="kickstartPath">Host path to Kickstart ROM mapped read-only in virtual machine, if any.</param>
+    /// <param name="romKeyPath">Host path to Amiga Forever rom.key for encrypted Kickstart ROM. Default is
+    /// rom.key in directory of Kickstart ROM, if it exists.</param>
     public VmRunCommand(string executablePath, IEnumerable<string> arguments, VmOptions options,
         VmRunMode mode = VmRunMode.Run, IEnumerable<string> images = null, bool imageContext = false,
-        bool writeImage = false)
+        bool writeImage = false, string kickstartPath = null, string romKeyPath = null)
     {
         this.executablePath = executablePath;
         this.arguments = arguments ?? Enumerable.Empty<string>();
@@ -49,6 +55,8 @@ public class VmRunCommand
         this.images = images ?? Enumerable.Empty<string>();
         this.imageContext = imageContext;
         this.writeImage = writeImage;
+        this.kickstartPath = kickstartPath;
+        this.romKeyPath = romKeyPath;
     }
 
     /// <summary>
@@ -163,6 +171,11 @@ public class VmRunCommand
         var imageFiles = new List<ImageFile>();
         try
         {
+            if (!string.IsNullOrEmpty(kickstartPath))
+            {
+                options.KickstartRom = await ReadKickstartRom(kickstartPath, romKeyPath, token);
+            }
+
             foreach (var image in images)
             {
                 await AddImage(imageFiles, image);
@@ -186,6 +199,24 @@ public class VmRunCommand
             {
                 imageFile.Dispose();
             }
+        }
+    }
+
+    /// <summary>
+    /// Read raw or Amiga Forever encrypted Kickstart ROM.
+    /// </summary>
+    /// <exception cref="VmException">Kickstart ROM is invalid or unsupported.</exception>
+    private static async Task<KickstartRom> ReadKickstartRom(string path, string keyPath, CancellationToken token)
+    {
+        var romBytes = await File.ReadAllBytesAsync(path, token);
+        var keyBytes = await KickstartCommand.ReadKey(path, keyPath, token);
+        try
+        {
+            return KickstartRomReader.Read(romBytes, keyBytes);
+        }
+        catch (InvalidDataException e)
+        {
+            throw new VmException($"Invalid Kickstart ROM '{path}': {e.Message}");
         }
     }
 

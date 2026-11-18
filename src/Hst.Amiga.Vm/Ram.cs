@@ -6,6 +6,8 @@ using System.Text;
 /// <summary>
 /// Flat big-endian random access memory. Addresses are masked by address mask, 24-bit for 68000 and
 /// 32-bit for 68020. Accessing addresses outside memory throws <see cref="BusErrorException"/>.
+/// A read-only ROM can be mapped above memory, e.g. Kickstart ROM at 0xF80000. Reading between end of memory
+/// and ROM returns zeroes, writing above memory throws <see cref="BusErrorException"/>.
 /// </summary>
 public class Ram
 {
@@ -13,31 +15,73 @@ public class Ram
 
     private readonly byte[] data;
     private readonly uint size;
+    private readonly uint readLimit;
 
     public Ram(uint size, uint addressMask = 0xFFFFFFFF)
+        : this(size, addressMask, 0, null)
+    {
+    }
+
+    /// <summary>
+    /// Create memory with read-only ROM mapped at ROM address.
+    /// </summary>
+    /// <param name="size">Size of memory in bytes.</param>
+    /// <param name="addressMask">Address mask, 24-bit for 68000 and 32-bit for 68020.</param>
+    /// <param name="romAddress">Address of ROM, must be at or above end of memory.</param>
+    /// <param name="rom">ROM bytes or null for no ROM.</param>
+    public Ram(uint size, uint addressMask, uint romAddress, byte[] rom)
     {
         if (size < 0x10000)
         {
             throw new ArgumentOutOfRangeException(nameof(size), "Memory size must be at least 64 KB");
         }
 
-        data = new byte[size];
+        var length = (ulong)size;
+        if (rom != null && rom.Length > 0)
+        {
+            if (romAddress < size)
+            {
+                throw new ArgumentOutOfRangeException(nameof(romAddress),
+                    $"ROM address 0x{romAddress:X} overlaps memory of size 0x{size:X}");
+            }
+
+            if ((ulong)romAddress + (ulong)rom.Length > (ulong)addressMask + 1 ||
+                (ulong)romAddress + (ulong)rom.Length > int.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(romAddress),
+                    $"ROM at address 0x{romAddress:X} is outside addressable memory");
+            }
+
+            length = (ulong)romAddress + (ulong)rom.Length;
+        }
+
+        data = new byte[length];
+        if (rom != null && rom.Length > 0)
+        {
+            Array.Copy(rom, 0, data, romAddress, rom.Length);
+        }
+
         this.size = size;
+        readLimit = (uint)length;
         AddressMask = addressMask;
     }
 
+    /// <summary>
+    /// Size of writable memory in bytes, excluding ROM.
+    /// </summary>
     public uint Size => size;
+
     public uint AddressMask { get; }
 
     /// <summary>
-    /// Raw memory bytes.
+    /// Raw memory bytes, including ROM mapped above memory.
     /// </summary>
     public byte[] Data => data;
 
     private uint Translate(uint address, uint length, bool write)
     {
         address &= AddressMask;
-        if (address > size - length)
+        if (address > (write ? size : readLimit) - length)
         {
             throw new BusErrorException(address, write);
         }
@@ -142,7 +186,7 @@ public class Ram
 
         var start = Translate(address, 1, false);
         var end = start;
-        while (end < size && data[end] != 0 && end - start < maxLength)
+        while (end < readLimit && data[end] != 0 && end - start < maxLength)
         {
             end++;
         }
