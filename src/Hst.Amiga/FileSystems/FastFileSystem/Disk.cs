@@ -1,5 +1,6 @@
 ﻿namespace Hst.Amiga.FileSystems.FastFileSystem
 {
+    using System;
     using System.IO;
     using System.Threading.Tasks;
     using Blocks;
@@ -67,7 +68,7 @@
         
         public static async Task<DataBlock> ReadDataBlock(Volume vol, uint nSect)
         {
-            var blockBytes = await ReadBlock(vol, nSect);
+            var blockBytes = await ReadBlock(vol, nSect, false);
 
             if (vol.UseOfs)
             {
@@ -92,7 +93,7 @@
             var blockBytes = volume.UseOfs
                 ? DataBlockBuilder.Build(dataBlock, volume.FileSystemBlockSize)
                 : dataBlock.Data;
-            await WriteBlock(volume, nSect, blockBytes);
+            await WriteBlock(volume, nSect, blockBytes, false);
         }        
 
         public static async Task<FileExtBlock> ReadFileExtBlock(Volume volume, uint nSect)
@@ -182,9 +183,10 @@
         /// </summary>
         /// <param name="volume"></param>
         /// <param name="logicalSector">Logical block number</param>
+        /// <param name="cache">Read block from and add block to metadata block cache</param>
         /// <returns></returns>
         /// <exception cref="IOException"></exception>
-        public static async Task<byte[]> ReadBlock(Volume volume, uint logicalSector)
+        public static async Task<byte[]> ReadBlock(Volume volume, uint logicalSector, bool cache = true)
         {
             if (!volume.Mounted)
             {
@@ -198,10 +200,104 @@
                 throw new IOException($"Logical sector '{logicalSector}' is out of range");
             }
 
-            return await ReadBlockBytes(volume, physicalSector);
+            if (cache && volume.BlockCache.TryGet(logicalSector, out var cachedBlockBytes))
+            {
+                return cachedBlockBytes;
+            }
+
+            var blockBytes = await ReadBlockBytes(volume, physicalSector);
+
+            if (cache)
+            {
+                volume.BlockCache.Set(logicalSector, blockBytes);
+            }
+
+            return blockBytes;
         }
         
-        public static async Task WriteBlock(Volume volume, uint logicalSector, byte[] blockBytes)
+        /// <summary>
+        /// Read consecutive blocks into buffer with a single read
+        /// </summary>
+        /// <param name="volume"></param>
+        /// <param name="logicalSector">First logical block number</param>
+        /// <param name="blocks">Number of blocks to read</param>
+        /// <param name="buffer">Buffer to read blocks into</param>
+        /// <param name="offset">Offset in buffer</param>
+        /// <exception cref="IOException"></exception>
+        public static async Task ReadBlocks(Volume volume, uint logicalSector, int blocks, byte[] buffer, int offset)
+        {
+            if (!volume.Mounted)
+            {
+                throw new IOException("Volume is not mounted");
+            }
+
+            ThrowExceptionIfBlockRangeInvalid(volume, logicalSector, blocks, buffer, offset);
+
+            var physicalSector = logicalSector + volume.FirstBlock;
+            volume.Stream.Seek(volume.PartitionStartOffset + (long)physicalSector * volume.FileSystemBlockSize,
+                SeekOrigin.Begin);
+            await Amiga.Disk.ReadExactly(volume.Stream, buffer, offset, blocks * volume.FileSystemBlockSize);
+        }
+
+        /// <summary>
+        /// Write consecutive blocks from buffer with a single write
+        /// </summary>
+        /// <param name="volume"></param>
+        /// <param name="logicalSector">First logical block number</param>
+        /// <param name="blocks">Number of blocks to write</param>
+        /// <param name="buffer">Buffer to write blocks from</param>
+        /// <param name="offset">Offset in buffer</param>
+        /// <exception cref="IOException"></exception>
+        public static async Task WriteBlocks(Volume volume, uint logicalSector, int blocks, byte[] buffer, int offset)
+        {
+            if (!volume.Mounted)
+            {
+                throw new IOException("Volume is not mounted");
+            }
+
+            if (volume.ReadOnly)
+            {
+                throw new IOException("Volume is mounted read only");
+            }
+
+            ThrowExceptionIfBlockRangeInvalid(volume, logicalSector, blocks, buffer, offset);
+
+            var physicalSector = logicalSector + volume.FirstBlock;
+            volume.Stream.Seek(volume.PartitionStartOffset + (long)physicalSector * volume.FileSystemBlockSize,
+                SeekOrigin.Begin);
+            volume.BlockCache.Invalidate(logicalSector, blocks);
+            await volume.Stream.WriteAsync(buffer, offset, blocks * volume.FileSystemBlockSize);
+        }
+
+        private static void ThrowExceptionIfBlockRangeInvalid(Volume volume, uint logicalSector, int blocks,
+            byte[] buffer, int offset)
+        {
+            if (blocks <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(blocks), "Blocks must be greater than zero");
+            }
+
+            if (offset < 0 || (long)offset + (long)blocks * volume.FileSystemBlockSize > buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset),
+                    $"{blocks} blocks at offset {offset} exceeds buffer size {buffer.Length}");
+            }
+
+            var lastLogicalSector = (long)logicalSector + blocks - 1;
+            if (lastLogicalSector > volume.LastBlock - volume.FirstBlock)
+            {
+                throw new IOException($"Logical sectors '{logicalSector}' to '{lastLogicalSector}' is out of range");
+            }
+        }
+
+        /// <summary>
+        /// Write block
+        /// </summary>
+        /// <param name="volume"></param>
+        /// <param name="logicalSector">Logical block number</param>
+        /// <param name="blockBytes">Block bytes to write</param>
+        /// <param name="cache">Add block to metadata block cache. Otherwise block is removed from cache</param>
+        public static async Task WriteBlock(Volume volume, uint logicalSector, byte[] blockBytes, bool cache = true)
         {
             if (!volume.Mounted)
             {
@@ -221,6 +317,15 @@
                 throw new IOException($"Logical sector '{logicalSector}' is out of range");
             }
             
+            if (cache)
+            {
+                volume.BlockCache.Set(logicalSector, blockBytes);
+            }
+            else
+            {
+                volume.BlockCache.Invalidate(logicalSector);
+            }
+
             await WriteBlockBytes(volume, physicalSector, blockBytes);
         }        
     }

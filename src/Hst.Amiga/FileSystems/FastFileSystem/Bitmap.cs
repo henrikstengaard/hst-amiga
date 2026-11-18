@@ -61,12 +61,34 @@
             }
         }
 
+        /// <summary>
+        /// Defer writing changed bitmap blocks until volume is flushed or disposed. Root block bitmap flags are
+        /// set invalid on first deferred update, so bitmap is validated if volume isn't flushed (like AmigaDOS).
+        /// </summary>
+        public static async Task AdfDeferUpdateBitmap(Volume vol)
+        {
+            if (vol.BitmapUpdatePending)
+            {
+                return;
+            }
+
+            var root = await Disk.ReadRootBlock(vol, vol.RootBlockOffset);
+            root.BitmapFlags = Constants.BM_INVALID;
+            await Disk.WriteRootBlock(vol, vol.RootBlockOffset, root);
+
+            vol.BitmapUpdatePending = true;
+        }
+
         public static async Task AdfUpdateBitmap(Volume vol)
         {
             var root = await Disk.ReadRootBlock(vol, vol.RootBlockOffset);
 
-            root.BitmapFlags = Constants.BM_INVALID;
-            await Disk.WriteRootBlock(vol, vol.RootBlockOffset, root);
+            // root block bitmap flags are already set invalid, if bitmap update is pending
+            if (!vol.BitmapUpdatePending)
+            {
+                root.BitmapFlags = Constants.BM_INVALID;
+                await Disk.WriteRootBlock(vol, vol.RootBlockOffset, root);
+            }
 
             for (var i = 0; i < vol.BitmapSize; i++)
                 if (vol.BitmapBlocksChg[i])
@@ -79,6 +101,8 @@
             root.Date = DateTime.Now;
 
             await Disk.WriteRootBlock(vol, vol.RootBlockOffset, root);
+
+            vol.BitmapUpdatePending = false;
         }
 
         public static uint AdfGet1FreeBlock(Volume vol)

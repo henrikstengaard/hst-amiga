@@ -37,6 +37,12 @@
         public BitmapBlock[] BitmapTable { get; set; }
         public uint[] BitmapBlocks { get; set; }
         public bool[] BitmapBlocksChg { get; set; }
+
+        /// <summary>
+        /// Changed bitmap blocks are not written yet and root block bitmap flags are set invalid. Bitmap is
+        /// updated, when volume is flushed or disposed
+        /// </summary>
+        public bool BitmapUpdatePending { get; set; }
         
         public bool IgnoreErrors { get; set; }
         public IList<string> Logs { get; set; }
@@ -45,8 +51,19 @@
         public uint NextFreeBlock { get; set; }
         public bool ResolveLinkPaths { get; set; }
 
+        /// <summary>
+        /// Write-through cache of metadata blocks
+        /// </summary>
+        public BlockCache BlockCache { get; }
+
+        /// <summary>
+        /// Number of metadata blocks cached
+        /// </summary>
+        public const int BlockCacheSize = 256;
+
         public Volume()
         {
+            BlockCache = new BlockCache(BlockCacheSize);
             Logs = new List<string>();
             
             BitmapTable = Array.Empty<BitmapBlock>();

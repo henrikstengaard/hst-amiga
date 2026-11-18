@@ -36,6 +36,23 @@
                 return default;
             }
 
+            var buffer = new byte[(int)(g.blocksize * blocks)];
+            await RawRead(buffer, 0, blocks, blocknr, g);
+            return buffer;
+        }
+
+        /// <summary>
+        /// Read blocks directly into destination buffer at destination offset.
+        /// Bytes past end of stream are zero filled.
+        /// </summary>
+        /// <returns>False, if block nr is uninitialised anode. Otherwise true.</returns>
+        public static async Task<bool> RawRead(byte[] dest, int destOffset, uint blocks, uint blocknr, globaldata g)
+        {
+            if (blocknr == UInt32.MaxValue) // blocknr of uninitialised anode
+            {
+                return false;
+            }
+
             blocknr += g.firstblock;
 
             if (g.softprotect)
@@ -45,21 +62,32 @@
 
             BoundsCheck(false, blocknr, blocks, g);
 
-            // seek to block in stream
-            // while (blocks > 0)
-            // {
-            //     var transfer = min(blocks,maxtransfer);
-            //     
-            //     buffer += transfer << BLOCKSHIFT;
-            //     blocks -= transfer;
-            //     blocknr += transfer;                
-            // }
+            var count = (int)(g.blocksize * blocks);
+            if (destOffset < 0 || destOffset + count > dest.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(destOffset),
+                    $"Reading {blocks} blocks at offset {destOffset} exceeds buffer size {dest.Length}");
+            }
 
             var offset = (long)g.blocksize * blocknr;
             g.stream.Seek(offset, SeekOrigin.Begin);
 
-            // read block bytes
-            return await g.stream.ReadBytes((int)(g.blocksize * blocks));
+            // read block bytes, stream can return fewer bytes than requested
+            var bytesRead = 0;
+            while (bytesRead < count)
+            {
+                var n = await g.stream.ReadAsync(dest, destOffset + bytesRead, count - bytesRead);
+                if (n <= 0)
+                {
+                    // end of stream
+                    Array.Clear(dest, destOffset + bytesRead, count - bytesRead);
+                    break;
+                }
+
+                bytesRead += n;
+            }
+
+            return true;
         }
 
         public static async Task<IBlock> RawRead<T>(uint blocks, uint blocknr, globaldata g) where T : IBlock
@@ -104,10 +132,18 @@
             return default;
         }
 
-        public static async Task<bool> RawWrite(Stream stream, byte[] buffer, uint blocks, uint blocknr, globaldata g)
+        public static Task<bool> RawWrite(Stream stream, byte[] buffer, uint blocks, uint blocknr, globaldata g)
+        {
+            return RawWrite(stream, buffer, 0, blocks, blocknr, g);
+        }
+
+        /// <summary>
+        /// Write blocks from buffer starting at buffer offset.
+        /// </summary>
+        public static async Task<bool> RawWrite(Stream stream, byte[] buffer, int bufferOffset, uint blocks, uint blocknr, globaldata g)
         {
 #if DEBUG
-            Pfs3Logger.Instance.Debug($"Disk: Raw write bytes to block nr {blocknr} with buffer size {buffer.Length} and size of {blocks} blocks");
+            Pfs3Logger.Instance.Debug($"Disk: Raw write bytes to block nr {blocknr} with buffer size {buffer.Length}, offset {bufferOffset} and size of {blocks} blocks");
 #endif
             // RawReadWrite_DS(TRUE, buffer, blocks, blocknr, g);
             if (g.softprotect)
@@ -124,8 +160,9 @@
 
             var blockOffset = (long)g.blocksize * blocknr;
             
-            g.stream.Seek(blockOffset, SeekOrigin.Begin);
-            await stream.WriteAsync(buffer, 0, Convert.ToInt32(Math.Min(buffer.Length, g.blocksize * blocks)));
+            stream.Seek(blockOffset, SeekOrigin.Begin);
+            await stream.WriteAsync(buffer, bufferOffset,
+                Convert.ToInt32(Math.Min(buffer.Length - bufferOffset, g.blocksize * blocks)));
 
             return true;
         }
@@ -196,14 +233,8 @@
 
             /* write them */
             //await RawWrite(g.dc.data[slotnr << g.blockshift], i-slotnr, g.dc.ref_[slotnr].blocknr, g);
-            var slotData = new byte[(int)(g.blocksize * (i - slotnr))];
-            
-            var di = slotnr << g.blockshift;
-            for (var si = 0; si < slotData.Length; si++)
-            {
-                slotData[si] = g.dc.data[di++];
-            }
-            await RawWrite(g.stream, slotData, (uint)(i - slotnr), g.dc.ref_[slotnr].blocknr, g);
+            await RawWrite(g.stream, g.dc.data, slotnr << g.blockshift, (uint)(i - slotnr),
+                g.dc.ref_[slotnr].blocknr, g);
         }
 
         /* SeekInFile
@@ -398,22 +429,19 @@
                 /* read first blockpart */
                 if (blockoffset != 0)
                 {
-                    var bytesRead = await CachedReadD(chnode.an.blocknr + anodeoffset, g);
-                    if (bytesRead.Length > 0)
-                    {
-                        anodes.NextBlockAC(ref chnode, ref anodeoffset, g);
+                    var slotnr = await CachedRead(chnode.an.blocknr + anodeoffset, false, g);
+                    anodes.NextBlockAC(ref chnode, ref anodeoffset, g);
 
-                        /* calc numbytes */
-                        t = BLOCKSIZE - blockoffset;
-                        t = Math.Min(t, size);
-                        //memcpy(dataptr, data+blockoffset, t);
-                        Array.Copy(bytesRead, blockoffset, data, dataptr, t);
-                        dataptr += (int)t;
-                        if (blockstoread != 0)
-                            blockstoread--;
-                        else
-                            bytesleft = 0; /* single block access */
-                    }
+                    /* calc numbytes */
+                    t = BLOCKSIZE - blockoffset;
+                    t = Math.Min(t, size);
+                    //memcpy(dataptr, data+blockoffset, t);
+                    Array.Copy(g.dc.data, (slotnr << (int)BLOCKSHIFT) + blockoffset, data, dataptr, t);
+                    dataptr += (int)t;
+                    if (blockstoread != 0)
+                        blockstoread--;
+                    else
+                        bytesleft = 0; /* single block access */
                 }
             }
 
@@ -426,8 +454,7 @@
                     t = blockstoread;
 
                 // *error = DiskRead(dataptr, t, chnode->an.blocknr + anodeoffset, g);
-                var bytesRead = await RawRead(t, chnode.an.blocknr + anodeoffset, g);
-                Array.Copy(bytesRead, 0, data, dataptr, Math.Min(bytesRead.Length, data.Length));
+                await RawRead(data, dataptr, t, chnode.an.blocknr + anodeoffset, g);
                 // if (!*error)
                 // {
                 blockstoread -= t;
@@ -447,12 +474,9 @@
             }
             else if (bytesleft > 0)
             {
-                var dataRead = await CachedReadD(chnode.an.blocknr + anodeoffset, g);
-                if (dataRead.Length > 0)
-                {
-                    //memcpy(dataptr, data, bytesleft);
-                    Array.Copy(dataRead, 0, buffer, dataptr, bytesleft);
-                }
+                var slotnr = await CachedRead(chnode.an.blocknr + anodeoffset, false, g);
+                //memcpy(dataptr, data, bytesleft);
+                Array.Copy(g.dc.data, slotnr << (int)BLOCKSHIFT, buffer, dataptr, bytesleft);
             }
             // }
 
@@ -588,8 +612,7 @@
                 if (blockoffset != 0)
                 {
                     //*error = DiskRead(dataptr, 1, chnode.an.blocknr + anodeoffset, g);
-                    var dataRead = await RawRead(1, chnode.an.blocknr + anodeoffset, g);
-                    Array.Copy(dataRead, 0, data, dataptr, dataRead.Length);
+                    await RawRead(data, dataptr, 1, chnode.an.blocknr + anodeoffset, g);
                     bytestowrite += blockoffset;
                     if (bytestowrite < BLOCKSIZE)
                         bytestowrite = BLOCKSIZE; /* the first could also be the last block */
@@ -698,15 +721,24 @@
                     }
                 }
 
-                // raw write writes from start of buffer, copy blocks from data pointer
+                // write blocks directly from data pointer, if data contains all blocks to write.
+                // otherwise copy to zero padded buffer
+                var writeOffset = 0;
                 if (lastpart == null && dataptr != 0)
                 {
-                    writeptr = new byte[(int)t << BLOCKSHIFT];
-                    Array.Copy(data, dataptr, writeptr, 0, Math.Min(writeptr.Length, data.Length - dataptr));
+                    if (dataptr + ((int)t << BLOCKSHIFT) <= data.Length)
+                    {
+                        writeOffset = dataptr;
+                    }
+                    else
+                    {
+                        writeptr = new byte[(int)t << BLOCKSHIFT];
+                        Array.Copy(data, dataptr, writeptr, 0, Math.Min(writeptr.Length, data.Length - dataptr));
+                    }
                 }
 
                 // *error = DiskWrite(writeptr, t, chnode->an.blocknr + anodeoffset, g);
-                if (await RawWrite(g.stream, writeptr, t, chnode.an.blocknr + anodeoffset, g))
+                if (await RawWrite(g.stream, writeptr, writeOffset, t, chnode.an.blocknr + anodeoffset, g))
                 {
                     blockstofill -= t;
                     dataptr += (int)(t << BLOCKSHIFT);
@@ -812,7 +844,9 @@
             if (fake)
             {
                 // memset(&g->dc.data[i<<BLOCKSHIFT], 0xAA, BLOCKSIZE);
-                for (var f = i << (int)Macro.BLOCKSHIFT(g); f < Macro.BLOCKSIZE(g); f++)
+                var start = i << (int)Macro.BLOCKSHIFT(g);
+                var end = start + (int)Macro.BLOCKSIZE(g);
+                for (var f = start; f < end; f++)
                 {
                     g.dc.data[f] = 0xAA;
                 }
@@ -820,8 +854,7 @@
             else
             {
                 // *error = RawRead(&g->dc.data[i<<BLOCKSHIFT], 1, blocknr, g);
-                var data = await RawRead(1, blocknr, g);
-                Array.Copy(data, 0, g.dc.data, i << Macro.BLOCKSHIFT(g), data.Length);
+                await RawRead(g.dc.data, i << (int)Macro.BLOCKSHIFT(g), 1, blocknr, g);
             }
 
             g.dc.roving = (ushort)((g.dc.roving + 1) & g.dc.mask);

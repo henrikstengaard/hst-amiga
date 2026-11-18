@@ -281,25 +281,31 @@ BPTR
 #if DEBUG
             Pfs3Logger.Instance.Debug($"Macro: MinRemoveLru CachedBlock block nr {node.blocknr} ({node.GetHashCode()})");
 #endif
-            foreach (var lruCachedBlock in g.glob_lrudata.LRUpool.Where(x => x.cblk == node).ToList())
+            // MinRemove(LRU_CHAIN(blk)): a cached block is linked in at most one lru list (queue or pool)
+            var lruNode = node.LruNode;
+            lruNode?.List?.Remove(lruNode);
+        }
+
+        /// <summary>
+        /// Add cached block to head of lru list (queue or pool), moving it from any lru list it's currently in.
+        /// MinAddHead(list, LRU_CHAIN(blk)) 
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="blk"></param>
+        public static void LruAddHead(LinkedList<LruCachedBlock> list, CachedBlock blk)
+        {
+            var lruNode = blk.LruNode;
+            if (lruNode == null || lruNode.Value.cblk != blk)
             {
-                g.glob_lrudata.LRUpool.Remove(lruCachedBlock);
+                lruNode = new LinkedListNode<LruCachedBlock>(new LruCachedBlock(blk));
+                blk.LruNode = lruNode;
             }
-            
-            foreach (var lruCachedBlock in g.glob_lrudata.LRUqueue.Where(x => x.cblk == node).ToList())
+            else
             {
-                g.glob_lrudata.LRUqueue.Remove(lruCachedBlock);
+                lruNode.List?.Remove(lruNode);
             }
 
-            for (var i = 0; i < g.glob_lrudata.LRUarray.Length; i++)
-            {
-                if (g.glob_lrudata.LRUarray[i] == null || g.glob_lrudata.LRUarray[i].cblk == node)
-                {
-                    continue;
-                }
-
-                g.glob_lrudata.LRUarray[i] = null;
-            }
+            list.AddFirst(lruNode);
         }
         
         /// <summary>

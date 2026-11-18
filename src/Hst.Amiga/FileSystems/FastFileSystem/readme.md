@@ -69,6 +69,33 @@ Example of mounting a Fast File System volume from a partition block in a stream
 var ffsVolume = await ffsVolume.Mount(stream, partitionBlock);
 ```
 
+### Flushing and disposing a Fast File System volume
+
+Changes to the bitmap (which blocks are used and free) from writing files are kept in memory and written to disk
+when the volume is flushed with `Flush()` or disposed. This avoids writing bitmap blocks and the root block every
+time a file is closed, which makes writing many files a lot faster.
+
+When the first file is closed after mounting, the root block bitmap flag is set to invalid, the same way AmigaOS
+does while a volume is in use. Flushing or disposing the volume writes changed bitmap blocks and sets the root
+block bitmap flag back to valid.
+
+**A Fast File System volume used for writing files must be flushed or disposed**, before the stream is closed or
+the partition is mounted again. Otherwise the bitmap on disk doesn't mark blocks used by written files and the
+root block bitmap flag stays invalid. AmigaOS will validate the volume and rebuild the bitmap, but a volume
+mounted again with Hst Amiga can allocate blocks already used by files and overwrite them. Mounting a partition
+already mounted on the same stream throws an exception, see
+[Mounting a partition only once](../readme.md#mounting-a-partition-only-once).
+
+Example of writing a file and disposing the volume with a using statement:
+```
+await using (var ffsVolume = await FastFileSystemVolume.MountPartition(stream, partitionBlock))
+{
+    await ffsVolume.CreateFile("New File");
+    await using var entryStream = await ffsVolume.OpenFile("New File", FileMode.Append);
+    await entryStream.WriteAsync(data, 0, data.Length);
+}
+```
+
 ### List entries
 
 Example of listing entries from current directory:

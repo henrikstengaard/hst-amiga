@@ -15,6 +15,7 @@
     {
         internal readonly globaldata g;
         private uint dirNodeNr;
+        private MountRegistration mountRegistration = MountRegistration.None;
 
         internal Pfs3Volume(globaldata g, uint dirNodeNr)
         {
@@ -24,7 +25,14 @@
 
         public async ValueTask DisposeAsync()
         {
-            await Pfs3Helper.Flush(g);
+            try
+            {
+                await Pfs3Helper.Flush(g);
+            }
+            finally
+            {
+                mountRegistration.Release();
+            }
 
             GC.SuppressFinalize(this);
         }
@@ -400,15 +408,36 @@
         /// <param name="stream"></param>
         /// <param name="partitionBlock"></param>
         /// <param name="resolveLinkPaths"></param>
+        /// <param name="force">Mount partition, even if partition is already mounted by another volume on the same stream</param>
         /// <returns></returns>
-        public static async Task<Pfs3Volume> Mount(Stream stream, PartitionBlock partitionBlock, bool resolveLinkPaths = true)
+        /// <exception cref="FileSystems.Exceptions.PartitionAlreadyMountedException">Partition is already mounted on the same stream</exception>
+        public static async Task<Pfs3Volume> Mount(Stream stream, PartitionBlock partitionBlock,
+            bool resolveLinkPaths = true, bool force = false)
         {
-            var g = await Pfs3Helper.Mount(stream, partitionBlock);
-            g.ResolveLinkPaths = resolveLinkPaths;
-            
-            var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
-            
-            return new Pfs3Volume(g, dirNodeNr);
+            // register mounted partition before mounting, as mounting pfs3 can write blocks
+            var blocksPerCylinder = (long)partitionBlock.Surfaces * partitionBlock.BlocksPerTrack;
+            var registration = MountRegistry.Register(stream,
+                partitionBlock.LowCyl * blocksPerCylinder * partitionBlock.BlockSize,
+                (partitionBlock.HighCyl - partitionBlock.LowCyl + 1L) * blocksPerCylinder * partitionBlock.BlockSize,
+                force);
+
+            try
+            {
+                var g = await Pfs3Helper.Mount(stream, partitionBlock);
+                g.ResolveLinkPaths = resolveLinkPaths;
+
+                var dirNodeNr = (uint)Macro.ANODE_ROOTDIR;
+
+                return new Pfs3Volume(g, dirNodeNr)
+                {
+                    mountRegistration = registration
+                };
+            }
+            catch
+            {
+                registration.Release();
+                throw;
+            }
         }
 
         /// <summary>
@@ -441,7 +470,15 @@
 
         public void Dispose()
         {
-            AsyncHelper.RunSync(() => Pfs3Helper.Flush(g));
+            try
+            {
+                AsyncHelper.RunSync(() => Pfs3Helper.Flush(g));
+            }
+            finally
+            {
+                mountRegistration.Release();
+            }
+
             GC.SuppressFinalize(this);
         }
 

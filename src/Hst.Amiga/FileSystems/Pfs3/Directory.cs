@@ -147,7 +147,7 @@
             //     // MinRemove(LRU_CHAIN(ddblk));
             //     // MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(ddblk));
             //     Macro.MinRemoveLru(ddblk, g);
-            //     Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(ddblk));
+            //     Macro.LruAddHead(g.glob_lrudata.LRUpool, ddblk);
             //     // i.p.v. FreeLRU((struct cachedblock *)ddblk, g);
             // }
             foreach (var node in g.currentvolume.deldirblks)
@@ -157,7 +157,7 @@
                 // MinRemove(LRU_CHAIN(ddblk));
                 // MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(ddblk));
                 Macro.MinRemoveLru(ddblk, g);
-                Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(ddblk));
+                Macro.LruAddHead(g.glob_lrudata.LRUpool, ddblk);
                 // i.p.v. FreeLRU((struct cachedblock *)ddblk, g);
             }
 

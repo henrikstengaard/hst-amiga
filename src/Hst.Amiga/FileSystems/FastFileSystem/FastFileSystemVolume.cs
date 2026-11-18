@@ -16,6 +16,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
     {
         private readonly Volume volume;
         private uint currentDirectorySector;
+        private MountRegistration mountRegistration = MountRegistration.None;
 
         internal FastFileSystemVolume(Volume volume, uint currentDirectorySector)
         {
@@ -23,13 +24,46 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             this.currentDirectorySector = currentDirectorySector;
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            return new ValueTask();
+            try
+            {
+                await Flush();
+            }
+            finally
+            {
+                mountRegistration.Release();
+            }
+
+            GC.SuppressFinalize(this);
         }
 
         public void Dispose()
         {
+            try
+            {
+                AsyncHelper.RunSync(() => Flush());
+            }
+            finally
+            {
+                mountRegistration.Release();
+            }
+
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Create fast file system volume and register mounted partition
+        /// </summary>
+        private static FastFileSystemVolume Create(Volume volume, bool force)
+        {
+            var registration = MountRegistry.Register(volume.Stream, volume.PartitionStartOffset,
+                (long)volume.Blocks * volume.FileSystemBlockSize, force);
+
+            return new FastFileSystemVolume(volume, volume.RootBlockOffset)
+            {
+                mountRegistration = registration
+            };
         }
 
         public string Name => volume.RootBlock.DiskName;
@@ -257,10 +291,15 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// Flush file system changes
         /// </summary>
         /// <returns></returns>
-        public Task Flush(CancellationToken cancellationToken = default)
+        public async Task Flush(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.CompletedTask;
+
+            // write changed bitmap blocks and set root block bitmap flags valid
+            if (volume.BitmapUpdatePending && volume.Mounted && !volume.ReadOnly)
+            {
+                await Bitmap.AdfUpdateBitmap(volume);
+            }
         }
 
         public IEnumerable<string> GetStatus()
@@ -274,15 +313,17 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// <param name="stream"></param>
         /// <param name="partitionBlock"></param>
         /// <param name="resolveLinkPaths"></param>
+        /// <param name="force">Mount partition, even if partition is already mounted by another volume on the same stream</param>
         /// <returns></returns>
+        /// <exception cref="PartitionAlreadyMountedException">Partition is already mounted on the same stream</exception>
         public static async Task<FastFileSystemVolume> MountPartition(Stream stream, PartitionBlock partitionBlock,
-            bool resolveLinkPaths = true)
+            bool resolveLinkPaths = true, bool force = false)
         {
             return await Mount(stream, partitionBlock.LowCyl, partitionBlock.HighCyl,
                 partitionBlock.Surfaces, partitionBlock.BlocksPerTrack, partitionBlock.Reserved,
                 partitionBlock.BlockSize,
                 partitionBlock.FileSystemBlockSize,
-                resolveLinkPaths);
+                resolveLinkPaths, force);
         }
 
         /// <summary>
@@ -290,13 +331,16 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="resolveLinkPaths"></param>
+        /// <param name="force">Mount adf, even if adf is already mounted by another volume on the same stream</param>
         /// <returns>Fast file system volume</returns>
-        public static async Task<FastFileSystemVolume> MountAdf(Stream stream, bool resolveLinkPaths = true)
+        /// <exception cref="PartitionAlreadyMountedException">Adf is already mounted on the same stream</exception>
+        public static async Task<FastFileSystemVolume> MountAdf(Stream stream, bool resolveLinkPaths = true,
+            bool force = false)
         {
             var volume = await FastFileSystemHelper.MountAdf(stream);
             volume.ResolveLinkPaths = resolveLinkPaths;
 
-            return new FastFileSystemVolume(volume, volume.RootBlockOffset);
+            return Create(volume, force);
         }
 
         /// <summary>
@@ -311,17 +355,19 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         /// <param name="blockSize"></param>
         /// <param name="fileSystemBlockSize"></param>
         /// <param name="resolveLinkPaths"></param>
+        /// <param name="force">Mount partition, even if partition is already mounted by another volume on the same stream</param>
         /// <returns></returns>
+        /// <exception cref="PartitionAlreadyMountedException">Partition is already mounted on the same stream</exception>
         public static async Task<FastFileSystemVolume> Mount(Stream stream, uint lowCyl, uint highCyl,
             uint surfaces, uint blocksPerTrack, uint reserved, uint blockSize, uint fileSystemBlockSize,
-            bool resolveLinkPaths = true)
+            bool resolveLinkPaths = true, bool force = false)
         {
             var volume = await FastFileSystemHelper.Mount(stream, lowCyl, highCyl, surfaces, blocksPerTrack, reserved,
                 blockSize,
                 fileSystemBlockSize);
             volume.ResolveLinkPaths = resolveLinkPaths;
 
-            return new FastFileSystemVolume(volume, volume.RootBlockOffset);
+            return Create(volume, force);
         }
 
         /// <summary>

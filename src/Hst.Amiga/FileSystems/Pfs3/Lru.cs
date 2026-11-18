@@ -96,7 +96,7 @@
             Macro.MinRemoveLru(blk, g);
 
             // MinAddHead(g.glob_lrudata.LRUqueue, LRU_CHAIN(blk));
-            Macro.MinAddHead(g.glob_lrudata.LRUqueue, new LruCachedBlock(blk));
+            Macro.LruAddHead(g.glob_lrudata.LRUqueue, blk);
         }
 
         public static void FreeLRU(CachedBlock blk, globaldata g)
@@ -110,7 +110,7 @@
             ClearBlock(blk, g);
 
             //MinAddHead(&g->glob_lrudata.LRUpool, LRU_CHAIN(blk));            \
-            Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(blk));
+            Macro.LruAddHead(g.glob_lrudata.LRUpool, blk);
         }
 
 /* Allocate a block from the LRU chain and make
@@ -185,7 +185,7 @@
                 for (j = 0; j < NEW_LRU_ENTRIES; j++)
                 {
                     //MinAddHead(&g->glob_lrudata.LRUpool, g.glob_lrudata.LRUarray[g.glob_lrudata.poolsize]);
-                    Macro.MinAddHead(g.glob_lrudata.LRUpool, new LruCachedBlock(new CachedBlock()));
+                    Macro.LruAddHead(g.glob_lrudata.LRUpool, new CachedBlock());
                 }
 
                 goto retry;
@@ -237,8 +237,8 @@
             for (j = 0; j < NEW_LRU_ENTRIES; j++, g.glob_lrudata.poolsize++)
             {
                 //MinAddHead(&g->glob_lrudata.LRUpool, g.glob_lrudata.LRUarray[g.glob_lrudata.poolsize]);
-                Macro.MinAddHead(g.glob_lrudata.LRUpool,
-                    g.glob_lrudata.LRUarray[(int)g.glob_lrudata.poolsize]);
+                Macro.LruAddHead(g.glob_lrudata.LRUpool,
+                    g.glob_lrudata.LRUarray[(int)g.glob_lrudata.poolsize].cblk);
             }
 
             g.NumBuffers = g.glob_lrudata.poolsize;
@@ -248,17 +248,17 @@
 
             // MinRemove(lrunode);
             // MinAddHead(&g->glob_lrudata.LRUqueue, lrunode);
-            Macro.MinRemoveLru(lrunode.Value.cblk, g);
-            Macro.MinAddHead(g.glob_lrudata.LRUqueue, lrunode.Value);
+            var allocatedBlock = lrunode.Value.cblk;
+            Macro.LruAddHead(g.glob_lrudata.LRUqueue, allocatedBlock);
 
             // DB(Trace(1, "AllocLRU", "Allocated block %lx\n", &lrunode->cblk));
 #if DEBUG
-            Pfs3Logger.Instance.Debug($"Lru: AllocLRU Allocated block nr {lrunode.Value.cblk.blocknr} ({lrunode.Value.cblk.GetHashCode()})");
+            Pfs3Logger.Instance.Debug($"Lru: AllocLRU Allocated block nr {allocatedBlock.blocknr} ({allocatedBlock.GetHashCode()})");
 #endif
 
             //  LOCK(&lrunode->cblk);
-            Cache.LOCK(lrunode.Value.cblk, g);
-            return lrunode.Value.cblk;
+            Cache.LOCK(allocatedBlock, g);
+            return allocatedBlock;
         }
 
 /* Adds a block to the ReservedToBeFreedCache
