@@ -17,6 +17,8 @@ Hst Amiga Console version comes with following features:
     - Build EPROMs from Amiga Kickstart ROMs for A500, A600, A2000, A1200, A3000 and A4000, for AM27C400, AM27C800, AM27C160 and AM27C322 EPROMs or a custom size.
     - Fill EPROMs by concatenating Kickstart ROM until EPROM size is reached or fill EPROM with zeroes until EPROM size is reached.
     - Byte swap EPROMs.
+- Kickstart ROMs
+    - List and extract resident modules from raw and Amiga Forever encrypted Kickstart ROMs. Encrypted ROMs use `rom.key`.
 - Vm
     - Run Amiga CLI executables in a virtual machine with Amiga volumes mapped to host directories, similar to vamos from amitools.
     - Run Amiga CLI executables from adf and disk images, optionally in the context of the image.
@@ -305,6 +307,42 @@ Example of fixing icon file "disk.info" writing fixed icon to "disk.fixed.info":
 ```
 hst.amiga icon fix disk.info
 ```
+
+## Kickstart ROM commands
+
+Kickstart commands inspect one ROM file per invocation. Raw ROM images, `KICK`-header images, and Amiga Forever `AMIROMTYPE1` encrypted images are supported. Encrypted images require the matching Amiga Forever `rom.key`; by default the command looks for `rom.key` beside the ROM file, or use `--key-file` to specify another path. The key is not included with Hst Amiga.
+
+### List ROM modules
+
+List resident modules with their offsets, sizes, versions, names and identification strings:
+
+```
+hst.amiga kickstart list amiga-os-310-a1200.rom
+```
+
+Specify a key file in another location:
+
+```
+hst.amiga kickstart list amiga-os-310-a1200.rom --key-file "C:\Amiga Forever\rom\rom.key"
+```
+
+### Extract ROM modules
+
+Extract modules as decoded `.bin` files. By default files are written to `<rom-name>.modules` beside the ROM; an output directory can be specified:
+
+```
+hst.amiga kickstart extract amiga-os-310-a1200.rom
+hst.amiga kickstart extract amiga-os-310-a1200.rom modules
+```
+
+Each filename begins with the module's ROM offset, followed by its resident name when available.
+Use `--hunk` to wrap each extracted slice as a single-code-hunk relocatable Amiga executable instead of writing raw ROM bytes:
+
+```
+hst.amiga kickstart extract amiga-os-310-a1200.rom --hunk
+```
+
+Absolute pointers that resolve inside the module slice are rebased and emitted as `HUNK_RELOC32` entries.
 
 ## EPROM commands
 
