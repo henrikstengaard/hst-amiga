@@ -460,9 +460,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem.Doctor
             return name + suffix;
         }
 
-        private int HashName(string name) => FastFileSystem.Directory.GetHashValue(tableSize, name, useIntl);
+        private int HashName(string name) => DirectoryService.GetHashValue(tableSize, name, useIntl);
 
-        private string UpperName(string name) => FastFileSystem.Directory.MyToUpper(name, useIntl);
+        private string UpperName(string name) => DirectoryService.MyToUpper(name, useIntl);
 
         private DateTime ReadDate(byte[] data, int offset)
         {

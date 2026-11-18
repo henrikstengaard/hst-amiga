@@ -6,8 +6,6 @@ using System.Threading.Tasks;
 using FileSystems.FastFileSystem;
 using RigidDiskBlocks;
 using Xunit;
-using FfsDisk = FileSystems.FastFileSystem.Disk;
-using FfsFile = FileSystems.FastFileSystem.File;
 using FileMode = FileSystems.FileMode;
 
 public class GivenFastFileSystemAllocator : FastFileSystemTestBase
@@ -44,9 +42,9 @@ public class GivenFastFileSystemAllocator : FastFileSystemTestBase
 
     private static async Task<FileBlocks> GetFileBlocks(Volume volume, string name)
     {
-        var entry = (await FileSystems.FastFileSystem.Directory.ReadEntries(volume, volume.RootBlockOffset)).First(x => x.Name == name);
-        var entryBlock = await FfsDisk.ReadEntryBlock(volume, entry.Sector);
-        return await FfsFile.GetFileBlocks(volume, entryBlock);
+        var entry = (await volume.Directories.ReadEntries(volume.RootBlockOffset)).First(x => x.Name == name);
+        var entryBlock = await volume.BlockStore.ReadEntryBlock(entry.Sector);
+        return await volume.Files.GetFileBlocks(entryBlock);
     }
 
     [Fact]

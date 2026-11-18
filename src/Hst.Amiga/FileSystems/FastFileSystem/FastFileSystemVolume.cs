@@ -75,13 +75,13 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task<IEnumerable<FileSystems.Entry>> ListEntries(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return (await Directory.ReadEntries(volume, currentDirectorySector)).Select(EntryConverter.ToEntry)
+            return (await volume.Directories.ReadEntries(currentDirectorySector)).Select(EntryConverter.ToEntry)
                 .ToList();
         }
         
         internal async Task<IEnumerable<Entry>> ListRawEntries()
         {
-            return (await Directory.ReadEntries(volume, currentDirectorySector)).ToList();
+            return (await volume.Directories.ReadEntries(currentDirectorySector)).ToList();
         }
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
                 throw new ArgumentException("Name contains directory separator", nameof(name));
             }
             
-            var findEntryResult = await Directory.FindEntry(currentDirectorySector, name, volume);
+            var findEntryResult = await volume.Directories.FindEntry(currentDirectorySector, name);
 
             var entry = findEntryResult.Entries.LastOrDefault();
             return new FileSystems.FindEntryResult
@@ -113,7 +113,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             cancellationToken.ThrowIfCancellationRequested();
             // find entry starts from root for absolute path, current directory is only changed, if path is found
             var isRootPath = path.StartsWith("/");
-            var findEntryResult = await Directory.FindEntry(currentDirectorySector, path, volume);
+            var findEntryResult = await volume.Directories.FindEntry(currentDirectorySector, path);
             if (findEntryResult.PartsNotFound.Any())
             {
                 throw new PathNotFoundException($"Path '{path}' not found");
@@ -142,7 +142,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
                 throw new PathNotFoundException($"Path '{path}' is not a directory");
             }
 
-            entry = await Directory.ResolveLinkEntry(volume, entry);
+            entry = await volume.Directories.ResolveLinkEntry(entry);
             
             currentDirectorySector = entry.Sector;
         }
@@ -155,8 +155,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task CreateDirectory(string dirName, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.CreateDirectory(volume, currentDirectorySector, dirName);
-            await Disk.CheckpointIfNeeded(volume);
+            await volume.Directories.CreateDirectory(currentDirectorySector, dirName);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -169,7 +169,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task CreateFile(string fileName, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using (var _ = await File.Open(volume, currentDirectorySector, fileName, FileMode.Write, overwrite,
+            using (var _ = await volume.Files.Open(currentDirectorySector, fileName, FileMode.Write, overwrite,
                        ignoreProtectionBits))
             {
             }
@@ -187,8 +187,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.CreateLink(volume, currentDirectorySector, linkName, name);
-            await Disk.CheckpointIfNeeded(volume);
+            await volume.Directories.CreateLink(currentDirectorySector, linkName, name);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -203,7 +203,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task<Stream> OpenFile(string fileName, FileMode mode, bool overwrite = false, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await File.Open(volume, currentDirectorySector, fileName, mode, overwrite, ignoreProtectionBits);
+            return await volume.Files.Open(currentDirectorySector, fileName, mode, overwrite, ignoreProtectionBits);
         }
 
         /// <summary>
@@ -215,8 +215,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task Delete(string name, bool ignoreProtectionBits = false, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.RemoveEntry(volume, currentDirectorySector, name, ignoreProtectionBits);
-            await Disk.CheckpointIfNeeded(volume);
+            await volume.Directories.RemoveEntry(currentDirectorySector, name, ignoreProtectionBits);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -229,14 +229,14 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task Rename(string oldName, string newName, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var srcEntryResult = await Directory.FindEntry(currentDirectorySector, oldName, volume);
+            var srcEntryResult = await volume.Directories.FindEntry(currentDirectorySector, oldName);
 
             if (srcEntryResult.PartsNotFound.Any())
             {
                 throw new PathNotFoundException($"Path '{oldName}' not found");
             }
 
-            var destEntryResult = await Directory.FindEntry(currentDirectorySector, newName, volume);
+            var destEntryResult = await volume.Directories.FindEntry(currentDirectorySector, newName);
             var partsNotFound = destEntryResult.PartsNotFound.ToList();
 
             if (!partsNotFound.Any())
@@ -249,9 +249,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
                 throw new PathNotFoundException($"Path '{partsNotFound[0]}' not found");
             }
 
-            await Directory.RenameEntry(volume, currentDirectorySector, srcEntryResult.Name, destEntryResult.Sector,
+            await volume.Directories.RenameEntry(currentDirectorySector, srcEntryResult.Name, destEntryResult.Sector,
                 destEntryResult.Name);
-            await Disk.CheckpointIfNeeded(volume);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -263,8 +263,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task SetComment(string name, string comment, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.SetEntryComment(volume, currentDirectorySector, name, comment);
-            await Disk.CheckpointIfNeeded(volume);
+            await volume.Directories.SetEntryComment(currentDirectorySector, name, comment);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -276,9 +276,9 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task SetProtectionBits(string name, ProtectionBits protectionBits, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.SetEntryAccess(volume, currentDirectorySector, name,
+            await volume.Directories.SetEntryAccess(currentDirectorySector, name,
                 ProtectionBitsConverter.ToProtectionValue(protectionBits));
-            await Disk.CheckpointIfNeeded(volume);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -290,8 +290,8 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
         public async Task SetDate(string name, DateTime date, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await Directory.SetEntryDate(volume, currentDirectorySector, name, date);
-            await Disk.CheckpointIfNeeded(volume);
+            await volume.Directories.SetEntryDate(currentDirectorySector, name, date);
+            await volume.BlockStore.CheckpointIfNeeded();
         }
 
         /// <summary>
@@ -303,7 +303,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             cancellationToken.ThrowIfCancellationRequested();
 
             // write changed bitmap blocks, dirty cached blocks and set root block bitmap flags valid
-            await Disk.FlushVolume(volume);
+            await volume.BlockStore.FlushVolume();
         }
 
         public IEnumerable<string> GetStatus()
@@ -388,7 +388,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
             EntryBlock entryBlock;
             do
             {
-                entryBlock = await Disk.ReadEntryBlock(volume, directorySector);
+                entryBlock = await volume.BlockStore.ReadEntryBlock(directorySector);
                 
                 if (entryBlock == null)
                 {

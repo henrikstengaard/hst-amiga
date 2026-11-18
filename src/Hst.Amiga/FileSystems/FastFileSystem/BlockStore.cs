@@ -6,9 +6,19 @@
     using System.Threading.Tasks;
     using Blocks;
 
-    internal static class Disk
+    /// <summary>
+    /// Reads and writes blocks of a volume through its block device and write-back metadata block cache.
+    /// </summary>
+    internal class BlockStore
     {
-        private static async Task<byte[]> ReadBlockBytes(Volume volume, uint sector)
+        private readonly Volume volume;
+
+        public BlockStore(Volume volume)
+        {
+            this.volume = volume;
+        }
+
+        private async Task<byte[]> ReadBlockBytes(uint sector)
         {
             var blockOffset = volume.PartitionStartOffset + (long)sector * volume.FileSystemBlockSize;
             var blockBytes = new byte[volume.FileSystemBlockSize];
@@ -16,50 +26,50 @@
             return blockBytes;
         }
 
-        private static async Task WriteBlockBytes(Volume volume, uint sector, byte[] blockBytes)
+        private async Task WriteBlockBytes(uint sector, byte[] blockBytes)
         {
             var blockOffset = volume.PartitionStartOffset + (long)sector * volume.FileSystemBlockSize;
             await volume.Device.WriteAsync(blockOffset, blockBytes, 0, blockBytes.Length);
         }
         
-        public static async Task<RootBlock> ReadRootBlock(Volume volume, uint sector)
+        public async Task<RootBlock> ReadRootBlock(uint sector)
         {
-            var blockBytes = await ReadBlock(volume, sector);
+            var blockBytes = await ReadBlock(sector);
             return RootBlockParser.Parse(blockBytes);
         }
         
-        public static async Task WriteRootBlock(Volume volume, uint nSect, RootBlock root)
+        public async Task WriteRootBlock(uint nSect, RootBlock root)
         {
             var blockBytes = RootBlockBuilder.Build(root, volume.FileSystemBlockSize);
-            await WriteBlock(volume, nSect, blockBytes);
+            await WriteBlock(nSect, blockBytes);
         }
         
-        public static async Task<BitmapBlock> ReadBitmapBlock(Volume volume, uint sector)
+        public async Task<BitmapBlock> ReadBitmapBlock(uint sector)
         {
-            var blockBytes = await ReadBlock(volume, sector);
+            var blockBytes = await ReadBlock(sector);
             return BitmapBlockParser.Parse(blockBytes);
         }
         
-        public static async Task WriteBitmapBlock(Volume vol, uint nSect, BitmapBlock bitmapBlock)
+        public async Task WriteBitmapBlock(uint nSect, BitmapBlock bitmapBlock)
         {
-            var blockBytes = BitmapBlockBuilder.Build(bitmapBlock, vol.FileSystemBlockSize);
-            await WriteBlock(vol, nSect, blockBytes);
+            var blockBytes = BitmapBlockBuilder.Build(bitmapBlock, volume.FileSystemBlockSize);
+            await WriteBlock(nSect, blockBytes);
         }
 
-        public static async Task<BitmapExtensionBlock> ReadBitmapExtensionBlock(Volume volume, uint sector)
+        public async Task<BitmapExtensionBlock> ReadBitmapExtensionBlock(uint sector)
         {
-            var blockBytes = await ReadBlock(volume, sector);
+            var blockBytes = await ReadBlock(sector);
             return BitmapExtensionBlockParser.Parse(blockBytes);
         }
 
-        public static async Task<EntryBlock> ReadEntryBlock(Volume volume, uint sector)
+        public async Task<EntryBlock> ReadEntryBlock(uint sector)
         {
-            var blockBytes = await ReadBlock(volume, sector);
+            var blockBytes = await ReadBlock(sector);
             var entryBlock = EntryBlockParser.Parse(blockBytes, volume.UseLnfs);
 
             if (volume.UseLnfs && entryBlock.CommentBlock != 0)
             {
-                var commentBlockBytes = await ReadBlock(volume, entryBlock.CommentBlock);
+                var commentBlockBytes = await ReadBlock(entryBlock.CommentBlock);
                 var commentBlock = LongNameFileSystemCommentBlockReader.Parse(commentBlockBytes);
                 entryBlock.Comment = commentBlock.Comment;
             }
@@ -67,16 +77,16 @@
             return entryBlock;
         }
         
-        public static async Task<DataBlock> ReadDataBlock(Volume vol, uint nSect)
+        public async Task<DataBlock> ReadDataBlock(uint nSect)
         {
-            var blockBytes = await ReadBlock(vol, nSect, false);
+            var blockBytes = await ReadBlock(nSect, false);
 
-            if (vol.UseOfs)
+            if (volume.UseOfs)
             {
                 var dBlock = DataBlockParser.Parse(blockBytes);
-                if (!IsSectorNumberValid(vol, dBlock.HeaderKey))
+                if (!IsSectorNumberValid(dBlock.HeaderKey))
                     throw new IOException("headerKey out of range");
-                if (!IsSectorNumberValid(vol, dBlock.NextData))
+                if (!IsSectorNumberValid(dBlock.NextData))
                     throw new IOException("nextData out of range");
 
                 return dBlock;
@@ -89,17 +99,17 @@
             };
         }
         
-        public static async Task WriteDataBlock(Volume volume, uint nSect, DataBlock dataBlock)
+        public async Task WriteDataBlock(uint nSect, DataBlock dataBlock)
         {
             var blockBytes = volume.UseOfs
                 ? DataBlockBuilder.Build(dataBlock, volume.FileSystemBlockSize)
                 : dataBlock.Data;
-            await WriteBlock(volume, nSect, blockBytes, false);
+            await WriteBlock(nSect, blockBytes, false);
         }        
 
-        public static async Task<FileExtBlock> ReadFileExtBlock(Volume volume, uint nSect)
+        public async Task<FileExtBlock> ReadFileExtBlock(uint nSect)
         {
-            var blockBytes = await ReadBlock(volume, nSect);
+            var blockBytes = await ReadBlock(nSect);
             var fileExtBlock = FileExtBlockParser.Parse(blockBytes);
 
             if (fileExtBlock.HeaderKey != nSect)
@@ -112,12 +122,12 @@
                 throw new IOException("High seq out of range");
             }
             
-            if (!IsSectorNumberValid(volume, fileExtBlock.Parent))
+            if (!IsSectorNumberValid(fileExtBlock.Parent))
             {
                 throw new IOException("Parent out of range");
             }
 
-            if (fileExtBlock.Extension != 0 && !IsSectorNumberValid(volume, fileExtBlock.Extension))
+            if (fileExtBlock.Extension != 0 && !IsSectorNumberValid(fileExtBlock.Extension))
             {
                 throw new IOException("Extension out of range");
             }
@@ -125,21 +135,21 @@
             return fileExtBlock;
         }
 
-        public static async Task WriteEntryBlock(Volume vol, uint nSect, EntryBlock entryBlock)
+        public async Task WriteEntryBlock(uint nSect, EntryBlock entryBlock)
         {
-            var blockBytes = EntryBlockBuilder.Build(entryBlock, vol.FileSystemBlockSize, vol.UseLnfs);
-            await WriteBlock(vol, nSect, blockBytes);
+            var blockBytes = EntryBlockBuilder.Build(entryBlock, volume.FileSystemBlockSize, volume.UseLnfs);
+            await WriteBlock(nSect, blockBytes);
         }
         
-        public static async Task WriteFileExtBlock(Volume vol, uint nSect, FileExtBlock fileExtBlock)
+        public async Task WriteFileExtBlock(uint nSect, FileExtBlock fileExtBlock)
         {
-            var blockBytes = FileExtBlockBuilder.Build(fileExtBlock, vol.FileSystemBlockSize);
-            await WriteBlock(vol, nSect, blockBytes);
+            var blockBytes = FileExtBlockBuilder.Build(fileExtBlock, volume.FileSystemBlockSize);
+            await WriteBlock(nSect, blockBytes);
         }
         
-        public static async Task<DirCacheBlock> ReadDirCacheBlock(Volume vol, uint nSect)
+        public async Task<DirCacheBlock> ReadDirCacheBlock(uint nSect)
         {
-            var blockBytes = await ReadBlock(vol, nSect);
+            var blockBytes = await ReadBlock(nSect);
 
             var dirCacheBlock = DirCacheBlockParser.Parse(blockBytes);
             if (dirCacheBlock.HeaderKey != nSect)
@@ -150,28 +160,27 @@
             return dirCacheBlock;
         }
 
-        public static async Task WriteDirCacheBlock(Volume vol, uint nSect, DirCacheBlock dirCacheBlock)
+        public async Task WriteDirCacheBlock(uint nSect, DirCacheBlock dirCacheBlock)
         {
             dirCacheBlock.HeaderKey = nSect;
 
-            var blockBytes = DirCacheBlockBuilder.Build(dirCacheBlock, vol.FileSystemBlockSize);
-            await WriteBlock(vol, nSect, blockBytes);
+            var blockBytes = DirCacheBlockBuilder.Build(dirCacheBlock, volume.FileSystemBlockSize);
+            await WriteBlock(nSect, blockBytes);
         }
         
         /// <summary>
         /// Is sector number valid
         /// </summary>
-        /// <param name="volume"></param>
         /// <param name="logicalSector"></param>
         /// <returns>True, if logical sector number is within volume first and last block. Otherwise false.</returns>
-        public static bool IsSectorNumberValid(Volume volume, uint logicalSector)
+        public bool IsSectorNumberValid(uint logicalSector)
         {
             return logicalSector <= volume.LastBlock - volume.FirstBlock;
         }
 
-        public static void ThrowExceptionIfSectorNumberInvalid(Volume volume, uint logicalSector)
+        public void ThrowExceptionIfSectorNumberInvalid(uint logicalSector)
         {
-            if (IsSectorNumberValid(volume, logicalSector))
+            if (IsSectorNumberValid(logicalSector))
             {
                 return;
             }
@@ -182,12 +191,11 @@
         /// <summary>
         /// Read block
         /// </summary>
-        /// <param name="volume"></param>
         /// <param name="logicalSector">Logical block number</param>
         /// <param name="cache">Read block from and add block to metadata block cache</param>
         /// <returns></returns>
         /// <exception cref="IOException"></exception>
-        public static async Task<byte[]> ReadBlock(Volume volume, uint logicalSector, bool cache = true)
+        public async Task<byte[]> ReadBlock(uint logicalSector, bool cache = true)
         {
             if (!volume.Mounted)
             {
@@ -214,7 +222,7 @@
                 return copy;
             }
 
-            var blockBytes = await ReadBlockBytes(volume, physicalSector);
+            var blockBytes = await ReadBlockBytes(physicalSector);
 
             if (cache)
             {
@@ -238,14 +246,13 @@
         /// Prefetch metadata blocks into block cache. Sectors not cached are read sorted by sector, where sectors
         /// close to each other are read with a single read. Only sectors prefetched are added to block cache.
         /// </summary>
-        /// <param name="volume">Volume</param>
         /// <param name="sectors">Logical sectors to prefetch</param>
-        public static async Task PrefetchBlocks(Volume volume, IEnumerable<uint> sectors)
+        public async Task PrefetchBlocks(IEnumerable<uint> sectors)
         {
             var sectorsToRead = new List<uint>();
             foreach (var sector in sectors)
             {
-                if (IsSectorNumberValid(volume, sector) && !volume.BlockCache.Contains(sector))
+                if (IsSectorNumberValid(sector) && !volume.BlockCache.Contains(sector))
                 {
                     sectorsToRead.Add(sector);
                 }
@@ -279,7 +286,7 @@
                     buffer = new byte[blocks * blockSize];
                 }
 
-                await ReadBlocks(volume, first, blocks, buffer, 0);
+                await ReadBlocks(first, blocks, buffer, 0);
 
                 var blockBytes = new byte[blockSize];
                 for (var j = i; j <= last; j++)
@@ -300,20 +307,19 @@
         /// <summary>
         /// Read consecutive blocks into buffer with a single read
         /// </summary>
-        /// <param name="volume"></param>
         /// <param name="logicalSector">First logical block number</param>
         /// <param name="blocks">Number of blocks to read</param>
         /// <param name="buffer">Buffer to read blocks into</param>
         /// <param name="offset">Offset in buffer</param>
         /// <exception cref="IOException"></exception>
-        public static async Task ReadBlocks(Volume volume, uint logicalSector, int blocks, byte[] buffer, int offset)
+        public async Task ReadBlocks(uint logicalSector, int blocks, byte[] buffer, int offset)
         {
             if (!volume.Mounted)
             {
                 throw new IOException("Volume is not mounted");
             }
 
-            ThrowExceptionIfBlockRangeInvalid(volume, logicalSector, blocks, buffer, offset);
+            ThrowExceptionIfBlockRangeInvalid(logicalSector, blocks, buffer, offset);
 
             var physicalSector = logicalSector + volume.FirstBlock;
             await volume.Device.ReadExactlyAsync(
@@ -339,13 +345,12 @@
         /// <summary>
         /// Write consecutive blocks from buffer with a single write
         /// </summary>
-        /// <param name="volume"></param>
         /// <param name="logicalSector">First logical block number</param>
         /// <param name="blocks">Number of blocks to write</param>
         /// <param name="buffer">Buffer to write blocks from</param>
         /// <param name="offset">Offset in buffer</param>
         /// <exception cref="IOException"></exception>
-        public static async Task WriteBlocks(Volume volume, uint logicalSector, int blocks, byte[] buffer, int offset)
+        public async Task WriteBlocks(uint logicalSector, int blocks, byte[] buffer, int offset)
         {
             if (!volume.Mounted)
             {
@@ -357,7 +362,7 @@
                 throw new IOException("Volume is mounted read only");
             }
 
-            ThrowExceptionIfBlockRangeInvalid(volume, logicalSector, blocks, buffer, offset);
+            ThrowExceptionIfBlockRangeInvalid(logicalSector, blocks, buffer, offset);
 
             var physicalSector = logicalSector + volume.FirstBlock;
             volume.BlockCache.Invalidate(logicalSector, blocks);
@@ -366,7 +371,7 @@
                 blocks * volume.FileSystemBlockSize);
         }
 
-        private static void ThrowExceptionIfBlockRangeInvalid(Volume volume, uint logicalSector, int blocks,
+        private void ThrowExceptionIfBlockRangeInvalid(uint logicalSector, int blocks,
             byte[] buffer, int offset)
         {
             if (blocks <= 0)
@@ -390,12 +395,11 @@
         /// <summary>
         /// Write block
         /// </summary>
-        /// <param name="volume"></param>
         /// <param name="logicalSector">Logical block number</param>
         /// <param name="blockBytes">Block bytes to write</param>
         /// <param name="cache">Add block to metadata block cache as dirty block, which is written when volume is
         /// flushed. Otherwise block is removed from cache and written to disk</param>
-        public static async Task WriteBlock(Volume volume, uint logicalSector, byte[] blockBytes, bool cache = true)
+        public async Task WriteBlock(uint logicalSector, byte[] blockBytes, bool cache = true)
         {
             if (!volume.Mounted)
             {
@@ -422,21 +426,21 @@
             }
 
             volume.BlockCache.Invalidate(logicalSector);
-            await WriteBlockBytes(volume, physicalSector, blockBytes);
+            await WriteBlockBytes(physicalSector, blockBytes);
         }
 
         /// <summary>
         /// Flush volume, if number of dirty cached blocks exceeds max dirty blocks. Must only be called, when
         /// a file system operation is completed, so a consistent state is written to disk.
         /// </summary>
-        public static async Task CheckpointIfNeeded(Volume volume)
+        public async Task CheckpointIfNeeded()
         {
             if (volume.BlockCache.DirtyCount < Volume.MaxDirtyBlocks)
             {
                 return;
             }
 
-            await FlushVolume(volume);
+            await FlushVolume();
         }
 
         /// <summary>
@@ -444,7 +448,7 @@
         /// blocks in sector order with consecutive dirty blocks merged into single writes. Root block is written
         /// last.
         /// </summary>
-        public static async Task FlushVolume(Volume volume)
+        public async Task FlushVolume()
         {
             if (!volume.Mounted || volume.ReadOnly || volume.Flushing)
             {
@@ -456,10 +460,10 @@
             {
                 if (volume.BitmapUpdatePending)
                 {
-                    await Bitmap.UpdateBitmap(volume);
+                    await volume.Allocator.UpdateBitmap();
                 }
 
-                await WriteDirtyBlocks(volume);
+                await WriteDirtyBlocks();
                 await volume.Device.FlushAsync();
             }
             finally
@@ -468,7 +472,7 @@
             }
         }
 
-        private static async Task WriteDirtyBlocks(Volume volume)
+        private async Task WriteDirtyBlocks()
         {
             var dirtyBlocks = volume.BlockCache.GetDirtyBlocks();
             if (dirtyBlocks.Count == 0)
@@ -501,7 +505,7 @@
 
                 if (runLength == 1)
                 {
-                    await WriteBlockBytes(volume, dirtyBlocks[i].Sector + volume.FirstBlock, dirtyBlocks[i].Bytes);
+                    await WriteBlockBytes(dirtyBlocks[i].Sector + volume.FirstBlock, dirtyBlocks[i].Bytes);
                 }
                 else
                 {
@@ -530,7 +534,7 @@
 
             if (rootBlock != null)
             {
-                await WriteBlockBytes(volume, rootBlock.Sector + volume.FirstBlock, rootBlock.Bytes);
+                await WriteBlockBytes(rootBlock.Sector + volume.FirstBlock, rootBlock.Bytes);
                 volume.BlockCache.MarkClean(rootBlock);
             }
 
@@ -542,13 +546,13 @@
         /// changes are not flushed. Root block on disk is used, so changes to root block not flushed yet are
         /// not written. Cached root block is updated with bitmap flags invalid.
         /// </summary>
-        public static async Task WriteRootBlockBitmapFlagsInvalid(Volume volume)
+        public async Task WriteRootBlockBitmapFlagsInvalid()
         {
             var rootSector = volume.RootBlockOffset + volume.FirstBlock;
-            var diskRoot = RootBlockParser.Parse(await ReadBlockBytes(volume, rootSector));
+            var diskRoot = RootBlockParser.Parse(await ReadBlockBytes(rootSector));
             diskRoot.BitmapFlags = Constants.BM_INVALID;
             var diskRootBytes = RootBlockBuilder.Build(diskRoot, volume.FileSystemBlockSize);
-            await WriteBlockBytes(volume, rootSector, diskRootBytes);
+            await WriteBlockBytes(rootSector, diskRootBytes);
 
             if (volume.BlockCache.TryGetDirty(volume.RootBlockOffset, out var dirtyRootBytes))
             {

@@ -90,6 +90,31 @@
         public DirectoryIndex DirectoryIndex { get; } = new DirectoryIndex();
 
         /// <summary>
+        /// Block store reading and writing blocks with metadata block cache
+        /// </summary>
+        public BlockStore BlockStore { get; }
+
+        /// <summary>
+        /// Allocator allocating and freeing blocks in bitmap
+        /// </summary>
+        public Allocator Allocator { get; }
+
+        /// <summary>
+        /// Directory service for entries in directories
+        /// </summary>
+        public DirectoryService Directories { get; }
+
+        /// <summary>
+        /// Dir cache service for dir cache blocks
+        /// </summary>
+        public DirCacheService DirCache { get; }
+
+        /// <summary>
+        /// File service for opening files and file blocks
+        /// </summary>
+        public FileService Files { get; }
+
+        /// <summary>
         /// Number of metadata blocks cached
         /// </summary>
         public const int BlockCacheSize = 1024;
@@ -107,6 +132,11 @@
         public Volume()
         {
             BlockCache = new BlockCache(BlockCacheSize);
+            BlockStore = new BlockStore(this);
+            Allocator = new Allocator(this);
+            Directories = new DirectoryService(this);
+            DirCache = new DirCacheService(this);
+            Files = new FileService(this);
             Logs = new List<string>();
             
             BitmapTable = Array.Empty<BitmapBlock>();

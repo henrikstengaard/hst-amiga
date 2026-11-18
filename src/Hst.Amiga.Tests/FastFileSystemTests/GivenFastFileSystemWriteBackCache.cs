@@ -90,13 +90,13 @@ public class GivenFastFileSystemWriteBackCache : FastFileSystemTestBase
         const uint sector = 5000;
 
         // arrange - write metadata block, which is dirty in block cache
-        await FileSystems.FastFileSystem.Disk.WriteBlock(volume, sector, CreateData(512, 1));
+        await volume.BlockStore.WriteBlock(sector, CreateData(512, 1));
         Assert.Equal(1, volume.BlockCache.DirtyCount);
 
         // act - write data blocks over dirty block and flush volume
         var data = CreateData(512 * 4, 2);
-        await FileSystems.FastFileSystem.Disk.WriteBlocks(volume, sector - 1, 4, data, 0);
-        await FileSystems.FastFileSystem.Disk.FlushVolume(volume);
+        await volume.BlockStore.WriteBlocks(sector - 1, 4, data, 0);
+        await volume.BlockStore.FlushVolume();
 
         // assert - data blocks are not overwritten by dirty block
         var blocks = new byte[512 * 4];
@@ -117,15 +117,15 @@ public class GivenFastFileSystemWriteBackCache : FastFileSystemTestBase
             partitionBlock.BlockSize, partitionBlock.FileSystemBlockSize);
         const uint sector = 5000;
         var dirtyBlock = CreateData(512, 3);
-        await FileSystems.FastFileSystem.Disk.WriteBlock(volume, sector, dirtyBlock);
+        await volume.BlockStore.WriteBlock(sector, dirtyBlock);
 
         // act - read blocks including dirty block, which is not written to disk yet
         var blocks = new byte[512 * 3];
-        await FileSystems.FastFileSystem.Disk.ReadBlocks(volume, sector - 1, 3, blocks, 0);
+        await volume.BlockStore.ReadBlocks(sector - 1, 3, blocks, 0);
 
         // assert - dirty block is read and blocks before and after are read from disk
         Assert.Equal(dirtyBlock, blocks.Skip(512).Take(512).ToArray());
         Assert.All(blocks.Take(512).Concat(blocks.Skip(1024)), x => Assert.Equal(0, x));
-        Assert.Equal(dirtyBlock, await FileSystems.FastFileSystem.Disk.ReadBlock(volume, sector, false));
+        Assert.Equal(dirtyBlock, await volume.BlockStore.ReadBlock(sector, false));
     }
 }

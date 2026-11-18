@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Hst.Amiga.FileSystems.FastFileSystem;
 using Hst.Core.Extensions;
 using Xunit;
-using Directory = Hst.Amiga.FileSystems.FastFileSystem.Directory;
+using Directory = Hst.Amiga.FileSystems.FastFileSystem.DirectoryService;
 
 namespace Hst.Amiga.Tests.FastFileSystemTests;
 
@@ -34,21 +34,21 @@ public class GivenAdfWithDos0DosTypeAndFileSizeMatchingDataBlockSize
         var volume = await FastFileSystemHelper.MountAdf(stream);
 
         // arrange - write 488 bytes to file
-        await using (var entryStream = await Amiga.FileSystems.FastFileSystem.File.Open(volume, volume.RootBlockOffset, "File1",
+        await using (var entryStream = await volume.Files.Open(volume.RootBlockOffset, "File1",
                          FileSystems.FileMode.Write))
         {
             await entryStream.WriteBytes(new byte[488]);
         }
 
         // act - read entries
-        var entries = (await Directory.ReadEntries(volume, volume.RootBlockOffset)).ToList();
+        var entries = (await volume.Directories.ReadEntries(volume.RootBlockOffset)).ToList();
 
         // assert - file exist
         Assert.Single(entries);
         Assert.True(entries.All(x => x.Name == "File1"));
 
         var buffer = new byte[4096];
-        await using (var entryStream = await Amiga.FileSystems.FastFileSystem.File.Open(volume, volume.RootBlockOffset, "File1",
+        await using (var entryStream = await volume.Files.Open(volume.RootBlockOffset, "File1",
                          FileSystems.FileMode.Read))
         {
             // act - read from file

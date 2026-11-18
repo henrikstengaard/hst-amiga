@@ -12,7 +12,7 @@ using FileSystems.FastFileSystem;
 using RigidDiskBlocks;
 using Xunit;
 using Constants = FileSystems.FastFileSystem.Constants;
-using Directory = FileSystems.FastFileSystem.Directory;
+using Directory = FileSystems.FastFileSystem.DirectoryService;
 using FileMode = FileSystems.FileMode;
 
 public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
@@ -180,7 +180,7 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         for (var i = 0; i < 100; i++)
         {
             // act - find sub dir entry
-            var result = await Directory.FindEntry(volume.RootBlockOffset, $"New Dir{i}", volume);
+            var result = await volume.Directories.FindEntry(volume.RootBlockOffset, $"New Dir{i}");
         
             // assert - entry is found, if no parts not found
             Assert.Empty(result.PartsNotFound);
@@ -221,7 +221,7 @@ public class GivenFormattedFastFileSystemPartition : FastFileSystemTestBase
         await ffsVolume.ChangeDirectory("/");
 
         // act - find sub dir entry
-        var result = await Directory.FindEntry(volume.RootBlockOffset, "New Dir/Sub Dir", volume);
+        var result = await volume.Directories.FindEntry(volume.RootBlockOffset, "New Dir/Sub Dir");
         
         // assert - entry is found, no parts not found
         Assert.Empty(result.PartsNotFound);

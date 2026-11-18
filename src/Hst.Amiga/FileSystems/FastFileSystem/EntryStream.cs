@@ -324,7 +324,7 @@
             }
 
             var dataBlockSector = await GetDataBlockSector(dataBlockIndex);
-            currentData = await Disk.ReadDataBlock(volume, dataBlockSector);
+            currentData = await volume.BlockStore.ReadDataBlock(dataBlockSector);
             SetCurrentBlock(currentData.Data, 0);
 
             if (volume.UseOfs && currentData.SeqNum != dataBlockIndex + 1)
@@ -356,7 +356,7 @@
                 {
                     var nSect = extBlockSectors.Count == 0
                         ? fileHdr.Extension
-                        : (await Disk.ReadFileExtBlock(volume, extBlockSectors[extBlockSectors.Count - 1])).Extension;
+                        : (await volume.BlockStore.ReadFileExtBlock(extBlockSectors[extBlockSectors.Count - 1])).Extension;
                     if (nSect == 0)
                     {
                         throw new IOException($"adfFileSeek : file extension block {extBlockSectors.Count} not found");
@@ -365,7 +365,7 @@
                     extBlockSectors.Add(nSect);
                 }
 
-                currentExt = await Disk.ReadFileExtBlock(volume, extBlockSectors[(int)extBlockIndex]);
+                currentExt = await volume.BlockStore.ReadFileExtBlock(extBlockSectors[(int)extBlockIndex]);
                 dataBlockSector = currentExt.Index[volume.IndexSize - 1 - indexInExtBlk];
                 posInExtBlk = indexInExtBlk + 1;
             }
@@ -480,7 +480,7 @@
             }
             else
             {
-                currentData = await Disk.ReadDataBlock(volume, nSect);
+                currentData = await volume.BlockStore.ReadDataBlock(nSect);
                 SetCurrentBlock(currentData.Data, 0);
             }
 
@@ -512,12 +512,12 @@
 
             if (nDataBlock == volume.IndexSize)
             {
-                currentExt = await Disk.ReadFileExtBlock(volume, fileHdr.Extension);
+                currentExt = await volume.BlockStore.ReadFileExtBlock(fileHdr.Extension);
                 posInExtBlk = 0;
             }
             else if (posInExtBlk == volume.IndexSize)
             {
-                currentExt = await Disk.ReadFileExtBlock(volume, currentExt.Extension);
+                currentExt = await volume.BlockStore.ReadFileExtBlock(currentExt.Extension);
                 posInExtBlk = 0;
             }
 
@@ -544,7 +544,7 @@
             {
                 // read consecutive data blocks directly into buffer
                 blocks = consecutiveBlocks;
-                await Disk.ReadBlocks(volume, nSect, blocks, buffer, offset);
+                await volume.BlockStore.ReadBlocks(nSect, blocks, buffer, offset);
             }
             else
             {
@@ -613,7 +613,7 @@
                 }
 
                 readAheadBlocks = 0;
-                await Disk.ReadBlocks(volume, nSect, blocks, readAheadBuffer, 0);
+                await volume.BlockStore.ReadBlocks(nSect, blocks, readAheadBuffer, 0);
                 readAheadFirstSector = nSect;
                 readAheadBlocks = blocks;
             }
@@ -679,7 +679,7 @@
                     FileExtBlock nextExtBlock;
                     try
                     {
-                        nextExtBlock = await Disk.ReadFileExtBlock(volume, nextExt);
+                        nextExtBlock = await volume.BlockStore.ReadFileExtBlock(nextExt);
                     }
                     catch (IOException)
                     {
@@ -746,7 +746,7 @@
 
             var blocks = writeBlocks;
             writeBlocks = 0;
-            await Disk.WriteBlocks(volume, writeFirstSector, blocks, writeBuffer, 0);
+            await volume.BlockStore.WriteBlocks(writeFirstSector, blocks, writeBuffer, 0);
 
             // move current ffs data block located after queued data blocks to start of write buffer
             if (currentBlockBuffer == writeBuffer && currentBlockOffset != 0)
@@ -776,7 +776,7 @@
                 currentBlockOffset == writeBlocks * blockSize)
             {
                 // write queued data blocks and current data block with a single write
-                await Disk.WriteBlocks(volume, writeFirstSector, writeBlocks + 1, writeBuffer, 0);
+                await volume.BlockStore.WriteBlocks(writeFirstSector, writeBlocks + 1, writeBuffer, 0);
                 Array.Copy(writeBuffer, currentBlockOffset, writeBuffer, 0, blockSize);
                 writeBlocks = 0;
                 SetCurrentBlock(writeBuffer, 0);
@@ -784,7 +784,7 @@
             }
 
             await FlushDataBlockWrites();
-            await Disk.WriteBlocks(volume, curDataPtr, 1, writeBuffer, currentBlockOffset);
+            await volume.BlockStore.WriteBlocks(curDataPtr, 1, writeBuffer, currentBlockOffset);
         }
 
         /// <summary>
@@ -929,7 +929,7 @@
                 /* one more sector is needed for one file extension block */
                 if (nDataBlock % volume.IndexSize == 0)
                 {
-                    var extSect = Bitmap.AllocateBlock(volume);
+                    var extSect = volume.Allocator.AllocateBlock();
                     if (extSect == uint.MaxValue)
                     {
                         return uint.MaxValue;
@@ -946,7 +946,7 @@
                     if (nDataBlock >= 2 * volume.IndexSize)
                     {
                         currentExt.Extension = extSect;
-                        await Disk.WriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
+                        await volume.BlockStore.WriteFileExtBlock(currentExt.HeaderKey, currentExt);
                     }
 
                     /* initializes a file extension block */
@@ -1015,7 +1015,7 @@
         {
             if (preallocCount == 0)
             {
-                var (start, count) = Bitmap.AllocateRun(volume, preallocChunk);
+                var (start, count) = volume.Allocator.AllocateRun(preallocChunk);
                 preallocStart = start;
                 preallocCount = count;
                 preallocChunk = Math.Min(preallocChunk * 2, MaxBufferedBlocks);
@@ -1037,7 +1037,7 @@
                 return;
             }
 
-            Bitmap.FreeRun(volume, preallocStart, preallocCount);
+            volume.Allocator.FreeRun(preallocStart, preallocCount);
             preallocCount = 0;
         }
 
@@ -1052,7 +1052,7 @@
             {
                 if (writeMode)
                 {
-                    await Disk.WriteFileExtBlock(volume, currentExt.HeaderKey, currentExt);
+                    await volume.BlockStore.WriteFileExtBlock(currentExt.HeaderKey, currentExt);
                 }
             }
 
@@ -1088,17 +1088,17 @@
                 fileHdr.ByteSize = pos;
                 fileHdr.Date = DateTime.Now;
                 FreePreallocatedBlocks();
-                await Disk.WriteEntryBlock(volume, fileHdr.HeaderKey, fileHdr);
+                await volume.BlockStore.WriteEntryBlock(fileHdr.HeaderKey, fileHdr);
 
                 if (volume.UseDirCache)
                 {
-                    var parent = await Disk.ReadEntryBlock(volume, fileHdr.Parent);
-                    await Cache.UpdateCache(volume, parent, fileHdr, true);
+                    var parent = await volume.BlockStore.ReadEntryBlock(fileHdr.Parent);
+                    await volume.DirCache.UpdateCache(parent, fileHdr, true);
                 }
 
                 // bitmap is written when volume is flushed or disposed
-                await Bitmap.DeferBitmapUpdate(volume);
-                await Disk.CheckpointIfNeeded(volume);
+                await volume.Allocator.DeferBitmapUpdate();
+                await volume.BlockStore.CheckpointIfNeeded();
             }
         }
     }

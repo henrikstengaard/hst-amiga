@@ -13,7 +13,7 @@ using RigidDiskBlocks;
 using Xunit;
 using Xunit.Abstractions;
 using Constants = FileSystems.FastFileSystem.Constants;
-using Directory = FileSystems.FastFileSystem.Directory;
+using Directory = FileSystems.FastFileSystem.DirectoryService;
 using FileMode = FileSystems.FileMode;
 
 [Trait("Category", "FFS")]
@@ -128,7 +128,7 @@ public partial class GivenFastFileSystemDoctor : FastFileSystemTestBase
         // arrange - create disk and set hash chain of file to point outside volume
         var stream = await CreateDiskWithDirectoriesAndFiles(dosType);
         var volume = await OpenVolume(stream);
-        var slot = Directory.GetHashValue(72, "file1.txt", true);
+        var slot = DirectoryService.GetHashValue(72, "file1.txt", true);
         var root = await ReadBlock(volume, volume.RootBlock);
         SetUInt32(root, 0x18 + slot * 4, volume.Blocks + 1000);
         await WriteBlock(volume, volume.RootBlock, root);
@@ -534,7 +534,7 @@ public partial class GivenFastFileSystemDoctor : FastFileSystemTestBase
     {
         var intl = dosType >= 2;
         var dir = await ReadBlock(volume, directory);
-        var slot = Directory.GetHashValue(72, name, intl);
+        var slot = DirectoryService.GetHashValue(72, name, intl);
         var block = BigEndianConverter.ConvertBytesToUInt32(dir, 0x18 + slot * 4);
         while (block != 0)
         {

@@ -56,7 +56,7 @@
         public static async Task ExtractVolume(Volume volume,
             string outputPath)
         {
-            var entries = (await Directory.ReadEntries(volume, volume.RootBlockOffset, true)).ToList();
+            var entries = (await volume.Directories.ReadEntries(volume.RootBlockOffset, true)).ToList();
 
             await ExtractDirectory(volume, volume.RootBlock, entries, volume.RootBlock.DiskName);
         }
@@ -88,12 +88,12 @@
 
                 if (entry.IsDirectory())
                 {
-                    await ExtractDirectory(volume, await Directory.ReadEntryBlock(volume, entry), entry.SubDir,
+                    await ExtractDirectory(volume, await volume.Directories.ReadEntryBlock(entry), entry.SubDir,
                         entryPath);
                     continue;
                 }
 
-                var entryStream = await File.Open(volume, GetSector(volume, parent), entry.Name, FileMode.Read);
+                var entryStream = await volume.Files.Open(GetSector(volume, parent), entry.Name, FileMode.Read);
 
                 if (entryStream == null)
                 {
@@ -255,7 +255,7 @@
                 Mounted = true
             };
 
-            await Bitmap.ReadBitmap(volume, blocks, rootBlock);
+            await volume.Allocator.ReadBitmap(blocks, rootBlock);
 
             volume.NextFreeBlock = volume.BitmapBlocks[volume.BitmapBlocks.Length - 1] + 1;
 
