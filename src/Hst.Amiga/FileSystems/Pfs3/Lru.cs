@@ -394,7 +394,6 @@
 */
         public static void UpdateReference(uint blocknr, CachedBlock blk, globaldata g)
         {
-            lockentry le;
 
             //DB(Trace(1,"UpdateReference","block %lx\n", blocknr));
 
