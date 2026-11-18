@@ -213,7 +213,7 @@
 
             if (found)
             {
-                await Bitmap.AdfUpdateBitmap(vol);
+                await Bitmap.AdfDeferUpdateBitmap(vol);
             }
             else
             {
@@ -379,7 +379,7 @@
                             dirCacheBlock.NextDirC = 0;
                             await Disk.WriteDirCacheBlock(vol, prevSect, dirCacheBlock);
 
-                            await Bitmap.AdfUpdateBitmap(vol);
+                            await Bitmap.AdfDeferUpdateBitmap(vol);
                         }
                     }
 

@@ -49,6 +49,17 @@
         public int OffsetsPerBitmapBlock { get; set; }
         
         public uint NextFreeBlock { get; set; }
+
+        /// <summary>
+        /// Number of free blocks in bitmap, updated when blocks are set used or free
+        /// </summary>
+        public long FreeBlocks { get; set; }
+
+        /// <summary>
+        /// Length of largest run of free blocks found by last allocation, which didn't find a run large enough.
+        /// -1, if unknown (blocks were freed since). Avoids searching the whole bitmap again for a large run
+        /// </summary>
+        public int MaxFreeRunLength { get; set; } = -1;
         public bool ResolveLinkPaths { get; set; }
 
         /// <summary>

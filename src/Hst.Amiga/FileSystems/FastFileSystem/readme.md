@@ -71,9 +71,15 @@ var ffsVolume = await ffsVolume.Mount(stream, partitionBlock);
 
 ### Flushing and disposing a Fast File System volume
 
-Changes to the bitmap (which blocks are used and free) from writing files are kept in memory and written to disk
-when the volume is flushed with `Flush()` or disposed. This avoids writing bitmap blocks and the root block every
-time a file is closed, which makes writing many files a lot faster.
+Changes to the bitmap (which blocks are used and free) from writing files, creating, renaming and deleting
+files, directories and links are kept in memory and written to disk when the volume is flushed with `Flush()` or
+disposed. This avoids writing bitmap blocks and the root block every time a file is created or closed, which
+makes writing many files a lot faster.
+
+File data blocks are allocated in runs of consecutive free blocks, growing from 8 to 128 blocks while a file is
+written, and file extension blocks are allocated after each run, so large files are stored in long runs of
+consecutive blocks. Holes of free blocks smaller than the run wanted (max. 64 blocks) are only used, when no
+larger run of free blocks exists. Blocks preallocated, but not used, are freed when the file is closed.
 
 When the first file is closed after mounting, the root block bitmap flag is set to invalid, the same way AmigaOS
 does while a volume is in use. Flushing or disposing the volume writes changed bitmap blocks and sets the root

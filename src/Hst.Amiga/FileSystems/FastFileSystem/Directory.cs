@@ -304,7 +304,7 @@
                 await Cache.AddInCache(vol, parent, entryBlock);
             }
 
-            await Bitmap.AdfUpdateBitmap(vol);
+            await Bitmap.AdfDeferUpdateBitmap(vol);
 
             return entryBlock;
         }
@@ -439,7 +439,7 @@
 
             await WriteEntryBlock(vol, nSect, dirBlock);
 
-            await Bitmap.AdfUpdateBitmap(vol);
+            await Bitmap.AdfDeferUpdateBitmap(vol);
         }
 
         /// <summary>
@@ -536,7 +536,7 @@
                 await Cache.AddInCache(volume, parentEntryBlock, linkEntryBlock);
             }
 
-            await Bitmap.AdfUpdateBitmap(volume);
+            await Bitmap.AdfDeferUpdateBitmap(volume);
 
             // update real entry next link to new link entry block
             realEntryBlock.NextLink = linkEntryBlock.HeaderKey;
@@ -575,7 +575,7 @@
 
             var hashValueO = GetHashValue(parent.HashTable.Length, oldName, intl);
 
-            var result = await GetEntryBlock(vol, parent.HashTable, oldName, false);
+            var result = await GetEntryBlock(vol, parent.HashTable, oldName, true);
             var nSect = result.NSect;
             var parentEntryBlock = result.EntryBlock;
             var prevSect = result.NUpdSect ?? 0;
@@ -702,7 +702,7 @@
                     if (ent.CommentBlock != 0)
                     {
                         Bitmap.AdfSetBlockFree(vol, ent.CommentBlock);
-                        await Bitmap.AdfUpdateBitmap(vol);
+                        await Bitmap.AdfDeferUpdateBitmap(vol);
                     }
                 }
             }
@@ -716,7 +716,7 @@
             name = TrimName(vol, name);
             var parent = await Disk.ReadEntryBlock(vol, pSect);
 
-            var result = await GetEntryBlock(vol, parent.HashTable, name, false);
+            var result = await GetEntryBlock(vol, parent.HashTable, name, true);
             var nSect = result.NSect;
             var entryBlock = result.EntryBlock;
             var nSect2 = result.NUpdSect ?? 0;
@@ -820,7 +820,7 @@
                 await Cache.DeleteFromCache(vol, parent, entryBlock.HeaderKey);
             }
 
-            await Bitmap.AdfUpdateBitmap(vol);
+            await Bitmap.AdfDeferUpdateBitmap(vol);
         }
 
         public static bool IsEmpty(EntryBlock dirBlock)

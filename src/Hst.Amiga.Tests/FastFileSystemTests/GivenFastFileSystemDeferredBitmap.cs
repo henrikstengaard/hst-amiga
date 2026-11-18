@@ -33,18 +33,14 @@ public class GivenFastFileSystemDeferredBitmap : FastFileSystemTestBase
     [Fact]
     public async Task WhenWriteFileThenBitmapIsWrittenOnFlush()
     {
-        // arrange - create formatted disk, create file and get free bytes (create file updates bitmap)
+        // arrange - create formatted disk and get free bytes
         var stream = await CreateFastFileSystemFormattedDisk();
         var volume = await MountVolume(stream);
-        await volume.CreateFile("File1");
         var freeBefore = volume.Free;
 
-        // act - write file data without flushing volume
-        var data = new byte[100000];
-        await using (var entryStream = await volume.OpenFile("File1", FileMode.Append))
-        {
-            await entryStream.WriteAsync(data, 0, data.Length);
-        }
+        // act - create directory and write file without flushing volume
+        await volume.CreateDirectory("Dir1");
+        await WriteFile(volume, "File1", 100000);
 
         // assert - root block bitmap flags are invalid and bitmap on disk is not updated
         Assert.Equal(Constants.BM_INVALID, (await ReadRootBlockFromDisk(stream)).BitmapFlags);

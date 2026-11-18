@@ -41,6 +41,12 @@
         private uint writeFirstSector;
         private int writeBlocks;
 
+        // preallocated run of consecutive data blocks (write mode only)
+        private const int MinPreallocBlocks = 8;
+        private uint preallocStart;
+        private int preallocCount;
+        private int preallocChunk = MinPreallocBlocks;
+
         // sectors of file ext blocks walked by seek (read mode only, as seek isn't supported in write mode)
         private readonly System.Collections.Generic.List<uint> extBlockSectors =
             new System.Collections.Generic.List<uint>();
@@ -392,7 +398,7 @@
             if (readAheadBlocks == 0 || nSect < readAheadFirstSector ||
                 nSect >= readAheadFirstSector + (uint)readAheadBlocks)
             {
-                var blocks = CountConsecutiveDataBlockSectors(nSect);
+                var blocks = await CountConsecutiveDataBlockSectors(nSect);
                 if (readAheadBuffer == null || readAheadBuffer.Length < blocks * blockSize)
                 {
                     // size read ahead buffer to file size, so small files don't allocate max buffer size
@@ -423,11 +429,12 @@
         }
 
         /// <summary>
-        /// Count consecutive sectors starting with current data block (data block number nDataBlock) located
-        /// in current index table, either file header or current file ext block.
+        /// Count consecutive sectors starting with current data block (data block number nDataBlock). Index
+        /// tables are followed from file header or current file ext block into next file ext blocks, so runs
+        /// of consecutive data blocks are not limited to one index table.
         /// Must be called before nDataBlock is incremented.
         /// </summary>
-        private int CountConsecutiveDataBlockSectors(uint nSect)
+        private async Task<int> CountConsecutiveDataBlockSectors(uint nSect)
         {
             var dataBlockSize = volume.DataBlockSize;
             var totalDataBlocks = (fileHdr.ByteSize + dataBlockSize - 1) / dataBlockSize;
@@ -443,36 +450,62 @@
             }
             maxBlocks = (int)Math.Min(maxBlocks, lastSector - nSect + 1);
 
-            var count = 1;
-            for (; count < maxBlocks; count++)
+            // index table, index of current data block in table and next file ext block
+            uint[] table;
+            uint indexInTable;
+            uint nextExt;
+            if (nDataBlock < volume.IndexSize)
             {
-                var dataBlockIndex = nDataBlock + (uint)count;
-                uint sector;
-                if (nDataBlock < volume.IndexSize)
+                table = fileHdr.DataBlocks;
+                indexInTable = nDataBlock;
+                nextExt = fileHdr.Extension;
+            }
+            else
+            {
+                if (currentExt == null)
                 {
-                    if (dataBlockIndex >= volume.IndexSize)
+                    return 1;
+                }
+
+                // position in ext block is already incremented for current data block
+                table = currentExt.Index;
+                indexInTable = posInExtBlk - 1;
+                nextExt = currentExt.Extension;
+            }
+
+            var count = 1;
+            while (count < maxBlocks)
+            {
+                indexInTable++;
+                if (indexInTable >= volume.IndexSize)
+                {
+                    if (nextExt == 0)
                     {
                         break;
                     }
 
-                    sector = fileHdr.DataBlocks[volume.IndexSize - 1 - dataBlockIndex];
-                }
-                else
-                {
-                    // position in ext block is already incremented for current data block
-                    var indexInExtBlk = posInExtBlk - 1 + (uint)count;
-                    if (currentExt == null || indexInExtBlk >= volume.IndexSize)
+                    // read next file ext block from metadata block cache, stop read ahead if invalid
+                    FileExtBlock nextExtBlock;
+                    try
+                    {
+                        nextExtBlock = await Disk.ReadFileExtBlock(volume, nextExt);
+                    }
+                    catch (IOException)
                     {
                         break;
                     }
 
-                    sector = currentExt.Index[volume.IndexSize - 1 - indexInExtBlk];
+                    table = nextExtBlock.Index;
+                    nextExt = nextExtBlock.Extension;
+                    indexInTable = 0;
                 }
 
-                if (sector != nSect + (uint)count)
+                if (table[volume.IndexSize - 1 - indexInTable] != nSect + (uint)count)
                 {
                     break;
                 }
+
+                count++;
             }
 
             return count;
@@ -591,7 +624,7 @@
             /* the first data blocks pointers are inside the file header block */
             if (nDataBlock < volume.IndexSize)
             {
-                nSect = Bitmap.AdfGet1FreeBlock(volume);
+                nSect = AllocateDataBlock();
                 if (nSect == uint.MaxValue)
                 {
                     return uint.MaxValue;
@@ -640,7 +673,7 @@
                     posInExtBlk = 0;
                 }
 
-                nSect = Bitmap.AdfGet1FreeBlock(volume);
+                nSect = AllocateDataBlock();
                 if (nSect == uint.MaxValue)
                 {
                     return uint.MaxValue;
@@ -678,6 +711,41 @@
             nDataBlock++;
 
             return nSect;
+        }
+
+        /// <summary>
+        /// Allocate data block from preallocated run of consecutive blocks. Runs grow from min to max buffered
+        /// blocks, so small files allocate small runs and large files get long runs of consecutive data blocks.
+        /// File ext blocks are allocated separately after the preallocated run, so they don't split data runs.
+        /// </summary>
+        private uint AllocateDataBlock()
+        {
+            if (preallocCount == 0)
+            {
+                var (start, count) = Bitmap.AllocateRun(volume, preallocChunk);
+                preallocStart = start;
+                preallocCount = count;
+                preallocChunk = Math.Min(preallocChunk * 2, MaxBufferedBlocks);
+            }
+
+            var sector = preallocStart;
+            preallocStart++;
+            preallocCount--;
+            return sector;
+        }
+
+        /// <summary>
+        /// Free preallocated data blocks not used
+        /// </summary>
+        private void FreePreallocatedBlocks()
+        {
+            if (preallocCount == 0)
+            {
+                return;
+            }
+
+            Bitmap.FreeRun(volume, preallocStart, preallocCount);
+            preallocCount = 0;
         }
 
         public async Task AdfCloseFile()
@@ -719,6 +787,7 @@
             {
                 fileHdr.ByteSize = pos;
                 fileHdr.Date = DateTime.Now;
+                FreePreallocatedBlocks();
                 await Disk.WriteEntryBlock(volume, fileHdr.HeaderKey, fileHdr);
 
                 if (volume.UseDirCache)

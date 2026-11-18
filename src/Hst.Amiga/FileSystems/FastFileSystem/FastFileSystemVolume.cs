@@ -70,7 +70,7 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
 
         public long Size => (long)volume.Blocks * volume.FileSystemBlockSize;
 
-        public long Free => Bitmap.AdfCountFreeBlocks(volume) * volume.FileSystemBlockSize;
+        public long Free => volume.FreeBlocks * volume.FileSystemBlockSize;
 
         public async Task<IEnumerable<FileSystems.Entry>> ListEntries(CancellationToken cancellationToken = default)
         {
