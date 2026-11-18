@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Processor;
+using Roms;
 using Structs;
 
 /// <summary>
@@ -21,20 +22,58 @@ public class ExecLibrary : Library
     private const ushort AttnFlags68020 = 1 << 1;
 
     /// <summary>
-    /// Kickstart revision in ExecBase SoftVer, Kickstart 3.1 is 40.68.
+    /// Kickstart revision in ExecBase SoftVer, Kickstart 3.1 is 40.68. Used without Kickstart ROM.
     /// </summary>
     public const ushort KickstartRevision = 68;
 
+    private const int RomHeaderVersion = 0x0C;
+    private const int RomHeaderRevision = 0x0E;
+
     private readonly Dictionary<uint, HashSet<uint>> pools = new();
+    private readonly KickstartRomModule romExec;
 
     public ExecLibrary(VmContext context) : base(context)
     {
+        romExec = context.KickstartRom?.Modules.FirstOrDefault(x => x.Name == "exec.library");
     }
 
     public override string Name => "exec.library";
-    public override ushort Version => 40;
-    public override ushort Revision => 10;
-    public override string IdString => "exec 40.10 (15.7.93)";
+
+    /// <summary>
+    /// Version of exec.library in Kickstart ROM, if any, otherwise 40 for Kickstart 3.1.
+    /// </summary>
+    public override ushort Version => romExec?.Version ?? 40;
+
+    public override ushort Revision => romExec?.Revision ?? 10;
+
+    public override string IdString => romExec != null && !string.IsNullOrEmpty(romExec.IdString)
+        ? romExec.IdString
+        : "exec 40.10 (15.7.93)";
+
+    /// <summary>
+    /// Kickstart revision in ExecBase SoftVer. With Kickstart ROM, it's the revision in ROM header, e.g. 39.106
+    /// for Kickstart 3.0, or revision of exec.library in ROM, if ROM header doesn't match its version.
+    /// </summary>
+    public ushort SoftVer
+    {
+        get
+        {
+            var rom = Context.KickstartRom;
+            if (rom == null || romExec == null)
+            {
+                return KickstartRevision;
+            }
+
+            var bytes = rom.Bytes;
+            if (bytes.Length >= RomHeaderRevision + 2 &&
+                (bytes[RomHeaderVersion] << 8 | bytes[RomHeaderVersion + 1]) == romExec.Version)
+            {
+                return (ushort)(bytes[RomHeaderRevision] << 8 | bytes[RomHeaderRevision + 1]);
+            }
+
+            return romExec.Revision;
+        }
+    }
     protected override int PositiveSize => ExecBaseStruct.Size;
     protected override string[] FunctionNames => ExecFunctionNames.Names;
 
@@ -56,7 +95,7 @@ public class ExecLibrary : Library
     {
         var execBase = BaseAddress;
         Ram.WriteLong(4, execBase);
-        Ram.WriteWord(execBase + ExecBaseStruct.SoftVer, KickstartRevision);
+        Ram.WriteWord(execBase + ExecBaseStruct.SoftVer, SoftVer);
         Ram.WriteLong(execBase + ExecBaseStruct.ChkBase, ~execBase);
         Ram.WriteLong(execBase + ExecBaseStruct.MaxLocMem, Ram.Size);
         Ram.WriteWord(execBase + ExecBaseStruct.AttnFlags,
@@ -108,12 +147,27 @@ public class ExecLibrary : Library
 
     /// <summary>
     /// Create resident modules in ExecBase ResModules for libraries like in Kickstart ROM. Used by programs like
-    /// Version finding resident modules by name.
+    /// Version finding resident modules by name. With Kickstart ROM, resident modules in ROM are added first at
+    /// their ROM addresses followed by resident modules created for libraries, which are not in ROM.
     /// </summary>
     public void SetResidentModules(IEnumerable<Library> libraries)
     {
         var residents = new List<uint>();
-        foreach (var library in libraries.Where(x => x.IsInstalled && x is not StubLibrary))
+        var romNames = new HashSet<string>(StringComparer.Ordinal);
+        var rom = Context.KickstartRom;
+        if (rom != null)
+        {
+            foreach (var module in rom.Modules)
+            {
+                residents.Add(rom.BaseAddress + (uint)module.Offset);
+                if (module.Name != null)
+                {
+                    romNames.Add(module.Name);
+                }
+            }
+        }
+
+        foreach (var library in libraries.Where(x => x.IsInstalled && x is not StubLibrary && !romNames.Contains(x.Name)))
         {
             var resident = Context.Allocator.Allocate(ResidentSize);
             if (resident == 0)

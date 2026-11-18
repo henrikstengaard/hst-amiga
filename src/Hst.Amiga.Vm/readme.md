@@ -20,6 +20,7 @@ Features:
 - Volumes mapping Amiga volume names to host directories and assigns mapping names to Amiga paths.
 - Adf and disk images with rigid disk block mounted as volumes, so programs run in the context of the Amiga file systems in the images using FFS, PFS3 and SFS support of Hst Amiga. Adf images are mounted as DF0:, DF1: etc. and partitions with their device names, e.g. DH0:. SYS: is assigned to the first image, which is an adf or the bootable partition with highest boot priority. Images are write protected, unless they are writable.
 - UAE metadata with Amiga names, protection bits, comments and dates stored as UAEFSDB `_UAEFSDB.___` files used by WinUAE or UAE metafiles `.uaem` used by FS-UAE.
+- Kickstart ROM mapped read-only at its base address, e.g. 0xF80000, from raw, `KICK`-header and Amiga Forever encrypted ROM images. Resident modules in ROM are added to ExecBase ResModules, so programs find them with FindResident(), e.g. Version showing versions of modules in ROM and GetSCSI extracting scsi.device from ROM. ExecBase tells Kickstart version of ROM, e.g. Kickstart 39.106 for Kickstart 3.0, and OpenLibrary() of exec.library checks version of exec.library in ROM.
 - AmigaDOS shell running scripts and interactive command lines:
     - Scripts run with Execute command from C:, e.g. from an AmigaOS 3.1 Workbench installation, including `.KEY` arguments handled by Execute.
     - Shell internal commands of AmigaOS 3.1 shell: Alias, Ask, CD, Echo, Else, EndCLI, EndIf, EndShell, EndSkip, FailAt, Fault, Get, GetEnv, If, Lab, Path, Prompt, Quit, Resident, Run, Set, SetEnv, Skip, Stack, UnAlias, UnSet, UnSetEnv and Why.
@@ -31,6 +32,7 @@ Limitations:
 - Multitasking isn't supported. Programs run as a single process and waiting for signals or messages, which will never arrive, stops the program. Commands started with Run, Execute() or SystemTagList() run synchronously.
 - Devices and libraries other than exec.library, dos.library, utility.library, version.library and math libraries aren't available, e.g. icon.library and reqtools.library. OpenLibrary() returns NULL for these.
 - NewShell, NewCLI and pipes aren't supported.
+- Code in Kickstart ROM isn't executed and libraries, devices and resources in ROM can't be opened, as hardware isn't emulated. Resident modules in ROM can only be found and read. Memory size must not exceed base address of Kickstart ROM.
 - UAEFSDB stored as NTFS alternate data streams by WinUAE isn't supported, only `_UAEFSDB.___` files.
 
 ## Usage
@@ -82,6 +84,22 @@ options.Images.Add(new VmImage(adf, "workbench.adf"));
 
 // executable is read from adf and PROGDIR: is assigned to DF0:C
 var result = await new AmigaVm(options).RunFromVolume("DF0:C/List", "SYS:");
+```
+
+Example of running GetSCSI with Kickstart 3.1 ROM loaded, which extracts scsi.device from ROM to current directory:
+```csharp
+using Hst.Amiga.Roms;
+
+var romBytes = await File.ReadAllBytesAsync(@"c:\amiga\kick31.rom");
+
+var options = new VmOptions
+{
+    // rom.key bytes are required for Amiga Forever encrypted ROMs
+    KickstartRom = KickstartRomReader.Read(romBytes)
+};
+options.Volumes["SYS"] = @"c:\amiga\work";
+
+var result = await new AmigaVm(options).Run(@"c:\amiga\work\GetSCSI");
 ```
 
 A program, which sets current input of the command line interface to a script like Execute does, continues running the script in the shell after the program returns, so `Run` of the Execute command runs scripts too.

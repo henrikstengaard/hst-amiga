@@ -43,6 +43,7 @@ public partial class DosLibrary
             D0 = date1 > date2 ? 0xFFFFFFFF : date1 < date2 ? 1u : 0u;
         });
         Register("DateToStr", DateToStr);
+        Register("StrToDate", StrToDate);
         Register("GetVar", GetVar);
         Register("SetVar", SetVar);
         Register("DeleteVar", DeleteVar);
@@ -143,6 +144,156 @@ public partial class DosLibrary
         }
 
         D0 = unchecked((uint)DosTrue);
+    }
+
+    private static readonly string[] MonthNames =
+        { "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec" };
+
+    /// <summary>
+    /// Convert date and time strings in struct DateTime to date stamp. Date is parsed in format of DateTime, e.g.
+    /// dd-mmm-yy for FORMAT_DOS, and can be today, yesterday, tomorrow or a day name with DTF_SUBST. Date or time
+    /// string is ignored, if it's null, and part of date stamp is unchanged.
+    /// </summary>
+    private void StrToDate()
+    {
+        var dateTime = D1;
+        var format = Ram.ReadByte(dateTime + DateTimeStruct.Format);
+        var flags = Ram.ReadByte(dateTime + DateTimeStruct.Flags);
+        var dateText = Ram.ReadCString(Ram.ReadLong(dateTime + DateTimeStruct.StrDate));
+        var timeText = Ram.ReadCString(Ram.ReadLong(dateTime + DateTimeStruct.StrTime));
+        var stamp = dateTime + DateTimeStruct.Stamp;
+        var days = (int)Ram.ReadLong(stamp + DateStampStruct.Days);
+        var minutes = (int)Ram.ReadLong(stamp + DateStampStruct.Minute);
+        var ticks = (int)Ram.ReadLong(stamp + DateStampStruct.Tick);
+
+        if (dateText != null)
+        {
+            var date = ParseDate(dateText.Trim(), format, flags);
+            if (date == null)
+            {
+                D0 = 0;
+                return;
+            }
+
+            days = DateHelper.ConvertToAmigaDate(date.Value).Days;
+        }
+
+        if (timeText != null)
+        {
+            var time = ParseTime(timeText.Trim());
+            if (time == null)
+            {
+                D0 = 0;
+                return;
+            }
+
+            minutes = (int)time.Value.TotalMinutes;
+            ticks = time.Value.Seconds * 50;
+        }
+
+        Ram.WriteLong(stamp + DateStampStruct.Days, (uint)days);
+        Ram.WriteLong(stamp + DateStampStruct.Minute, (uint)minutes);
+        Ram.WriteLong(stamp + DateStampStruct.Tick, (uint)ticks);
+        D0 = unchecked((uint)DosTrue);
+    }
+
+    private static DateTime? ParseDate(string text, byte format, byte flags)
+    {
+        var today = DateTime.Now.Date;
+
+        // DTF_SUBST accepts today, yesterday, tomorrow and day names, DTF_FUTURE selects next day name
+        if ((flags & 1) != 0)
+        {
+            switch (text.ToLowerInvariant())
+            {
+                case "today":
+                    return today;
+                case "yesterday":
+                    return today.AddDays(-1);
+                case "tomorrow":
+                    return today.AddDays(1);
+            }
+
+            for (var weekDay = 0; weekDay < 7; weekDay++)
+            {
+                if (!string.Equals(text, ((DayOfWeek)weekDay).ToString(), StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var offset = (weekDay - (int)today.DayOfWeek + 7) % 7;
+                return (flags & 2) != 0
+                    ? today.AddDays(offset == 0 ? 7 : offset)
+                    : today.AddDays(offset == 0 ? -7 : offset - 7);
+            }
+        }
+
+        var parts = text.Split('-', '/');
+        if (parts.Length != 3)
+        {
+            return null;
+        }
+
+        var (dayPart, monthPart, yearPart) = format switch
+        {
+            1 => (parts[2], parts[1], parts[0]), // FORMAT_INT yy-mmm-dd
+            2 => (parts[1], parts[0], parts[2]), // FORMAT_USA mm-dd-yy
+            3 => (parts[0], parts[1], parts[2]), // FORMAT_CDN dd-mm-yy
+            _ => (parts[0], parts[1], parts[2]) // FORMAT_DOS dd-mmm-yy
+        };
+
+        var month = Array.IndexOf(MonthNames, monthPart.ToLowerInvariant().Substring(0, Math.Min(3, monthPart.Length))) + 1;
+        if (monthPart.Length < 3 || month == 0)
+        {
+            if (!int.TryParse(monthPart, NumberStyles.None, CultureInfo.InvariantCulture, out month))
+            {
+                return null;
+            }
+        }
+
+        if (!int.TryParse(dayPart, NumberStyles.None, CultureInfo.InvariantCulture, out var day) ||
+            !int.TryParse(yearPart, NumberStyles.None, CultureInfo.InvariantCulture, out var year))
+        {
+            return null;
+        }
+
+        // two digit years 78-99 are 1978-1999 and 00-77 are 2000-2077
+        if (yearPart.Length <= 2)
+        {
+            year += year >= 78 ? 1900 : 2000;
+        }
+
+        if (year < 1978 || month < 1 || month > 12 || day < 1 || day > DateTime.DaysInMonth(year, month))
+        {
+            return null;
+        }
+
+        return new DateTime(year, month, day);
+    }
+
+    private static TimeSpan? ParseTime(string text)
+    {
+        var parts = text.Split(':');
+        if (parts.Length < 2 || parts.Length > 3)
+        {
+            return null;
+        }
+
+        var values = new int[3];
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!int.TryParse(parts[i], NumberStyles.None, CultureInfo.InvariantCulture, out values[i]))
+            {
+                return null;
+            }
+        }
+
+        if (values[0] > 23 || values[1] > 59 || values[2] > 59)
+        {
+            return null;
+        }
+
+        return new TimeSpan(values[0], values[1], values[2]);
     }
 
     private AmigaPath GetEnvPath(string name, bool archive) =>

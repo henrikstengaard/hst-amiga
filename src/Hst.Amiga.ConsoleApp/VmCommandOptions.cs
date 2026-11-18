@@ -24,6 +24,8 @@ public class VmCommandOptions
     private readonly Option<bool> writeUaeMetadataOption;
     private readonly Option<string[]> imageOption;
     private readonly Option<bool> writeImageOption;
+    private readonly Option<string> kickstartOption;
+    private readonly Option<string> romKeyOption;
 
     /// <summary>
     /// Create options and add them to command.
@@ -118,6 +120,18 @@ public class VmCommandOptions
                 "Open adf and disk image files for writing. Default opens images read only and volumes in images are write protected."
         };
 
+        kickstartOption = new Option<string>("--kickstart", "-k")
+        {
+            Description =
+                "Kickstart ROM file mapped read-only at its base address, so programs like Version and GetSCSI find its resident modules. ExecBase tells Kickstart version of ROM. Code in ROM is not executed."
+        };
+
+        romKeyOption = new Option<string>("--rom-key")
+        {
+            Description =
+                "Amiga Forever rom.key file for encrypted Kickstart ROM. Default is rom.key in directory of Kickstart ROM."
+        };
+
         command.Options.Add(cpuOption);
         command.Options.Add(memoryOption);
         command.Options.Add(stackOption);
@@ -132,6 +146,8 @@ public class VmCommandOptions
         command.Options.Add(writeUaeMetadataOption);
         command.Options.Add(imageOption);
         command.Options.Add(writeImageOption);
+        command.Options.Add(kickstartOption);
+        command.Options.Add(romKeyOption);
     }
 
     /// <summary>
@@ -155,5 +171,7 @@ public class VmCommandOptions
             parseResult.GetValue(imageOption),
             imageContext,
             parseResult.GetValue(writeImageOption),
+            parseResult.GetValue(kickstartOption),
+            parseResult.GetValue(romKeyOption),
             token);
 }

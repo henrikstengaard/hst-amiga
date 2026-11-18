@@ -623,6 +623,23 @@ Example of running Amiga executable `test` emulating a 68000 cpu with 2 MB memor
 hst.amiga vm run test -c 68000 -m 2 --trace-libs
 ```
 
+#### Kickstart ROM
+
+Use `--kickstart` to load a Kickstart ROM file with `run`, `execute` and `shell` commands. Raw, `KICK`-header and Amiga Forever encrypted ROMs are supported. Encrypted ROMs use `rom.key` in the directory of the ROM or the file set with `--rom-key`.
+
+The ROM is mapped read-only at its base address, e.g. 0xF80000 for a 512 KB Kickstart, and its resident modules are added to ExecBase, so programs can find them with FindResident() and read them from ROM. ExecBase tells the Kickstart version of the ROM, e.g. `Version` shows Kickstart 39.106 for Kickstart 3.0. Code in the ROM is not executed and libraries and devices in the ROM can't be opened. Memory size must not exceed the base address of the ROM.
+
+Example of running GetSCSI from Aminet, which extracts scsi.device from Kickstart 3.1 ROM to current directory:
+```
+hst.amiga vm run GetSCSI --kickstart kick31.rom
+```
+
+Example of running Amiga executable `version` from Workbench adf showing Kickstart version and version of scsi.device in Amiga Forever encrypted Kickstart ROM:
+```
+hst.amiga vm run --image workbench.adf C:Version --kickstart amiga-os-310-a1200.rom
+hst.amiga vm run --image workbench.adf C:Version --kickstart amiga-os-310-a1200.rom -- scsi.device full
+```
+
 #### Adf and disk images
 
 The executable can be a host file or a path to a file in an adf or disk image file, e.g. `workbench.adf\c\list`. The first part of the path, which is an existing file, must be an image: an adf with the size of a double or high density floppy disk or a disk image with a rigid disk block in one of the first 16 sectors. The rest of the path is the executable in the image.

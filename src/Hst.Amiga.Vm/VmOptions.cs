@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using FileSystem;
 using Processor;
+using Roms;
 
 public class VmOptions
 {
@@ -54,6 +55,14 @@ public class VmOptions
     /// </summary>
     public ISet<string> StubLibraries { get; set; } =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "intuition.library", "graphics.library" };
+
+    /// <summary>
+    /// Kickstart ROM mapped read-only at its base address, e.g. 0xF80000, read with
+    /// <see cref="KickstartRomReader"/>. Resident modules in ROM are added to resident modules in ExecBase, so
+    /// programs like Version and GetSCSI find them with FindResident(), and ExecBase tells Kickstart version of ROM.
+    /// Code in ROM is not executed. Memory size must not exceed ROM base address. Default is no ROM.
+    /// </summary>
+    public KickstartRom KickstartRom { get; set; }
 
     /// <summary>
     /// UAE metadata used for Amiga names, protection bits, comments and dates of files in volume directories.
