@@ -72,6 +72,12 @@ namespace Hst.Amiga.FileSystems.FastFileSystem
 
         public long Free => volume.FreeBlocks * volume.FileSystemBlockSize;
 
+        /// <summary>
+        /// Maximum length of file and directory names in characters. 30 for OFS/FFS variants (DOS\0 to DOS\5)
+        /// and 107 for long filename variants (DOS\6 and DOS\7).
+        /// </summary>
+        public int MaxFileNameLength => volume.UseLnfs ? Constants.LNFSMAXNAMELEN : Constants.MAXNAMELEN;
+
         public async Task<IEnumerable<FileSystems.Entry>> ListEntries(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();

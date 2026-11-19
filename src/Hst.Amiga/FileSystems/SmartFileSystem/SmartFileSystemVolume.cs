@@ -49,6 +49,11 @@ namespace Hst.Amiga.FileSystems.SmartFileSystem
         public long Free => (long)volume.FreeBlocks * volume.BlockSize;
 
         /// <summary>
+        /// Maximum length of file and directory names in characters. Fixed at 100 for SFS\0, see fs/objects.h.
+        /// </summary>
+        public int MaxFileNameLength => Constants.MaxNameLength;
+
+        /// <summary>
         /// Current directory object node number.
         /// </summary>
         public uint CurrentDirectoryBlockNumber => currentDirectoryNode;
