@@ -350,7 +350,7 @@
             var fileNameSize = Macro.FILENAMESIZE(g);
             if (l > fileNameSize - 1)
             {
-                filename = filename.Substring(fileNameSize - 1);
+                filename = filename.Substring(0, fileNameSize - 1);
             }
 
             if (found)
@@ -556,7 +556,7 @@
 
             if (l > g.fnsize - 1)
             {
-                dirname = dirname.Substring(g.fnsize - 1);
+                dirname = dirname.Substring(0, g.fnsize - 1);
             }
 
             /* check if object exists */
@@ -985,9 +985,9 @@
             var intl_name = AmigaTextHelper.ToUpper(objectname, true);
 
             /* truncate */
-            if (intl_name.Length > g.fnsize)
+            if (intl_name.Length > g.fnsize - 1)
             {
-                intl_name = intl_name.Substring(g.fnsize);
+                intl_name = intl_name.Substring(0, g.fnsize - 1);
             }
 
             if (g.SearchInDirCache.ContainsKey(dirnodenr) && g.SearchInDirCache[dirnodenr].DirEntriesCache.ContainsKey(intl_name))
@@ -1900,9 +1900,9 @@
             var intl_name = delname;
 
             /* truncate to maximum length */
-            if (intl_name.Length > g.fnsize)
+            if (intl_name.Length > g.fnsize - 1)
             {
-                intl_name = intl_name.Substring(g.fnsize);
+                intl_name = intl_name.Substring(0, g.fnsize - 1);
             }
 
             // intltoupper(intl_name);     /* international uppercase objectname */
@@ -3377,7 +3377,7 @@
             var fileNameSize = Macro.FILENAMESIZE(g);
             if (l > fileNameSize - 1)
             {
-                linkname = linkname.Substring(fileNameSize - 1);
+                linkname = linkname.Substring(0, fileNameSize - 1);
             }
             
 	        /* check reserved area lock */

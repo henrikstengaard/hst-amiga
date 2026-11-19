@@ -24,6 +24,12 @@
         long Free { get; }
 
         /// <summary>
+        /// Maximum length of file and directory names in characters supported by the file system.
+        /// Names longer than this are truncated or rejected depending on the file system.
+        /// </summary>
+        int MaxFileNameLength { get; }
+
+        /// <summary>
         /// List entries in current directory
         /// </summary>
         /// <returns></returns>

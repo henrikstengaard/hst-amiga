@@ -53,6 +53,129 @@
         public long Free => (long)g.RootBlock.BlocksFree * g.blocksize;
 
         /// <summary>
+        /// Smallest maximum file name length that can be set with <see cref="SetMaxFileNameLength"/>.
+        /// </summary>
+        public const int MinSupportedMaxFileNameLength = 30;
+
+        /// <summary>
+        /// Largest maximum file name length that can be set with <see cref="SetMaxFileNameLength"/>.
+        /// </summary>
+        public const int MaxSupportedMaxFileNameLength = Constants.FNSIZE - 1;
+
+        /// <summary>
+        /// Maximum length of file and directory names in characters. Stored in the root block extension
+        /// as file name size (fnsize) minus 1. Older pfs3 versions used 31; newer ones support up to 107.
+        /// </summary>
+        public int MaxFileNameLength => g.fnsize - 1;
+
+        /// <summary>
+        /// Change maximum length of file and directory names. Only new and renamed entries are affected,
+        /// existing entries keep their names. The change is written to the root block extension on flush.
+        /// When lowering the limit without force, all entries on the volume are checked and the change is
+        /// rejected if any existing name is longer than the new limit, as such entries can no longer be found
+        /// by their full name.
+        /// </summary>
+        /// <param name="maxFileNameLength">Maximum file name length in characters, between
+        /// <see cref="MinSupportedMaxFileNameLength"/> and <see cref="MaxSupportedMaxFileNameLength"/>.</param>
+        /// <param name="force">Lower the limit, even if existing names are longer than the new limit.</param>
+        /// <param name="progress">Optional progress of the name scan, reported once per directory scanned.
+        /// Only reported when the limit is lowered without force.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <exception cref="ArgumentOutOfRangeException">Max file name length is out of range.</exception>
+        /// <exception cref="IOException">Volume has no root block extension.</exception>
+        /// <exception cref="FileNameTooLongException">An existing name is longer than the new limit and force is false.</exception>
+        public async Task SetMaxFileNameLength(int maxFileNameLength, bool force = false,
+            IProgress<FileNameScanProgress> progress = null, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (maxFileNameLength < MinSupportedMaxFileNameLength || maxFileNameLength > MaxSupportedMaxFileNameLength)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxFileNameLength),
+                    $"Max file name length must be between {MinSupportedMaxFileNameLength} and {MaxSupportedMaxFileNameLength}");
+            }
+
+            var rext = g.currentvolume.rblkextension;
+            if (rext == null)
+            {
+                throw new IOException("Volume has no root block extension to store max file name length");
+            }
+
+            var fnsize = (ushort)(maxFileNameLength + 1);
+            if (g.fnsize == fnsize && rext.rblkextension.fnsize == fnsize)
+            {
+                return;
+            }
+
+            if (!force && maxFileNameLength < MaxFileNameLength)
+            {
+                await EnsureNoNameIsLongerThan(maxFileNameLength, progress, cancellationToken);
+            }
+
+            rext.rblkextension.fnsize = fnsize;
+            g.fnsize = fnsize;
+            await Update.MakeBlockDirty(rext, g);
+        }
+
+        /// <summary>
+        /// Walk all directories on volume and throw, if an entry name is longer than max file name length.
+        /// Links are not followed.
+        /// </summary>
+        private async Task EnsureNoNameIsLongerThan(int maxFileNameLength, IProgress<FileNameScanProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            var directoriesScanned = 0;
+            var entriesScanned = 0;
+
+            // link paths are not needed and resolving them is expensive
+            var resolveLinkPaths = g.ResolveLinkPaths;
+            g.ResolveLinkPaths = false;
+
+            try
+            {
+                var visited = new HashSet<uint>();
+                var pending = new Stack<(uint DirNodeNr, string Path)>();
+                pending.Push((Constants.ANODE_ROOTDIR, string.Empty));
+
+                while (pending.Count > 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var (nodeNr, path) = pending.Pop();
+                    if (!visited.Add(nodeNr))
+                    {
+                        continue;
+                    }
+
+                    foreach (var dirEntry in await Directory.GetDirEntries(nodeNr, g))
+                    {
+                        var entryPath = string.Concat(path, "/", dirEntry.Name);
+                        if (dirEntry.Name.Length > maxFileNameLength)
+                        {
+                            throw new FileNameTooLongException(
+                                $"Entry '{entryPath}' has name length {dirEntry.Name.Length}, which is longer than max file name length {maxFileNameLength}",
+                                entryPath, dirEntry.Name.Length);
+                        }
+
+                        if (dirEntry.type == Constants.ST_USERDIR)
+                        {
+                            pending.Push((dirEntry.anode, entryPath));
+                        }
+
+                        entriesScanned++;
+                    }
+
+                    directoriesScanned++;
+                    progress?.Report(new FileNameScanProgress(directoriesScanned, entriesScanned,
+                        path.Length == 0 ? "/" : path));
+                }
+            }
+            finally
+            {
+                g.ResolveLinkPaths = resolveLinkPaths;
+            }
+        }
+
+        /// <summary>
         /// List entries in current directory
         /// </summary>
         /// <returns></returns>
