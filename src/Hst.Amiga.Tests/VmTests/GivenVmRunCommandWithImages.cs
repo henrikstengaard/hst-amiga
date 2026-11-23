@@ -72,6 +72,31 @@ public class GivenVmRunCommandWithImages : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task When_RunningExecutableInIso_Then_ExecutableIsReadFromCd(bool imageContext)
+    {
+        var iso = await WriteImage("game.iso", CreateIso("GAMECD"));
+
+        Assert.Equal("Hello from GAMECD\n", await Run(iso + "\\c\\hello", imageContext));
+    }
+
+    [Fact]
+    public async Task When_RunningAmigaPathWithIsoImages_Then_ExecutableIsReadFromCd1()
+    {
+        var first = await WriteImage("first.iso", CreateIso("FIRSTCD"));
+        var second = await WriteImage("second.iso", CreateIso("SECONDCD"));
+        var output = new MemoryStream();
+        var command = new VmRunCommand("CD1:C/Hello", Array.Empty<string>(), CreateOptions(output),
+            images: new[] { first, second });
+
+        var result = await command.Execute(null, CancellationToken.None);
+
+        Assert.Null(result.Error);
+        Assert.Equal("Hello from SECONDCD\n", Text(output));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task When_RunningExecutableInFileNotImage_Then_ExceptionIsThrown(bool imageContext)
     {
         var file = Path.Combine(directory, "notes.txt");
@@ -81,7 +106,7 @@ public class GivenVmRunCommandWithImages : IDisposable
 
         var exception = await Assert.ThrowsAsync<IOException>(() => command.Execute(null, CancellationToken.None));
 
-        Assert.Contains("is not an adf or disk image", exception.Message);
+        Assert.Contains("is not an adf, ISO 9660 CD image or disk image", exception.Message);
     }
 
     [Theory]
@@ -104,6 +129,7 @@ public class GivenVmRunCommandWithImages : IDisposable
     {
         Assert.True(await ImageMounter.IsImage(await CreateAdf("Workbench")));
         Assert.True(await ImageMounter.IsImage(await CreateDisk()));
+        Assert.True(await ImageMounter.IsImage(CreateIso("TESTCD")));
         Assert.False(await ImageMounter.IsImage(new MemoryStream(new byte[100])));
         Assert.False(await ImageMounter.IsImage(new MemoryStream(new byte[512 * 32])));
 

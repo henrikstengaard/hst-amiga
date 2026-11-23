@@ -109,7 +109,7 @@ public class VmCommandOptions
         imageOption = new Option<string[]>("--image", "-i")
         {
             Description =
-                "Mount adf or disk image file as volumes, e.g. workbench.adf or disk.vhd. Adf is mounted as DF0:, partitions in disk image with their device names, e.g. DH0:, and SYS: is assigned to adf or bootable partition with highest boot priority.",
+                "Mount adf, ISO 9660 CD image or disk image file as volumes, e.g. workbench.adf, game.iso or disk.vhd. Adf is mounted as DF0:, CD image as CD0: (always write protected), partitions in disk image with their device names, e.g. DH0:, and SYS: is assigned to first image, which is an adf, a CD image or the bootable partition with highest boot priority.",
             Arity = ArgumentArity.ZeroOrMore,
             AllowMultipleArgumentsPerToken = false
         };
@@ -117,7 +117,7 @@ public class VmCommandOptions
         writeImageOption = new Option<bool>("--write-image")
         {
             Description =
-                "Open adf and disk image files for writing. Default opens images read only and volumes in images are write protected."
+                "Open adf and disk image files for writing. Default opens images read only and volumes in images are write protected. CD images are always write protected."
         };
 
         kickstartOption = new Option<string>("--kickstart", "-k")
