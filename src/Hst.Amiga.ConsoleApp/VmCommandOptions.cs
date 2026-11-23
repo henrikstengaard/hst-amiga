@@ -59,7 +59,7 @@ public class VmCommandOptions
 
         assignOption = new Option<string[]>("--assign", "-a")
         {
-            Description = "Add assign to Amiga path as name=path, e.g. C=SYS:C. Separate multiple paths with ;.",
+            Description = "Add assign to Amiga path as name=path, e.g. C=SYS:C. Separate multiple paths with ;. Prefix path with + to add it to default assign instead of replacing it, e.g. C=+DH0:C.",
             Arity = ArgumentArity.ZeroOrMore,
             AllowMultipleArgumentsPerToken = false
         };

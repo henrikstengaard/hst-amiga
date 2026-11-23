@@ -35,6 +35,27 @@ public class GivenVmRunCommand
     }
 
     [Theory]
+    [InlineData(new[] { "C=DH0:" }, "DH0:")]
+    [InlineData(new[] { "C=+DH0:" }, "+DH0:")]
+    [InlineData(new[] { "C=SYS:C", "C=+DH0:" }, "SYS:C;DH0:")]
+    [InlineData(new[] { "C=+DH0:", "C=+DH1:" }, "+DH0:;DH1:")]
+    [InlineData(new[] { "C=+DH0:", "C=DH1:" }, "DH1:")]
+    public void When_CreatingOptionsWithAssignsStartingWithPlus_Then_PathsAreAddedToAssign(string[] assigns,
+        string expected)
+    {
+        var options = VmRunCommand.CreateOptions(null, null, null, null, assigns, null, null, null, false, false);
+
+        Assert.Equal(expected, options.Assigns["C"]);
+    }
+
+    [Fact]
+    public void When_CreatingOptionsWithOnlyPlus_Then_ArgumentExceptionIsThrown()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            VmRunCommand.CreateOptions(null, null, null, null, new[] { "C=+" }, null, null, null, false, false));
+    }
+
+    [Theory]
     [InlineData(null, UaeMetadataMode.Auto)]
     [InlineData("uaefsdb", UaeMetadataMode.UaeFsDb)]
     [InlineData("uaemetafile", UaeMetadataMode.UaeMetafile)]

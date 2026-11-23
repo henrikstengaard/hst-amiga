@@ -93,12 +93,14 @@ public partial class DosLibrary : Library
         ExecLists.NewList(Ram, dummyPort + MsgPortStruct.MsgList);
 
         var rootNode = Context.Allocator.Allocate(RootNodeStruct.Size);
-        var dosInfo = Context.Allocator.Allocate(64);
+        dosInfo = Context.Allocator.Allocate(64);
+        Ram.Fill(dosInfo, 64);
         Ram.WriteLong(rootNode + RootNodeStruct.Info, MkBAddr(dosInfo));
         ExecLists.NewList(Ram, rootNode + RootNodeStruct.CliList);
         Ram.WriteLong(BaseAddress + DosLibraryStruct.Root, rootNode);
 
         exec.AddLibraryNode(this);
+        RebuildDosList();
     }
 
     /// <summary>
@@ -316,6 +318,7 @@ public partial class DosLibrary : Library
         Ram.WriteLong(address + FileLockStruct.Key, (uint)(path.FullPath.GetHashCode() & 0x7FFFFFFF));
         Ram.WriteLong(address + FileLockStruct.Access, (uint)access);
         Ram.WriteLong(address + FileLockStruct.Task, dummyPort);
+        Ram.WriteLong(address + FileLockStruct.Volume, VolumeEntryBptr(path.Volume));
         locks[bptr] = new DosLock(address, path, IsDirectory(path), access);
         return bptr;
     }
@@ -435,6 +438,7 @@ public partial class DosLibrary : Library
     {
         RegisterFileFunctions();
         RegisterLockFunctions();
+        RegisterAssignFunctions();
         RegisterProcessFunctions();
         RegisterPatternFunctions();
         RegisterMiscFunctions();

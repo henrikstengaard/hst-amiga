@@ -15,6 +15,7 @@ public class VolumeManager
 
     private readonly Dictionary<string, IVolumeFileSystem> volumes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<string>> assigns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, AssignType> assignTypes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> volumeNames = new(StringComparer.OrdinalIgnoreCase);
 
     public VolumeManager(HostMetadata metadata = null)
@@ -71,12 +72,72 @@ public class VolumeManager
         {
             paths = new List<string>();
             assigns[name] = paths;
+            assignTypes[name] = AssignType.Lock;
         }
 
         paths.Add(amigaPath);
     }
 
-    public void RemoveAssign(string name) => assigns.Remove(TrimColon(name));
+    /// <summary>
+    /// Set assign to Amiga path replacing existing assign with same name.
+    /// </summary>
+    public void SetAssign(string name, string amigaPath, AssignType type)
+    {
+        name = TrimColon(name);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Assign name is empty", nameof(name));
+        }
+
+        assigns[name] = new List<string> { amigaPath };
+        assignTypes[name] = type;
+    }
+
+    /// <summary>
+    /// Remove path from multi assign, the assign is removed when its last path is removed.
+    /// </summary>
+    /// <returns>True, if a path of the assign resolves to the target and was removed.</returns>
+    public bool RemoveAssignPath(string name, AmigaPath target)
+    {
+        name = TrimColon(name);
+        if (target == null || !assigns.TryGetValue(name, out var paths))
+        {
+            return false;
+        }
+
+        var index = paths.FindIndex(x => target.IsSame(Resolve(x, null)));
+        if (index < 0)
+        {
+            return false;
+        }
+
+        paths.RemoveAt(index);
+        if (paths.Count == 0)
+        {
+            RemoveAssign(name);
+        }
+
+        return true;
+    }
+
+    public void RemoveAssign(string name)
+    {
+        assigns.Remove(TrimColon(name));
+        assignTypes.Remove(TrimColon(name));
+    }
+
+    /// <summary>
+    /// Get Amiga paths of assign in the order they are searched.
+    /// </summary>
+    /// <returns>Paths or empty list, if assign doesn't exist.</returns>
+    public IReadOnlyList<string> GetAssignPaths(string name) =>
+        assigns.TryGetValue(TrimColon(name), out var paths) ? paths.ToList() : new List<string>();
+
+    /// <summary>
+    /// Get type of assign.
+    /// </summary>
+    public AssignType GetAssignType(string name) =>
+        assignTypes.TryGetValue(TrimColon(name), out var type) ? type : AssignType.Lock;
 
     public bool HasVolume(string name) => volumes.ContainsKey(TrimColon(name));
 
