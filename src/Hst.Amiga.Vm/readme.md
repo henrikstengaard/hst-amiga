@@ -69,6 +69,8 @@ Console input and output defaults to standard input and output, and can be redir
 
 Amiga console control sequences in console output are translated to ANSI terminal sequences, when standard output isn't redirected. Single byte control sequence introducer 0x9B is translated to `ESC [`, form feed clears the screen, colors selecting Workbench pens are translated to terminal colors (pen 1 text uses default terminal color, pen 2 is bright white and pen 3 is blue), cursor on/off show and hide the cursor and Amiga specific sequences like window bounds and raw events are removed. Virtual terminal processing is enabled in Windows console. Translation can be turned on or off with `TranslateConsoleOutput` in `VmOptions`.
 
+Translation can be checked manually with the script `src/Hst.Amiga.Tests/TestData/Vm/console-colors.txt`, which echoes colors, styles and other console sequences with the expected result on each line. Run it with standard input redirected and output to the terminal, e.g. `cmd /c "hst.amiga vm shell < src\Hst.Amiga.Tests\TestData\Vm\console-colors.txt"` in Windows. The script contains raw form feed and 0x9B bytes, so it must be saved as raw bytes and not converted to UTF-8.
+
 Example of running an AmigaDOS script with Execute command from C: and an interactive shell:
 ```csharp
 var options = new VmOptions();

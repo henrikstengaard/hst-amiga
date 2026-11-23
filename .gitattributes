@@ -1,0 +1,2 @@
+# Amiga scripts with raw control bytes (0x0C, 0x9B) and LF line endings
+src/Hst.Amiga.Tests/TestData/Vm/*.txt -text
