@@ -102,7 +102,15 @@ public class VmRunCommand
         foreach (var assign in assigns ?? Enumerable.Empty<string>())
         {
             var (name, path) = ParseMapping(assign, "assign");
-            options.Assigns[name] = path;
+            if (path == "+")
+            {
+                throw new ArgumentException($"Invalid assign '{assign}', expected name=+path");
+            }
+
+            // paths starting with + are added to assign given earlier or default assign
+            options.Assigns[name] = path.StartsWith("+") && options.Assigns.TryGetValue(name, out var existing)
+                ? $"{existing};{path.Substring(1)}"
+                : path;
         }
 
         return options;

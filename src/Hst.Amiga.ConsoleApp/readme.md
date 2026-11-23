@@ -613,6 +613,11 @@ Example of running Amiga executable `copy` with volume WORK: mapped to directory
 hst.amiga vm run copy -V SYS=c:\amiga\sys -V WORK=d:\work -a DATA=WORK:data -- DATA:file.txt TO RAM:
 ```
 
+Example of running an interactive shell with a multi assign C: to `SYS:C` and `DH0:C` with paths separated by `;`, and LIBS: adding `DH0:Libs` to default assign `SYS:Libs` with `+`:
+```
+hst.amiga vm shell -i workbench.adf -V DH0=c:\temp -a "C=SYS:C;DH0:C" -a LIBS=+DH0:Libs
+```
+
 Example of running Amiga executable `protect` adding script protection bit to file `test` written to UAE metadata:
 ```
 hst.amiga vm run c:\amiga\sys\c\protect -V SYS=c:\amiga\sys --write-uae-metadata -- SYS:test s add

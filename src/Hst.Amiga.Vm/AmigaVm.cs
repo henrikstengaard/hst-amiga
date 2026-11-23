@@ -164,6 +164,7 @@ public class AmigaVm
         string ramDirectory = null;
         DosLibrary dos = null;
         var imageVolumes = new List<ImageVolume>();
+        Action restoreConsole = null;
 
         try
         {
@@ -260,8 +261,10 @@ public class AmigaVm
                 CurrentDirectory = currentDirectory,
                 HomeDirectory = homeDirectory,
                 Input = options.Input ?? CreateConsoleInput(),
-                Output = options.Output ?? new BufferedStream(Console.OpenStandardOutput()),
-                Error = options.Error ?? new BufferedStream(Console.OpenStandardError()),
+                Output = CreateConsoleOutput(options.Output, Console.OpenStandardOutput, Console.IsOutputRedirected,
+                    ref restoreConsole),
+                Error = CreateConsoleOutput(options.Error, Console.OpenStandardError, Console.IsErrorRedirected,
+                    ref restoreConsole),
                 Interactive = interactive
             });
 
@@ -315,6 +318,8 @@ public class AmigaVm
                 dos.CloseAll();
             }
 
+            restoreConsole?.Invoke();
+
             if (context != null)
             {
                 result.InstructionCount = context.Cpu.InstructionCount;
@@ -326,6 +331,12 @@ public class AmigaVm
 
         return result;
     }
+
+    /// <summary>
+    /// Is default assign replaced by assign in options. Assigns starting with + add paths to default assign.
+    /// </summary>
+    private bool IsAssignReplaced(string name) =>
+        options.Assigns.TryGetValue(name, out var path) && !(path ?? string.Empty).StartsWith("+");
 
     /// <summary>
     /// Flush changes to writable image volumes and dispose them.
@@ -369,6 +380,33 @@ public class AmigaVm
         }
     }
 
+    /// <summary>
+    /// Create console output stream from stream in options or standard output stream, translating Amiga console
+    /// control sequences to ANSI terminal sequences, if enabled.
+    /// </summary>
+    /// <param name="stream">Stream from options or null to use standard stream.</param>
+    /// <param name="openStandardStream">Open standard stream.</param>
+    /// <param name="isRedirected">Is standard stream redirected.</param>
+    /// <param name="restoreConsole">Action restoring console modes, set when virtual terminal processing is
+    /// enabled.</param>
+    private Stream CreateConsoleOutput(Stream stream, Func<Stream> openStandardStream, bool isRedirected,
+        ref Action restoreConsole)
+    {
+        var output = stream ?? new BufferedStream(openStandardStream());
+        if (!(options.TranslateConsoleOutput ?? (stream == null && !isRedirected)))
+        {
+            return output;
+        }
+
+        if (stream == null && restoreConsole == null)
+        {
+            restoreConsole = WindowsConsole.EnableVirtualTerminal();
+        }
+
+        // streams from options are owned by caller
+        return new AmigaConsoleOutputStream(output, stream != null);
+    }
+
     private static Stream CreateConsoleInput()
     {
         var input = Console.OpenStandardInput();
@@ -389,7 +427,7 @@ public class AmigaVm
 
         var assigns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var sysVolume = MountImages(volumes, assigns, imageVolumes);
-        if (sysVolume != null && !volumes.HasVolume("SYS") && !options.Assigns.ContainsKey("SYS"))
+        if (sysVolume != null && !volumes.HasVolume("SYS") && !IsAssignReplaced("SYS"))
         {
             assigns["SYS"] = $"{sysVolume}:";
         }
@@ -420,12 +458,12 @@ public class AmigaVm
         assigns["T"] = "RAM:T";
         assigns["ENV"] = "RAM:Env";
 
-        if (programAmigaDirectory != null && !options.Assigns.ContainsKey("PROGDIR") &&
+        if (programAmigaDirectory != null && !IsAssignReplaced("PROGDIR") &&
             !volumes.HasVolume("PROGDIR"))
         {
             assigns["PROGDIR"] = programAmigaDirectory;
         }
-        else if (programDirectory != null && !options.Assigns.ContainsKey("PROGDIR") &&
+        else if (programDirectory != null && !IsAssignReplaced("PROGDIR") &&
                  !volumes.HasVolume("PROGDIR"))
         {
             var programPath = FindAmigaPath(volumes, programDirectory);
@@ -439,9 +477,21 @@ public class AmigaVm
             }
         }
 
+        // assigns starting with + add paths to default assigns instead of replacing them
         foreach (var assign in options.Assigns)
         {
-            assigns[assign.Key.TrimEnd(':')] = assign.Value;
+            var name = assign.Key.TrimEnd(':');
+            var value = assign.Value ?? string.Empty;
+            if (value.StartsWith("+"))
+            {
+                value = value.Substring(1);
+                if (assigns.TryGetValue(name, out var existing) && existing.Length > 0)
+                {
+                    value = $"{existing};{value}";
+                }
+            }
+
+            assigns[name] = value;
         }
 
         foreach (var assign in assigns)

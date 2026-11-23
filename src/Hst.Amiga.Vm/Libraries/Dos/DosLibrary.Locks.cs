@@ -255,42 +255,6 @@ public partial class DosLibrary
             var path = ResolveOrFail(Ram.ReadCString(D1));
             D0 = path == null ? 0 : dummyPort;
         });
-        Register("GetDeviceProc", () =>
-        {
-            // multi assigns resolve to one path, so there is no next device proc
-            if (D2 != 0)
-            {
-                SetIoErr(DosErrors.NoMoreEntries);
-                D0 = 0;
-                return;
-            }
-
-            var path = ResolveOrFail(Ram.ReadCString(D1));
-            if (path == null)
-            {
-                D0 = 0;
-                return;
-            }
-
-            // struct DevProc: dvp_Port, dvp_Lock, dvp_Flags, dvp_DevNode
-            var devProc = Context.Allocator.Allocate(16);
-            if (devProc == 0)
-            {
-                SetIoErr(DosErrors.NoFreeStore);
-                D0 = 0;
-                return;
-            }
-
-            Ram.WriteLong(devProc, dummyPort);
-            D0 = devProc;
-        });
-        Register("FreeDeviceProc", () =>
-        {
-            if (D1 != 0)
-            {
-                Context.Allocator.Free(D1);
-            }
-        });
         Register("ExAll", ExAll);
         Register("ExAllEnd", () => D0 = unchecked((uint)DosTrue));
     }

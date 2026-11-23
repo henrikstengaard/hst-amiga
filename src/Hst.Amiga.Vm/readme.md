@@ -13,6 +13,7 @@ Features:
     - ReadArgs templates, MatchFirst/MatchNext and AmigaDOS patterns.
     - VPrintf, VFWritef, FPuts, FGets and other buffered functions.
     - Environment variables stored in ENV:.
+    - AssignLock, AssignLate, AssignPath, AssignAdd and RemAssignList changing assigns at runtime, a dos list with volumes and assigns for LockDosList, NextDosEntry and FindDosEntry, and GetDeviceProc iterating directories of multi assigns, so the Assign command from C: lists, adds and removes assigns.
 - Emulated utility.library with tag item, date, 32-bit math and string functions.
 - Emulated math libraries with Motorola Fast Floating Point, IEEE single and IEEE double precision: mathffp.library, mathtrans.library, mathieeesingbas.library, mathieeesingtrans.library, mathieeedoubbas.library and mathieeedoubtrans.library.
 - Emulated version.library telling Workbench version 40.42 and Kickstart 40.68 in ExecBase, with resident modules for the emulated libraries, so the Version command shows versions.
@@ -32,6 +33,8 @@ Limitations:
 - Multitasking isn't supported. Programs run as a single process and waiting for signals or messages, which will never arrive, stops the program. Commands started with Run, Execute() or SystemTagList() run synchronously.
 - Devices and libraries other than exec.library, dos.library, utility.library, version.library and math libraries aren't available, e.g. icon.library and reqtools.library. OpenLibrary() returns NULL for these.
 - NewShell, NewCLI and pipes aren't supported.
+- Devices aren't in the dos list, and device names of mounted images, e.g. DF0:, are assigns to their volumes.
+- Amiga console sequences, which need a reply from console.device, e.g. window status request, aren't supported.
 - Code in Kickstart ROM isn't executed and libraries, devices and resources in ROM can't be opened, as hardware isn't emulated. Resident modules in ROM can only be found and read. Memory size must not exceed base address of Kickstart ROM.
 - UAEFSDB stored as NTFS alternate data streams by WinUAE isn't supported, only `_UAEFSDB.___` files.
 
@@ -60,8 +63,11 @@ Default volumes and assigns:
 - PROGDIR: is the directory of the executable.
 - C:, S:, L:, LIBS:, DEVS:, FONTS: and LOCALE: are assigned to directories in SYS:.
 - ENV: is assigned to RAM:Env, ENVARC: to SYS:Prefs/Env-Archive and T: to RAM:T.
+- Assigns in `VmOptions` replace default assigns with same name. Paths starting with `+` are added to the default assign like Assign ADD, e.g. `+Work:C` for C: assigned to SYS:C and Work:C.
 
 Console input and output defaults to standard input and output, and can be redirected with the `Input`, `Output` and `Error` streams in `VmOptions`.
+
+Amiga console control sequences in console output are translated to ANSI terminal sequences, when standard output isn't redirected. Single byte control sequence introducer 0x9B is translated to `ESC [`, form feed clears the screen, colors selecting Workbench pens are translated to terminal colors (pen 1 text uses default terminal color, pen 2 is bright white and pen 3 is blue), cursor on/off show and hide the cursor and Amiga specific sequences like window bounds and raw events are removed. Virtual terminal processing is enabled in Windows console. Translation can be turned on or off with `TranslateConsoleOutput` in `VmOptions`.
 
 Example of running an AmigaDOS script with Execute command from C: and an interactive shell:
 ```csharp

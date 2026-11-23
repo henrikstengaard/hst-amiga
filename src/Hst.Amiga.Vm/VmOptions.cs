@@ -43,7 +43,9 @@ public class VmOptions
     public IList<VmImage> Images { get; set; } = new List<VmImage>();
 
     /// <summary>
-    /// Assigns mapping Amiga assign names to Amiga paths, e.g. "C" to "SYS:C".
+    /// Assigns mapping Amiga assign names to Amiga paths, e.g. "C" to "SYS:C". Multiple paths separated with ;
+    /// create a multi assign, e.g. "SYS:C;Work:C". Paths starting with + are added to the default assign instead
+    /// of replacing it like Assign ADD, e.g. "+Work:C" for C: assigned to SYS:C and Work:C.
     /// </summary>
     public IDictionary<string, string> Assigns { get; set; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -95,6 +97,14 @@ public class VmOptions
     /// Stream used for program console error output. Default is standard error.
     /// </summary>
     public Stream Error { get; set; }
+
+    /// <summary>
+    /// Translate Amiga console control sequences in console output and error output to ANSI terminal sequences,
+    /// e.g. single byte control sequence introducer 0x9B, form feed clearing the window and colors selecting
+    /// Workbench pens, see <see cref="AmigaConsoleOutputStream"/>. Default is true for standard output and
+    /// standard error, which are not redirected, and false for streams set in options.
+    /// </summary>
+    public bool? TranslateConsoleOutput { get; set; }
 
     /// <summary>
     /// Console input is interactive. Default is true, if standard input is not redirected.
