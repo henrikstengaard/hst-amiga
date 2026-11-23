@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Hst.Core" Version="1.0.104" />
+    <PackageReference Include="LTRData.DiscUtils.Iso9660" Version="1.0.90" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Hst.Amiga\Hst.Amiga.csproj" />

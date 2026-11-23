@@ -76,7 +76,7 @@ public class AmigaVm
     }
 
     /// <summary>
-    /// Run Amiga executable from volume, e.g. from an adf or disk image in <see cref="VmOptions.Images"/>.
+    /// Run Amiga executable from volume, e.g. from an adf, CD or disk image in <see cref="VmOptions.Images"/>.
     /// PROGDIR: is assigned to directory of executable.
     /// </summary>
     /// <param name="amigaPath">Amiga path to executable, e.g. "DF0:C/List" or "C:List".</param>
@@ -506,8 +506,8 @@ public class AmigaVm
     }
 
     /// <summary>
-    /// Mount volumes in adf and disk images. Volumes are added with volume names, e.g. Workbench, and device names,
-    /// e.g. DF0 and DH0, are assigned to volumes.
+    /// Mount volumes in adf, CD and disk images. Volumes are added with volume names, e.g. Workbench, and device
+    /// names, e.g. DF0, CD0 and DH0, are assigned to volumes.
     /// </summary>
     /// <returns>Name of volume for SYS:, adf or bootable partition with highest boot priority in first image,
     /// or null if there are no images.</returns>
@@ -516,12 +516,14 @@ public class AmigaVm
     {
         string sysVolume = null;
         var floppyNumber = 0;
+        var cdNumber = 0;
         foreach (var image in options.Images ?? Enumerable.Empty<VmImage>())
         {
             IList<ImageVolume> mounted;
             try
             {
-                mounted = ImageMounter.Mount(image.Stream, image.Writable, $"DF{floppyNumber}", context.Log)
+                mounted = ImageMounter.Mount(image.Stream, image.Writable, $"DF{floppyNumber}", context.Log,
+                        cdDeviceName: $"CD{cdNumber}")
                     .GetAwaiter().GetResult();
             }
             catch (Exception e) when (e is IOException or NotSupportedException or ArgumentException
@@ -538,9 +540,14 @@ public class AmigaVm
                 continue;
             }
 
-            if (mounted.Any(x => x.PartitionNumber == 0))
+            if (mounted.Any(x => x.Type == ImageVolumeType.Floppy))
             {
                 floppyNumber++;
+            }
+
+            if (mounted.Any(x => x.Type == ImageVolumeType.Cd))
+            {
+                cdNumber++;
             }
 
             var volumeNames = new Dictionary<ImageVolume, string>();

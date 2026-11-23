@@ -271,9 +271,9 @@ public class VmRunCommand
     }
 
     /// <summary>
-    /// Open image file and check it's an adf or a disk image with rigid disk block.
+    /// Open image file and check it's an adf, an ISO 9660 CD image or a disk image with rigid disk block.
     /// </summary>
-    /// <exception cref="IOException">File is not an adf or disk image.</exception>
+    /// <exception cref="IOException">File is not an adf, CD image or disk image.</exception>
     private static async Task<ImageFile> OpenImage(string path, bool writable)
     {
         var imageFile = ImageFile.Open(path, writable);
@@ -282,7 +282,7 @@ public class VmRunCommand
             if (!await imageFile.IsImage())
             {
                 throw new IOException(
-                    $"'{path}' is not an adf or disk image with rigid disk block in the first {ImageMounter.RigidDiskBlockLocationLimit} sectors");
+                    $"'{path}' is not an adf, ISO 9660 CD image or disk image with rigid disk block in the first {ImageMounter.RigidDiskBlockLocationLimit} sectors");
             }
 
             return imageFile;
@@ -312,15 +312,23 @@ public class VmRunCommand
     }
 
     /// <summary>
-    /// Get Amiga path with device name of file in mounted image, e.g. "DF0:c/list" or "DH0:c/list".
+    /// Get Amiga path with device name of file in mounted image, e.g. "DF0:c/list", "CD0:c/list" or "DH0:c/list".
     /// </summary>
     private async Task<string> GetDevicePath(ImageFile imageFile, ImagePath imagePath)
     {
+        if (ImageMounter.IsIso(imageFile.Stream))
+        {
+            // CD images are mounted as CD0:, CD1: etc. in order
+            var cdNumber = options.Images.TakeWhile(x => x.Stream != imageFile.Stream)
+                .Count(x => ImageMounter.IsIso(x.Stream));
+            return $"CD{cdNumber}:{imagePath.GetAmigaPath(0)}";
+        }
+
         if (ImageMounter.IsAdf(imageFile.Stream))
         {
             // adf images are mounted as DF0:, DF1: etc. in order
             var floppyNumber = options.Images.TakeWhile(x => x.Stream != imageFile.Stream)
-                .Count(x => ImageMounter.IsAdf(x.Stream));
+                .Count(x => !ImageMounter.IsIso(x.Stream) && ImageMounter.IsAdf(x.Stream));
             return $"DF{floppyNumber}:{imagePath.GetAmigaPath(0)}";
         }
 
@@ -372,13 +380,13 @@ public class VmRunCommand
     }
 
     /// <summary>
-    /// Read executable from adf or partition in disk image.
+    /// Read executable from adf, CD image or partition in disk image.
     /// </summary>
     private async Task<byte[]> ReadExecutable(Stream stream, ImagePath imagePath)
     {
         string amigaPath;
         IList<ImageVolume> mounted;
-        if (ImageMounter.IsAdf(stream))
+        if (ImageMounter.IsIso(stream) || ImageMounter.IsAdf(stream))
         {
             amigaPath = imagePath.GetAmigaPath(0);
             mounted = await ImageMounter.Mount(stream, false, "DF0", options.Log);

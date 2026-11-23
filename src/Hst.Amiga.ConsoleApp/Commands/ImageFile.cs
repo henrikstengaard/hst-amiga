@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using Vm.FileSystem;
 
 /// <summary>
-/// Adf or disk image file opened as stream. Virtual hard disk files (.vhd) are opened with their disk content
-/// and other files, e.g. .adf, .hdf and .img, are opened as raw images.
+/// Adf, CD or disk image file opened as stream. Virtual hard disk files (.vhd) are opened with their disk content
+/// and other files, e.g. .adf, .iso, .hdf and .img, are opened as raw images.
 /// </summary>
 public class ImageFile : IDisposable
 {
@@ -64,7 +64,8 @@ public class ImageFile : IDisposable
     }
 
     /// <summary>
-    /// Is image file an adf or a disk image with rigid disk block in one of the first 16 sectors.
+    /// Is image file an adf, an ISO 9660 CD image or a disk image with rigid disk block in one of the first 16
+    /// sectors.
     /// </summary>
     public Task<bool> IsImage() => ImageMounter.IsImage(Stream);
 

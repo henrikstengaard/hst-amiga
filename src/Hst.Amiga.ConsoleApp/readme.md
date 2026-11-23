@@ -645,9 +645,9 @@ hst.amiga vm run --image workbench.adf C:Version --kickstart amiga-os-310-a1200.
 hst.amiga vm run --image workbench.adf C:Version --kickstart amiga-os-310-a1200.rom -- scsi.device full
 ```
 
-#### Adf and disk images
+#### Adf, CD and disk images
 
-The executable can be a host file or a path to a file in an adf or disk image file, e.g. `workbench.adf\c\list`. The first part of the path, which is an existing file, must be an image: an adf with the size of a double or high density floppy disk or a disk image with a rigid disk block in one of the first 16 sectors. The rest of the path is the executable in the image.
+The executable can be a host file or a path to a file in an adf, CD or disk image file, e.g. `workbench.adf\c\list` or `game.iso\c\run`. The first part of the path, which is an existing file, must be an image: an adf with the size of a double or high density floppy disk, an ISO 9660 CD image `.iso` with 2048 bytes per sector or a disk image with a rigid disk block in one of the first 16 sectors. The rest of the path is the executable in the image.
 
 Paths in disk images are in the boot partition, which is the bootable partition with highest boot priority, e.g. `disk.vhd\c\list`. Paths starting with `rdb`, the partition number starting from 1 or the device name of the partition are in that partition, e.g. `disk.vhd\rdb\1\c\list` or `disk.vhd\rdb\dh0\c\list`. Virtual hard disk files `.vhd` and raw images like `.hdf` and `.img` are supported.
 
@@ -655,13 +655,14 @@ Option `--image-context` sets if image context is used and defaults to false. Wi
 
 Use `--image-context` or `--image-context true` to run the executable in the context of the image instead. The image is mounted, so paths are resolved in the Amiga file systems of the image, using FFS, PFS3 and SFS file system support of Hst Amiga:
 - Adf is mounted as DF0: and SYS: is assigned to DF0:.
+- CD image is mounted as CD0: and SYS: is assigned to CD0:. Joliet and Rock Ridge names are used, when present, and CD images are always write protected.
 - Partitions in a disk image are mounted with their device names, e.g. DH0: and DH1:, and SYS: is assigned to the bootable partition with highest boot priority.
 - Volumes are added with their volume names, e.g. Workbench:, and device names are assigns to volumes. C:, S:, L:, LIBS: etc. are assigned to directories in SYS:.
 - RAM:, T: and ENV: are mapped to a temporary host directory and host directories can still be mapped as volumes with `-V`.
 
-Use `--image` to mount adf and disk images with `run`, `execute` and `shell` commands. Adf images are mounted as DF0:, DF1: etc. in order and SYS: is assigned to the first image. With `run` the executable can then be an Amiga path, e.g. `C:List`.
+Use `--image` to mount adf, CD and disk images with `run`, `execute` and `shell` commands. Adf images are mounted as DF0:, DF1: etc. and CD images as CD0:, CD1: etc. in order and SYS: is assigned to the first image. With `run` the executable can then be an Amiga path, e.g. `C:List` or `CD0:Install`.
 
-Images are opened read only by default and volumes are write protected, so writing fails with `disk is write-protected`. Use `--write-image` to open images for writing.
+Images are opened read only by default and volumes are write protected, so writing fails with `disk is write-protected`. Use `--write-image` to open adf and disk images for writing. CD images are always write protected.
 
 Example of running Amiga executable `list` from adf listing current directory with SYS: mapped to current directory:
 ```
@@ -691,6 +692,11 @@ hst.amiga vm run --image disk.vhd C:Version
 Example of running an interactive shell with adf mounted for writing:
 ```
 hst.amiga vm shell --image workbench.adf --write-image
+```
+
+Example of running Amiga executable `install` from CD image with SYS: assigned to Workbench adf and CD image mounted as CD0:
+```
+hst.amiga vm run --image workbench.adf --image game.iso CD0:Install
 ```
 
 ### Execute AmigaDOS script

@@ -16,7 +16,7 @@ using AmigaFileMode = Hst.Amiga.FileSystems.FileMode;
 /// partition in a disk image file. Files opened are read into memory and written back to the volume, when
 /// flushed or closed after they have been changed.
 /// </summary>
-public class AmigaVolumeFileSystem : IVolumeFileSystem, IDisposable
+public class AmigaVolumeFileSystem : IImageFileSystem
 {
     private static readonly char[] InvalidNameChars = { '/', ':', '\0' };
 

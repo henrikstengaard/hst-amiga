@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Core.Extensions;
+using DiscUtils.Iso9660;
 using Extensions;
 using FileSystems;
 using FileSystems.FastFileSystem;
@@ -79,6 +80,20 @@ public class GivenAmigaVmWithImages
         await using var volume = await FastFileSystemVolume.MountAdf(stream);
         await WriteFile(volume, "C", "Hello", CreateHelloExecutable($"Hello from {diskName}\n"));
         await WriteFile(volume, "S", "file.txt", Encoding.ASCII.GetBytes("text"));
+        return stream;
+    }
+
+    /// <summary>
+    /// Create ISO 9660 CD image with Joliet names, volume label and files C/Hello and S/file.txt.
+    /// </summary>
+    internal static MemoryStream CreateIso(string volumeLabel)
+    {
+        var builder = new CDBuilder { UseJoliet = true, VolumeIdentifier = volumeLabel };
+        builder.AddFile("C\\Hello", CreateHelloExecutable($"Hello from {volumeLabel}\n"));
+        builder.AddFile("S\\file.txt", Encoding.ASCII.GetBytes("text"));
+        var stream = new MemoryStream();
+        builder.Build(stream);
+        stream.Position = 0;
         return stream;
     }
 
@@ -215,5 +230,63 @@ public class GivenAmigaVmWithImages
 
         Assert.Null(result.Error);
         Assert.Equal("Hello from Work\n", Text(output));
+    }
+
+    [Fact]
+    public async Task When_RunningExecutableFromIso_Then_ProgramRunsFromCd0()
+    {
+        var output = new MemoryStream();
+        var options = CreateOptions(output);
+        options.Images.Add(new VmImage(CreateIso("TESTCD")));
+
+        var result = await new AmigaVm(options).RunFromVolume("CD0:C/Hello");
+
+        Assert.Null(result.Error);
+        Assert.Equal(0, result.ReturnCode);
+        Assert.Equal("Hello from TESTCD\n", Text(output));
+    }
+
+    [Fact]
+    public async Task When_RunningShellWithIso_Then_SysAndCd0AreRootOfCd()
+    {
+        var output = new MemoryStream();
+        var options = CreateOptions(output,
+            "cd\nIf EXISTS CD0:s/FILE.txt\necho found\nEndIf\nHello\ncd SYS:S\ncd\n");
+        options.Images.Add(new VmImage(CreateIso("TESTCD")));
+
+        var result = await new AmigaVm(options).Shell();
+
+        Assert.Null(result.Error);
+        Assert.Equal("TESTCD:\nfound\nHello from TESTCD\nTESTCD:S\n", Text(output));
+    }
+
+    [Fact]
+    public async Task When_IsoIsWritable_Then_WritingFailsAsCdIsWriteProtected()
+    {
+        var iso = CreateIso("TESTCD");
+        var before = iso.ToArray();
+        var output = new MemoryStream();
+        var options = CreateOptions(output, "echo >CD0:out.txt hello\nWhy\n");
+        options.Images.Add(new VmImage(iso, "test.iso", true));
+
+        await new AmigaVm(options).Shell();
+
+        Assert.Contains("write-protected", Text(output));
+        Assert.Equal(before, iso.ToArray());
+    }
+
+    [Fact]
+    public async Task When_RunningShellWithAdfAndIsos_Then_SysIsAdfAndIsosAreMountedAsCd0AndCd1()
+    {
+        var output = new MemoryStream();
+        var options = CreateOptions(output, "cd\ncd CD0:\ncd\ncd CD1:\ncd\nCD1:C/Hello\n");
+        options.Images.Add(new VmImage(await CreateAdf("Workbench")));
+        options.Images.Add(new VmImage(CreateIso("CDONE")));
+        options.Images.Add(new VmImage(CreateIso("CDTWO")));
+
+        var result = await new AmigaVm(options).Shell();
+
+        Assert.Null(result.Error);
+        Assert.Equal("Workbench:\nCDONE:\nCDTWO:\nHello from CDTWO\n", Text(output));
     }
 }

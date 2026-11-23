@@ -35,9 +35,10 @@ public class VmOptions
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Adf and disk images mounted as volumes. Adf images are mounted as DF0:, DF1: etc. and partitions in disk
-    /// images with rigid disk block are mounted with their device names, e.g. DH0:. Volumes are added with their
-    /// volume names and device names are assigns to volumes. SYS: is assigned to first image, which is an adf or
+    /// Adf, ISO 9660 CD and disk images mounted as volumes. Adf images are mounted as DF0:, DF1: etc., CD images
+    /// as CD0:, CD1: etc. and partitions in disk images with rigid disk block are mounted with their device names,
+    /// e.g. DH0:. CD images are always write protected. Volumes are added with their
+    /// volume names and device names are assigns to volumes. SYS: is assigned to first image, which is an adf, a CD image or
     /// the bootable partition with highest boot priority, if SYS isn't defined by volumes or assigns.
     /// </summary>
     public IList<VmImage> Images { get; set; } = new List<VmImage>();
