@@ -15,6 +15,7 @@ using Libraries.Dos;
 public class IsoVolumeFileSystem : IImageFileSystem
 {
     private static readonly char[] InvalidNameChars = { '/', ':', '\0' };
+    private static readonly char[] PathSeparators = { '\\', '/' };
 
     private readonly CDReader reader;
     private readonly Dictionary<string, IList<IsoEntry>> directories = new(StringComparer.OrdinalIgnoreCase);
@@ -196,7 +197,8 @@ public class IsoVolumeFileSystem : IImageFileSystem
 
     /// <summary>
     /// Get ISO path of Amiga path by finding each component in its directory ignoring case, e.g. "C/Hello" is
-    /// "C\Hello." in ISO 9660 file system. Components not found are kept as is.
+    /// "C\Hello." in ISO 9660 file system. Components are joined with directory separator of host, as used by
+    /// DiscUtils. Components not found are kept as is.
     /// </summary>
     private string ToIsoPath(AmigaPath path)
     {
@@ -208,7 +210,7 @@ public class IsoVolumeFileSystem : IImageFileSystem
                         ?? entries.FirstOrDefault(x =>
                             string.Equals(x.IsoName, component, StringComparison.OrdinalIgnoreCase));
             var name = entry?.IsoName ?? component;
-            isoPath = isoPath.Length == 0 ? name : $"{isoPath}\\{name}";
+            isoPath = isoPath.Length == 0 ? name : $"{isoPath}{Path.DirectorySeparatorChar}{name}";
         }
 
         return isoPath;
@@ -232,10 +234,14 @@ public class IsoVolumeFileSystem : IImageFileSystem
         return entries;
     }
 
+    /// <summary>
+    /// Get name of entry from ISO path, which has directory separator of host, e.g. "\C\Hello." on Windows and
+    /// "/C/Hello." on Linux and macOS.
+    /// </summary>
     private static string GetIsoName(string isoPath)
     {
-        var name = isoPath.TrimEnd('\\');
-        var separator = name.LastIndexOf('\\');
+        var name = isoPath.TrimEnd(PathSeparators);
+        var separator = name.LastIndexOfAny(PathSeparators);
         return separator >= 0 ? name.Substring(separator + 1) : name;
     }
 
